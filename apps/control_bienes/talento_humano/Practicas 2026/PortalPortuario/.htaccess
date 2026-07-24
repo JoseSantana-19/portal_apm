@@ -1,0 +1,14 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteBase /PortalPortuario/
+
+# Bloquear acceso directo a carpetas de log de todos los módulos
+<IfModule mod_rewrite.c>
+    RewriteRule ^modules/.*/log/.*$ - [F,L]
+</IfModule>
+
+# Redirigir todo (excepto archivos y carpetas reales) a index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]

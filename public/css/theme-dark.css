@@ -1,0 +1,39 @@
+/* Portal APM v2.0 — Dark Theme */
+[data-theme="dark"] {
+    --color-primary:       #4a9eff;
+    --color-primary-hover: #2e7dd4;
+    --color-primary-light: #7bbfff;
+    --color-primary-dark:  #1a6acc;
+
+    --color-bg:        #0d1117;
+    --color-surface:   #161b22;
+    --color-surface-2: #1c2128;
+    --color-surface-3: #21262d;
+
+    --color-border:       #30363d;
+    --color-border-light: #21262d;
+
+    --color-text:       #e6edf3;
+    --color-text-muted: #7d8590;
+    --color-text-light: #484f58;
+
+    --sidebar-bg:          #0d1117;
+    --sidebar-bg-hover:    #161b22;
+    --sidebar-bg-active:   #1a6acc;
+    --sidebar-text:        #7d8590;
+    --sidebar-text-active: #e6edf3;
+    --sidebar-text-heading: #484f58;
+    --sidebar-border:      #21262d;
+
+    --topbar-bg:     #161b22;
+    --topbar-border: #30363d;
+    --topbar-shadow: 0 1px 4px rgba(0,0,0,0.3);
+
+    --card-bg:     #161b22;
+    --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    --card-hover-shadow: 0 6px 20px rgba(0,0,0,0.4);
+
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.25);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.35);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.45);
+}

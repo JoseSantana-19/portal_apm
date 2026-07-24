@@ -1,0 +1,238 @@
+/**
+ * APM Portal — CSS Variables & Design Tokens
+ * Matching PORTAL_APM_UNIFICADO.html design system exactly.
+ */
+
+:root {
+    /* Feedback Colors */
+    --success: #10B981;
+    --warn: #F59E0B;
+    --danger: #EF4444;
+
+    /* Border Radii */
+    --r-sm: 6px;
+    --r-md: 10px;
+    --r-lg: 18px;
+
+    /* Animation */
+    --ease: .22s cubic-bezier(.4, 0, .2, 1);
+    --transition: .22s cubic-bezier(.4, 0, .2, 1);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
+
+    /* Layout Dimensions */
+    --th: 56px;
+    --sw: 290px;
+
+    /* Scrollbar */
+    --sb-thumb: #1E2D4A;
+    --sb-track: #050A14;
+
+    /* Selection */
+    --sel-bg: #3B82F6;
+    --sel-color: #ffffff;
+
+    /* Typography */
+    --font-body: 'Sora', sans-serif;
+    --font-code: 'JetBrains Mono', monospace;
+
+    /* Fixed Corporate Menu Icon Color */
+    --menu-icon-fixed: #38bdf8;
+
+    /* Legacy Aliases */
+    --sidebar-width: var(--sw);
+    --sidebar-collapsed-width: 0px;
+    --topbar-height: var(--th);
+    --transition-fast: 0.15s ease;
+    --transition-normal: var(--ease);
+    --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --danger-color: var(--danger);
+    --success-color: var(--success);
+    --warning-color: var(--warn);
+
+    /* Modular compatibility tokens mapping to UNIFICADO HSL system */
+    --color-primary: var(--primary-app);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-light: var(--accent-hover);
+    --color-bg: var(--bg-app);
+    --color-surface: var(--surface-app);
+    --color-surface-2: var(--accent-app);
+    --color-surface-3: var(--border-app);
+    --color-border: var(--border-app);
+    --color-border-light: var(--border-app);
+    --color-text: var(--text-app);
+    --color-text-muted: var(--text-muted);
+    --color-text-light: var(--text-muted);
+    --color-success: var(--success);
+    --color-warning: var(--warn);
+    --color-danger: var(--danger);
+    --color-info: var(--accent-hover);
+    --card-bg: var(--surface-app);
+    --card-shadow: var(--shadow-app);
+    --card-radius: var(--r-lg);
+    --card-hover-shadow: var(--shadow-xl);
+    --font-family: var(--font-body);
+    --font-mono: var(--font-code);
+
+    /* Font sizing */
+    --font-size-xs: 0.72rem;
+    --font-size-sm: 0.825rem;
+    --font-size-base: 0.9rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.15rem;
+    --font-size-xl: 1.4rem;
+    --font-size-2xl: 1.8rem;
+    --font-size-3xl: 2.3rem;
+
+    /* Font weights */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* Spacing system */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+    --sp-12: 48px;
+
+    /* Radii */
+    --radius-sm: var(--r-sm);
+    --radius-md: var(--r-md);
+    --radius-lg: var(--r-lg);
+    --radius-xl: 18px;
+    --radius-full: 9999px;
+
+    /* Transition */
+    --transition: var(--ease);
+}
+
+/* ─── TEMA 1: INSTITUCIONAL (Corporate Blue) ─── */
+body.t1 {
+    --bg-app: #F0F4FA;
+    --bg-sidebar: #ffffff;
+    --surface-app: #ffffff;
+    --text-app: #1A253C;
+    --text-muted: #64748B;
+    --border-app: #DDE4EF;
+    --primary-app: #1A3A5C;
+    --primary-hover: #2E75B6;
+    --accent-app: #EBF4FD;
+    --accent-hover: #0284C7;
+    --shadow-app: 0 4px 16px rgba(26, 58, 92, 0.08), 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-xl: 0 20px 48px rgba(26, 58, 92, 0.12);
+    --glow-opacity: 0.04;
+    --backdrop: none;
+    --topbar-overlay: linear-gradient(to right, rgba(20, 48, 82, 0.88), rgba(26, 58, 92, 0.72));
+    --welcome-bg: linear-gradient(145deg, #ffffff 0%, #f0f4fa 100%);
+    --welcome-text: #1A253C;
+    --welcome-border: #DDE4EF;
+    --btn-glow-color: rgba(26, 58, 92, 0.45);
+    --btn-glow-color-transparent: rgba(26, 58, 92, 0);
+    --sb-thumb: #CBD5E1;
+    --sb-track: #F0F4FA;
+    --sel-bg: #C3D7ED;
+    --sel-color: #1A3A5C;
+
+    /* Legacy Aliases */
+    --bg-card: var(--surface-app);
+    --bg-card-hover: var(--accent-app);
+    --text-color: var(--text-app);
+    --border-color: var(--border-app);
+    --primary-color: var(--primary-app);
+    --accent-color: var(--primary-hover);
+    --text-accent: var(--primary-hover);
+    --accent-glow: rgba(29, 78, 216, 0.1);
+    --border-glow: #1D4ED8;
+    --shadow-md: var(--shadow-app);
+    --shadow-lg: var(--shadow-xl);
+}
+
+/* ─── TEMA 2: CYBER DARK (Premium Dark Mode) ─── */
+body.t2 {
+    --bg-app: #050A14;
+    --bg-sidebar: #0D162B;
+    --surface-app: #0D162B;
+    --text-app: #E2E8F0;
+    --text-muted: #94A3B8;
+    --border-app: #1E2D4A;
+    --primary-app: #1E3A5F;
+    --primary-hover: #3B82F6;
+    --accent-app: #0F2544;
+    --accent-hover: #38BDF8;
+    --shadow-app: 0 4px 20px rgba(0, 0, 0, 0.35);
+    --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.55);
+    --glow-opacity: 0.12;
+    --backdrop: none;
+    --topbar-overlay: linear-gradient(to right, rgba(4, 8, 18, 0.92), rgba(5, 10, 20, 0.78));
+    --welcome-bg: linear-gradient(145deg, #111E38 0%, #081021 100%);
+    --welcome-text: #E2E8F0;
+    --welcome-border: #1E2D4A;
+    --btn-glow-color: rgba(59, 130, 246, 0.45);
+    --btn-glow-color-transparent: rgba(59, 130, 246, 0);
+    --sb-thumb: #1E2D4A;
+    --sb-track: #050A14;
+    --sel-bg: #3B82F6;
+    --sel-color: #ffffff;
+
+    /* Legacy Aliases */
+    --bg-card: var(--surface-app);
+    --bg-card-hover: var(--accent-app);
+    --text-color: var(--text-app);
+    --border-color: var(--border-app);
+    --primary-color: var(--primary-app);
+    --accent-color: var(--primary-hover);
+    --text-accent: var(--primary-hover);
+    --accent-glow: rgba(59, 130, 246, 0.15);
+    --border-glow: #3B82F6;
+    --shadow-md: var(--shadow-app);
+    --shadow-lg: var(--shadow-xl);
+}
+
+/* ─── TEMA 3: PORTO (Dynamic Sea Glassmorphism) ─── */
+body.t3 {
+    --bg-app: #071D3A;
+    --bg-gradient: linear-gradient(135deg, #071D3A 0%, #034839 100%);
+    --bg-sidebar: rgba(15, 29, 58, 0.4);
+    --surface-app: rgba(255, 255, 255, 0.06);
+    --text-app: #F8FAFC;
+    --text-muted: rgba(255, 255, 255, 0.6);
+    --border-app: rgba(255, 255, 255, 0.12);
+    --primary-app: #0891B2;
+    --primary-hover: #10B981;
+    --accent-app: rgba(255, 255, 255, 0.1);
+    --accent-hover: #06B6D4;
+    --shadow-app: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.5);
+    --backdrop: blur(16px);
+    --glow-opacity: 0.2;
+    --topbar-overlay: linear-gradient(to right, rgba(5, 22, 46, 0.82), rgba(3, 60, 48, 0.65));
+    --welcome-bg: linear-gradient(145deg, rgba(15, 29, 58, 0.9) 0%, rgba(3, 72, 57, 0.8) 100%);
+    --welcome-text: #F8FAFC;
+    --welcome-border: rgba(255, 255, 255, 0.12);
+    --btn-glow-color: rgba(16, 185, 129, 0.45);
+    --btn-glow-color-transparent: rgba(16, 185, 129, 0);
+    --sb-thumb: rgba(255, 255, 255, 0.2);
+    --sb-track: rgba(7, 29, 58, 0.4);
+    --sel-bg: #10B981;
+    --sel-color: #ffffff;
+
+    /* Legacy Aliases */
+    --bg-card: var(--surface-app);
+    --bg-card-hover: var(--accent-app);
+    --text-color: var(--text-app);
+    --border-color: var(--border-app);
+    --primary-color: var(--primary-app);
+    --accent-color: var(--primary-hover);
+    --text-accent: var(--primary-hover);
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --border-glow: #10B981;
+    --shadow-md: var(--shadow-app);
+    --shadow-lg: var(--shadow-xl);
+}

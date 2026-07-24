@@ -1,0 +1,3 @@
+/* css/estilos.css
+   Estilos modularizados: variables.css → layout.css → componentes.css
+   (carga en rutas/config_rutas.php y en el <head> de cada vista PHP) */

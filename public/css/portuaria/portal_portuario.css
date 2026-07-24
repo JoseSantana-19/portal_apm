@@ -1,0 +1,2708 @@
+:root {
+    --portal-primary: #004d7a;
+    --portal-secondary: #0077b6;
+    --portal-accent: #00b4d8;
+    --portal-bg: #e3e9f1;
+    --portal-sidebar-width: 280px;
+    --portal-topbar-height: 76px;
+}
+
+body {
+    background-color: var(--portal-bg) !important;
+    overflow-x: hidden;
+}
+
+/* =========================
+   TOPBAR BLANCO
+========================= */
+
+.apm-topbar {
+    background: #ffffff !important;
+    min-height: var(--portal-topbar-height);
+    border-bottom: 1px solid #dee2e6;
+    z-index: 1030;
+}
+
+.portal-header-container {
+    min-height: var(--portal-topbar-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.portal-header-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.portal-header-logo img {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+}
+
+.portal-header-logo h5 {
+    margin: 0;
+    font-weight: 700;
+    color: var(--portal-primary);
+    font-size: 1.15rem;
+}
+
+.portal-header-logo small {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.portal-back-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+}
+
+.portal-user-area {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.portal-user-info {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.portal-user-name {
+    font-weight: 700;
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+.portal-user-info small {
+    color: #6c757d;
+    font-size: 0.78rem;
+}
+
+.portal-notification {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #212529;
+    font-size: 1.1rem;
+}
+
+.portal-notification span {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4136;
+    color: #ffffff;
+    border-radius: 50%;
+    width: 21px;
+    height: 21px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =========================
+   SIDEBAR PORTAL PORTUARIO
+========================= */
+
+.apm-sidebar {
+    background: linear-gradient(135deg, var(--portal-primary), var(--portal-secondary)) !important;
+    color: #ffffff !important;
+    border-right: none !important;
+    box-shadow: 3px 0 10px rgba(0,0,0,0.12);
+}
+
+.apm-sidebar.offcanvas {
+    width: var(--portal-sidebar-width) !important;
+}
+
+.portal-sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.portal-sidebar-header img {
+    width: 45px;
+    height: 45px;
+    object-fit: contain;
+    background: #ffffff;
+    border-radius: 50%;
+    padding: 4px;
+}
+
+.portal-sidebar-header h4 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.apm-sidebar-nav.offcanvas-body {
+    padding: 1rem 0.7rem 1rem;
+}
+
+.apm-sidebar-nav .nav-link {
+    color: rgba(255,255,255,0.9) !important;
+    padding: 12px 18px !important;
+    margin: 5px 8px;
+    border-radius: 8px;
+    transition: all 0.25s ease;
+    font-weight: 600;
+    font-size: 0.98rem;
+}
+
+.apm-sidebar-nav .nav-link i {
+    width: 1.35rem;
+    margin-right: 0.55rem;
+    font-size: 1.15rem;
+}
+
+.apm-sidebar-nav .nav-link:hover,
+.apm-sidebar-nav .nav-link.active {
+    background-color: rgba(255,255,255,0.16) !important;
+    color: #ffffff !important;
+    transform: translateX(4px);
+}
+
+.apm-sidebar-nav .nav-link.active {
+    background-color: rgba(255,255,255,0.22) !important;
+}
+
+#adminGroupItems,
+#segOpItems {
+    padding-left: 0.55rem !important;
+}
+
+#adminGroupItems .nav-link,
+#segOpItems .nav-link {
+    font-size: 0.9rem;
+    padding: 10px 16px !important;
+}
+
+/* Usuario inferior */
+#userActionsToggle {
+    margin-top: 0.75rem;
+}
+
+#userActionsToggle .small {
+    color: inherit;
+}
+
+/* =========================
+   ESCRITORIO: SIDEBAR FIJO
+========================= */
+
+@media (min-width: 992px) {
+    .portal-mobile-menu {
+        display: none !important;
+    }
+
+    #sidebarMenu.offcanvas-start.apm-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: var(--portal-sidebar-width) !important;
+        height: 100vh !important;
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        z-index: 1040;
+        overflow-y: auto;
+    }
+
+    .navbar.apm-topbar {
+        margin-left: var(--portal-sidebar-width);
+        width: calc(100% - var(--portal-sidebar-width));
+    }
+
+    .apm-layout {
+        padding-left: var(--portal-sidebar-width) !important;
+        min-height: calc(100vh - var(--portal-topbar-height));
+    }
+
+    .apm-layout .apm-main {
+        padding: 1.5rem 1.75rem 2rem !important;
+    }
+
+    body.sidebar-expanded .apm-layout {
+        padding-left: var(--portal-sidebar-width) !important;
+    }
+
+    body.sidebar-expanded #sidebarMenu.offcanvas-start.apm-sidebar {
+        transform: translateX(0) !important;
+    }
+}
+
+/* =========================
+   MÓVIL
+========================= */
+
+@media (max-width: 991.98px) {
+    .portal-header-container {
+        padding-left: 0.8rem;
+        padding-right: 0.8rem;
+    }
+
+    .portal-header-logo img {
+        width: 42px;
+        height: 42px;
+    }
+
+    .portal-header-logo h5 {
+        font-size: 0.95rem;
+    }
+
+    .portal-header-logo small {
+        display: none;
+    }
+
+    .portal-user-info {
+        display: none;
+    }
+
+    .apm-layout {
+        padding-left: 0 !important;
+    }
+}
+/* ===== BOTÓN DE MENÚ TIPO HAMBURGUESA ===== */
+
+.portal-menu-toggle {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: 1.2rem !important;
+    background: #f8f9fa !important;
+    border: none !important;
+    color: #212529 !important;
+    font-size: 1.25rem !important;
+}
+
+.portal-menu-toggle:hover {
+    background: #e9ecef !important;
+}
+
+/* Importante: antes ocultamos #btnMenuPrincipal en escritorio.
+   Ahora lo volvemos a mostrar porque será el botón hamburguesa. */
+@media (min-width: 992px) {
+    .portal-menu-toggle,
+    #btnMenuPrincipal {
+        display: inline-flex !important;
+    }
+}
+
+/* Cuando se oculte el sidebar */
+@media (min-width: 992px) {
+    body.portal-sidebar-hidden #sidebarMenu.offcanvas-start.apm-sidebar {
+        transform: translateX(-100%) !important;
+        visibility: hidden !important;
+    }
+
+    body.portal-sidebar-hidden .navbar.apm-topbar {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+
+    body.portal-sidebar-hidden .apm-layout {
+        padding-left: 0 !important;
+    }
+}
+/* ===== REUBICAR BOTÓN MENÚ AL INICIO DEL HEADER ===== */
+
+.portal-header-logo {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+}
+
+.portal-menu-toggle {
+    margin-left: 0 !important;
+    margin-right: 4px !important;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #f8f9fa !important;
+    border: none !important;
+    color: #212529 !important;
+    font-size: 1.25rem !important;
+    flex-shrink: 0 !important;
+}
+
+.portal-menu-toggle:hover {
+    background: #e9ecef !important;
+}
+
+.portal-title-block {
+    margin-left: 2px !important;
+}
+/* ===== CORREGIR DESPLAZAMIENTO HORIZONTAL INFERIOR ===== */
+
+html,
+body {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Evita que el layout se pase del ancho de la pantalla */
+.apm-layout {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Evita que el contenido principal genere scroll horizontal */
+.apm-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Corrige la barra superior cuando el sidebar está visible */
+@media (min-width: 992px) {
+    .navbar.apm-topbar {
+        margin-left: var(--portal-sidebar-width) !important;
+        width: auto !important;
+        left: var(--portal-sidebar-width) !important;
+        right: 0 !important;
+    }
+
+    .apm-layout {
+        padding-left: var(--portal-sidebar-width) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* Corrige cuando el sidebar está oculto */
+@media (min-width: 992px) {
+    body.portal-sidebar-hidden .navbar.apm-topbar {
+        margin-left: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+    }
+
+    body.portal-sidebar-hidden .apm-layout {
+        padding-left: 0 !important;
+    }
+}
+
+/* Las tablas sí pueden tener scroll interno si son muy anchas */
+.table-responsive {
+    overflow-x: auto !important;
+}
+/* Refuerzo para evitar ancho extra por Bootstrap rows */
+.row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.container-fluid {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+/* ===== BOTÓN REGRESAR DENTRO DE TARJETA ===== */
+
+.btn-regresar-dashboard {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    color: #004d7a !important;
+    background: #f8f9fa !important;
+    border: 1px solid #e1e5ea !important;
+    border-radius: 10px !important;
+    padding: 0.45rem 0.8rem !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+}
+
+.btn-regresar-dashboard:hover {
+    background: #e9eef3 !important;
+    color: #003b5f !important;
+    transform: translateX(-2px);
+}
+/* ===== APARTADO CCTV CÁMARAS EN SIDEBAR ===== */
+
+#cctvItems {
+    padding-left: 0.45rem !important;
+}
+
+#cctvItems .nav-link {
+    width: calc(100% - 14px) !important;
+    max-width: calc(100% - 14px) !important;
+    margin-left: 6px !important;
+    margin-right: 6px !important;
+    padding-left: 16px !important;
+    padding-right: 10px !important;
+    font-size: 0.9rem !important;
+    font-weight: 650 !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+#cctvItems .nav-link:hover,
+#cctvItems .nav-link.active {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+
+#cctvGroupToggle .bi-chevron-right {
+    transition: transform 0.2s ease;
+}
+
+#cctvGroupToggle[aria-expanded="true"] .bi-chevron-right {
+    transform: rotate(90deg);
+}
+/* ===== CORRECCIÓN SIDEBAR: SOLO SCROLL VERTICAL, SIN SCROLL HORIZONTAL ===== */
+
+#sidebarMenu.apm-sidebar {
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+}
+
+#sidebarMenu .offcanvas-body,
+#sidebarMenu .apm-sidebar-nav {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    max-width: 100% !important;
+}
+
+/* Evita que los enlaces se salgan del ancho del menú */
+#sidebarMenu .nav-link {
+    width: calc(100% - 16px) !important;
+    max-width: calc(100% - 16px) !important;
+    margin-left: 8px !important;
+    margin-right: 8px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* Evita que el texto largo genere scroll horizontal */
+#sidebarMenu .nav-link span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Evita que los íconos o flechas empujen el ancho */
+#sidebarMenu .nav-link i,
+#sidebarMenu .apm-admin-group-arrow-wrap {
+    flex-shrink: 0 !important;
+}
+
+/* Quita el desplazamiento horizontal del hover/activo */
+.apm-sidebar-nav .nav-link:hover,
+.apm-sidebar-nav .nav-link.active {
+    transform: none !important;
+}
+
+/* En escritorio, el sidebar debe tener scroll vertical interno */
+@media (min-width: 992px) {
+    #sidebarMenu.offcanvas-start.apm-sidebar {
+        overflow-x: hidden !important;
+        overflow-y: hidden !important;
+    }
+
+    #sidebarMenu .apm-sidebar-nav.offcanvas-body {
+        height: calc(100vh - 86px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-bottom: 1rem !important;
+    }
+}
+
+/* En móvil también se evita el scroll horizontal */
+@media (max-width: 991.98px) {
+    #sidebarMenu.offcanvas-start.apm-sidebar {
+        overflow-x: hidden !important;
+    }
+
+    #sidebarMenu .apm-sidebar-nav.offcanvas-body {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+}
+/* =========================================================
+   FIX DEFINITIVO SIDEBAR: QUITAR SCROLL HORIZONTAL
+   Mantener solo scroll vertical
+========================================================= */
+
+/* El sidebar completo nunca debe sacar scroll horizontal */
+#sidebarMenu,
+#sidebarMenu.apm-sidebar,
+#sidebarMenu.offcanvas,
+#sidebarMenu.offcanvas-start {
+    width: var(--portal-sidebar-width) !important;
+    max-width: var(--portal-sidebar-width) !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
+/* El cuerpo del menú sí puede bajar, pero nunca moverse a los lados */
+#sidebarMenu .offcanvas-body,
+#sidebarMenu .apm-sidebar-nav,
+#sidebarMenu .apm-sidebar-nav.offcanvas-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100vh - 86px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    box-sizing: border-box !important;
+}
+
+/* Quitar anchos calculados que estaban provocando desbordamiento */
+#sidebarMenu .nav-link,
+#sidebarMenu #adminGroupItems .nav-link,
+#sidebarMenu #segOpItems .nav-link,
+#sidebarMenu #cctvItems .nav-link {
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+/* Los grupos internos no deben empujar el menú hacia la derecha */
+#sidebarMenu #adminGroupItems,
+#sidebarMenu #segOpItems,
+#sidebarMenu #cctvItems {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Los enlaces deben acomodar ícono + texto + flecha sin salirse */
+#sidebarMenu .nav-link {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0 !important;
+}
+
+/* Íconos y flechas no deben agrandar el ancho */
+#sidebarMenu .nav-link i,
+#sidebarMenu .bi-chevron-right,
+#sidebarMenu .bi-chevron-down,
+#sidebarMenu .apm-admin-group-arrow-wrap {
+    flex-shrink: 0 !important;
+}
+
+/* El texto largo se recorta con puntos suspensivos */
+#sidebarMenu .nav-link span,
+#sidebarMenu .nav-link .small,
+#sidebarMenu .nav-link div {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Quitar desplazamientos laterales en hover o activo */
+#sidebarMenu .nav-link:hover,
+#sidebarMenu .nav-link.active,
+.apm-sidebar-nav .nav-link:hover,
+.apm-sidebar-nav .nav-link.active {
+    transform: none !important;
+}
+
+/* Encabezado del sidebar sin desbordamiento */
+#sidebarMenu .portal-sidebar-header {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+#sidebarMenu .portal-sidebar-header h4 {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Área del usuario inferior sin scroll horizontal */
+#sidebarMenu #userActionsToggle {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Scroll vertical más limpio */
+#sidebarMenu .apm-sidebar-nav.offcanvas-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#sidebarMenu .apm-sidebar-nav.offcanvas-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 10px;
+}
+
+#sidebarMenu .apm-sidebar-nav.offcanvas-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Refuerzo para escritorio */
+@media (min-width: 992px) {
+    #sidebarMenu.offcanvas-start.apm-sidebar {
+        overflow: hidden !important;
+    }
+
+    #sidebarMenu .apm-sidebar-nav.offcanvas-body {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+}
+/* =========================================================
+   FIX REAL USUARIO SIDEBAR
+   Evita que Importar funcionarios tape el botón de usuario
+   y evita que Cambiar contraseña / Salir empujen el menú
+========================================================= */
+
+/* Anula cualquier modo viejo que ocultaba opciones del sidebar */
+#sidebarMenu.user-actions-open #menu-dashboard,
+#sidebarMenu.user-actions-open #menu-dashboard-jefe,
+#sidebarMenu.user-actions-open #menu-reporte,
+#sidebarMenu.user-actions-open #menu-importar {
+    display: flex !important;
+}
+
+#sidebarMenu.user-actions-open #adminGroupWrap,
+#sidebarMenu.user-actions-open #segOpWrap,
+#sidebarMenu.user-actions-open #cctvWrap {
+    display: block !important;
+}
+
+#sidebarMenu.user-actions-open .apm-sidebar-nav {
+    overflow-y: auto !important;
+}
+
+/* El nav lateral debe ser columna real */
+#sidebarMenu .apm-sidebar-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+}
+
+/* Separación segura antes del usuario */
+#menu-importar {
+    position: relative !important;
+    z-index: 1 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+/* Bloque del usuario siempre encima de los enlaces anteriores */
+#sidebarUserWrap {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
+    margin-top: auto !important;
+    flex-shrink: 0 !important;
+
+    background: linear-gradient(135deg, var(--portal-primary), var(--portal-secondary)) !important;
+    padding-bottom: 0.55rem !important;
+}
+
+/* Botón Usuario Seguridad Integral realmente clickeable */
+#sidebarUserWrap #userActionsToggle {
+    position: relative !important;
+    z-index: 55 !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+}
+
+/* Menú Cambiar contraseña / Salir flotante */
+#sidebarUserWrap #userActionsItems {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(100% + 8px) !important;
+    z-index: 60 !important;
+
+    background: rgba(0, 77, 122, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 12px !important;
+    padding: 0.35rem !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Cerrado */
+#sidebarUserWrap #userActionsItems.collapse:not(.show):not(.collapsing) {
+    display: none !important;
+}
+
+/* Abierto sin empujar el menú */
+#sidebarUserWrap #userActionsItems.show,
+#sidebarUserWrap #userActionsItems.collapsing {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    transition: none !important;
+}
+
+/* Opciones internas */
+#sidebarUserWrap #userActionsItems .nav-link {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 9px !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    background: transparent !important;
+    transform: none !important;
+}
+
+#sidebarUserWrap #userActionsItems .nav-link:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+/* Cuando el usuario está abierto */
+#userActionsToggle[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+/* Flecha */
+#userActionsArrow .bi-chevron-right {
+    transition: transform 0.2s ease !important;
+}
+
+#userActionsToggle[aria-expanded="true"] #userActionsArrow .bi-chevron-right,
+#userActionsArrow.is-open .bi-chevron-right {
+    transform: rotate(90deg) !important;
+}
+/* =========================================================
+   SIDEBAR DEFINITIVO:
+   Logo fijo arriba, menú con scroll, usuario fijo abajo
+========================================================= */
+
+/* Sidebar como columna completa */
+#sidebarMenu.apm-sidebar {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Header del logo fijo arriba */
+#sidebarMenu .portal-sidebar-header {
+    flex: 0 0 auto !important;
+}
+
+/* Contenedor general del sidebar */
+#sidebarMenu .apm-sidebar-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1rem 0.7rem 1rem !important;
+}
+
+/* ESTA ES LA ZONA ROJA: solo aquí va el scroll */
+#sidebarMenuScroll {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 4px !important;
+}
+
+/* ESTA ES LA ZONA VERDE: usuario fijo abajo */
+#sidebarUserWrap {
+    flex: 0 0 auto !important;
+    margin-top: 0.75rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.35rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: transparent !important;
+    position: relative !important;
+    z-index: 20 !important;
+}
+
+/* Evitar scroll horizontal */
+#sidebarMenu,
+#sidebarMenu *,
+#sidebarMenuScroll,
+#sidebarUserWrap {
+    box-sizing: border-box !important;
+}
+
+#sidebarMenu {
+    overflow-x: hidden !important;
+}
+
+#sidebarMenu .nav-link {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    transform: none !important;
+}
+
+/* Scroll vertical bonito solo en el menú */
+#sidebarMenuScroll::-webkit-scrollbar {
+    width: 7px !important;
+}
+
+#sidebarMenuScroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+}
+
+#sidebarMenuScroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.45) !important;
+    border-radius: 10px !important;
+}
+
+#sidebarMenuScroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Menú de Cambiar contraseña / Salir: que no empuje todo */
+#sidebarUserWrap #userActionsItems {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(100% + 8px) !important;
+    z-index: 100 !important;
+
+    background: rgba(0, 77, 122, 0.98) !important;
+    border-radius: 12px !important;
+    padding: 0.35rem !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Cerrado */
+#sidebarUserWrap #userActionsItems.collapse:not(.show):not(.collapsing) {
+    display: none !important;
+}
+
+/* Abierto, pero sin ocupar espacio */
+#sidebarUserWrap #userActionsItems.show,
+#sidebarUserWrap #userActionsItems.collapsing {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    transition: none !important;
+}
+
+/* Links internos del menú usuario */
+#sidebarUserWrap #userActionsItems .nav-link {
+    margin: 0 !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border-radius: 9px !important;
+    color: #ffffff !important;
+    background: transparent !important;
+}
+
+#sidebarUserWrap #userActionsItems .nav-link:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+}
+/* =========================================================
+   FIX FLECHA CCTV CÁMARAS
+   Hace que la flecha se alinee igual que Seguridad Operativa
+   y apunte hacia abajo cuando el menú está abierto
+========================================================= */
+
+#cctvGroupToggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+#cctvGroupToggle > span:first-child {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+}
+
+#cctvGroupArrow {
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Estado cerrado: flecha hacia la derecha */
+#cctvGroupArrow .bi-chevron-right {
+    transform: rotate(0deg) !important;
+    transition: transform 0.2s ease !important;
+}
+
+/* Estado abierto: flecha hacia abajo */
+#cctvGroupArrow.is-open .bi-chevron-right,
+#cctvGroupToggle[aria-expanded="true"] #cctvGroupArrow .bi-chevron-right {
+    transform: rotate(90deg) !important;
+}
+/* =========================================================
+   FIX FINAL FLECHAS DE GRUPOS SIDEBAR
+   Seguridad Operativa y CCTV Cámaras alineados correctamente
+========================================================= */
+
+/* Botones de grupos principales */
+#segOpGroupToggle,
+#cctvGroupToggle,
+#adminGroupToggle {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.5rem !important;
+}
+
+/* Texto + ícono principal del botón */
+#segOpGroupToggle > span:first-child,
+#cctvGroupToggle > span:first-child,
+#adminGroupToggle > span:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    overflow: hidden !important;
+}
+
+/* Ícono principal: shield, camera, building */
+#segOpGroupToggle > span:first-child > i,
+#cctvGroupToggle > span:first-child > i,
+#adminGroupToggle > span:first-child > i {
+    width: 1.35rem !important;
+    min-width: 1.35rem !important;
+    margin-right: 0 !important;
+    flex-shrink: 0 !important;
+}
+
+/* Contenedor de la flecha siempre a la derecha */
+#segOpGroupArrow,
+#cctvGroupArrow,
+#adminGroupArrow {
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    width: 1.25rem !important;
+    min-width: 1.25rem !important;
+    height: 1.25rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+}
+
+/* La flecha NO debe heredar margen de los íconos normales */
+#segOpGroupArrow i,
+#cctvGroupArrow i,
+#adminGroupArrow i {
+    width: auto !important;
+    min-width: auto !important;
+    margin-right: 0 !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+    transition: transform 0.2s ease !important;
+    transform-origin: center center !important;
+}
+
+/* Cerrado: flecha hacia la derecha */
+#segOpGroupArrow .bi-chevron-right,
+#cctvGroupArrow .bi-chevron-right,
+#adminGroupArrow .bi-chevron-right {
+    transform: rotate(0deg) !important;
+}
+
+/* Abierto: flecha hacia abajo */
+#segOpGroupArrow.is-open .bi-chevron-right,
+#cctvGroupArrow.is-open .bi-chevron-right,
+#adminGroupArrow.is-open .bi-chevron-right,
+#segOpGroupToggle[aria-expanded="true"] #segOpGroupArrow .bi-chevron-right,
+#cctvGroupToggle[aria-expanded="true"] #cctvGroupArrow .bi-chevron-right,
+#adminGroupToggle[aria-expanded="true"] #adminGroupArrow .bi-chevron-right {
+    transform: rotate(90deg) !important;
+}
+/* =========================================================
+   FIX FINAL REAL: FLECHAS HACIA ABAJO EN GRUPOS ABIERTOS
+   Corrige doble rotación que las mandaba hacia la izquierda
+========================================================= */
+
+/* El contenedor de la flecha NO debe rotar */
+#adminGroupArrow,
+#segOpGroupArrow,
+#cctvGroupArrow {
+    transform: none !important;
+    rotate: 0deg !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    width: 1.25rem !important;
+    min-width: 1.25rem !important;
+    height: 1.25rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+/* El icono de flecha cerrado mira a la derecha */
+#adminGroupArrow .bi-chevron-right,
+#segOpGroupArrow .bi-chevron-right,
+#cctvGroupArrow .bi-chevron-right {
+    transform: rotate(0deg) !important;
+    transition: transform 0.2s ease !important;
+    transform-origin: center center !important;
+    margin-right: 0 !important;
+    width: auto !important;
+}
+
+/* Cuando el grupo está abierto, SOLO el icono baja */
+#adminGroupToggle[aria-expanded="true"] #adminGroupArrow .bi-chevron-right,
+#segOpGroupToggle[aria-expanded="true"] #segOpGroupArrow .bi-chevron-right,
+#cctvGroupToggle[aria-expanded="true"] #cctvGroupArrow .bi-chevron-right,
+#adminGroupArrow.is-open .bi-chevron-right,
+#segOpGroupArrow.is-open .bi-chevron-right,
+#cctvGroupArrow.is-open .bi-chevron-right {
+    transform: rotate(90deg) !important;
+}
+
+/* Por si algún CSS anterior rotaba el span completo */
+.apm-admin-group-arrow-wrap.is-open {
+    transform: none !important;
+}
+/* =========================================================
+   PÁGINA CAMBIAR CONTRASEÑA SIN SIDEBAR
+   Oculta menú lateral y botón hamburguesa solo en esta vista
+========================================================= */
+
+body.apm-password-page #sidebarMenu {
+    display: none !important;
+}
+
+body.apm-password-page #btnMenuPrincipal,
+body.apm-password-page .portal-menu-toggle {
+    display: none !important;
+}
+
+body.apm-password-page .navbar.apm-topbar {
+    margin-left: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+}
+
+body.apm-password-page .apm-layout,
+body.apm-password-page .apm-password-layout {
+    padding-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+body.apm-password-page .apm-main,
+body.apm-password-page .apm-password-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+}
+/* =========================================================
+   CAMBIAR CONTRASEÑA:
+   Navbar visible, sin sidebar y sin botón hamburguesa
+========================================================= */
+
+body.apm-password-page #sidebarMenu {
+    display: none !important;
+}
+
+body.apm-password-page #btnMenuPrincipal,
+body.apm-password-page .portal-menu-toggle {
+    display: none !important;
+}
+
+body.apm-password-page .navbar.apm-topbar {
+    display: block !important;
+    margin-left: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+}
+
+body.apm-password-page .portal-header-container {
+    padding-left: 1.5rem !important;
+}
+
+body.apm-password-page .portal-header-logo {
+    margin-left: 0 !important;
+}
+
+body.apm-password-page .apm-layout,
+body.apm-password-page .apm-password-layout {
+    padding-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+body.apm-password-page .apm-main,
+body.apm-password-page .apm-password-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+}
+/* =========================================================
+   MODO OSCURO GLOBAL - PORTAL PORTUARIO
+   Se activa con html[data-theme="dark"]
+========================================================= */
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+}
+
+/* Layout general */
+html[data-theme="dark"] .apm-layout,
+html[data-theme="dark"] .apm-main,
+html[data-theme="dark"] .container-fluid {
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+}
+
+/* Barra superior */
+html[data-theme="dark"] .navbar.apm-topbar,
+html[data-theme="dark"] .apm-topbar {
+    background: #111827 !important;
+    border-bottom: 1px solid #334155 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .portal-header-logo h5,
+html[data-theme="dark"] .portal-user-name {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .portal-header-logo small,
+html[data-theme="dark"] .portal-user-info small {
+    color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .portal-notification {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+/* Botón hamburguesa */
+html[data-theme="dark"] .portal-menu-toggle {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .portal-menu-toggle:hover {
+    background: #334155 !important;
+}
+
+/* Sidebar un poco más oscuro */
+html[data-theme="dark"] #sidebarMenu.apm-sidebar {
+    background: linear-gradient(135deg, #082f49, #075985) !important;
+}
+
+/* Cards / contenedores */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .dropdown-menu {
+    background-color: #1e293b !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer {
+    background-color: #172033 !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+/* Textos */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] label,
+html[data-theme="dark"] .form-label {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] small {
+    color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .text-primary {
+    color: #60a5fa !important;
+}
+
+/* Formularios */
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] textarea {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus,
+html[data-theme="dark"] textarea:focus {
+    background-color: #111827 !important;
+    color: #ffffff !important;
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 0.2rem rgba(96, 165, 250, 0.22) !important;
+}
+
+html[data-theme="dark"] .form-control::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .form-control[readonly],
+html[data-theme="dark"] .form-control:disabled,
+html[data-theme="dark"] .bg-light {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+}
+
+/* Tablas */
+html[data-theme="dark"] .table {
+    --bs-table-bg: transparent !important;
+    --bs-table-color: #e5e7eb !important;
+    --bs-table-border-color: #334155 !important;
+    color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] .table th,
+html[data-theme="dark"] table th {
+    background-color: #1f3a5f !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .table td,
+html[data-theme="dark"] table td {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .table tbody tr:hover td {
+    background-color: #1e293b !important;
+}
+
+/* Botones secundarios */
+html[data-theme="dark"] .btn-outline-secondary {
+    color: #e5e7eb !important;
+    border-color: #64748b !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+/* Botón regresar */
+html[data-theme="dark"] .btn-regresar-dashboard {
+    background: #1e293b !important;
+    color: #93c5fd !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .btn-regresar-dashboard:hover {
+    background: #334155 !important;
+    color: #ffffff !important;
+}
+
+/* Alertas suaves */
+html[data-theme="dark"] .alert-info {
+    background-color: #0f3c4c !important;
+    color: #cffafe !important;
+    border-color: #155e75 !important;
+}
+
+/* Bloque del modo oscuro en usuario */
+#themeToggle {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+#themeToggle:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+/* Página cambiar contraseña */
+html[data-theme="dark"] body.apm-password-page {
+    background-color: #0f172a !important;
+}
+
+html[data-theme="dark"] body.apm-password-page .card {
+    background-color: #1e293b !important;
+}
+/* =========================================================
+   MODO OSCURO MEJORADO - PORTAL PORTUARIO
+   Versión más limpia, con mejor contraste y formularios oscuros
+========================================================= */
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* Fondo general */
+html[data-theme="dark"] body {
+    background-color: #0b1220 !important;
+    color: #e5e7eb !important;
+}
+
+/* Contenido principal */
+html[data-theme="dark"] .apm-layout,
+html[data-theme="dark"] .apm-main,
+html[data-theme="dark"] .container-fluid {
+    background-color: #0b1220 !important;
+    color: #e5e7eb !important;
+}
+
+/* Topbar */
+html[data-theme="dark"] .navbar.apm-topbar,
+html[data-theme="dark"] .apm-topbar {
+    background: #0f172a !important;
+    border-bottom: 1px solid #263246 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .portal-header-logo h5,
+html[data-theme="dark"] .portal-user-name {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .portal-header-logo small,
+html[data-theme="dark"] .portal-user-info small {
+    color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .portal-notification {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+/* Botón hamburguesa */
+html[data-theme="dark"] .portal-menu-toggle,
+html[data-theme="dark"] #btnMenuPrincipal {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .portal-menu-toggle:hover,
+html[data-theme="dark"] #btnMenuPrincipal:hover {
+    background: #334155 !important;
+}
+
+/* Sidebar */
+html[data-theme="dark"] #sidebarMenu.apm-sidebar {
+    background: linear-gradient(160deg, #06263b, #075985) !important;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] #sidebarMenu .portal-sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme="dark"] #sidebarMenu .nav-link {
+    color: rgba(255, 255, 255, 0.88) !important;
+}
+
+html[data-theme="dark"] #sidebarMenu .nav-link:hover,
+html[data-theme="dark"] #sidebarMenu .nav-link.active {
+    background: rgba(255, 255, 255, 0.14) !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] #sidebarUserWrap {
+    border-top-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Cards, paneles y formularios grandes */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .apm-card,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .dropdown-menu {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #2b3a52 !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-footer,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer {
+    background-color: #111827 !important;
+    border-color: #2b3a52 !important;
+    color: #f8fafc !important;
+}
+
+/* Títulos */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .text-primary {
+    color: #60a5fa !important;
+}
+
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] small {
+    color: #cbd5e1 !important;
+}
+
+/* Labels */
+html[data-theme="dark"] label,
+html[data-theme="dark"] .form-label {
+    color: #f1f5f9 !important;
+}
+
+/* Inputs, selects y textareas */
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] input,
+html[data-theme="dark"] select {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] select:focus {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 0.18rem rgba(56, 189, 248, 0.25) !important;
+}
+
+html[data-theme="dark"] .form-control::placeholder,
+html[data-theme="dark"] textarea::placeholder,
+html[data-theme="dark"] input::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* Readonly / disabled */
+html[data-theme="dark"] .form-control[readonly],
+html[data-theme="dark"] .form-control:disabled,
+html[data-theme="dark"] .form-select:disabled,
+html[data-theme="dark"] .bg-light {
+    background-color: #111827 !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+/* Input group */
+html[data-theme="dark"] .input-group-text,
+html[data-theme="dark"] .input-group .btn {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .input-group .btn:hover {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+}
+
+/* Select2 / Tom Select / Choices por si algunos combos usan librerías */
+html[data-theme="dark"] .select2-container--default .select2-selection--single,
+html[data-theme="dark"] .select2-container--default .select2-selection--multiple,
+html[data-theme="dark"] .ts-control,
+html[data-theme="dark"] .choices__inner {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .select2-dropdown,
+html[data-theme="dark"] .select2-results__option,
+html[data-theme="dark"] .ts-dropdown,
+html[data-theme="dark"] .choices__list--dropdown {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .select2-results__option--highlighted,
+html[data-theme="dark"] .ts-dropdown .active,
+html[data-theme="dark"] .choices__item--choice.is-highlighted {
+    background-color: #075985 !important;
+    color: #ffffff !important;
+}
+
+/* Opciones nativas */
+html[data-theme="dark"] option {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+}
+
+/* Calendario / iconos en inputs */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.8);
+}
+
+/* Tablas */
+html[data-theme="dark"] .table,
+html[data-theme="dark"] table {
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .table th,
+html[data-theme="dark"] table th {
+    background-color: #1f3a5f !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .table td,
+html[data-theme="dark"] table td {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .table tbody tr:hover td {
+    background-color: #1e293b !important;
+}
+
+/* Badges */
+html[data-theme="dark"] .badge.text-bg-success {
+    background-color: #047857 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .badge.text-bg-danger {
+    background-color: #b91c1c !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .badge.text-bg-secondary {
+    background-color: #64748b !important;
+    color: #ffffff !important;
+}
+
+/* Botones */
+html[data-theme="dark"] .btn-primary {
+    background-color: #0ea5e9 !important;
+    border-color: #0ea5e9 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .btn-primary:hover {
+    background-color: #0284c7 !important;
+    border-color: #0284c7 !important;
+}
+
+html[data-theme="dark"] .btn-outline-primary {
+    color: #7dd3fc !important;
+    border-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .btn-outline-primary:hover {
+    background-color: #075985 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary {
+    color: #e5e7eb !important;
+    border-color: #64748b !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+/* Botón regresar */
+html[data-theme="dark"] .btn-regresar-dashboard {
+    background: #111827 !important;
+    color: #93c5fd !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] .btn-regresar-dashboard:hover {
+    background: #1e293b !important;
+    color: #ffffff !important;
+}
+
+/* Alertas */
+html[data-theme="dark"] .alert-info {
+    background-color: #083344 !important;
+    color: #cffafe !important;
+    border-color: #155e75 !important;
+}
+
+html[data-theme="dark"] .alert-success {
+    background-color: #064e3b !important;
+    color: #d1fae5 !important;
+    border-color: #047857 !important;
+}
+
+html[data-theme="dark"] .alert-danger {
+    background-color: #7f1d1d !important;
+    color: #fee2e2 !important;
+    border-color: #b91c1c !important;
+}
+
+/* SweetAlert */
+html[data-theme="dark"] .swal2-popup {
+    background: #172033 !important;
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .swal2-title {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .swal2-html-container {
+    color: #cbd5e1 !important;
+}
+
+/* Menú del usuario */
+#themeToggle {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+#themeToggle:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+/* Scroll en modo oscuro */
+html[data-theme="dark"] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+/* =========================================================
+   REFUERZO FINAL MODO OSCURO - PORTAL PORTUARIO
+   Corrige campos, tarjetas y fondos que todavía quedan claros
+========================================================= */
+
+/* Fondos blancos comunes */
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-light,
+html[data-theme="dark"] .border,
+html[data-theme="dark"] .shadow-sm {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* Contenedores internos de páginas */
+html[data-theme="dark"] .card-body,
+html[data-theme="dark"] .card-body *,
+html[data-theme="dark"] .modal-body,
+html[data-theme="dark"] .modal-body * {
+    border-color: #334155;
+}
+
+/* Inputs que todavía quedan blancos */
+html[data-theme="dark"] input.form-control,
+html[data-theme="dark"] select.form-select,
+html[data-theme="dark"] textarea.form-control,
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+/* Campos bloqueados o readonly */
+html[data-theme="dark"] input[readonly],
+html[data-theme="dark"] input:disabled,
+html[data-theme="dark"] select:disabled,
+html[data-theme="dark"] textarea:disabled,
+html[data-theme="dark"] .form-control[readonly],
+html[data-theme="dark"] .form-control:disabled {
+    background-color: #111827 !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+    opacity: 1 !important;
+}
+
+/* Placeholder */
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder,
+html[data-theme="dark"] .form-control::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* Labels y ayudas */
+html[data-theme="dark"] .form-label,
+html[data-theme="dark"] label {
+    color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] small {
+    color: #cbd5e1 !important;
+}
+
+/* Separadores */
+html[data-theme="dark"] hr {
+    border-color: #334155 !important;
+    opacity: 1 !important;
+}
+
+/* Input group botones */
+html[data-theme="dark"] .input-group .btn,
+html[data-theme="dark"] .input-group-text {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #475569 !important;
+}
+
+/* Botones outline en modo oscuro */
+html[data-theme="dark"] .btn-outline-primary {
+    color: #7dd3fc !important;
+    border-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .btn-outline-primary:hover {
+    background-color: #075985 !important;
+    color: #ffffff !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary {
+    color: #e5e7eb !important;
+    border-color: #64748b !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+/* Tablas más limpias */
+html[data-theme="dark"] .table-responsive {
+    background-color: #172033 !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] table,
+html[data-theme="dark"] .table {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] table thead th,
+html[data-theme="dark"] .table thead th {
+    background-color: #1f3a5f !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] table tbody td,
+html[data-theme="dark"] .table tbody td {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* Cards de dashboard */
+html[data-theme="dark"] .card h1,
+html[data-theme="dark"] .card h2,
+html[data-theme="dark"] .card h3,
+html[data-theme="dark"] .card h4,
+html[data-theme="dark"] .card h5,
+html[data-theme="dark"] .card h6 {
+    color: #f8fafc !important;
+}
+
+/* Formularios CCTV */
+html[data-theme="dark"] body.apm-cctv-page .card,
+html[data-theme="dark"] body.apm-cctv-page .apm-main,
+html[data-theme="dark"] body.apm-cctv-page .container-fluid {
+    background-color: #0b1220 !important;
+}
+
+html[data-theme="dark"] body.apm-cctv-page .card {
+    background-color: #172033 !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] body.apm-cctv-page .card-header {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+/* Bloques informativos celestes adaptados */
+html[data-theme="dark"] .alert-info,
+html[data-theme="dark"] .text-bg-info,
+html[data-theme="dark"] .bg-info-subtle {
+    background-color: #083344 !important;
+    color: #cffafe !important;
+    border-color: #155e75 !important;
+}
+
+/* Opciones de select */
+html[data-theme="dark"] option {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+}
+
+/* Iconos de calendario y hora */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.8);
+}
+/* =========================================================
+   PARCHE FINAL MODO OSCURO - QUITAR FONDOS BLANCOS RESTANTES
+   Pegar al FINAL de portal_portuario.css
+========================================================= */
+
+/* Fondo raíz */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+    background-color: #0b1220 !important;
+    color: #e5e7eb !important;
+}
+
+/* Fondos principales del sistema */
+html[data-theme="dark"] .apm-layout,
+html[data-theme="dark"] .apm-main,
+html[data-theme="dark"] main,
+html[data-theme="dark"] .container,
+html[data-theme="dark"] .container-fluid,
+html[data-theme="dark"] .content,
+html[data-theme="dark"] .content-wrapper,
+html[data-theme="dark"] .main-content,
+html[data-theme="dark"] .page-content {
+    background-color: #0b1220 !important;
+    color: #e5e7eb !important;
+}
+
+/* Clases Bootstrap que suelen dejar fondo blanco */
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-light,
+html[data-theme="dark"] .bg-body,
+html[data-theme="dark"] .bg-body-tertiary,
+html[data-theme="dark"] .bg-body-secondary,
+html[data-theme="dark"] .text-bg-light,
+html[data-theme="dark"] .table-light,
+html[data-theme="dark"] .list-group-item,
+html[data-theme="dark"] .accordion-item,
+html[data-theme="dark"] .accordion-button,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .popover,
+html[data-theme="dark"] .toast {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* Tarjetas y paneles */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .card-body,
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .card-footer,
+html[data-theme="dark"] .apm-card,
+html[data-theme="dark"] .apm-panel,
+html[data-theme="dark"] .apm-box,
+html[data-theme="dark"] .apm-filter-card,
+html[data-theme="dark"] .apm-cctv-card,
+html[data-theme="dark"] .apm-cctv-soft-card,
+html[data-theme="dark"] .shadow,
+html[data-theme="dark"] .shadow-sm {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* Encabezados de cards */
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+/* Inputs, selects y textareas */
+html[data-theme="dark"] input.form-control,
+html[data-theme="dark"] select.form-select,
+html[data-theme="dark"] textarea.form-control,
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+/* Readonly y disabled */
+html[data-theme="dark"] input[readonly],
+html[data-theme="dark"] input:disabled,
+html[data-theme="dark"] select:disabled,
+html[data-theme="dark"] textarea:disabled,
+html[data-theme="dark"] .form-control[readonly],
+html[data-theme="dark"] .form-control:disabled,
+html[data-theme="dark"] .form-select:disabled {
+    background-color: #111827 !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+    opacity: 1 !important;
+}
+
+/* Placeholder */
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder,
+html[data-theme="dark"] .form-control::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* Labels y textos */
+html[data-theme="dark"] label,
+html[data-theme="dark"] .form-label,
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
+    color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] small {
+    color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .text-primary {
+    color: #60a5fa !important;
+}
+
+/* Input group */
+html[data-theme="dark"] .input-group-text,
+html[data-theme="dark"] .input-group .btn {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #475569 !important;
+}
+
+/* Tablas */
+html[data-theme="dark"] .table-responsive,
+html[data-theme="dark"] table,
+html[data-theme="dark"] .table {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] table thead,
+html[data-theme="dark"] .table thead,
+html[data-theme="dark"] table thead tr,
+html[data-theme="dark"] .table thead tr,
+html[data-theme="dark"] table thead th,
+html[data-theme="dark"] .table thead th {
+    background-color: #1f3a5f !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] table tbody,
+html[data-theme="dark"] .table tbody,
+html[data-theme="dark"] table tbody tr,
+html[data-theme="dark"] .table tbody tr,
+html[data-theme="dark"] table tbody td,
+html[data-theme="dark"] .table tbody td {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+html[data-theme="dark"] table tbody tr:hover td,
+html[data-theme="dark"] .table tbody tr:hover td {
+    background-color: #1e293b !important;
+}
+
+/* Topbar */
+html[data-theme="dark"] .navbar.apm-topbar,
+html[data-theme="dark"] .apm-topbar {
+    background-color: #0f172a !important;
+    color: #e5e7eb !important;
+    border-bottom-color: #334155 !important;
+}
+
+/* Botón hamburguesa */
+html[data-theme="dark"] .portal-menu-toggle,
+html[data-theme="dark"] #btnMenuPrincipal {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+/* Botones claros */
+html[data-theme="dark"] .btn-light,
+html[data-theme="dark"] .btn-outline-light {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+/* Bordes */
+html[data-theme="dark"] .border,
+html[data-theme="dark"] .border-top,
+html[data-theme="dark"] .border-bottom,
+html[data-theme="dark"] .border-start,
+html[data-theme="dark"] .border-end {
+    border-color: #334155 !important;
+}
+
+/* Alertas informativas */
+html[data-theme="dark"] .alert-info,
+html[data-theme="dark"] .bg-info-subtle,
+html[data-theme="dark"] .text-bg-info {
+    background-color: #083344 !important;
+    color: #cffafe !important;
+    border-color: #155e75 !important;
+}
+
+/* Select options */
+html[data-theme="dark"] option {
+    background-color: #111827 !important;
+    color: #f8fafc !important;
+}
+
+/* Iconos de fecha y hora */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.8);
+}
+
+/* Captura fondos blancos puestos como style="" */
+html[data-theme="dark"] [style*="background:#fff"],
+html[data-theme="dark"] [style*="background: #fff"],
+html[data-theme="dark"] [style*="background:#ffffff"],
+html[data-theme="dark"] [style*="background: #ffffff"],
+html[data-theme="dark"] [style*="background-color:#fff"],
+html[data-theme="dark"] [style*="background-color: #fff"],
+html[data-theme="dark"] [style*="background-color:#ffffff"],
+html[data-theme="dark"] [style*="background-color: #ffffff"],
+html[data-theme="dark"] [style*="background:white"],
+html[data-theme="dark"] [style*="background: white"],
+html[data-theme="dark"] [style*="background-color:white"],
+html[data-theme="dark"] [style*="background-color: white"] {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+/* =========================================================
+   FIX FINAL BITÁCORA DE RONDAS - CAJA BLANCA EN MODO OSCURO
+   Corrige el bloque de Información del turno
+========================================================= */
+
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact,
+html[data-theme="dark"] body.apm-rondas-page .card-body.apm-br-info-compact,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact,
+body.portal-dark-mode.apm-rondas-page .card-body.apm-br-info-compact {
+    background-color: #172033 !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* Quita fondos blancos internos dentro de esa tarjeta */
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .row,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact [class*="col-"],
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact [class*="mb-"],
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact [class*="g-"],
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .row,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact [class*="col-"],
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact [class*="mb-"],
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact [class*="g-"] {
+    background-color: transparent !important;
+    color: #e5e7eb !important;
+}
+
+/* Inputs dentro de Información del turno */
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact input,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact select,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact textarea,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .form-control,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .form-select,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact input,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact select,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact textarea,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .form-control,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .form-select {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+/* Texto pequeño dentro del bloque */
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact small,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .text-muted,
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .form-text,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact small,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .text-muted,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .form-text {
+    color: #cbd5e1 !important;
+}
+
+/* El botón Hoy también oscuro */
+html[data-theme="dark"] body.apm-rondas-page .apm-br-info-compact .btn,
+body.portal-dark-mode.apm-rondas-page .apm-br-info-compact .btn {
+    background-color: #111827 !important;
+    color: #e5e7eb !important;
+    border-color: #475569 !important;
+}
+/* =========================================================
+   CORRECCIÓN NAVBAR:
+   Mantener visible el usuario al hacer zoom en navegador
+========================================================= */
+
+.portal-header-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+}
+
+.portal-header-logo {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+.portal-title-block {
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+.portal-title-block h5,
+.portal-title-block small {
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.portal-user-area {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    min-width: max-content !important;
+    margin-left: auto !important;
+}
+
+.portal-user-info {
+    display: block !important;
+    text-align: right !important;
+    line-height: 1.15 !important;
+    max-width: 190px !important;
+}
+
+.portal-user-name,
+.portal-user-info small {
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.portal-notification {
+    flex: 0 0 auto !important;
+}
+
+/* Solo ocultar el texto del usuario en pantallas realmente pequeñas */
+@media (max-width: 575.98px) {
+    .portal-user-info {
+        display: none !important;
+    }
+
+    .portal-header-container {
+        gap: 0.45rem !important;
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
+    }
+
+    .portal-title-block h5 {
+        font-size: 0.85rem !important;
+    }
+
+    .portal-header-logo img {
+        width: 38px !important;
+        height: 38px !important;
+    }
+
+    .portal-menu-toggle {
+        width: 38px !important;
+        height: 38px !important;
+    }
+}
+
+/* =========================================================
+   MODO CLARO SUAVE - evita fondo blanco intenso
+   Se aplica solo cuando NO está activo el modo oscuro.
+========================================================= */
+:root {
+    --portal-bg: #eef2f6;
+    --apm-bg-body: #eef2f6;
+}
+
+html:not([data-theme="dark"]),
+html:not([data-theme="dark"]) body,
+html:not([data-theme="dark"]) body.bg-light,
+html:not([data-theme="dark"]) .apm-layout,
+html:not([data-theme="dark"]) .apm-main,
+html:not([data-theme="dark"]) main,
+html:not([data-theme="dark"]) .container-fluid {
+    background-color: #eef2f6 !important;
+}
+
+html:not([data-theme="dark"]) .card,
+html:not([data-theme="dark"]) .modal-content,
+html:not([data-theme="dark"]) .tab-content.bg-white,
+html:not([data-theme="dark"]) .card-header.bg-white,
+html:not([data-theme="dark"]) .bg-white {
+    background-color: #f8fafc !important;
+}
+
+html:not([data-theme="dark"]) .form-control,
+html:not([data-theme="dark"]) .form-select,
+html:not([data-theme="dark"]) textarea,
+html:not([data-theme="dark"]) input,
+html:not([data-theme="dark"]) select {
+    background-color: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) .table-light th,
+html:not([data-theme="dark"]) .table-light td {
+    background-color: #edf2f7 !important;
+}
+
+
+/* =========================================================
+   MODO CLARO SUAVE - FONDO GRIS CLARO INSTITUCIONAL
+   Reduce el blanco fuerte para evitar cansancio visual.
+========================================================= */
+html:not([data-theme="dark"]) body:not(.portal-dark-mode),
+html:not([data-theme="dark"]) body.bg-light:not(.portal-dark-mode) {
+    background-color: #e3e9f1 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-layout,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-main,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) main,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .container,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .container-fluid {
+    background-color: #e3e9f1 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-topbar,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .navbar.apm-topbar {
+    background-color: #f2f5f9 !important;
+    border-bottom-color: #cfd8e3 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .card,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-content,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .tab-content,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .bg-white,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .dropdown-menu {
+    background-color: #f7f9fc !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .card-header,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-header,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-footer {
+    background-color: #f1f5f9 !important;
+    border-color: #d6dee8 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-control,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-select,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .input-group-text,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) textarea.form-control {
+    background-color: #f3f6fa !important;
+    border-color: #c9d4e2 !important;
+    color: #1f2937 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-control:focus,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-select:focus,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) textarea.form-control:focus {
+    background-color: #ffffff !important;
+    border-color: #74a9d8 !important;
+    box-shadow: 0 0 0 0.18rem rgba(0, 91, 150, 0.14) !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .select2-container--bootstrap-5 .select2-selection,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .select2-container--default .select2-selection--single {
+    background-color: #f3f6fa !important;
+    border-color: #c9d4e2 !important;
+    color: #1f2937 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) table.dataTable {
+    --bs-table-bg: #f7f9fc;
+    --bs-table-striped-bg: #eef3f8;
+    --bs-table-hover-bg: #e9f0f7;
+    background-color: #f7f9fc !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table-light,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table-light th,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) thead.table-light,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .dataTables_wrapper .row {
+    background-color: #eef3f8 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .alert-info {
+    background-color: #e7f1fb !important;
+    border-color: #b9d7f1 !important;
+    color: #0f4c75 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-master-card {
+    background-color: #f7f9fc !important;
+}
+/* =========================================================
+   FIX DEFINITIVO: NAVBAR SUPERIOR BLANCO EN MODO CLARO
+   Corrige el gris aplicado por .container-fluid
+========================================================= */
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar.navbar,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar.sticky-top,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .container-fluid,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-header-container,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .container-fluid.portal-header-container {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar {
+    border-bottom: 1px solid #d9e1ea !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* Mantener el texto del encabezado oscuro */
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-title-block h5,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-title-block small,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-user-name,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-user-role,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-user-info {
+    color: #0f172a !important;
+}
+
+/* Botón hamburguesa sobre fondo blanco */
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-menu-toggle {
+    background-color: #f1f5f9 !important;
+    color: #334155 !important;
+}
+
+/* =========================================================
+   AJUSTE HAMBURGUESA / SIDEBAR
+   - Sidebar abierto: no se muestra el botón de tres rayas.
+   - Sidebar cerrado: el botón queda visible para volver a abrir.
+   - Se agrega un botón pequeño dentro del sidebar para ocultarlo.
+========================================================= */
+
+.portal-sidebar-header {
+    position: relative !important;
+}
+
+.portal-sidebar-close {
+    margin-left: auto !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    line-height: 1 !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.portal-sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.22) !important;
+    transform: translateX(-2px) !important;
+}
+
+@media (min-width: 992px) {
+    body:not(.portal-sidebar-hidden) #portalSidebarToggle.portal-menu-toggle {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    body.portal-sidebar-hidden #portalSidebarToggle.portal-menu-toggle {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        margin-left: 0 !important;
+        margin-right: 12px !important;
+    }
+
+    body.portal-sidebar-hidden #sidebarMenu.offcanvas-start.apm-sidebar {
+        transform: translateX(-100%) !important;
+        visibility: hidden !important;
+    }
+
+    body.portal-sidebar-hidden .navbar.apm-topbar {
+        margin-left: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+    }
+
+    body.portal-sidebar-hidden .apm-layout {
+        padding-left: 0 !important;
+    }
+
+    body.apm-sidebar-no-transition #sidebarMenu.offcanvas-start.apm-sidebar,
+    body.apm-sidebar-no-transition .navbar.apm-topbar,
+    body.apm-sidebar-no-transition .apm-layout,
+    body.apm-sidebar-no-transition #portalSidebarToggle.portal-menu-toggle {
+        transition: none !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    #portalSidebarToggle.portal-menu-toggle {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    .portal-sidebar-close {
+        display: inline-flex !important;
+    }
+}
+
+
+
+/* =========================================================
+   AJUSTE FINAL MODO CLARO - GRIS SUAVE TIPO PORTAL
+   Fondo más claro para que no se vea tan gris en pantallas CCTV.
+   Mantiene navbar blanco y modo oscuro sin cambios.
+========================================================= */
+:root {
+    --portal-bg: #f4f6f9;
+    --apm-bg-body: #f4f6f9;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode),
+html:not([data-theme="dark"]) body.bg-light:not(.portal-dark-mode),
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-layout,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-main,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) main,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .container,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .container-fluid {
+    background-color: #f4f6f9 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar.navbar,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar.sticky-top,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .container-fluid,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .portal-header-container,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) nav.apm-topbar .container-fluid.portal-header-container {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .card,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-content,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .tab-content,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .bg-white,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .dropdown-menu,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .apm-master-card {
+    background-color: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .card-header,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-header,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .modal-footer {
+    background-color: #f8fafc !important;
+    border-color: #dde5ee !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-control,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .form-select,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .input-group-text,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) textarea.form-control,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) input,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) select {
+    background-color: #ffffff !important;
+    border-color: #cfd8e3 !important;
+    color: #1f2937 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .select2-container--bootstrap-5 .select2-selection,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .select2-container--default .select2-selection--single {
+    background-color: #ffffff !important;
+    border-color: #cfd8e3 !important;
+    color: #1f2937 !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) table.dataTable {
+    --bs-table-bg: #ffffff;
+    --bs-table-striped-bg: #f7f9fc;
+    --bs-table-hover-bg: #eef4fb;
+    background-color: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table-light,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .table-light th,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) thead.table-light,
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .dataTables_wrapper .row {
+    background-color: #f3f6fa !important;
+}
+
+html:not([data-theme="dark"]) body:not(.portal-dark-mode) .alert-info {
+    background-color: #eef7ff !important;
+    border-color: #c4dff7 !important;
+    color: #0f4c75 !important;
+}
+
+
+/* =========================================================
+   FIX: Check visible para "Visitante sin cédula (Guest)"
+   Muestra el visto azul cuando el checkbox queda marcado.
+========================================================= */
+
+#visitante_guest.form-check-input {
+    width: 1.15rem !important;
+    height: 1.15rem !important;
+    margin-top: 0.12rem !important;
+    border: 2px solid #9fc5f8 !important;
+    border-radius: 0.28rem !important;
+    background-color: #ffffff !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 0.95rem 0.95rem !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+
+#visitante_guest.form-check-input:checked,
+#visitante_guest.form-check-input.apm-guest-checked {
+    border-color: #0d6efd !important;
+    background-color: #ffffff !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.2l3.1 3.1L14 5.5' fill='none' stroke='%230d6efd' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+#visitante_guest.form-check-input:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.18) !important;
+}
+
+#visitante_guest.form-check-input + .form-check-label {
+    cursor: pointer !important;
+}
+
+/* =========================
+   HEADER CONFIGURABLE (modo imagen/banner)
+   Agregado para soporte de config/header.php
+========================= */
+.portal-header-banner {
+    max-height: 60px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+@media (max-width: 767.98px) {
+    .portal-header-banner {
+        max-height: 44px;
+    }
+}

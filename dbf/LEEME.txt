@@ -1,0 +1,14 @@
+Carpeta para el archivo de funcionarios en formato Visual FoxPro (.DBF).
+
+Coloque aquí el archivo:
+  rolmaes.DBF
+
+Campos utilizados:
+  NUM_CEDULA     → cédula del funcionario
+  NOMBRE         → nombre del funcionario
+  CARGO          → cargo del funcionario
+  FECHA_SALIDA   → si tiene valor, el funcionario no se considera activo (solo se cargan los que no tienen fecha de salida)
+
+Al abrir el formulario de registrar visita, el sistema lee el DBF, filtra solo funcionarios activos (sin fecha de salida), los inserta en la tabla local si no existen, y los muestra en el desplegable.
+
+Requisito en PHP: extensión "dbase" habilitada (para leer archivos .DBF).

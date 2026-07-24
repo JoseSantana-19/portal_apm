@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # If the request is not for a real directory
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # If the request is not for a real file
+    RewriteCond %{REQUEST_FILENAME} !-f
+    # Silently rewrite to the root index.php Front Controller
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>

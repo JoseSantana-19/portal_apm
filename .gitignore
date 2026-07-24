@@ -1,0 +1,29 @@
+# Entornos / credenciales
+.env
+*.env
+!*.env.example
+
+# Logs
+logs/
+*.log
+
+# Backups de base de datos
+backup/
+*.bak
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dependencias
+vendor/
+node_modules/
+
+# Temporal / scratch
+scratch/
+
+# Sistema
+Thumbs.db
+.DS_Store

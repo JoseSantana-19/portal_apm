@@ -1,0 +1,18 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteBase /portal_apm/apps/talento_humano/
+
+# Bloquear acceso directo a carpetas de log de todos los módulos
+<IfModule mod_rewrite.c>
+    RewriteRule ^modules/.*/log/.*$ - [F,L]
+</IfModule>
+
+# Los assets bajo /public nunca pasan por el router (404 real si faltan,
+# nunca un redirect HTML servido como CSS/JS)
+RewriteRule ^public/ - [L]
+
+# Redirigir todo (excepto archivos y carpetas reales) a index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]

@@ -1,0 +1,37 @@
+/* ════════════════════════════════════════════════════════
+   VARIABLES.CSS – Paleta oficial Autoridad Portuaria de Manta
+   Tokens de diseño: colores, tipografía, radios y sombras.
+   ════════════════════════════════════════════════════════ */
+:root {
+    /* Paleta azul marino / teal APM */
+    --navy-900: #0a2d43;
+    --navy-800: #103f5f;
+    --ocean-700: #0d5f87;
+    --ocean-600: #1078a2;
+    --teal-500: #12b4c7;
+    --teal-300: #77e1e6;
+
+    /* Neutros y fondos */
+    --sand-50: #f7f2ea;
+    --sky-50: #f1f7fb;
+    --ink-900: #0f172a;
+    --ink-600: #4c5a70;
+    --line: #d7e3ef;
+    --card: #ffffff;
+
+    /* Sombras */
+    --shadow-lg: 0 18px 40px rgba(5, 32, 47, 0.12);
+    --shadow-md: 0 12px 24px rgba(11, 45, 67, 0.12);
+
+    /* Bordes redondeados */
+    --radius-lg: 18px;
+    --radius-md: 12px;
+
+    /* Sidebar */
+    --sidebar-width: 285px;
+    --sidebar-collapsed: 86px;
+
+    /* Tipografía */
+    --font-sans: "Manrope", "Segoe UI", sans-serif;
+    --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+}

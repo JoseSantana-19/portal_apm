@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificación de Temas — Portal APM</title>
+<!-- CSS REAL del proyecto (mismo que carga el shell) -->
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  body { padding: 0; margin: 0; background: var(--bg-app); color: var(--text-app); font-family: var(--font-body, sans-serif); transition: background .2s; }
+  .pv-bar { position: sticky; top: 0; z-index: 10; display: flex; gap: 10px; align-items: center;
+            padding: 12px 20px; background: var(--surface-app); border-bottom: 1px solid var(--border-app); }
+  .pv-bar b { color: var(--text-app); margin-right: auto; }
+  .pv-bar button { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-app); cursor: pointer;
+                   background: var(--accent-app); color: var(--text-app); font-weight: 600; }
+  .pv-bar button.on { background: var(--primary-hover); color: #fff; border-color: var(--primary-hover); }
+  .pv-wrap { padding: 24px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .pv-sec-title { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin: 8px 0 0; }
+  /* Tarjeta glass como las del menú corregido (deriva del tema) */
+  .gx { background: var(--surface-app); border: 1px solid var(--border-app); box-shadow: var(--shadow-app);
+        border-radius: 14px; padding: 18px; }
+  body.t3 .gx { backdrop-filter: blur(16px); }
+  .lvl-chip { display:inline-flex; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+  .lc1{background:color-mix(in srgb,#8b5cf6 16%,transparent);color:#8b5cf6;}
+  .lc2{background:color-mix(in srgb,#3b82f6 16%,transparent);color:#3b82f6;}
+  .lc3{background:color-mix(in srgb,#22c55e 16%,transparent);color:#22c55e;}
+  .lc4{background:color-mix(in srgb,#f59e0b 18%,transparent);color:#f59e0b;}
+  .inv-stat { display:flex; align-items:center; gap:12px; padding:16px; border-radius:12px;
+              background:var(--surface-app); border:1px solid var(--border-app); }
+  .inv-stat .n { font-size:1.3rem; font-weight:800; color:var(--text-app); }
+  .inv-stat .l { font-size:.7rem; text-transform:uppercase; color:var(--text-muted); }
+  table.pv { width:100%; border-collapse:collapse; }
+  table.pv th{ text-align:left; font-size:.7rem; text-transform:uppercase; color:var(--text-muted); padding:8px 10px; border-bottom:1px solid var(--border-app);}
+  table.pv td{ padding:8px 10px; border-bottom:1px solid var(--border-app); color:var(--text-app); font-size:.85rem;}
+  select.pv { padding:6px 10px; border-radius:8px; border:1px solid; background:var(--surface-app); color:var(--text-app); }
+</style>
+</head>
+<body class="t2">
+
+<div class="pv-bar">
+  <b><i class="fa-solid fa-palette"></i> Verificación de Temas — abre en tu navegador y cambia entre los 3</b>
+  <button data-t="t1" onclick="setT('t1',this)">Tema 1 · Claro</button>
+  <button data-t="t2" class="on" onclick="setT('t2',this)">Tema 2 · Oscuro</button>
+  <button data-t="t3" onclick="setT('t3',this)">Tema 3 · Porto</button>
+</div>
+
+<div class="pv-wrap">
+
+  <div class="pv-sec-title">Inventario — tarjetas de estadística</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="inv-stat"><div style="width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,#fd7e14 13%,transparent);color:#fd7e14;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-cubes"></i></div><div><div class="n">128</div><div class="l">Bienes</div></div></div>
+    <div class="inv-stat"><div style="width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,#28a745 13%,transparent);color:#28a745;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-sack-dollar"></i></div><div><div class="n">$1.2M</div><div class="l">Valor</div></div></div>
+    <div class="inv-stat"><div style="width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,#6f42c1 13%,transparent);color:#6f42c1;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-layer-group"></i></div><div><div class="n">5</div><div class="l">Categorías</div></div></div>
+    <div class="inv-stat"><div style="width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,#17a2b8 13%,transparent);color:#17a2b8;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-location-dot"></i></div><div><div class="n">4</div><div class="l">Zonas</div></div></div>
+  </div>
+
+  <div class="pv-sec-title">Inventario — tabla (card)</div>
+  <div class="card"><div class="card-body">
+    <table class="pv">
+      <thead><tr><th>Secuencial</th><th>Bien</th><th>Valor</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:monospace;color:var(--text-muted)">INV-00001</td><td><strong>Grúa Pórtico RTG-04</strong></td><td>$120,000.00</td><td><span class="badge badge-success">Operativo</span></td></tr>
+        <tr><td style="font-family:monospace;color:var(--text-muted)">INV-00008</td><td><strong>Montacargas H250</strong></td><td>$18,500.00</td><td><span class="badge badge-danger">Fuera de servicio</span></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <div class="pv-sec-title">Menú admin — tarjeta glass (la que tenía el bug) + chips de nivel</div>
+  <div class="gx">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <span class="lvl-chip lc1">L1</span><span class="lvl-chip lc2">L2</span>
+      <span class="lvl-chip lc3">L3</span><span class="lvl-chip lc4">L4</span>
+      <span style="color:var(--text-app);font-weight:600;">Texto sobre tarjeta — debe ser legible en los 3 temas</span>
+    </div>
+    <div style="color:var(--text-muted);font-size:.85rem;">Texto secundario / descripción sobre la superficie del tema activo.</div>
+  </div>
+
+  <div class="pv-sec-title">Permisos — selects CRUD coloreados</div>
+  <div class="gx" style="display:flex;gap:10px;flex-wrap:wrap;">
+    <select class="pv" style="border-color:var(--crud1,#17a2b8);color:var(--crud1,#17a2b8);"><option>Ver</option></select>
+    <select class="pv" style="border-color:var(--crud2,#28a745);color:var(--crud2,#28a745);"><option>Crear</option></select>
+    <select class="pv" style="border-color:var(--crud3-bd,#d4a005);color:var(--crud3,#d4a005);"><option>Editar</option></select>
+    <select class="pv" style="border-color:var(--color-primary);color:var(--color-primary);"><option>Total</option></select>
+  </div>
+
+  <div class="pv-sec-title">Botones / alertas</div>
+  <div class="gx" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn btn-primary"><i class="fa-solid fa-plus"></i> Primario</button>
+    <button class="btn btn-outline">Outline</button>
+    <button class="btn btn-ghost">Ghost</button>
+    <span class="badge badge-success">success</span>
+    <span class="badge badge-warning">warning</span>
+    <span class="badge badge-info">info</span>
+  </div>
+  <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> Alerta de éxito legible en cualquier tema.</div>
+
+</div>
+
+<script>
+  // Tokens CRUD igual que rol_permisos.php (t2/t3 más brillantes)
+  const css = document.createElement('style');
+  css.textContent = `:root{--crud1:#17a2b8;--crud2:#28a745;--crud3:#d4a005;--crud3-bd:#d4a005;}
+                     body.t2,body.t3{--crud1:#39c5dd;--crud2:#3fb950;--crud3:#e0b341;--crud3-bd:#e0b341;}`;
+  document.head.appendChild(css);
+  function setT(t, btn){
+    document.body.className = t;
+    document.querySelectorAll('.pv-bar button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  }
+  // Tema inicial desde ?t=t1|t2|t3 (para captura headless)
+  (function(){
+    const p = new URLSearchParams(location.search).get('t');
+    if (p && ['t1','t2','t3'].includes(p)) setT(p);
+  })();
+</script>
+</body>
+</html>

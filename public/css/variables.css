@@ -1,0 +1,105 @@
+/* ======================================================
+   Portal APM v2.0 — Design Tokens (Light theme defaults)
+   ====================================================== */
+:root {
+    /* Brand */
+    --color-primary:       #0056b3;
+    --color-primary-hover: #004494;
+    --color-primary-light: #4a9eff;
+    --color-primary-dark:  #003d80;
+    --color-accent:        #00a8e8;
+
+    /* Backgrounds */
+    --color-bg:        #f0f2f5;
+    --color-surface:   #ffffff;
+    --color-surface-2: #f8f9fa;
+    --color-surface-3: #e9ecef;
+
+    /* Borders */
+    --color-border:       #dee2e6;
+    --color-border-light: #f1f3f5;
+
+    /* Text */
+    --color-text:       #1a1f2e;
+    --color-text-muted: #6c757d;
+    --color-text-light: #adb5bd;
+    --color-text-inv:   #ffffff;
+
+    /* Semantic */
+    --color-success: #28a745;
+    --color-warning: #ffc107;
+    --color-danger:  #dc3545;
+    --color-info:    #17a2b8;
+    --color-purple:  #6f42c1;
+
+    /* Sidebar */
+    --sidebar-width:        260px;
+    --sidebar-collapsed:    64px;
+    --sidebar-bg:           #1a2332;
+    --sidebar-bg-hover:     #243044;
+    --sidebar-bg-active:    #0056b3;
+    --sidebar-text:         #a8b7c7;
+    --sidebar-text-active:  #ffffff;
+    --sidebar-text-heading: #5a7a9a;
+    --sidebar-border:       #243044;
+
+    /* Topbar */
+    --topbar-height: 60px;
+    --topbar-bg:     #ffffff;
+    --topbar-border: #dee2e6;
+    --topbar-shadow: 0 1px 4px rgba(0,0,0,0.08);
+
+    /* KPI Cards */
+    --card-bg:     #ffffff;
+    --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --card-radius: 12px;
+    --card-hover-shadow: 0 6px 20px rgba(0,0,0,0.12);
+
+    /* Typography */
+    --font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:   'Cascadia Code', 'Consolas', monospace;
+    --font-size-xs:   0.70rem;
+    --font-size-sm:   0.825rem;
+    --font-size-base: 0.9rem;
+    --font-size-md:   1rem;
+    --font-size-lg:   1.125rem;
+    --font-size-xl:   1.375rem;
+    --font-size-2xl:  1.75rem;
+    --font-size-3xl:  2.25rem;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --line-height: 1.5;
+
+    /* Spacing */
+    --sp-1: 0.25rem; --sp-2: 0.5rem;  --sp-3: 0.75rem;
+    --sp-4: 1rem;    --sp-5: 1.25rem; --sp-6: 1.5rem;
+    --sp-8: 2rem;    --sp-10: 2.5rem; --sp-12: 3rem;
+
+    /* Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --shadow-xl: 0 16px 40px rgba(0,0,0,0.15);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition:      0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Z-index */
+    --z-sidebar:  100;
+    --z-topbar:   200;
+    --z-dropdown: 300;
+    --z-modal:    400;
+    --z-toast:    500;
+}

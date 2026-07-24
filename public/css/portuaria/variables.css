@@ -1,0 +1,24 @@
+/* css/variables.css — colores y variables :root */
+
+:root {
+    --margin-lateral: 10px; /* Valor configurable entre 1 y 10 */
+
+    /* Layout: sidebar push (escritorio) */
+    --apm-sidebar-width: 250px;
+    --apm-navbar-height: 56px;
+
+    /* Paleta institucional: azul oscuro, blanco, gris claro */
+    --apm-bg-body: #f4f6f9;
+    --apm-color-primary: #005b96;
+    --apm-color-primary-dark: #00487a;
+    --apm-color-nav-start: #003366;
+    --apm-color-nav-end: #005b96;
+    --apm-sidebar-muted: #cfd8e3;
+    --apm-sidebar-link: #e9f3ff;
+    --apm-sidebar-active-text: #005b96;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background-color: var(--apm-bg-body);
+}

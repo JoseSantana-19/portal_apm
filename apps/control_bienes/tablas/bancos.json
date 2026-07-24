@@ -1,0 +1,282 @@
+[
+  {
+    "COD_BAN": 1002,
+    "NOM_BAN": "BANCO AMAZONAS"
+  },
+  {
+    "COD_BAN": 1004,
+    "NOM_BAN": "BANCO DEL AUSTRO"
+  },
+  {
+    "COD_BAN": 1006,
+    "NOM_BAN": "BANCO DE GUAYAQUIL"
+  },
+  {
+    "COD_BAN": 1007,
+    "NOM_BAN": "BANCO BOLIVARIANO"
+  },
+  {
+    "COD_BAN": 1009,
+    "NOM_BAN": "CITIBANK (CITIGROUP)"
+  },
+  {
+    "COD_BAN": 1010,
+    "NOM_BAN": "COFIEC"
+  },
+  {
+    "COD_BAN": 1011,
+    "NOM_BAN": "COMERCIAL DE MANABI"
+  },
+  {
+    "COD_BAN": 1014,
+    "NOM_BAN": "BANCO DEL LITORAL"
+  },
+  {
+    "COD_BAN": 1020,
+    "NOM_BAN": "GENERAL RUMIÑAHUI"
+  },
+  {
+    "COD_BAN": 1023,
+    "NOM_BAN": "BANCO INTERNACIONAL"
+  },
+  {
+    "COD_BAN": 1024,
+    "NOM_BAN": "LOYDS TSB BANK PLC.(SUCURSAL ECUADOR)"
+  },
+  {
+    "COD_BAN": 1025,
+    "NOM_BAN": "BANCO DE LOJA"
+  },
+  {
+    "COD_BAN": 1026,
+    "NOM_BAN": "BANCO MACHALA"
+  },
+  {
+    "COD_BAN": 1028,
+    "NOM_BAN": "BANCO DEL PACIFICO"
+  },
+  {
+    "COD_BAN": 1029,
+    "NOM_BAN": "BANCO DEL PICHINCHA"
+  },
+  {
+    "COD_BAN": 1033,
+    "NOM_BAN": "PRODUBANCO"
+  },
+  {
+    "COD_BAN": 1037,
+    "NOM_BAN": "BANCO SOLIDARIO"
+  },
+  {
+    "COD_BAN": 1038,
+    "NOM_BAN": "BANCO SUDAMERICANO"
+  },
+  {
+    "COD_BAN": 1039,
+    "NOM_BAN": "BANCO TERRITORIAL"
+  },
+  {
+    "COD_BAN": 1041,
+    "NOM_BAN": "UNIBANCO"
+  },
+  {
+    "COD_BAN": 1050,
+    "NOM_BAN": "BANCO CENTRAL DEL ECUADOR"
+  },
+  {
+    "COD_BAN": 1051,
+    "NOM_BAN": "BANCO DEL ESTADO"
+  },
+  {
+    "COD_BAN": 1052,
+    "NOM_BAN": "BANCO ECUATORIANO DE LA VIVIENDA"
+  },
+  {
+    "COD_BAN": 1053,
+    "NOM_BAN": "BANCO NACIONAL DEL FOMENTO"
+  },
+  {
+    "COD_BAN": 1054,
+    "NOM_BAN": "CORPORACION FINANCIERO NACIONAL"
+  },
+  {
+    "COD_BAN": 1055,
+    "NOM_BAN": "FONDO DE SOLIDARIDAD"
+  },
+  {
+    "COD_BAN": 1056,
+    "NOM_BAN": "INST. ECUAT. CREDITO EDUCATIVOS Y BECAS"
+  },
+  {
+    "COD_BAN": 1070,
+    "NOM_BAN": "MUTUALISTA AMBATO"
+  },
+  {
+    "COD_BAN": 1071,
+    "NOM_BAN": "MUTUALISTA AZUAY"
+  },
+  {
+    "COD_BAN": 1074,
+    "NOM_BAN": "MUTUALISTA IMBABURA"
+  },
+  {
+    "COD_BAN": 1076,
+    "NOM_BAN": "MUTUALISTA PICHINCHA"
+  },
+  {
+    "COD_BAN": 1119,
+    "NOM_BAN": "11 DE JUNIO"
+  },
+  {
+    "COD_BAN": 1120,
+    "NOM_BAN": "15 DE ABRIL"
+  },
+  {
+    "COD_BAN": 1121,
+    "NOM_BAN": "23 DE JULIO"
+  },
+  {
+    "COD_BAN": 1122,
+    "NOM_BAN": "29 DE OCTUBRE"
+  },
+  {
+    "COD_BAN": 1123,
+    "NOM_BAN": "ANDALUCIA"
+  },
+  {
+    "COD_BAN": 1124,
+    "NOM_BAN": "ATUNTAQUI"
+  },
+  {
+    "COD_BAN": 1125,
+    "NOM_BAN": "CACPECO"
+  },
+  {
+    "COD_BAN": 1127,
+    "NOM_BAN": "CHONE LTDA."
+  },
+  {
+    "COD_BAN": 1128,
+    "NOM_BAN": "CODESARROLLO"
+  },
+  {
+    "COD_BAN": 1129,
+    "NOM_BAN": "COMERCIO LTDA."
+  },
+  {
+    "COD_BAN": 1130,
+    "NOM_BAN": "COTOCOLLAO"
+  },
+  {
+    "COD_BAN": 1131,
+    "NOM_BAN": "EL SAGRARIO"
+  },
+  {
+    "COD_BAN": 1132,
+    "NOM_BAN": "GUARANDA"
+  },
+  {
+    "COD_BAN": 1133,
+    "NOM_BAN": "LA DOLOROSA"
+  },
+  {
+    "COD_BAN": 1134,
+    "NOM_BAN": "NACIONAL"
+  },
+  {
+    "COD_BAN": 1135,
+    "NOM_BAN": "OSCUS"
+  },
+  {
+    "COD_BAN": 1136,
+    "NOM_BAN": "PABLO MUÑOZ VEGA"
+  },
+  {
+    "COD_BAN": 1137,
+    "NOM_BAN": "PROGRESO"
+  },
+  {
+    "COD_BAN": 1138,
+    "NOM_BAN": "RIOBAMBA"
+  },
+  {
+    "COD_BAN": 1139,
+    "NOM_BAN": "SAN FRANCISCO"
+  },
+  {
+    "COD_BAN": 1140,
+    "NOM_BAN": "SANTA ANA"
+  },
+  {
+    "COD_BAN": 1141,
+    "NOM_BAN": "SANTA ROSA"
+  },
+  {
+    "COD_BAN": 1143,
+    "NOM_BAN": "TULCAN"
+  },
+  {
+    "COD_BAN": 1148,
+    "NOM_BAN": "PROCREDIT S.A."
+  },
+  {
+    "COD_BAN": 1151,
+    "NOM_BAN": "BANCO CAPITAL S.A."
+  },
+  {
+    "COD_BAN": 1182,
+    "NOM_BAN": "SAN FRANCISCO DE ASIS"
+  },
+  {
+    "COD_BAN": 1388,
+    "NOM_BAN": "PREVISION, AHORRO Y DESARROLLO"
+  },
+  {
+    "COD_BAN": 1418,
+    "NOM_BAN": "MM JARAMILLO ARTEAGA"
+  },
+  {
+    "COD_BAN": 1422,
+    "NOM_BAN": "DELBANK S.A."
+  },
+  {
+    "COD_BAN": 2100,
+    "NOM_BAN": "DE LA PEQUEÑA EMPRESA DE PASTAZA"
+  },
+  {
+    "COD_BAN": 2129,
+    "NOM_BAN": "VICENTINA MANUEL ESTEBAN GODOY ORTEGA LTDA."
+  },
+  {
+    "COD_BAN": 2130,
+    "NOM_BAN": "CAMARA DE COMERCIO DE QUITO LTDA."
+  },
+  {
+    "COD_BAN": 2137,
+    "NOM_BAN": "ALIANZA DEL VALLE LTDA."
+  },
+  {
+    "COD_BAN": 2140,
+    "NOM_BAN": "JUVENTUD ECUATORIANA PROGRESISTA LTDA."
+  },
+  {
+    "COD_BAN": 2143,
+    "NOM_BAN": "CALCETA LTDA."
+  },
+  {
+    "COD_BAN": 2753,
+    "NOM_BAN": "9 DE OCTUBRE LTDA."
+  },
+  {
+    "COD_BAN": 3304,
+    "NOM_BAN": "PADRE JULIAN LORENTE LTDA."
+  },
+  {
+    "COD_BAN": 3352,
+    "NOM_BAN": "CACPE BIBLIAN LTDA."
+  },
+  {
+    "COD_BAN": 3615,
+    "NOM_BAN": "JARDIN AZUAYO LTDA."
+  }
+]

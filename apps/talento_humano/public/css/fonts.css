@@ -1,0 +1,12 @@
+/* fonts.css — tipografía del Sistema de Talento Humano (alineada al Portal APM).
+   El proyecto origen referenciaba este archivo pero no lo incluía; se provee
+   aquí con la fuente corporativa del portal (Sora) + Inter para texto denso. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --fuente-titulos: 'Sora', 'Segoe UI', system-ui, sans-serif;
+    --fuente-texto:   'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+body { font-family: var(--fuente-texto); }
+h1, h2, h3, h4, h5, h6, .logo-title { font-family: var(--fuente-titulos); }

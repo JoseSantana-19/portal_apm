@@ -1,0 +1,128 @@
+[
+  {
+    "GICOD": "1.3.1.01.03.",
+    "GIDES": "INVENTARIOS DE COMBUSTIBLES Y LUBRICANTES",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.13.",
+    "GIDES": "INVENTARIOS DE REPUESTOS Y ACCESORIOS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.11.",
+    "GIDES": "MATERIALES DE INSUMOS, BIENES, PARA LA CONSTRUCCION, ELECT",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.04.",
+    "GIDES": "INVENTARIOS DE MATERIALES DE OFICINA",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.05.",
+    "GIDES": "INVENTARIOS DE MATERIALES DE ASEO",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.02.",
+    "GIDES": "INVENTARIOS DE VESTUARIO, LENCERIA, Y PRENDAS DE PROTECCIO",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.01.",
+    "GIDES": "INVENTARIOS DE ALIMENTOS Y BEBIDAS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.06.",
+    "GIDES": "EXISTENCIAS DE HERRAMIENTAS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.07.",
+    "GIDES": "INVENTARIOS DE MATERIALES DE IMPRESION, FOTOGRAFIA",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.12.",
+    "GIDES": "INVENTARIOS DE MATERIALES DIDACTICOS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.99.",
+    "GIDES": "EXISTENCIAS DE OTROS BIENES  DE USO  CONSUMO",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.09.",
+    "GIDES": "INVENTARIOS DE MEDICAMENTOS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.19.",
+    "GIDES": "ACCESORIOS E INSUMOS QUIMICOS Y ORGANICOS",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.20.",
+    "GIDES": "MENAJE DE COCINA DE HOGAR, ACCESORIOS DESCARTABLES Y OFIC",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.08.",
+    "GIDES": "INVENTARIOS DE INSTRUMENTAL MEDICO MENOR",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.26.",
+    "GIDES": "DISPOSITIVOS MEDICOS DE USO GENERAL",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.37.",
+    "GIDES": "COMBUSTIBLES, LUBRICANTES Y ADITIVOS EN GEN. VEHICU  TERREST",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.40.",
+    "GIDES": "COMBUSTIBLES, LUBRICANTES Y ADITIVOS EN G. MAQUIN Y OTROS EQ",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.41.",
+    "GIDES": "REPUESTOS Y ACCESORIOS PARA VEHICULOS TERRESTRES",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.44.",
+    "GIDES": "REPUESTOS Y ACCESORIOS PARA MAQUINARIAS, PLANTAS ELECTRICA",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  },
+  {
+    "GICOD": "1.3.1.01.14.",
+    "GIDES": "SUMINISTROS PARA ACTIVIDADES AGROPECUARIAS, PESCA Y CAZA",
+    "N_ICOD": 0,
+    "GICOD_OLD": ""
+  }
+]
