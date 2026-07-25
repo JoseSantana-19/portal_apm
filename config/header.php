@@ -13,7 +13,7 @@ return [
 
     // ── Modo LOGO ────────────────────────────────────────────────
     'logo' => [
-        'src'       => 'public/img/logoapm.png',
+        'src'       => 'imgs/logoapm.png',
         'alt'       => 'Logo APM',
         'titulo'    => 'Autoridad Portuaria de Manta',
         'subtitulo' => 'Bitácoras Portuarias — Portal APM',
@@ -21,7 +21,7 @@ return [
 
     // ── Modo IMAGEN (banner) ─────────────────────────────────────
     'imagen' => [
-        'src'    => 'public/img/portuaria/headerlogoapm.png',
+        'src'    => 'imgs/logoapm_banner.png',
         'alt'    => 'Autoridad Portuaria de Manta',
         'height' => '60px',
     ],

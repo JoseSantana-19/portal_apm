@@ -301,7 +301,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
             <header class="topbar">
                 <div class="topbar-left">
                     <div class="brand">
-                        <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM">
+                        <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
                         <div>
                             <h1>Autoridad Portuaria de Manta</h1>
                             <p>Módulo Talento Humano</p>
@@ -693,7 +693,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:13pt;">
@@ -777,7 +777,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:13pt;">
@@ -871,7 +871,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:12pt;">
@@ -939,7 +939,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <div style="border-top:2px dashed #bbb;margin:20px 0;padding-top:12px;">
                         <table class="doc-header-table">
                             <tr>
-                                <td class="doc-logo-cell"><img src="<?= IMG_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
+                                <td class="doc-logo-cell"><img src="<?= LOGO_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
                                 <td class="doc-title-cell">FORMATO ESTUDIO DE SEGURIDAD - SOCIO ECONÓMICO</td>
                                 <td class="doc-code-cell"><strong>Código:</strong> APM-BASC-TH-FO-002<br><strong>Fecha:</strong> 01/04/2019<br><strong>Página 2 de 4</strong></td>
                             </tr>
@@ -1001,7 +1001,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <div style="border-top:2px dashed #bbb;margin:20px 0;padding-top:12px;">
                         <table class="doc-header-table">
                             <tr>
-                                <td class="doc-logo-cell"><img src="<?= IMG_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
+                                <td class="doc-logo-cell"><img src="<?= LOGO_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
                                 <td class="doc-title-cell">FORMATO ESTUDIO DE SEGURIDAD - SOCIO ECONÓMICO</td>
                                 <td class="doc-code-cell"><strong>Código:</strong> APM-BASC-TH-FO-002<br><strong>Fecha:</strong> 01/04/2019<br><strong>Página 3 de 4</strong></td>
                             </tr>

@@ -484,7 +484,7 @@ class AdminController extends Controller {
             ['Fecha', 32], ['Usuario', 38], ['Módulo', 20], ['Operación', 26],
             ['Tabla', 30], ['IP', 26], ['Resultado', 22], ['Detalle', 83],
         ];
-        $logo = ROOT . '/public/img/logoapm.png';
+        $logo = ROOT . '/imgs/logoapm.png';
 
         $pdf = new FPDF('L', 'mm', 'A4');
         $pdf->SetAutoPageBreak(false);

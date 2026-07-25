@@ -155,7 +155,7 @@
         <header class="topbar">
             <div class="topbar-left">
                 <div class="brand">
-                    <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM">
+                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
                     <div>
                         <h1>Autoridad Portuaria de Manta</h1>
                         <p>Administración y Seguridad</p>

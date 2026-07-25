@@ -283,7 +283,7 @@ $modoImpresion  = $modoImpresion ?? false;
             <header class="topbar">
                 <div class="topbar-left">
                     <div class="brand">
-                        <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM">
+                        <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
                         <div>
                             <h1>Autoridad Portuaria de Manta</h1>
                             <p>Módulo Talento Humano</p>
@@ -1125,7 +1125,7 @@ $modoImpresion  = $modoImpresion ?? false;
         function abrirPreview() {
             // Leer valores actuales del formulario para la vista previa
             const getV = id => { const el = document.getElementById(id); return el ? el.value : ''; };
-            const logoUrl = '<?= IMG_URL ?>/logoapm.png';
+            const logoUrl = '<?= LOGO_URL ?>/logoapm.png';
 
             const html = `
             <div class="doc-a4" style="font-family:'Times New Roman',serif;font-size:10pt;color:#111;">

@@ -375,8 +375,8 @@
         <!-- Encabezado Institucional -->
         <div class="report-header">
             <div class="brand-section">
-                <?php if (file_exists(__DIR__ . '/../../logoapm.png')): ?>
-                    <img src="logoapm.png" class="brand-logo" alt="APM Logo">
+                <?php if (file_exists(__DIR__ . '/../../../../imgs/logoapm.png')): ?>
+                    <img src="<?= BASE_URL ?>../../imgs/logoapm.png" class="brand-logo" alt="APM Logo">
                 <?php else: ?>
                     <div class="brand-logo-fallback"><i class="fa-solid fa-anchor"></i></div>
                 <?php endif; ?>

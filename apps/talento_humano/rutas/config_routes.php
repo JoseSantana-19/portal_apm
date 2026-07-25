@@ -17,6 +17,10 @@ defined('CSS_URL')    || define('CSS_URL',    BASE_URL . '/public/css');
 defined('JS_URL')     || define('JS_URL',     BASE_URL . '/public/js');
 defined('IMG_URL')    || define('IMG_URL',    BASE_URL . '/public/img');
 
+// Logo institucional APM — imagen única compartida por todos los módulos
+// del portal (imgs/ en la raíz de portal_apm), no una copia local del módulo.
+defined('LOGO_URL')   || define('LOGO_URL',   BASE_URL . '/../../imgs');
+
 // Rutas a librerías locales
 defined('ICONS_CSS')  || define('ICONS_CSS',  CSS_URL . '/bootstrap-icons.css');
 defined('FONTS_URL')  || define('FONTS_URL',  CSS_URL . '/fonts.css');

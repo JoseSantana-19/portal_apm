@@ -21,7 +21,7 @@ $apmAreaName = isset($_SESSION['apm_auth']['nom_departa'])
 // Cargar configuración del header
 $headerConfig = file_exists($__apmRoot . '/config/header.php')
     ? require $__apmRoot . '/config/header.php'
-    : ['modo' => 'logo', 'logo' => ['src' => 'public/img/logoapm.png', 'alt' => 'Logo APM', 'titulo' => 'Autoridad Portuaria de Manta', 'subtitulo' => 'Control de Visitas'], 'imagen' => ['src' => 'public/img/portuaria/headerlogoapm.png', 'alt' => 'APM', 'height' => '60px']];
+    : ['modo' => 'logo', 'logo' => ['src' => 'imgs/logoapm.png', 'alt' => 'Logo APM', 'titulo' => 'Autoridad Portuaria de Manta', 'subtitulo' => 'Control de Visitas'], 'imagen' => ['src' => 'imgs/logoapm_banner.png', 'alt' => 'APM', 'height' => '60px']];
 
 $headerModo = $headerConfig['modo'] ?? 'logo';
 ?>

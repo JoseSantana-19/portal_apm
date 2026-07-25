@@ -16,7 +16,7 @@ class ReportPdf
 
     private static function membrete(FPDF $pdf, string $titulo, string $subtitulo, float $anchoUtil): void
     {
-        $logo = ROOT . '/public/img/logoapm.png';
+        $logo = ROOT . '/imgs/logoapm.png';
         if (file_exists($logo)) { @$pdf->Image($logo, 10, 8, 20); }
         $pdf->SetXY(32, 9);
         $pdf->SetFont('Arial', 'B', 13);

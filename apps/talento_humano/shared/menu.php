@@ -14,7 +14,7 @@ if (!function_exists('navActive')) {
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo-wrap">
-            <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM">
+            <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
         </div>
         <div class="logo-text nav-text">
             <span class="logo-title">Portal Portuario</span>

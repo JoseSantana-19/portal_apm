@@ -7,15 +7,21 @@
  * ============================================================
  */
 
+// Logo institucional único (imgs/logoapm.png en la raíz de portal_apm),
+// resuelto contra la URL propia del script para no depender de la
+// profundidad de la página actual (el router usa index.php?route=...).
+const __INV_MENU_SCRIPT_URL = document.currentScript ? document.currentScript.src : '';
+
 class SidebarMenu extends HTMLElement {
     constructor() {
         super();
     }
 
     connectedCallback() {
+        const logoUrl = new URL('../../../../imgs/logoapm.png', __INV_MENU_SCRIPT_URL).href;
         this.innerHTML = `
             <div class="sidebar-header">
-                <img src="../../logoapm.png" alt="Logo APM Portuario" class="sidebar-logo">
+                <img src="${logoUrl}" alt="Logo APM Portuario" class="sidebar-logo">
                 <h2>Sistema Inventario</h2>
             </div>
             

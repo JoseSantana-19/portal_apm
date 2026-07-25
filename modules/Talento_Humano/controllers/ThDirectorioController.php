@@ -226,7 +226,7 @@ class ThDirectorioController extends Controller
         $pdf->SetMargins(15, 15, 15);
         $pdf->SetAutoPageBreak(true, 15);
 
-        $logoPath = ROOT . '/public/img/logoapm.png';
+        $logoPath = ROOT . '/imgs/logoapm.png';
         if (file_exists($logoPath)) { @$pdf->Image($logoPath, 15, 12, 25); }
 
         $pdf->SetFont('Arial', 'B', 13);

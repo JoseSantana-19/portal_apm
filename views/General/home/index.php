@@ -1064,7 +1064,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
     <!-- 1. Navbar Section -->
     <div class="portal-nav">
         <div class="portal-logo" style="display:flex; align-items:center; gap:16px;">
-            <img src="<?= $baseUrl ?>/imgs/logo_apm.png" alt="Logo APM" onerror="this.src='https://i.imgur.com/8QG4pQA.png'" style="height:60px; width:auto; object-fit:contain;">
+            <img src="<?= $baseUrl ?>/imgs/logoapm.png" alt="Logo APM" onerror="this.src='https://i.imgur.com/8QG4pQA.png'" style="height:60px; width:auto; object-fit:contain;">
             <div class="portal-logo-text" style="font-family: 'Sora', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.2;">
                 <span style="color: var(--accent-hover, #0284C7); font-weight: 800;">Sys</span>Port
                 <span style="font-size: 14px; font-weight: 300; opacity: 0.85; margin-left: 6px;">| APM Manta</span>
@@ -1190,7 +1190,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
         <div class="w-modal-card">
             <button class="w-close" onclick="closeWelcomeModal()"><i class="fa-solid fa-xmark"></i></button>
             <div class="w-logo-hdr">
-                <img src="<?= $baseUrl ?>/imgs/logo_apm.png" alt="Logo APM Manta" onerror="this.src='https://i.imgur.com/8QG4pQA.png'">
+                <img src="<?= $baseUrl ?>/imgs/logoapm.png" alt="Logo APM Manta" onerror="this.src='https://i.imgur.com/8QG4pQA.png'">
                 <div class="w-logo-title" style="font-family: 'Sora', sans-serif; font-size: 22px;">
                     <span style="color: var(--accent-hover, #0284C7); font-weight: 800;">Sys</span>Port <span style="font-size: 14px; font-weight: 300; opacity: 0.8; margin-left: 4px;">· APM</span>
                 </div>
@@ -1235,7 +1235,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
         <div class="folders-modal">
             <button class="fm-close" onclick="closeFolders()"><i class="fa-solid fa-xmark"></i></button>
             <div class="fm-title">
-                <img src="<?= $baseUrl ?>/imgs/logo_apm.png" alt="Logo APM" onerror="this.src='https://i.imgur.com/8QG4pQA.png'">
+                <img src="<?= $baseUrl ?>/imgs/logoapm.png" alt="Logo APM" onerror="this.src='https://i.imgur.com/8QG4pQA.png'">
                 <h2>Directorio de <span style="color:var(--primary-hover)">Módulos APM</span></h2>
             </div>
             <div class="fm-subtitle">Selecciona el departamento al cual deseas ingresar. La autenticación compartida (SSO) te permitirá navegar entre módulos autorizados de forma fluida.</div>

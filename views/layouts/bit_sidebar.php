@@ -40,7 +40,7 @@ $apmCedulaSidebar = isset($_SESSION['apm_auth']['cedula'])
 <div class="offcanvas offcanvas-start apm-sidebar" tabindex="-1" id="sidebarMenu" aria-label="Menú principal">
 
     <div class="portal-sidebar-header">
-        <img src="public/img/logoapm.png" alt="Logo APM" class="portal-sidebar-logo">
+        <img src="imgs/logoapm.png" alt="Logo APM" class="portal-sidebar-logo">
         <h4>Portal Portuario</h4>
 
         <button class="portal-sidebar-close" type="button" id="portalSidebarClose" title="Ocultar menú" aria-label="Ocultar menú">

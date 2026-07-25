@@ -255,7 +255,7 @@ class EmpleadoController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
 
         // Membrete
-        $logoPath = ROOT_PATH . 'logoapm.png';
+        $logoPath = ROOT_PATH . '../../imgs/logoapm.png';
         if (file_exists($logoPath)) {
             @$pdf->Image($logoPath, 15, 12, 25);
             $pdf->SetXY(43, 12);

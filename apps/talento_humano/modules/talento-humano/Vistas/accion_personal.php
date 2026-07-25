@@ -207,7 +207,7 @@ $preselCedula = $preselCedula ?? '';
         <header class="topbar">
             <div class="topbar-left">
                 <div class="brand">
-                    <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM">
+                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
                     <div>
                         <h1>Autoridad Portuaria de Manta</h1>
                         <p>Módulo Talento Humano</p>
@@ -759,7 +759,7 @@ function abrirModalVistaPrevia() {
     const declaracion  = getT('presento_declaracion') || 'No aplica';
 
     /* ── URL del logo usando constante PHP ── */
-    const logoUrl  = '<?= IMG_URL ?>/logoapm.png';
+    const logoUrl  = '<?= LOGO_URL ?>/logoapm.png';
     const fechaHoy = new Date().toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
     const nroDoc   = `APM-TH-${new Date().getFullYear()}-${String(empId).padStart(3,'0')}`;
 

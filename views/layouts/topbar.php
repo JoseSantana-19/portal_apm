@@ -18,7 +18,7 @@ if ($baseUrl === '/' || $baseUrl === '\\') $baseUrl = '';
         </button>
         
         <div class="tb-logo-area">
-            <img src="<?= $baseUrl ?>/imgs/logo_apm.png" alt="Logo APM" style="height:42px; width:auto; object-fit:contain; margin-right:10px;" onerror="this.style.display='none'">
+            <img src="<?= $baseUrl ?>/imgs/logoapm.png" alt="Logo APM" style="height:42px; width:auto; object-fit:contain; margin-right:10px;" onerror="this.style.display='none'">
             <div class="tla-name" style="font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;">
                 AUTORIDAD PORTUARIA DE MANTA
             </div>

@@ -345,7 +345,7 @@ class EmpleadoController extends Controller
         // ======================================================================
         // ENCABEZADO / MEMBRETE INSTITUCIONAL
         // ======================================================================
-        $logoPath = ROOT . '/public/img/logoapm.png';
+        $logoPath = ROOT . '/../../imgs/logoapm.png';
         if (file_exists($logoPath)) {
             @$pdf->Image($logoPath, 15, 12, 25);
             $pdf->SetXY(43, 12);

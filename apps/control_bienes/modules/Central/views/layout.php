@@ -250,7 +250,7 @@ if ($esAdminActual) {
     <!-- Menú Lateral Dinámico Server-Side -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="logoapm.png" alt="SysPort" class="sidebar-logo">
+            <img src="<?= BASE_URL ?>../../imgs/logoapm.png" alt="SysPort" class="sidebar-logo">
             <div class="sidebar-brand">
                 <span class="sidebar-brand-name">SysPort | APM</span>
                 <small class="sidebar-brand-sub">Portal Corporativo</small>

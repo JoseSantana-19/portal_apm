@@ -1685,7 +1685,7 @@
         const fechaGeneracion = new Date().toLocaleString('es-EC');
 
         const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
-        const logoUrl = `${baseUrl}public/img/logoapm.png`;
+        const logoUrl = `${baseUrl}imgs/logoapm.png`;
 
         const total = state.items.length;
         const totalOper = state.items.filter((item) => normalizarEstado(item.estado_camara) === 'OPERATIVA').length;

@@ -278,7 +278,7 @@ class AccionPersonalController extends Controller
         $fmtDMY = fn(?string $ts) => empty($ts) ? '' : date('d-m-Y', strtotime($ts));
 
         // ── Datos ──────────────────────────────────────────────────────────
-        $logoPath  = ROOT . '/public/img/logoapm.png';
+        $logoPath  = ROOT . '/../../imgs/logoapm.png';
         $nroAccion = $d['numero_accion']  ?? '';
         $cedula    = $d['identificacion'] ?? '';
         $apellidos = $utf(strtoupper($d['apellidos'] ?? ''));
