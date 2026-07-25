@@ -21,6 +21,7 @@ if (!isset($conn) || !$conn) {
     ];
     if (DB_USER !== '') { $__opts['UID'] = DB_USER; $__opts['PWD'] = DB_PASS; }
 
+    @sqlsrv_configure("WarningsReturnAsErrors", 0);
     $conn = @sqlsrv_connect(DB_SERVER, $__opts);
 
     // Si la BD no existe aún, crearla y reconectar (robustez de instalación).

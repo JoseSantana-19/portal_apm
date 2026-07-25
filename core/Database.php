@@ -25,9 +25,10 @@ class Database {
             $info['PWD'] = $pass;
         }
 
+        sqlsrv_configure("WarningsReturnAsErrors", 0);
         $this->conn = sqlsrv_connect($server, $info);
         if ($this->conn === false) {
-            $err = sqlsrv_errors(SQLSRV_ERR_ALL);
+            $err = sqlsrv_errors(SQLSRV_ERR_ERRORS);
             throw new RuntimeException('DB connect failed: ' . ($err[0]['message'] ?? 'unknown'));
         }
     }

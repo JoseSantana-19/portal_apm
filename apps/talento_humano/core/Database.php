@@ -16,20 +16,18 @@ class Conexion
     {
         if (self::$conexion === null) {
             try {
-                $servidor  = ".\\VICTUS";   // misma instancia del Portal APM
+                $servidor = "DESKTOP-S82QFJK\\SQLEXPRESS";   // misma instancia del Portal APM
                 $baseDatos = "Talento_Humano";
 
                 // DSN con Autenticación de Windows (Windows Authentication)
                 $dsn = "sqlsrv:Server=$servidor;Database=$baseDatos;TrustServerCertificate=true";
 
                 // Opciones de inicialización segura con codificación forzada de Microsoft
-                self::$conexion = new PDO($dsn, null, null, [
-                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                self::$conexion = new PDO($dsn, 'sa', '123', [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    // Esta constante nativa configura de forma segura el UTF-8 en el driver
-                    PDO::SQLSRV_ATTR_ENCODING    => PDO::SQLSRV_ENCODING_UTF8
+                    PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8
                 ]);
-
             } catch (PDOException $e) {
                 // Dirige el log al módulo de conexión base (sin ruta expuesta)
                 self::registrarErrorLog($e, 'Core');
@@ -56,7 +54,7 @@ class Conexion
     public static function registrarErrorLog(Exception $e, string $modulo = 'talento-humano', bool $detenerEjecucion = true): void
     {
         $fechaActual = date('Y-m-d');
-        $horaActual  = date('H:i:s');
+        $horaActual = date('H:i:s');
 
         // RECTIFICADO v2.1: Usa ROOT para ruta absoluta estable desde cualquier ubicación
         // ROOT se define en index.php como define('ROOT', __DIR__)
@@ -73,8 +71,8 @@ class Conexion
         $archivoLog = $directorioLog . "/log_" . $fechaActual . ".txt";
 
         $traza = "[$horaActual] EXCEPCIÓN -> " . $e->getMessage()
-               . " en " . $e->getFile()
-               . " (Línea " . $e->getLine() . ")" . PHP_EOL;
+            . " en " . $e->getFile()
+            . " (Línea " . $e->getLine() . ")" . PHP_EOL;
 
         file_put_contents($archivoLog, $traza, FILE_APPEND | LOCK_EX);
 
