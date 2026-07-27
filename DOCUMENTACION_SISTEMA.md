@@ -880,6 +880,23 @@ integración real vía apps embebidas / Portuaria):
   acepta sintaxis de versiones anteriores sin importar el nivel de
   compatibilidad configurado. Eliminada de los 5 scripts (182 apariciones);
   vuelto a probar de punta a punta tras la corrección, mismos batches OK.
+- **Tercera corrección:** al correr `PORTAL_APM_COMPLETO.sql` en una máquina
+  sin `Talento_Humano` instalada todavía, falló `CREATE VIEW
+  vw_Usuarios_Identidad` con "nombre de objeto no válido" — a diferencia de
+  los stored procedures (que sí difieren la resolución de nombres cross-DB
+  hasta ejecutarse), `CREATE VIEW` necesita que la tabla referenciada
+  (`Talento_Humano.dbo.th_empleados`) exista YA en el momento de crearse,
+  sin importar si la base `Talento_Humano` existe vacía o no. Se envolvió
+  la vista en `IF OBJECT_ID('Talento_Humano.dbo.th_empleados') IS NOT NULL
+  EXEC(N'CREATE VIEW...')` — si la dependencia no está lista, se salta la
+  creación con un aviso en vez de romper el resto del script; se puede
+  recrear después corriendo `db/identidad_cross_db.sql`. De paso,
+  `db/run_sql.php` no llamaba `sqlsrv_configure('WarningsReturnAsErrors', 0)`
+  — un simple `PRINT` (como el aviso de arriba) se reportaba como error y
+  abortaba la ejecución aunque el batch en sí no hubiera fallado; corregido
+  con el mismo patrón que ya usaba `conexion/conexion.php`. Verificado
+  simulando el escenario real (las 4 BDs de módulos sin existir en
+  absoluto): 385/385 batches OK.
 
 ### v3.1 (2026-07-01) y anteriores
 

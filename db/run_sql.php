@@ -51,6 +51,11 @@ if (!$conn) {
     fwrite(STDERR, "ERROR de conexion a {$server}:\n" . print_r(sqlsrv_errors(), true) . "\n");
     exit(5);
 }
+// Sin esto, sqlsrv trata mensajes informativos (PRINT, RAISERROR de baja
+// severidad) como si la consulta hubiera fallado — un simple PRINT dentro
+// del script (ej. avisos de dependencias cross-DB opcionales) abortaría
+// la ejecucion aunque el batch en si se haya ejecutado bien.
+sqlsrv_configure('WarningsReturnAsErrors', 0);
 echo "Conectado a {$server}. Ejecutando " . basename($file) . " ...\n";
 
 // Dividir por lineas que contienen solo GO (case-insensitive), como hace sqlcmd

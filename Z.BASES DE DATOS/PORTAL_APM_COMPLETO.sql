@@ -105,6 +105,28 @@ ALTER DATABASE [PORTAL_APM] SET TARGET_RECOVERY_TIME = 60 SECONDS
 GO
 ALTER DATABASE [PORTAL_APM] SET DELAYED_DURABILITY = DISABLED
 GO
+
+/* ── Bases de los módulos integrados: crear vacías si no existen aún ──
+   vw_Usuarios_Identidad y algunos SPs de este script referencian
+   Talento_Humano.dbo.th_empleados / inventario.dbo.* / PortuariaDemo.dbo.*
+   por nombre de 3 partes. SQL Server sí difiere la resolución de nombres
+   para TABLAS que aún no existen (deferred name resolution), pero NO para
+   una BASE DE DATOS completa que no existe — falla al crear la vista/SP,
+   no al usarla. Este bloque garantiza que la base exista (aunque sea
+   vacía) para que la resolución diferida de las tablas funcione igual que
+   si ya tuvieras el esquema real de cada módulo instalado. Si más tarde
+   corrés Talento_Humano.sql/inventario.sql/PortuariaDemo.sql de
+   "Z.BASES DE DATOS/", crean sus tablas dentro de estas mismas bases sin
+   pisar nada. */
+IF DB_ID(N'Talento_Humano') IS NULL CREATE DATABASE [Talento_Humano];
+GO
+IF DB_ID(N'inventario') IS NULL CREATE DATABASE [inventario];
+GO
+IF DB_ID(N'PortuariaDemo') IS NULL CREATE DATABASE [PortuariaDemo];
+GO
+IF DB_ID(N'PortuariaExterna') IS NULL CREATE DATABASE [PortuariaExterna];
+GO
+
 USE [PORTAL_APM]
 GO
 /****** Objeto: DatabaseRole [rol_sso_modulos] Fecha de script: 26/7/2026 17:41:54 ******/
@@ -566,16 +588,32 @@ GO
 -- Humano (id_empleado_th), nombre/cédula se leen de ahí (cross-DB, misma
 -- instancia) — nunca se duplican a mano. Si no, usa el respaldo local
 -- (cuentas que no son empleado, ej. el superadmin de TI).
-CREATE VIEW [dbo].[vw_Usuarios_Identidad] AS
-SELECT
-    u.id_usuario, u.nombre_usuario, u.correo, u.id_departamento,
-    u.nivel_jerarquia, u.estado, u.id_empleado_th,
-    COALESCE(NULLIF(LTRIM(RTRIM(e.nombres + ' ' + e.apellidos)), ''), u.nombre_completo) AS nombre_completo,
-    COALESCE(e.cedula, u.cedula) AS cedula,
-    COALESCE(e.ruta_foto, u.foto) AS foto
-FROM CORE_Usuarios u
-LEFT JOIN Talento_Humano.dbo.th_empleados e ON e.empleado_id = u.id_empleado_th;
-
+--
+-- A diferencia de los stored procedures (que sí difieren la resolución de
+-- nombres cross-DB hasta que se ejecutan), CREATE VIEW necesita que
+-- Talento_Humano.dbo.th_empleados exista YA en el momento de crearse — si
+-- todavía no corriste "Z.BASES DE DATOS/Talento_Humano.sql" en esta
+-- instancia, se salta la creación (con aviso) en vez de romper el resto
+-- del script. Volvé a correr esto (o db/identidad_cross_db.sql) después de
+-- instalar Talento_Humano para que la vista quede creada.
+IF OBJECT_ID(N'Talento_Humano.dbo.th_empleados') IS NOT NULL
+BEGIN
+    EXEC(N'
+    CREATE VIEW [dbo].[vw_Usuarios_Identidad] AS
+    SELECT
+        u.id_usuario, u.nombre_usuario, u.correo, u.id_departamento,
+        u.nivel_jerarquia, u.estado, u.id_empleado_th,
+        COALESCE(NULLIF(LTRIM(RTRIM(e.nombres + '' '' + e.apellidos)), ''''), u.nombre_completo) AS nombre_completo,
+        COALESCE(e.cedula, u.cedula) AS cedula,
+        COALESCE(e.ruta_foto, u.foto) AS foto
+    FROM CORE_Usuarios u
+    LEFT JOIN Talento_Humano.dbo.th_empleados e ON e.empleado_id = u.id_empleado_th;
+    ');
+END
+ELSE
+BEGIN
+    PRINT 'AVISO: Talento_Humano.dbo.th_empleados no existe todavia. vw_Usuarios_Identidad NO se creo — corre Z.BASES DE DATOS/Talento_Humano.sql y despues db/identidad_cross_db.sql.';
+END
 GO
 /****** Objeto: View [dbo].[vw_SSO_Menu] Fecha de script: 26/7/2026 17:41:55 ******/
 SET ANSI_NULLS ON
