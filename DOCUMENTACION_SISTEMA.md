@@ -868,6 +868,18 @@ integración real vía apps embebidas / Portuaria):
   - Los 4 scripts se probaron de punta a punta contra BDs descartables
     (`*_TESTSCRIPT`, creadas y eliminadas en la misma prueba) tras el ajuste:
     381/381, 180/180, 195/195 y 243/243 batches sin errores.
+- Se sumó `PortuariaExterna.sql` (5to script, esquema del maestro externo de
+  personas que usa Portuaria) con el mismo tratamiento 2014+.
+- **Corrección posterior:** el ajuste inicial solo cubrió opciones a nivel
+  de `ALTER DATABASE`. Al correr `PORTAL_APM_COMPLETO.sql` en una máquina con
+  un motor SQL Server más antiguo, falló en cada `PRIMARY KEY`/`UNIQUE`/
+  `CREATE INDEX` con `'OPTIMIZE_FOR_SEQUENTIAL_KEY' no es una opción
+  reconocida` — una opción de **índice/constraint** (no de BD) que requiere
+  motor 2019+, independiente del `COMPATIBILITY_LEVEL`. Probarlo en esta
+  máquina (motor 2022) nunca lo iba a detectar, porque un motor más nuevo
+  acepta sintaxis de versiones anteriores sin importar el nivel de
+  compatibilidad configurado. Eliminada de los 5 scripts (182 apariciones);
+  vuelto a probar de punta a punta tras la corrección, mismos batches OK.
 
 ### v3.1 (2026-07-01) y anteriores
 
