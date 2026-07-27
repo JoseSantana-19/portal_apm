@@ -146,8 +146,8 @@ if (!function_exists('normalizeFaIcon')) {
     
     <!-- Branding Header -->
     <a href="<?= APP_URL ?>/dashboard" class="sm-header-block" style="text-decoration: none;" title="Volver al Inicio">
-        <div class="sm-icon" style="background: linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%) !important; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);">
-            <i class="fa-solid fa-anchor" style="color:#fff; font-size:18px;"></i>
+        <div class="sm-icon" style="background: #ffffff !important; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); padding:5px;">
+            <img src="<?= APP_URL ?>/imgs/logoapm.png" alt="Logo APM" style="width:100%; height:100%; object-fit:contain;">
         </div>
         <div class="sm-title-text">
             <h2 style="font-family: var(--font-body); font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.02em;">

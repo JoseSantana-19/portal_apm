@@ -9,11 +9,15 @@ $shortName = explode(' ', $userName)[0];
 ?>
 <header class="topbar" id="topbar">
 
-    <!-- Left: sidebar toggle + breadcrumb -->
+    <!-- Left: sidebar toggle + brand + breadcrumb -->
     <div class="topbar-left">
         <button id="toggle-sidebar-btn" class="topbar-btn" title="Menú">
             <i data-lucide="menu" id="hamburgerIcon"></i>
         </button>
+        <div class="topbar-brand">
+            <img src="<?= APP_URL ?>/imgs/logoapm.png" alt="Logo APM" class="topbar-brand-logo" onerror="this.style.display='none'">
+            <span class="topbar-brand-name">Autoridad Portuaria de Manta</span>
+        </div>
         <nav class="topbar-breadcrumb" aria-label="Ruta">
             <span id="breadcrumb-text">Dashboard</span>
         </nav>

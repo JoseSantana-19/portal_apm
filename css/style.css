@@ -443,6 +443,44 @@ a { text-decoration: none; color: inherit; }
     text-overflow: ellipsis;
 }
 
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 14px;
+    margin-right: 4px;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.topbar-brand-logo {
+    height: 30px;
+    width: 30px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 2px;
+    flex-shrink: 0;
+}
+
+.topbar-brand-name {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .topbar-brand-name { display: none; }
+    .topbar-brand { padding-right: 10px; }
+}
+
+@media (max-width: 480px) {
+    .topbar-brand { display: none; }
+}
+
 .topbar-user {
     display: flex;
     align-items: center;
@@ -3397,14 +3435,15 @@ code {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    SIDEBAR AZUL INSTITUCIONAL FIJO — el menú lateral del portal mantiene el
-   mismo azul APM (#0D2B4E) en los 3 temas. Se redeclaran los tokens SOLO
-   dentro de .sidebar: las custom properties heredan, así que todo su
-   contenido (headers, áreas, ítems, badges, scrollbar) queda azul sin tocar
-   el resto del shell, que sigue cambiando con t1/t2/t3.
+   mismo teal de Control de Bienes (#075177) en los 3 temas. Se redeclaran
+   los tokens SOLO dentro de .sidebar: las custom properties heredan, así
+   que todo su contenido (headers, áreas, ítems, badges, scrollbar) queda
+   con ese color sin tocar el resto del shell, que sigue cambiando con
+   t1/t2/t3.
    ═══════════════════════════════════════════════════════════════════════════ */
 body.t1 .sidebar, body.t2 .sidebar, body.t3 .sidebar {
-    --bg-sidebar: #0D2B4E;
-    --surface-app: #0F3158;
+    --bg-sidebar: #075177;
+    --surface-app: #085C88;
     --text-app: #E8F0FA;
     --text-color: #E8F0FA;
     --text-muted: #9FB6D1;
@@ -3415,7 +3454,7 @@ body.t1 .sidebar, body.t2 .sidebar, body.t3 .sidebar {
     --primary-hover: #38BDF8;
     --sb-thumb: rgba(56, 189, 248, 0.35);
     --sb-track: transparent;
-    background: #0D2B4E !important;
+    background: #075177 !important;
     color: #E8F0FA;
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     backdrop-filter: none !important;
@@ -3425,7 +3464,7 @@ body.t1 .sidebar, body.t2 .sidebar, body.t3 .sidebar {
 body.t1 .sidebar .sm-header-block,
 body.t2 .sidebar .sm-header-block,
 body.t3 .sidebar .sm-header-block {
-    background: #092038;
+    background: #053A56;
     border-bottom: 1.5px solid rgba(255, 255, 255, 0.08) !important;
 }
 body.t1 .sidebar .sm-title-text h2,
