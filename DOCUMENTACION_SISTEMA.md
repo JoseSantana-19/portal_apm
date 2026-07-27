@@ -912,6 +912,22 @@ integración real vía apps embebidas / Portuaria):
   secuencias posibles (portal→módulos, módulos→portal, portal→módulos→portal
   otra vez) — todas OK, la vista quedó consultable con datos reales al
   final.
+- **Quinta corrección — rutas de archivo fijas a una máquina:** los 4
+  scripts de módulos traían `FILENAME = N'C:\Program Files\...\MSSQL16.VICTUS\
+  MSSQL\DATA\...'` (la ruta real del `CREATE DATABASE` que SSMS exportó, de
+  esta máquina de desarrollo) — en cualquier otra instancia, con otro
+  nombre/versión/unidad, `CREATE DATABASE` fallaba directo con "Error al
+  buscar el archivo... no se puede encontrar la ruta especificada", y esa
+  falla en cascada tumbaba cada `ALTER DATABASE` siguiente del script.
+  Quitada la ruta fija de los 4: ahora `CREATE DATABASE [X] COLLATE
+  Modern_Spanish_CI_AS;` sin `ON PRIMARY`/`FILENAME` — SQL Server usa las
+  rutas de datos por defecto que tenga configuradas esa instancia,
+  cualquiera que sea (mismo patrón que ya usaba `PORTAL_APM_COMPLETO.sql`
+  desde el principio). Se agregó `COLLATE Modern_Spanish_CI_AS` explícito
+  para que coincida con `PORTAL_APM` y evitar conflictos de collation en
+  joins cross-DB si el collation por defecto del servidor fuera otro.
+  Vuelto a probar las 2 secuencias de orden de punta a punta: mismos
+  batches OK, `vw_Usuarios_Identidad` con 21 filas reales al final.
 
 ### v3.1 (2026-07-01) y anteriores
 

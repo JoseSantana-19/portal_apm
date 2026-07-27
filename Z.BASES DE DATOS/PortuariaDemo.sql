@@ -1,19 +1,15 @@
 USE [master]
 GO
 /****** Objeto: Database [PortuariaDemo] Fecha de script: 26/7/2026 22:40:59 ******/
--- Si PORTAL_APM_COMPLETO.sql ya corrió antes y creó esta base vacía (stub
--- para resolver dependencias cross-DB), no reintenta el CREATE DATABASE —
--- sigue directo a poblarla con las tablas reales de abajo.
+-- Sin ruta de archivo fija (la de MSSQL16.VICTUS era de una sola máquina y
+-- rompía "CREATE DATABASE" en cualquier otra instancia) — usa las rutas de
+-- datos por defecto configuradas en ESE SQL Server. Si PORTAL_APM_COMPLETO.sql
+-- ya corrió antes y creó esta base vacía (stub para resolver dependencias
+-- cross-DB), no reintenta el CREATE DATABASE — sigue directo a poblarla
+-- con las tablas reales de abajo.
 IF DB_ID(N'PortuariaDemo') IS NULL
 BEGIN
-    EXEC(N'
-    CREATE DATABASE [PortuariaDemo]
-     CONTAINMENT = NONE
-     ON  PRIMARY
-    ( NAME = N''PortuariaDemo'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaDemo.mdf'' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 1024KB )
-     LOG ON
-    ( NAME = N''PortuariaDemo_log'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaDemo_log.ldf'' , SIZE = 4288KB , MAXSIZE = 2048GB , FILEGROWTH = 10%)
-    ');
+    EXEC(N'CREATE DATABASE [PortuariaDemo] COLLATE Modern_Spanish_CI_AS;');
 END
 GO
 ALTER DATABASE [PortuariaDemo] SET COMPATIBILITY_LEVEL = 120

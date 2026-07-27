@@ -1,19 +1,15 @@
 USE [master]
 GO
 /****** Objeto: Database [inventario] Fecha de script: 26/7/2026 22:39:59 ******/
--- Si PORTAL_APM_COMPLETO.sql ya corrió antes y creó esta base vacía (stub
--- para resolver dependencias cross-DB), no reintenta el CREATE DATABASE —
--- sigue directo a poblarla con las tablas reales de abajo.
+-- Sin ruta de archivo fija (la de MSSQL16.VICTUS era de una sola máquina y
+-- rompía "CREATE DATABASE" en cualquier otra instancia) — usa las rutas de
+-- datos por defecto configuradas en ESE SQL Server. Si PORTAL_APM_COMPLETO.sql
+-- ya corrió antes y creó esta base vacía (stub para resolver dependencias
+-- cross-DB), no reintenta el CREATE DATABASE — sigue directo a poblarla
+-- con las tablas reales de abajo.
 IF DB_ID(N'inventario') IS NULL
 BEGIN
-    EXEC(N'
-    CREATE DATABASE [inventario]
-     CONTAINMENT = NONE
-     ON  PRIMARY
-    ( NAME = N''inventario'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\inventario.mdf'' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
-     LOG ON
-    ( NAME = N''inventario_log'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\inventario_log.ldf'' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
-    ');
+    EXEC(N'CREATE DATABASE [inventario] COLLATE Modern_Spanish_CI_AS;');
 END
 GO
 ALTER DATABASE [inventario] SET COMPATIBILITY_LEVEL = 120
