@@ -46,8 +46,9 @@ SETUP_PROYECTO.bat
 ```
 
 Este asistente interactivo detecta tu instancia de SQL Server, configura
-`config/app.php`, crea la base `PORTAL_APM` y carga `PORTAL_APM_COMPLETO.sql`,
-y te ofrece levantar el servidor local. Cubre el **núcleo** del sistema; para
+`config/app.php`, crea la base `PORTAL_APM` y carga
+`Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`, y te ofrece levantar el servidor
+local. Cubre el **núcleo** del sistema; para
 los módulos integrados después (Talento Humano, Portuaria, hubs, SSO) segui
 igual con los pasos manuales de la sección 3.4 en adelante — el script no los
 ejecuta todavía.
@@ -66,9 +67,12 @@ cd portal_apm
 Ejecutá en orden (SSMS, o `php db/run_sql.php <archivo> <servidor> [usuario] [password]`
 para hacerlo sin SSMS):
 
-1. **`PORTAL_APM_COMPLETO.sql`** — crea la base `PORTAL_APM` (si no existe) con
-   toda la estructura base, menú, usuarios y permisos. ⚠️ Si la base ya
-   existe, este script la recrea (borra datos previos).
+1. **`Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`** — crea la base `PORTAL_APM`
+   (si no existe) con toda la estructura base, menú, usuarios y permisos.
+   ⚠️ Si la base ya existe, este script la recrea (borra datos previos).
+   Compatible con SQL Server 2014 en adelante. La misma carpeta guarda los
+   esquemas de referencia de los módulos integrados (`Talento_Humano.sql`,
+   `inventario.sql`, `PortuariaDemo.sql`), también 2014+.
 2. Migraciones incrementales de `db/` (idempotentes, se pueden re-ejecutar),
    **en este orden**:
    ```

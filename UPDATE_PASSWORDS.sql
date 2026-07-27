@@ -1,6 +1,6 @@
 ﻿-- Portal APM v2.0 - Actualizar hash de contrasena inicial
 -- Generado: 2026-06-05 08:18
--- Ejecutar DESPUES de PORTAL_APM_COMPLETO.sql
+-- Ejecutar DESPUES de Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql
 
 SET QUOTED_IDENTIFIER ON;
 GO

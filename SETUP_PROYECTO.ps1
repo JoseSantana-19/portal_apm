@@ -687,7 +687,7 @@ Write-Warn "ATENCION: PORTAL_APM_COMPLETO.sql CREA/RECREA la base '$dbName' (bor
 if (Ask-YesNo "Ejecutar el script de base de datos ahora?" $true) {
 
     # Preparar archivo (reemplazo de nombre si la BD es personalizada)
-    $sqlFile = Join-Path $ProjectRoot "PORTAL_APM_COMPLETO.sql"
+    $sqlFile = Join-Path $ProjectRoot "Z.BASES DE DATOS\PORTAL_APM_COMPLETO.sql"
     $tempSqlFile = $null
     if ($dbName -ne "PORTAL_APM") {
         Write-Inf "Ajustando nombre de BD a '$dbName' en copia temporal..."
@@ -767,7 +767,7 @@ if (Ask-YesNo "Ejecutar el script de base de datos ahora?" $true) {
         Write-Host "  Para crear la base de datos manualmente:" -ForegroundColor White
         Write-Host "   1. Abra SQL Server Management Studio (SSMS)" -ForegroundColor Gray
         Write-Host "   2. Conectese a: $dbServer" -ForegroundColor Gray
-        Write-Host "   3. Abra PORTAL_APM_COMPLETO.sql y ejecutelo (F5)" -ForegroundColor Gray
+        Write-Host "   3. Abra 'Z.BASES DE DATOS\PORTAL_APM_COMPLETO.sql' y ejecutelo (F5)" -ForegroundColor Gray
         Write-Host ""
     }
 
@@ -831,7 +831,7 @@ $criticalFiles = @(
     "modules\Credenciales\views\login\index.php",
     "css\variables.css", "css\style.css",
     "public\js\app.js", "public\js\charts.js",
-    "PORTAL_APM_COMPLETO.sql"
+    "Z.BASES DE DATOS\PORTAL_APM_COMPLETO.sql"
 )
 $missing = 0
 foreach ($file in $criticalFiles) {

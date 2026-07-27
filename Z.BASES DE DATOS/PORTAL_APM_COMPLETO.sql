@@ -25,6 +25,12 @@
    todos los datos existentes. Pensado para instalar desde cero en una
    máquina nueva; NO correr sobre una base en producción con datos que
    quieras conservar sin respaldo previo.
+
+   Compatibilidad: SQL Server 2014 en adelante. COMPATIBILITY_LEVEL = 120;
+   sin opciones de BD introducidas después de 2014 (QUERY_STORE requiere
+   2016+, ACCELERATED_DATABASE_RECOVERY requiere 2019+, LEDGER requiere
+   2022+ — ninguna se usa aquí). Cuerpo del script sin STRING_AGG/STRING_SPLIT/
+   TRIM()/CONCAT_WS/CREATE OR ALTER (todas 2016+ o más nuevas).
    ============================================================================ */
 
 USE [master]
@@ -97,13 +103,7 @@ ALTER DATABASE [PORTAL_APM] SET FILESTREAM( NON_TRANSACTED_ACCESS = OFF )
 GO
 ALTER DATABASE [PORTAL_APM] SET TARGET_RECOVERY_TIME = 60 SECONDS 
 GO
-ALTER DATABASE [PORTAL_APM] SET DELAYED_DURABILITY = DISABLED 
-GO
-ALTER DATABASE [PORTAL_APM] SET ACCELERATED_DATABASE_RECOVERY = OFF  
-GO
-ALTER DATABASE [PORTAL_APM] SET QUERY_STORE = ON
-GO
-ALTER DATABASE [PORTAL_APM] SET QUERY_STORE (OPERATION_MODE = READ_WRITE, CLEANUP_POLICY = (STALE_QUERY_THRESHOLD_DAYS = 30), DATA_FLUSH_INTERVAL_SECONDS = 900, INTERVAL_LENGTH_MINUTES = 60, MAX_STORAGE_SIZE_MB = 1000, QUERY_CAPTURE_MODE = AUTO, SIZE_BASED_CLEANUP_MODE = AUTO, MAX_PLANS_PER_QUERY = 200, WAIT_STATS_CAPTURE_MODE = ON)
+ALTER DATABASE [PORTAL_APM] SET DELAYED_DURABILITY = DISABLED
 GO
 USE [PORTAL_APM]
 GO
@@ -2052,37 +2052,15 @@ INSERT INTO CORE_Menu_Nodos(id_modulo,opcion,items,subitems,descripcion,url_ruta
 (12,1,5,0,N'Sistema de Control de Bienes',N'/apps/control_bienes/',N'fa-boxes-stacked',2,0,0,1);
 GO
 
--- Modulo 13
+-- Modulo 13 — mismo patrón que TH/Bienes: header + Panel + 1 link al
+-- sistema completo. El resto de rutas (visitas, rondas, cámaras, catálogos)
+-- sigue funcionando igual, alcanzable desde los accesos directos dentro
+-- del propio hub (/portuaria) — no hace falta un nodo de menú por cada una.
 INSERT INTO CORE_Menu_Nodos(id_modulo,opcion,items,subitems,descripcion,url_ruta,icono,orden,requiere_mfa,target_spa,estado) VALUES
 (13,0,0,0,N'Bitácoras Portuarias',NULL,N'fa-anchor',13,0,0,1),
 (13,1,0,0,N'Bitácoras',NULL,N'fa-gauge-high',1,0,0,1),
 (13,1,1,0,N'Panel Portuario',N'/portuaria',N'fa-anchor',1,0,1,1),
-(13,1,2,0,N'Vista Rápida Visitas',N'/portuaria/visitas-resumen',N'fa-list-check',2,0,1,0),
-(13,1,3,0,N'Actividad de Seguridad',N'/portuaria/actividad',N'fa-shield-halved',3,0,1,0),
-(13,1,4,0,N'Dashboard del Módulo',N'/portuaria/dashboard',N'fa-gauge',4,0,0,0),
-(13,1,5,0,N'Panel Jefatura',N'/bit_dashboard_jefe.php',N'fa-chart-line',5,0,0,0),
-(13,1,6,0,N'Dashboard Ejecutivo (Py)',N'/dashboard-ejecutivo',N'fa-chart-pie',6,0,0,0),
-(13,1,7,0,N'Sistema de Bitácoras',N'/visitas',N'fa-anchor',2,0,0,1),
-(13,2,0,0,N'Visitas',NULL,N'fa-person-walking-arrow-right',2,0,0,0),
-(13,2,1,0,N'Registrar Ingreso',N'/visitas/registrar',N'fa-person-circle-plus',1,0,0,0),
-(13,2,2,0,N'Listado de Visitas',N'/visitas',N'fa-list-ul',2,0,0,0),
-(13,3,0,0,N'Seguridad Operativa',NULL,N'fa-shield-halved',3,0,0,0),
-(13,3,1,0,N'Bitácora de Rondas',N'/rondas',N'fa-clipboard-check',1,0,0,0),
-(13,3,2,0,N'Reporte Supervisor',N'/bit_reporte_diario_supervisor.php',N'fa-file-lines',2,0,0,0),
-(13,3,3,0,N'Consulta de Bitácoras',N'/bit_consulta.php',N'fa-magnifying-glass',3,0,0,0),
-(13,4,0,0,N'CCTV Cámaras',NULL,N'fa-video',4,0,0,0),
-(13,4,1,0,N'Bitácora de Cámaras',N'/camaras',N'fa-camera',1,0,0,0),
-(13,4,2,0,N'Maestro de Cámaras',N'/camaras/inventario',N'fa-server',2,0,0,0),
-(13,4,3,0,N'Motivos CCTV',N'/camaras/motivos',N'fa-triangle-exclamation',3,0,0,0),
-(13,5,0,0,N'Catálogos',NULL,N'fa-database',5,0,0,0),
-(13,5,1,0,N'Registros Base',N'/catalogos',N'fa-table-list',1,0,0,0),
-(13,5,2,0,N'Maestro Personas',N'/catalogos/personas',N'fa-id-card',2,0,0,0),
-(13,5,3,0,N'Maestro Empresas',N'/catalogos/empresas',N'fa-building',3,0,0,0),
-(13,5,4,0,N'Maestro Destinos',N'/catalogos/destinos',N'fa-signs-post',4,0,0,0),
-(13,5,5,0,N'Maestro Motivos',N'/catalogos/motivos',N'fa-comment-dots',5,0,0,0),
-(13,5,6,0,N'Funcionarios (DBF)',N'/catalogos/funcionarios',N'fa-user-tie',6,0,0,0),
-(13,5,7,0,N'Niveles de Importancia',N'/catalogos/niveles-incidente',N'fa-exclamation',7,0,0,0),
-(13,5,8,0,N'Importar Funcionarios',N'/importar-funcionarios',N'fa-file-import',8,0,0,0);
+(13,1,7,0,N'Sistema de Bitácoras',N'/visitas',N'fa-anchor',2,0,0,1);
 GO
 
 -- Todos los roles activos: Panel Principal + Mi Cuenta (ver, nivel_crud=1).
@@ -2131,117 +2109,31 @@ INSERT INTO CORE_Permisos_Nodo(id_rol,id_modulo,opcion,items,subitems,nivel_crud
 (1,12,1,5,0,4,1,1,1);
 GO
 
--- Permisos modulo 13
+-- Permisos modulo 13 (trimmed a los 4 nodos reales: header, área, Panel, Sistema)
 INSERT INTO CORE_Permisos_Nodo(id_rol,id_modulo,opcion,items,subitems,nivel_crud,acceso,estado,asignado_por) VALUES
 (1,13,0,0,0,4,1,1,1),
 (1,13,1,0,0,4,1,1,1),
 (1,13,1,1,0,4,1,1,1),
-(1,13,1,2,0,4,1,1,1),
-(1,13,1,3,0,4,1,1,1),
-(1,13,1,4,0,4,1,1,1),
-(1,13,1,5,0,4,1,1,1),
-(1,13,1,6,0,4,1,1,1),
 (1,13,1,7,0,4,1,1,1),
-(1,13,2,0,0,4,1,1,1),
-(1,13,2,1,0,4,1,1,1),
-(1,13,2,2,0,4,1,1,1),
-(1,13,3,0,0,4,1,1,1),
-(1,13,3,1,0,4,1,1,1),
-(1,13,3,2,0,4,1,1,1),
-(1,13,3,3,0,4,1,1,1),
-(1,13,4,0,0,4,1,1,1),
-(1,13,4,1,0,4,1,1,1),
-(1,13,4,2,0,4,1,1,1),
-(1,13,4,3,0,4,1,1,1),
-(1,13,5,0,0,4,1,1,1),
-(1,13,5,1,0,4,1,1,1),
-(1,13,5,2,0,4,1,1,1),
-(1,13,5,3,0,4,1,1,1),
-(1,13,5,4,0,4,1,1,1),
-(1,13,5,5,0,4,1,1,1),
-(1,13,5,6,0,4,1,1,1),
-(1,13,5,7,0,4,1,1,1),
-(1,13,5,8,0,4,1,1,1),
 (2,13,0,0,0,1,1,1,1),
 (2,13,1,0,0,1,1,1,1),
 (2,13,1,1,0,1,1,1,1),
-(2,13,1,2,0,1,1,1,1),
-(2,13,1,3,0,1,1,1,1),
 (2,13,1,7,0,1,1,1,1),
-(2,13,2,0,0,1,1,1,1),
-(2,13,2,2,0,1,1,1,1),
-(2,13,3,0,0,1,1,1,1),
-(2,13,3,3,0,1,1,1,1),
 (5,13,0,0,0,3,1,1,1),
 (5,13,1,0,0,2,1,1,1),
 (5,13,1,1,0,2,1,1,1),
-(5,13,1,2,0,2,1,1,1),
-(5,13,1,3,0,2,1,1,1),
 (5,13,1,7,0,2,1,1,1),
-(5,13,2,0,0,3,1,1,1),
-(5,13,2,1,0,3,1,1,1),
-(5,13,2,2,0,3,1,1,1),
-(5,13,3,0,0,3,1,1,1),
-(5,13,3,1,0,3,1,1,1),
-(5,13,3,2,0,3,1,1,1),
-(5,13,3,3,0,3,1,1,1),
-(5,13,5,0,0,3,1,1,1),
-(5,13,5,1,0,3,1,1,1),
-(5,13,5,2,0,3,1,1,1),
-(5,13,5,3,0,3,1,1,1),
-(5,13,5,4,0,3,1,1,1),
-(5,13,5,5,0,3,1,1,1),
-(5,13,5,6,0,3,1,1,1),
-(5,13,5,7,0,3,1,1,1),
-(5,13,5,8,0,3,1,1,1),
 (6,13,0,0,0,3,1,1,1),
 (6,13,1,0,0,2,1,1,1),
 (6,13,1,1,0,2,1,1,1),
-(6,13,1,2,0,2,1,1,1),
-(6,13,1,3,0,2,1,1,1),
 (6,13,1,7,0,2,1,1,1),
-(6,13,2,0,0,3,1,1,1),
-(6,13,2,1,0,3,1,1,1),
-(6,13,2,2,0,3,1,1,1),
-(6,13,3,0,0,3,1,1,1),
-(6,13,3,1,0,3,1,1,1),
-(6,13,3,2,0,3,1,1,1),
-(6,13,3,3,0,3,1,1,1),
-(6,13,5,0,0,3,1,1,1),
-(6,13,5,1,0,3,1,1,1),
-(6,13,5,2,0,3,1,1,1),
-(6,13,5,3,0,3,1,1,1),
-(6,13,5,4,0,3,1,1,1),
-(6,13,5,5,0,3,1,1,1),
-(6,13,5,6,0,3,1,1,1),
-(6,13,5,7,0,3,1,1,1),
-(6,13,5,8,0,3,1,1,1),
 (7,13,0,0,0,3,1,1,1),
 (7,13,1,0,0,2,1,1,1),
 (7,13,1,1,0,2,1,1,1),
-(7,13,1,2,0,2,1,1,1),
-(7,13,1,3,0,2,1,1,1),
 (7,13,1,7,0,2,1,1,1),
-(7,13,3,0,0,3,1,1,1),
-(7,13,3,1,0,3,1,1,1),
-(7,13,3,2,0,3,1,1,1),
-(7,13,3,3,0,3,1,1,1),
-(7,13,4,0,0,3,1,1,1),
-(7,13,4,1,0,3,1,1,1),
-(7,13,4,2,0,3,1,1,1),
-(7,13,4,3,0,3,1,1,1),
 (13,13,0,0,0,2,1,1,1),
 (13,13,1,0,0,2,1,1,1),
 (13,13,1,1,0,2,1,1,1),
-(13,13,1,2,0,2,1,1,1),
-(13,13,1,3,0,2,1,1,1),
-(13,13,1,4,0,2,1,1,1),
-(13,13,1,5,0,2,1,1,1),
-(13,13,1,6,0,2,1,1,1),
-(13,13,1,7,0,2,1,1,1),
-(13,13,2,0,0,2,1,1,1),
-(13,13,2,2,0,2,1,1,1),
-(13,13,3,0,0,2,1,1,1),
-(13,13,3,3,0,2,1,1,1);
+(13,13,1,7,0,2,1,1,1);
 GO
 

@@ -1,75 +1,62 @@
 <?php
 $v = fn(array $arr, string $key, $default = 0) => $arr[$key] ?? $default;
+$porUnidad = array_map(fn($u) => ['label' => $u['nombre_unidad'] ?? '—', 'value' => (int)$u['total']], $kpis['por_unidad'] ?? []);
 ?>
+<div style="animation:pageFadeIn .3s ease both;">
 
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-5);flex-wrap:wrap;gap:var(--sp-3);">
+<div class="page-header" style="margin-bottom:var(--sp-4);">
     <div>
-        <h2 class="page-title">
-            <i class="fa-solid fa-users" style="color:#0284C7;margin-right:var(--sp-2);"></i>
-            Talento Humano
-        </h2>
-        <p class="page-subtitle">Datos en vivo desde la BD Talento_Humano.</p>
+        <h2 class="page-title"><i class="fa-solid fa-users" style="color:#0284C7;margin-right:var(--sp-2);"></i> Talento Humano</h2>
+        <p class="page-subtitle">Personal de la Autoridad Portuaria de Manta · datos en vivo desde Talento_Humano</p>
     </div>
-    <a href="<?= APP_URL ?>/apps/talento_humano/" class="btn btn-primary" data-no-spa>
-        <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Talento Humano
+    <a href="<?= APP_URL ?>/apps/talento_humano/" class="btn btn-primary btn-sm" data-no-spa>
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir módulo completo
     </a>
 </div>
 
-<div class="kpi-grid">
-    <div class="kpi-card" title="Empleados Activos">
-        <div class="kpi-glow" style="background:#0284C7;"></div>
-        <div class="kpi-card-left">
-            <span class="kpi-label">Empleados Activos</span>
-            <span class="kpi-value"><?= number_format($v($kpis, 'total')) ?></span>
-        </div>
-        <div class="kpi-card-right bg-primary-light" style="background: rgba(2,132,199,0.1) !important;">
-            <i class="fa-solid fa-users kpi-icon" style="color: #0284C7 !important;"></i>
-        </div>
-    </div>
-
-    <div class="kpi-card" title="Nuevos este mes">
-        <div class="kpi-glow" style="background:#10B981;"></div>
-        <div class="kpi-card-left">
-            <span class="kpi-label">Nuevos este Mes</span>
-            <span class="kpi-value"><?= number_format($v($kpis, 'nuevos_mes')) ?></span>
-        </div>
-        <div class="kpi-card-right bg-accent-light" style="background: rgba(16,185,129,0.1) !important;">
-            <i class="fa-solid fa-user-plus kpi-icon" style="color: #10B981 !important;"></i>
-        </div>
-    </div>
-
-    <div class="kpi-card" title="Género">
-        <div class="kpi-glow" style="background:#8B5CF6;"></div>
-        <div class="kpi-card-left">
-            <span class="kpi-label">Masculino / Femenino</span>
-            <span class="kpi-value"><?= number_format($v($kpis, 'masculino')) ?> / <?= number_format($v($kpis, 'femenino')) ?></span>
-        </div>
-        <div class="kpi-card-right" style="background: rgba(139,92,246,0.1) !important;">
-            <i class="fa-solid fa-venus-mars kpi-icon" style="color: #8B5CF6 !important;"></i>
-        </div>
-    </div>
+<!-- KPIs en vivo -->
+<div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-4);flex-wrap:wrap;">
+    <?php foreach ([
+        ['fa-users',            $v($kpis, 'total'),      'Empleados activos', '#0284C7'],
+        ['fa-user-plus',        $v($kpis, 'nuevos_mes'), 'Nuevos este mes',   '#10B981'],
+        ['fa-mars',             $v($kpis, 'masculino'),  'Masculino',         '#3B82F6'],
+        ['fa-venus',            $v($kpis, 'femenino'),   'Femenino',          '#EC4899'],
+    ] as [$ico, $n, $l, $c]): ?>
+    <div class="card" style="flex:1;min-width:160px;"><div class="card-body" style="display:flex;align-items:center;gap:var(--sp-3);">
+        <div style="width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,<?= $c ?> 13%,transparent);color:<?= $c ?>;"><i class="fa-solid <?= $ico ?>"></i></div>
+        <div><div style="font-size:1.45rem;font-weight:800;line-height:1;"><?= number_format((int)$n) ?></div><div style="font-size:.7rem;text-transform:uppercase;color:var(--text-muted,var(--color-text-muted));"><?= $l ?></div></div>
+    </div></div>
+    <?php endforeach; ?>
 </div>
 
-<div class="chart-card anim-up anim-d2" style="margin-top:var(--sp-4);">
-    <div class="chart-card-header">
-        <div>
-            <div class="chart-title">Empleados por Unidad Organizacional</div>
-            <div class="chart-subtitle">Top 6</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4);align-items:start;" class="hub-grid-2">
+    <div class="card">
+        <div class="card-body">
+            <h3 style="font-size:.95rem;font-weight:700;margin:0 0 var(--sp-3);"><i class="fa-solid fa-sitemap" style="color:#0284C7;margin-right:6px;"></i>Empleados por Unidad Organizacional</h3>
+            <?= apm_chart_bars($porUnidad, '#0284C7') ?>
         </div>
     </div>
-    <div class="card-body" style="padding:0;">
-        <table class="table">
-            <thead><tr><th>Unidad</th><th style="text-align:right;">Empleados</th></tr></thead>
-            <tbody>
-                <?php if (empty($kpis['por_unidad'])): ?>
-                <tr><td colspan="2" style="text-align:center;color:var(--color-text-muted);padding:var(--sp-5);">Sin datos de unidad organizacional.</td></tr>
-                <?php else: foreach ($kpis['por_unidad'] as $u): ?>
-                <tr>
-                    <td><?= htmlspecialchars($u['nombre_unidad'] ?? '—', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td style="text-align:right;"><?= number_format((int)$u['total']) ?></td>
-                </tr>
-                <?php endforeach; endif; ?>
-            </tbody>
-        </table>
-    </div>
+
+    <div class="card"><div class="card-body">
+        <h3 style="font-size:.95rem;font-weight:700;margin:0 0 var(--sp-3);"><i class="fa-solid fa-bolt" style="color:#fd7e14;margin-right:6px;"></i>Sobre este módulo</h3>
+        <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
+            <p style="font-size:.82rem;color:var(--text-muted,var(--color-text-muted));margin:0 0 var(--sp-2);">
+                Talento Humano es un módulo independiente (BD propia, app embebida)
+                integrado al portal por sesión única — el directorio completo,
+                acciones de personal, contratos y trámites viven en su sistema
+                completo, no dentro de Portal APM.
+            </p>
+            <a href="<?= APP_URL ?>/apps/talento_humano/" data-no-spa class="btn btn-outline" style="justify-content:flex-start;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Talento Humano
+            </a>
+            <a href="<?= APP_URL ?>/admin/usuarios/desde-th" data-spa class="btn btn-outline" style="justify-content:flex-start;">
+                <i class="fa-solid fa-user-plus"></i> Crear cuenta de portal desde un empleado
+            </a>
+        </div>
+    </div></div>
+</div>
+
+<style>
+@media (max-width: 900px) { .hub-grid-2 { grid-template-columns: 1fr !important; } }
+</style>
 </div>

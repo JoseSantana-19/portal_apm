@@ -8,7 +8,7 @@ Esta guía describe cómo pasar el proyecto **Portal APM** a un nuevo computador
 
 En la carpeta raíz de tu proyecto se han añadido los siguientes archivos clave para la migración:
 
-1. **`PORTAL_APM_COMPLETO.sql`**: Script unificado que contiene la estructura completa de la base de datos (tablas, índices, funciones, vistas y procedimientos almacenados adaptados para SQL Server 2014) junto con la inserción de todos los datos reales del menú, usuarios, empleados y permisos cruzados.
+1. **`Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`**: Script unificado que contiene la estructura completa de la base de datos (tablas, índices, funciones, vistas y procedimientos almacenados adaptados para SQL Server 2014 en adelante) junto con la inserción de todos los datos reales del menú, usuarios, empleados y permisos cruzados. La misma carpeta `Z.BASES DE DATOS/` guarda además los esquemas de referencia de Talento Humano, Bienes y Portuaria, todos verificados contra SQL Server 2014+.
 2. **`SETUP_PROYECTO.ps1`**: Script de PowerShell que automatiza la detección de SQL Server, configura los archivos PHP de base de datos (`config/database.php` y `config/database_th.php`), valida la extensión de PHP, carga el SQL y arranca el servidor local.
 3. **`SETUP_PROYECTO.bat`**: Lanzador por doble clic que ejecuta el script de PowerShell con los permisos y políticas correctos (`Bypass`).
 

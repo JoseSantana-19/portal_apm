@@ -1,4 +1,4 @@
-# Portal APM — Documentación del Sistema v4.0
+# Portal APM — Documentación del Sistema v4.1
 
 **Portal de Gestión Integral — Autoridad Portuaria de Manta**
 PHP 8.0+ · SQL Server 2014+ · sqlsrv nativo · Sin PDO en el portal nativo · Sin Composer
@@ -156,9 +156,14 @@ portal_apm/
 ├── index.php                         ← Front Controller del portal nativo
 ├── routes.php                        ← Registro central de rutas del portal (RAÍZ, no config/)
 ├── .htaccess                         ← Rewrite rules (Apache)
-├── PORTAL_APM_COMPLETO.sql           ← Script DROP+CREATE completo (schema + semilla) de PORTAL_APM
 ├── GUIA_INTEGRACION_MODULOS.md       ← Contrato para integrar un módulo nuevo (Patrón B)
 ├── README.md                         ← Instalación tras clonar
+│
+├── Z.BASES DE DATOS/                 ← Scripts SQL de referencia, SQL Server 2014+
+│   ├── PORTAL_APM_COMPLETO.sql       ← Script DROP+CREATE completo (schema + semilla) de PORTAL_APM
+│   ├── Talento_Humano.sql            ← Esquema de referencia del módulo TH (BD propia)
+│   ├── inventario.sql                ← Esquema de referencia del módulo Bienes (BD propia)
+│   └── PortuariaDemo.sql             ← Esquema de referencia del módulo Portuaria (BD propia)
 │
 ├── config/
 │   ├── app.php                       ← Config del portal (APP_URL, DB_*, sesión…). DB_* se derivan
@@ -190,6 +195,7 @@ portal_apm/
 │   ├── drop_tablas_muertas_modulos.sql ← Baja de TH_*/BIENES_*/BIT_* huérfanas
 │   ├── th_bienes_menu_cleanup.sql      ← Menú TH/Bienes: solo header + "Sistema Completo"
 │   ├── panel_th_bienes_menu.sql        ← Paneles nativos TH/Bienes + quita Dashboard duplicado
+│   ├── portuaria_menu_simplificar.sql  ← Menú Portuaria: solo header + Panel + "Sistema de Bitácoras"
 │   ├── apps_origen_integration.sql     ← Registra el nodo "Sistema Completo (Origen)" de TH/Bienes
 │   ├── sso_module_login.sql            ← SPs sp_SSO_* + tabla CORE_Aplicaciones
 │   └── portuaria/                      ← Esquema y datos de PortuariaDemo/PortuariaExterna
@@ -565,11 +571,23 @@ L1 (12,0,0,0) Control de Bienes
 El ítem 5 ("Sistema Completo") lo registra `db/apps_origen_integration.sql`.
 El "Panel" (ítem 1) lo registra `db/panel_th_bienes_menu.sql`.
 
-### Módulo 13 (Portuaria) — sin cambios
+### Módulo 13 (Portuaria) — simplificado al mismo patrón que TH/Bienes
 
-Conserva su árbol completo (29 nodos: hub, visitas, rondas, cámaras,
-catálogos) — es el único de los 3 integrados que ya tenía panel nativo
-propio desde el principio.
+```
+L1 (13,0,0,0) Bitácoras Portuarias
+  L2 (13,1,0,0) Bitácoras
+    L3 (13,1,1,0) Panel Portuario   → /portuaria
+    L3 (13,1,7,0) Sistema de Bitácoras → /visitas
+```
+
+Antes tenía ~29 nodos (visitas, rondas, cámaras, catálogos como entradas de
+menú separadas), pero la mayoría ya estaban con `estado=0` (invisibles para
+cualquier usuario) — el sidebar real ya mostraba solo estos 2 ítems. Lo que
+sobraba era la pantalla de administración `/admin/menu`, que sí lista los
+nodos deshabilitados y mostraba un árbol de 29 contra 2-3 en TH/Bienes. Se
+borraron los nodos ya inertes (y sus permisos) — la funcionalidad real
+(`/visitas`, `/rondas`, `/camaras`, `/catalogos`…) no cambió, sigue
+alcanzable desde los accesos directos dentro del propio hub (`/portuaria`).
 
 ### Visibilidad: dos capas independientes
 
@@ -722,9 +740,10 @@ Ver `README.md` para instalación paso a paso completa tras clonar. Resumen:
 
 1. **`config/connections.php`** — no versionado, copiar de `connections.example.php`
    y apuntar a tu instancia SQL Server. Única fuente de servidor/BDs/credenciales.
-2. Bases requeridas: `PORTAL_APM` (script `PORTAL_APM_COMPLETO.sql`),
-   `Talento_Humano`, `PortuariaDemo`/`PortuariaExterna` (ver `db/portuaria/`),
-   `inventario` (se auto-crea).
+2. Bases requeridas: `PORTAL_APM` (script `Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`),
+   `Talento_Humano`, `PortuariaDemo`/`PortuariaExterna` (ver `db/portuaria/`;
+   esquema de referencia también en `Z.BASES DE DATOS/`), `inventario` (se
+   auto-crea; esquema de referencia en `Z.BASES DE DATOS/inventario.sql`).
 3. Apps embebidas: `apps/control_bienes/.env` (copiar de `.env.example`);
    `apps/talento_humano` no necesita `.env` propio, ya lee `config/connections.php`.
 4. Requisitos: PHP 8.0+ con `sqlsrv`, SQL Server 2014+, ODBC Driver 17+, Apache+mod_rewrite (o `php -S`).
@@ -742,7 +761,7 @@ Ver `README.md` para instalación paso a paso completa tras clonar. Resumen:
 
 Cambiar contraseña en `/cambiar-contrasena` tras el primer acceso. Hay 20
 cuentas de prueba más (una por departamento/rol) — ver seed de
-`PORTAL_APM_COMPLETO.sql`.
+`Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`.
 
 ---
 
@@ -802,6 +821,11 @@ integración real vía apps embebidas / Portuaria):
   `PortalPortuariaController@hub` para Portuaria.
 - Quitada la entrada de menú "Dashboard Ejecutivo" (duplicaba `/dashboard`
   para Director+).
+- Paneles TH/Bienes elevados al mismo nivel de detalle visual que
+  `/portuaria` (KPIs + gráfico de barras `apm_chart_bars` por unidad/categoría).
+- Menú de Portuaria simplificado al mismo patrón que TH/Bienes (header +
+  Panel + 1 link) — se borraron ~25 nodos que ya estaban `estado=0` (invisibles
+  para todos) y solo ensuciaban la pantalla de administración del menú.
 
 **Configuración**
 - `config/connections.php` (no versionado, plantilla `connections.example.php`)
@@ -823,6 +847,28 @@ integración real vía apps embebidas / Portuaria):
 - `GUIA_INTEGRACION_MODULOS.md` nuevo — contrato para integrar módulos futuros.
 - `README.md` actualizado con instalación real tras clonar.
 
+### v4.1 (2026-07-27) — Carpeta única de esquemas + compatibilidad SQL Server 2014+
+
+- `PORTAL_APM_COMPLETO.sql` se mudó a `Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`.
+  Misma carpeta ahora guarda los esquemas de referencia (solo estructura, sin
+  datos) de los 3 módulos integrados, exportados directamente de sus BDs
+  reales: `Talento_Humano.sql`, `inventario.sql`, `PortuariaDemo.sql`.
+- Los 4 scripts se llevaron a compatibilidad real SQL Server 2014+ (antes
+  declaraban serlo pero traían cláusulas de motor más nuevas, heredadas del
+  asistente de scripting de SSMS sobre una instancia 2022):
+  - `COMPATIBILITY_LEVEL` uniformado a `120` (2014) en los 4 (`Talento_Humano.sql`
+    e `inventario.sql` traían `160`, es decir 2022).
+  - Eliminado `QUERY_STORE` (requiere 2016+), `ACCELERATED_DATABASE_RECOVERY`
+    (requiere 2019+) y `LEDGER`/`CATALOG_COLLATION` en el `CREATE DATABASE`
+    (requiere 2022+) de los 4 scripts — ninguna opción tiene efecto real
+    para este proyecto, solo bloqueaban la ejecución en un motor 2014 literal.
+  - Cuerpo de los 4 scripts revisado contra `STRING_AGG`/`STRING_SPLIT`/
+    `TRIM()`/`CONCAT_WS`/`CREATE OR ALTER`/funciones JSON (todas 2016+ o más
+    nuevas) — ninguna en uso.
+  - Los 4 scripts se probaron de punta a punta contra BDs descartables
+    (`*_TESTSCRIPT`, creadas y eliminadas en la misma prueba) tras el ajuste:
+    381/381, 180/180, 195/195 y 243/243 batches sin errores.
+
 ### v3.1 (2026-07-01) y anteriores
 
 Ver historial de git para el detalle de las correcciones de exactitud contra
@@ -832,4 +878,4 @@ de v4.0 y no se repiten acá.
 
 ---
 
-*Portal APM v4.0 — Autoridad Portuaria de Manta*
+*Portal APM v4.1 — Autoridad Portuaria de Manta*
