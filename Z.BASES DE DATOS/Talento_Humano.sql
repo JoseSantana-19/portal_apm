@@ -1,12 +1,21 @@
 USE [master]
 GO
 /****** Objeto: Database [Talento_Humano] Fecha de script: 26/7/2026 22:38:25 ******/
-CREATE DATABASE [Talento_Humano]
- CONTAINMENT = NONE
- ON  PRIMARY 
-( NAME = N'Talento_Humano', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\Talento_Humano.mdf' , SIZE = 73728KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
- LOG ON 
-( NAME = N'Talento_Humano_log', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\Talento_Humano_log.ldf' , SIZE = 73728KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+-- Si PORTAL_APM_COMPLETO.sql ya corrió antes y creó esta base vacía (para
+-- que vw_Usuarios_Identidad pudiera resolverse), no reintenta el CREATE
+-- DATABASE (fallaría, "ya existe") — sigue directo a poblarla con las
+-- tablas reales de abajo. Corre bien en cualquier orden.
+IF DB_ID(N'Talento_Humano') IS NULL
+BEGIN
+    EXEC(N'
+    CREATE DATABASE [Talento_Humano]
+     CONTAINMENT = NONE
+     ON  PRIMARY
+    ( NAME = N''Talento_Humano'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\Talento_Humano.mdf'' , SIZE = 73728KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
+     LOG ON
+    ( NAME = N''Talento_Humano_log'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\Talento_Humano_log.ldf'' , SIZE = 73728KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+    ');
+END
 GO
 ALTER DATABASE [Talento_Humano] SET COMPATIBILITY_LEVEL = 120
 GO

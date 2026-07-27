@@ -897,6 +897,21 @@ integración real vía apps embebidas / Portuaria):
   con el mismo patrón que ya usaba `conexion/conexion.php`. Verificado
   simulando el escenario real (las 4 BDs de módulos sin existir en
   absoluto): 385/385 batches OK.
+- **Cuarta corrección — orden de instalación ya no importa:** el stub vacío
+  que `PORTAL_APM_COMPLETO.sql` crea para las 4 BDs de módulos (corrección
+  anterior) chocaba con el `CREATE DATABASE` sin guarda de
+  `Talento_Humano.sql`/`inventario.sql`/`PortuariaDemo.sql`/
+  `PortuariaExterna.sql` — si `PORTAL_APM_COMPLETO.sql` corría primero, el
+  `CREATE DATABASE` de esos 4 scripts fallaba después con "ya existe".
+  Se envolvió el `CREATE DATABASE` de los 4 en
+  `IF DB_ID('X') IS NULL EXEC(N'CREATE DATABASE...')`, mismo patrón. Ahora
+  los 5 scripts se pueden correr en **cualquier orden**: si el stub vacío ya
+  existe, el script simplemente sigue y lo puebla con sus tablas reales; si
+  se corre `PORTAL_APM_COMPLETO.sql` de nuevo después, esta vez sí crea
+  `vw_Usuarios_Identidad` (la dependencia ya existe). Verificado con las 3
+  secuencias posibles (portal→módulos, módulos→portal, portal→módulos→portal
+  otra vez) — todas OK, la vista quedó consultable con datos reales al
+  final.
 
 ### v3.1 (2026-07-01) y anteriores
 

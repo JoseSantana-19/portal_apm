@@ -1,12 +1,20 @@
 USE [master]
 GO
 /****** Objeto: Database [PortuariaExterna] Fecha de script: 27/7/2026 08:57:38 ******/
-CREATE DATABASE [PortuariaExterna]
- CONTAINMENT = NONE
- ON  PRIMARY 
-( NAME = N'PortuariaExterna', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaExterna.mdf' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
- LOG ON 
-( NAME = N'PortuariaExterna_log', FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaExterna_log.ldf' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+-- Si PORTAL_APM_COMPLETO.sql ya corrió antes y creó esta base vacía (stub
+-- para resolver dependencias cross-DB), no reintenta el CREATE DATABASE —
+-- sigue directo a poblarla con las tablas reales de abajo.
+IF DB_ID(N'PortuariaExterna') IS NULL
+BEGIN
+    EXEC(N'
+    CREATE DATABASE [PortuariaExterna]
+     CONTAINMENT = NONE
+     ON  PRIMARY
+    ( NAME = N''PortuariaExterna'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaExterna.mdf'' , SIZE = 8192KB , MAXSIZE = UNLIMITED, FILEGROWTH = 65536KB )
+     LOG ON
+    ( NAME = N''PortuariaExterna_log'', FILENAME = N''C:\Program Files\Microsoft SQL Server\MSSQL16.VICTUS\MSSQL\DATA\PortuariaExterna_log.ldf'' , SIZE = 8192KB , MAXSIZE = 2048GB , FILEGROWTH = 65536KB )
+    ');
+END
 GO
 ALTER DATABASE [PortuariaExterna] SET COMPATIBILITY_LEVEL = 120
 GO
