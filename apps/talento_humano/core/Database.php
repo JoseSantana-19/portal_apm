@@ -16,14 +16,23 @@ class Conexion
     {
         if (self::$conexion === null) {
             try {
-                $servidor = "DESKTOP-S82QFJK\\SQLEXPRESS";   // misma instancia del Portal APM
-                $baseDatos = "Talento_Humano";
+                // Config única del sistema (config/connections.php en la raíz de
+                // portal_apm) — para cambiar servidor/credenciales, editar solo ahí.
+                // No se sube a git: copiar config/connections.example.php la primera vez.
+                $__connPath = __DIR__ . '/../../../config/connections.php';
+                if (!file_exists($__connPath)) {
+                    die('Falta config/connections.php en la raíz de portal_apm — copiá config/connections.example.php y ajustalo a tu servidor.');
+                }
+                $conn      = require $__connPath;
+                $servidor  = $conn['databases']['talento']['server'] ?? $conn['server_default'];
+                $baseDatos = $conn['databases']['talento']['name'];
+                $usuario   = $conn['credentials']['user'];
+                $clave     = $conn['credentials']['pass'];
 
-                // DSN con Autenticación de Windows (Windows Authentication)
                 $dsn = "sqlsrv:Server=$servidor;Database=$baseDatos;TrustServerCertificate=true";
 
                 // Opciones de inicialización segura con codificación forzada de Microsoft
-                self::$conexion = new PDO($dsn, 'sa', '123', [
+                self::$conexion = new PDO($dsn, $usuario ?: null, $clave ?: null, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8

@@ -5,18 +5,19 @@ class DashboardModel extends Model {
         $db  = self::db();
         $hoy = date('Y-m-d');
 
+        // Fuentes reales de cada módulo integrado (cross-DB, misma instancia
+        // SQL Server): Talento_Humano.th_empleados, inventario.inv_inventario,
+        // PortuariaDemo.bit_visitas. Antes esto leía tablas TH_Empleados/
+        // BIENES_Activos/BIT_Eventos locales a PORTAL_APM que eran copias
+        // muertas de la prueba nativa inicial — ya no existen esos datos ahí.
         $stmt = $db->query("
             SELECT
-                (SELECT COUNT(*) FROM TH_Empleados  WHERE estado=1)                                          AS total_empleados,
-                (SELECT COUNT(*) FROM TH_Contratos  WHERE estado_contrato='Vigente')                                  AS contratos_vigentes,
-                (SELECT COUNT(*) FROM TH_Contratos  WHERE estado_contrato='Vigente' AND fecha_fin IS NOT NULL AND DATEDIFF(day,GETDATE(),fecha_fin) BETWEEN 0 AND 30)  AS contratos_30d,
-                (SELECT COUNT(*) FROM TH_Contratos  WHERE estado_contrato='Vigente' AND fecha_fin IS NOT NULL AND DATEDIFF(day,GETDATE(),fecha_fin) BETWEEN 0 AND 60)  AS contratos_60d,
-                (SELECT COUNT(*) FROM TH_Contratos  WHERE estado_contrato='Vigente' AND fecha_fin IS NOT NULL AND DATEDIFF(day,GETDATE(),fecha_fin) BETWEEN 0 AND 90)  AS contratos_90d,
-                (SELECT COUNT(*) FROM BIENES_Activos)                                                        AS total_bienes,
-                (SELECT COUNT(*) FROM BIENES_Activos WHERE estado_bien='Activo')                                  AS bienes_activos,
-                (SELECT COUNT(*) FROM BIENES_Activos WHERE estado_bien='En Reparacion')                           AS bienes_mantenimiento,
-                (SELECT COUNT(*) FROM BIT_Eventos   WHERE MONTH(fecha_evento)=MONTH(GETDATE()) AND YEAR(fecha_evento)=YEAR(GETDATE())) AS eventos_mes,
-                (SELECT COUNT(*) FROM BIT_Eventos   WHERE estado_evento NOT IN ('Cerrado','CERRADO'))                AS eventos_pendientes,
+                (SELECT COUNT(*) FROM Talento_Humano.dbo.th_empleados WHERE estado=1) AS total_empleados,
+                (SELECT COUNT(*) FROM inventario.dbo.inv_inventario WHERE activo=1)                        AS total_bienes,
+                (SELECT COUNT(*) FROM inventario.dbo.inv_inventario WHERE activo=1 AND estado_id=111)      AS bienes_activos,
+                (SELECT COUNT(*) FROM inventario.dbo.inv_inventario WHERE activo=1 AND estado_id=112)      AS bienes_mantenimiento,
+                (SELECT COUNT(*) FROM PortuariaDemo.dbo.bit_visitas WHERE MONTH(fecha_visita)=MONTH(GETDATE()) AND YEAR(fecha_visita)=YEAR(GETDATE())) AS eventos_mes,
+                (SELECT COUNT(*) FROM PortuariaDemo.dbo.bit_visitas WHERE hora_salida IS NULL)              AS eventos_pendientes,
                 (SELECT COUNT(*) FROM ACCESO_Registros WHERE tipo_acceso='Entrada' AND CAST(fecha_hora AS DATE)=?) AS ingresos_hoy
         ", [[$hoy, SQLSRV_PARAM_IN]]);
 
@@ -28,10 +29,6 @@ class DashboardModel extends Model {
         return [
             'th' => [
                 'total_empleados'     => (int)($row['total_empleados']    ?? 0),
-                'contratos_vigentes'  => (int)($row['contratos_vigentes'] ?? 0),
-                'contratos_30d'       => (int)($row['contratos_30d']      ?? 0),
-                'contratos_60d'       => (int)($row['contratos_60d']      ?? 0),
-                'contratos_90d'       => (int)($row['contratos_90d']      ?? 0),
             ],
             'bienes' => [
                 'total_bienes'          => (int)($row['total_bienes']          ?? 0),
@@ -59,21 +56,22 @@ class DashboardModel extends Model {
         $hoy        = date('Y-m-d');
         $db         = self::db();
 
-        $deptoFilter = $idDepto > 0
-            ? "AND (id_departamento = $idDepto OR id_departamento IS NULL)"
-            : '';
-
+        // NOTA: el filtro por departamento solo aplica a ACCESO_Registros
+        // (vive en PORTAL_APM, con id_departamento real de CORE_Departamentos).
+        // Los conteos de Talento Humano/Bienes/Bitácoras son cross-DB y esas
+        // BDs no comparten el mismo esquema de departamento — filtrar por
+        // depto ahí requeriría mapear unidad_id/zona_id vía TH_Unidad_Map,
+        // pendiente si se necesita a futuro. Por ahora muestran el total global.
         $stmt = $db->query("
             SELECT
-                (SELECT COUNT(*) FROM TH_Empleados WHERE estado=1 $deptoFilter)                              AS total_empleados,
-                (SELECT COUNT(*) FROM TH_Contratos WHERE estado_contrato='Vigente')                                   AS contratos_vigentes,
-                (SELECT COUNT(*) FROM TH_Contratos WHERE estado_contrato='Vigente' AND fecha_fin IS NOT NULL AND DATEDIFF(day,GETDATE(),fecha_fin) BETWEEN 0 AND 30) AS contratos_30d,
-                (SELECT COUNT(*) FROM BIENES_Activos WHERE estado_bien='Activo' $deptoFilter)                     AS bienes_activos,
-                (SELECT COUNT(*) FROM BIENES_Activos WHERE estado_bien='En Reparacion' $deptoFilter)              AS bienes_mantenimiento,
-                (SELECT COUNT(*) FROM BIT_Eventos WHERE MONTH(fecha_evento)=MONTH(GETDATE()) AND YEAR(fecha_evento)=YEAR(GETDATE()) $deptoFilter) AS eventos_mes,
-                (SELECT COUNT(*) FROM BIT_Eventos WHERE estado_evento NOT IN ('Cerrado','CERRADO') $deptoFilter)    AS eventos_pendientes,
-                (SELECT COUNT(*) FROM ACCESO_Registros WHERE tipo_acceso='Entrada' AND CAST(fecha_hora AS DATE)=?) AS ingresos_hoy
-        ", [[$hoy, SQLSRV_PARAM_IN]]);
+                (SELECT COUNT(*) FROM Talento_Humano.dbo.th_empleados WHERE estado=1)                 AS total_empleados,
+                (SELECT COUNT(*) FROM inventario.dbo.inv_inventario WHERE activo=1 AND estado_id=111)  AS bienes_activos,
+                (SELECT COUNT(*) FROM inventario.dbo.inv_inventario WHERE activo=1 AND estado_id=112)  AS bienes_mantenimiento,
+                (SELECT COUNT(*) FROM PortuariaDemo.dbo.bit_visitas WHERE MONTH(fecha_visita)=MONTH(GETDATE()) AND YEAR(fecha_visita)=YEAR(GETDATE())) AS eventos_mes,
+                (SELECT COUNT(*) FROM PortuariaDemo.dbo.bit_visitas WHERE hora_salida IS NULL)          AS eventos_pendientes,
+                (SELECT COUNT(*) FROM ACCESO_Registros WHERE tipo_acceso='Entrada' AND CAST(fecha_hora AS DATE)=?
+                    AND (? = 0 OR id_departamento = ? OR id_departamento IS NULL))                       AS ingresos_hoy
+        ", [[$hoy, SQLSRV_PARAM_IN], [$idDepto, SQLSRV_PARAM_IN], [$idDepto, SQLSRV_PARAM_IN]]);
 
         $row    = $db->fetch($stmt) ?? [];
         $semana = $this->getBitacoraSemana();
@@ -81,8 +79,6 @@ class DashboardModel extends Model {
         return [
             'th' => [
                 'total_empleados'    => (int)($row['total_empleados']    ?? 0),
-                'contratos_vigentes' => (int)($row['contratos_vigentes'] ?? 0),
-                'contratos_30d'      => (int)($row['contratos_30d']      ?? 0),
             ],
             'bienes' => [
                 'bienes_activos'       => (int)($row['bienes_activos']       ?? 0),
@@ -105,10 +101,10 @@ class DashboardModel extends Model {
     private function getBitacoraSemana(): array {
         $db   = self::db();
         $stmt = $db->query("
-            SELECT CAST(fecha_evento AS DATE) AS dia, COUNT(*) AS total
-            FROM BIT_Eventos
-            WHERE fecha_evento >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
-            GROUP BY CAST(fecha_evento AS DATE)
+            SELECT CAST(fecha_visita AS DATE) AS dia, COUNT(*) AS total
+            FROM PortuariaDemo.dbo.bit_visitas
+            WHERE fecha_visita >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
+            GROUP BY CAST(fecha_visita AS DATE)
             ORDER BY dia ASC
         ");
         $rows = $db->fetchAll($stmt);

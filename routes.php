@@ -17,62 +17,9 @@ $router->get('/dashboard/ejecutivo','DashboardController@executive');
 $router->get('/dashboard/operativo','DashboardController@operational');
 $router->get('/reportes',           'DashboardController@reportes');
 
-/* ── Talento Humano (módulo nativo, BD Talento_Humano) ─────────────── */
-// Panel del módulo (hub con KPIs de la BD Talento_Humano)
-$router->get('/th',                             'ThHubController@index');
-// Directorio de Personal
-$router->get('/th/directorio',                  'ThDirectorioController@directorio');
-$router->get('/th/empleado/nuevo',              'ThDirectorioController@crear');
-$router->post('/th/empleado/guardar',           'ThDirectorioController@guardar');
-$router->post('/th/empleado/eliminar',          'ThDirectorioController@eliminar');
-$router->get('/th/empleado/ficha',              'ThDirectorioController@imprimirFicha');
-$router->get('/th/empleado/{id}/editar',        'ThDirectorioController@editar');
-$router->get('/th/empleado/{id}/perfil',        'ThDirectorioController@perfil');
-$router->get('/th/reporte',                     'ThDirectorioController@reporte');
-$router->get('/th/reporte/export/excel',        'ThDirectorioController@exportarReporteExcel');
-$router->get('/th/reporte/export/pdf',          'ThDirectorioController@exportarReportePdf');
-
-// Crear cuenta de acceso del portal desde un empleado TH (solo admin)
-$router->get('/th/empleado/{id}/cuenta',        'ThCuentaController@crear');
-$router->post('/th/empleado/cuenta',            'ThCuentaController@guardar');
-
-// Acción de Personal (LOSEP Art. 21)
-$router->get('/th/accion-personal',                    'ThAccionPersonalController@index');
-$router->post('/th/accion-personal/guardar',           'ThAccionPersonalController@guardar');
-$router->get('/th/accion-personal/ver',                'ThAccionPersonalController@ver');
-$router->get('/th/accion-personal/imprimir',           'ThAccionPersonalController@imprimirAccion');
-$router->get('/th/accion-personal/buscar-servidor',    'ThAccionPersonalController@buscarServidor');
-$router->get('/th/accion-personal/buscar-por-cedula',  'ThAccionPersonalController@buscarPorCedula');
-$router->get('/th/accion-personal/export/excel',       'ThAccionPersonalController@exportarAccionesExcel');
-$router->get('/th/accion-personal/export/pdf',         'ThAccionPersonalController@exportarAccionesPdf');
-
-// Gestión Operativa
-$router->get('/th/asistencia',                  'ThAsistenciaController@index');
-$router->get('/th/vacaciones',                  'ThVacacionesController@index');
-$router->get('/th/desempeno',                   'ThDesempenoController@index');
-$router->get('/th/capacitacion',                'ThCapacitacionController@index');
-
-/* ── Bitácoras ──────────────────────────────────── */
-$router->get('/bitacoras',                      'EventoController@index');
-$router->get('/bitacoras/nuevo',                'EventoController@create');
-$router->post('/bitacoras',                     'EventoController@store');
-$router->get('/bitacoras/{id}',                 'EventoController@show');
-$router->get('/bitacoras/{id}/editar',          'EventoController@edit');
-$router->post('/bitacoras/{id}',                'EventoController@update');
-$router->post('/bitacoras/{id}/cerrar',         'EventoController@close');
-$router->get('/bitacoras/reportes',             'ReporteController@index');
-
-/* ── Control de Bienes ──────────────────────────── */
-$router->get('/bienes',                         'BienController@index');
-$router->get('/bienes/nuevo',                   'BienController@create');
-$router->post('/bienes',                        'BienController@store');
-$router->get('/bienes/{id}',                    'BienController@show');
-$router->get('/bienes/{id}/editar',             'BienController@edit');
-$router->post('/bienes/{id}',                   'BienController@update');
-$router->post('/bienes/{id}/dar-baja',          'BienController@darBaja');
-$router->get('/bienes/movimientos',             'MovimientoController@index');
-$router->get('/bienes/movimientos/nuevo',       'MovimientoController@create');
-$router->post('/bienes/movimientos',            'MovimientoController@store');
+/* ── Paneles nativos de módulos integrados (KPIs en vivo, cross-DB) ── */
+$router->get('/panel/talento-humano', 'PanelController@talentoHumano');
+$router->get('/panel/bienes',         'PanelController@bienes');
 
 /* ── Control de Acceso ──────────────────────────── */
 $router->get('/acceso',                         'AccesoController@index');
@@ -111,6 +58,9 @@ $router->get('/admin/usuarios/export/pdf',      'AdminController@exportarUsuario
 $router->get('/admin/usuarios/{id}/export/excel','AdminController@exportarUsuarioExcel');
 $router->get('/admin/usuarios/{id}/export/pdf', 'AdminController@exportarUsuarioPdf');
 $router->get('/admin/usuarios/nuevo',           'AdminController@nuevoUsuario');
+$router->get('/admin/usuarios/desde-th',              'AdminController@empleadosTh');
+$router->get('/admin/usuarios/desde-th/{id}/nuevo',    'AdminController@nuevoUsuarioDesdeEmpleado');
+$router->post('/admin/usuarios/desde-th',              'AdminController@crearUsuarioDesdeEmpleado');
 $router->post('/admin/usuarios',                'AdminController@crearUsuario');
 $router->get('/admin/usuarios/{id}/editar',     'AdminController@editarUsuario');
 $router->post('/admin/usuarios/{id}',           'AdminController@actualizarUsuario');
@@ -135,25 +85,6 @@ $router->get('/admin/menu/{id}/editar',      'MenuController@editar');
 $router->post('/admin/menu/{id}',            'MenuController@actualizar');
 $router->post('/admin/menu/{id}/toggle',     'MenuController@toggle');
 $router->post('/admin/menu/{id}/eliminar',   'MenuController@eliminar');
-
-/* ── Inventario (Control de Bienes — módulo independiente, BD `inventario`) ── */
-$router->get('/inventario/panel',                 'InvPanelController@index');
-$router->get('/inventario',                       'InventarioController@index');
-$router->get('/inventario/catalogo',              'InventarioController@catalogo');
-$router->get('/inventario/items',                 'InventarioController@items');
-$router->get('/inventario/exportar',              'InventarioController@exportar');
-$router->post('/inventario/guardar',              'InventarioController@guardar');
-$router->get('/inventario/maestros',              'MaestrosController@index');
-$router->post('/inventario/maestros/guardar',     'MaestrosController@guardar');
-$router->post('/inventario/maestros/eliminar',    'MaestrosController@eliminar');
-$router->get('/inventario/ingresos',              'MonitoreoController@ingresos');
-$router->get('/inventario/egresos',               'MonitoreoController@egresos');
-$router->get('/inventario/periodos',              'ConfigInventarioController@periodos');
-$router->post('/inventario/periodos',             'ConfigInventarioController@crearPeriodo');
-$router->get('/inventario/secuenciales',          'ConfigInventarioController@secuenciales');
-$router->post('/inventario/secuenciales/reiniciar','ConfigInventarioController@reiniciarSecuencial');
-$router->get('/inventario/{id}/detalle',          'InventarioController@verDetalle');
-$router->post('/inventario/{id}/eliminar',        'InventarioController@eliminar');
 
 /* ── Portuaria (Bitácoras CCTV/Visitas/Rondas — integrado de portuaria_demoV4) ──
  * Los paths replican los alias del proyecto origen para que el JS portado

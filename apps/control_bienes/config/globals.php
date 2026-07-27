@@ -61,14 +61,20 @@ define('BASE_URL', rtrim($baseUrl, '/') . '/');
 define('APP_LOGS_PATH', ROOT_PATH . 'logs/');
 define('STORAGE_PATH',  ROOT_PATH . 'storage/');
 
+// Config central del sistema (config/connections.php en la raíz de
+// portal_apm) — el .env de este módulo solo hace falta si querés pisar
+// algún valor puntual; si no está, todo cae en la config central.
+$__connPath = ROOT_PATH . '../../config/connections.php';
+$__conn     = file_exists($__connPath) ? require $__connPath : null;
+
 // Definir constantes de Base de Datos
-define('DB_DRIVER',       getenv('DB_DRIVER') ?: 'sqlite');
-define('DB_HOST',         getenv('DB_HOST') ?: 'localhost');
+define('DB_DRIVER',       getenv('DB_DRIVER') ?: 'sqlsrv');
+define('DB_HOST',         getenv('DB_HOST') ?: ($__conn['server_default'] ?? 'localhost'));
 define('DB_PORT',         getenv('DB_PORT') ?: '1433');
 define('DB_NAME',         getenv('DB_NAME') ?: 'inventario');
-define('DB_USER',         getenv('DB_USER') ?: '');
-define('DB_PASS',         getenv('DB_PASS') ?: '');
-define('DB_TRUST_CERT',   (getenv('DB_TRUST_CERT') === 'true' || getenv('DB_TRUST_CERT') === '1'));
+define('DB_USER',         getenv('DB_USER') ?: ($__conn['credentials']['user'] ?? ''));
+define('DB_PASS',         getenv('DB_PASS') ?: ($__conn['credentials']['pass'] ?? ''));
+define('DB_TRUST_CERT',   (getenv('DB_TRUST_CERT') === 'true' || getenv('DB_TRUST_CERT') === '1' || ($__conn['options']['trust_cert'] ?? false)));
 define('DB_SQLITE_PATH',  getenv('DB_SQLITE_PATH') ? (ROOT_PATH . getenv('DB_SQLITE_PATH')) : (ROOT_PATH . 'database.sqlite'));
 
 // Configuración de PHP según entorno

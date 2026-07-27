@@ -42,19 +42,27 @@ define('SESSION_TIMEOUT', 1800);   // segundos inactividad → cerrar sesión (3
 define('SESSION_HOURS_EXPIRA', 8);      // horas vida del token en CORE_Sesiones
 
 // ─── Base de Datos (SQL Server) ──────────────────────────────
-// Instancia local:   '.\VICTUS' | '.\SQLEXPRESS' | '.\MSSQLSERVER' | 'localhost'
-// Instancia remota:  '192.168.1.10\SQLEXPRESS,1433'
-define('DB_SERVER', 'DESKTOP-S82QFJK\\SQLEXPRESS');
-define('DB_NAME', 'PORTAL_APM');
-define('DB_TH_NAME', 'Talento_Humano');  // BD separada del módulo Talento Humano (patrón Inventario)
-define('DB_USER', 'sa');        // vacío = Windows Authentication
-define('DB_PASS', '123');        // vacío = Windows Authentication
-define('DB_TRUST_CERT', true);      // true para dev (cert autofirmado)
-define('DB_ENCRYPT', false);     // true solo si el servidor usa SSL
+// Única fuente real: config/connections.php. NO se sube a git (depende de
+// la máquina) — copiá config/connections.example.php la primera vez.
+// Para cambiar de servidor, credenciales o nombre de alguna BD, editar
+// SOLO connections.php — estas constantes son un espejo para el resto del
+// código nativo del portal.
+if (!file_exists(ROOT . '/config/connections.php')) {
+    die('Falta config/connections.php — copiá config/connections.example.php a config/connections.php y ajustalo a tu servidor SQL Server.');
+}
+$__conn = require ROOT . '/config/connections.php';
+
+define('DB_SERVER', $__conn['server_default']);
+define('DB_NAME', $__conn['databases']['portal']['name']);
+define('DB_TH_NAME', $__conn['databases']['talento']['name']);
+define('DB_USER', $__conn['credentials']['user']);
+define('DB_PASS', $__conn['credentials']['pass']);
+define('DB_TRUST_CERT', $__conn['options']['trust_cert']);
+define('DB_ENCRYPT', $__conn['options']['encrypt']);
 
 // ─── Módulo Portuaria (Bitácoras CCTV/Visitas/Rondas — integrado de portuaria_demoV4) ──
-define('DB_PORTUARIA_NAME', 'PortuariaDemo');     // BD principal del módulo (tablas bit_*)
-define('DB_PORTUARIA_EXT_NAME', 'PortuariaExterna');  // BD externa APM (funcionarios/departamentos)
+define('DB_PORTUARIA_NAME', $__conn['databases']['portuaria']['name']);
+define('DB_PORTUARIA_EXT_NAME', $__conn['databases']['portuaria_ext']['name']);
 
 // Constantes de rutas compat demoV4 (usadas por código portado del módulo Portuaria)
 define('MODULES_PATH', ROOT . '/modules');

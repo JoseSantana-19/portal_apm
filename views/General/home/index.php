@@ -1280,7 +1280,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
                 </a>
 
                 <!-- 3. Talento Humano Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/th/empleados' ?>" class="folder-card" style="--folder-color: #8B5CF6;">
+                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/talento_humano/' ?>" class="folder-card" style="--folder-color: #8B5CF6;">
                     <div class="fc-glow" style="background:#8B5CF6"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#8B5CF6"></div>
                     <div class="fc-icon" style="background:#8B5CF618;border:1px solid #8B5CF630"><i class="fa-solid fa-users" style="color:#8B5CF6"></i></div>
@@ -1318,7 +1318,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
                 </a>
 
                 <!-- 5. Dirección Administrativa Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/bienes' ?>" class="folder-card" style="--folder-color: #10B981;">
+                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/control_bienes/' ?>" class="folder-card" style="--folder-color: #10B981;">
                     <div class="fc-glow" style="background:#10B981"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#10B981"></div>
                     <div class="fc-icon" style="background:#10B98118;border:1px solid #10B98130"><i class="fa-solid fa-gear" style="color:#10B981"></i></div>

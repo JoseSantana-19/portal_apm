@@ -54,14 +54,14 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
         </div>
     </div>
 
-    <div class="kpi-card" title="Contratos Vigentes">
+    <div class="kpi-card" title="Visitas Pendientes de Salida">
         <div class="kpi-glow" style="background:#0284C7;"></div>
         <div class="kpi-card-left">
-            <span class="kpi-label">Contratos Vigentes</span>
-            <span class="kpi-value"><?= number_format((int)$v($th, 'contratos_vigentes')) ?></span>
+            <span class="kpi-label">Visitas en Curso</span>
+            <span class="kpi-value"><?= number_format((int)$v($bitacora, 'eventos_pendientes')) ?></span>
         </div>
         <div class="kpi-card-right bg-info-light" style="background: rgba(2,132,199,0.1) !important;">
-            <i class="fa-solid fa-file-contract kpi-icon" style="color: #0284C7 !important;"></i>
+            <i class="fa-solid fa-person-walking-arrow-right kpi-icon" style="color: #0284C7 !important;"></i>
         </div>
     </div>
 
@@ -182,10 +182,9 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
 
         <?php
         $accesos = [
-            ['icon'=>'fa-solid fa-user-plus',       'label'=>'Nuevo Empleado',       'url'=>'/th/empleados/nuevo',       'color'=>'var(--color-primary)'],
-            ['icon'=>'fa-solid fa-file-signature',   'label'=>'Nuevo Contrato',        'url'=>'/th/contratos/nuevo',       'color'=>'var(--color-info)'],
-            ['icon'=>'fa-solid fa-cube',             'label'=>'Registrar Bien',        'url'=>'/bienes/nuevo',             'color'=>'var(--color-success)'],
-            ['icon'=>'fa-solid fa-pen-to-square',    'label'=>'Nueva Bitácora',        'url'=>'/bitacoras/nuevo',          'color'=>'var(--color-warning)'],
+            ['icon'=>'fa-solid fa-user-plus',       'label'=>'Talento Humano',       'url'=>'/apps/talento_humano/',     'color'=>'var(--color-primary)'],
+            ['icon'=>'fa-solid fa-cube',             'label'=>'Control de Bienes',     'url'=>'/apps/control_bienes/',     'color'=>'var(--color-success)'],
+            ['icon'=>'fa-solid fa-pen-to-square',    'label'=>'Nueva Bitácora',        'url'=>'/portuaria',                'color'=>'var(--color-warning)'],
             ['icon'=>'fa-solid fa-qrcode',           'label'=>'Registrar Ingreso',     'url'=>'/acceso/ingresar',          'color'=>'var(--color-danger)'],
             ['icon'=>'fa-solid fa-chart-line',       'label'=>'Reportes',              'url'=>'/reportes',                 'color'=>'var(--color-primary)'],
         ];
@@ -211,12 +210,6 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
             </span>
         </div>
 
-        <div class="task-item">
-            <div class="task-priority-dot" style="background:var(--color-warning);"></div>
-            <span class="task-text">
-                <?= number_format((int)$v($th, 'contratos_30d')) ?> contratos vencen en 30 días
-            </span>
-        </div>
         <div class="task-item">
             <div class="task-priority-dot" style="background:var(--color-info);"></div>
             <span class="task-text">

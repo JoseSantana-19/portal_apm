@@ -1,3 +1,7 @@
+# Config de conexión a BD — depende de la máquina (servidor SQL propio de
+# cada dev), nunca se sube. Ver config/connections.example.php.
+config/connections.php
+
 # Logs
 logs/
 *.log

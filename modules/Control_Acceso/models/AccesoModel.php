@@ -53,9 +53,12 @@ class AccesoModel extends Model {
     }
 
     public function getEmpleados(): array {
+        // Fuente real: Talento_Humano.dbo.th_empleados (cross-DB, misma
+        // instancia). Antes leía TH_Empleados local a PORTAL_APM, una copia
+        // muerta de la prueba nativa inicial que ya no existe.
         $stmt = $this->query(
-            'SELECT id_empleado, nombres + \' \' + apellidos AS nombre_completo
-             FROM TH_Empleados WHERE estado=1 ORDER BY apellidos'
+            'SELECT empleado_id AS id_empleado, nombres + \' \' + apellidos AS nombre_completo
+             FROM Talento_Humano.dbo.th_empleados WHERE estado=1 ORDER BY apellidos'
         );
         return $this->fetchAll($stmt);
     }

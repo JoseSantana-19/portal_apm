@@ -704,4 +704,154 @@ class AdminController extends Controller {
             ['Última modificación', $this->fmtFechaHora($u['fecha_modificacion'] ?? null)],
         ];
     }
+
+    // ─── Cuenta de acceso desde empleado de Talento Humano ─────────────────────
+    // La identidad (nombre/cédula) de un usuario ligado a un empleado TH se lee
+    // en vivo desde Talento_Humano.dbo.th_empleados (vw_Usuarios_Identidad) —
+    // acá solo se crea el vínculo (id_empleado_th) y se sugiere departamento/rol
+    // según su unidad organizacional (TH_Unidad_Map).
+
+    /** GET /admin/usuarios/desde-th — empleados de TH sin cuenta de portal aún. */
+    public function empleadosTh(): void {
+        $this->requireAuth();
+        $this->requireLevel(3);
+
+        $buscar = trim((string)($_GET['q'] ?? ''));
+        $where  = $buscar !== ''
+            ? "AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.cedula LIKE ?)"
+            : '';
+        $params = [];
+        if ($buscar !== '') {
+            $like = '%' . $buscar . '%';
+            $params = [[$like, SQLSRV_PARAM_IN], [$like, SQLSRV_PARAM_IN], [$like, SQLSRV_PARAM_IN]];
+        }
+
+        $stmt = $this->db()->query(
+            "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
+                    e.correo_institucional, u.codigo_uorg, u.nombre_unidad
+             FROM Talento_Humano.dbo.th_empleados e
+             LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+             WHERE e.estado = 1
+               AND NOT EXISTS (SELECT 1 FROM CORE_Usuarios cu WHERE cu.id_empleado_th = e.empleado_id)
+               $where
+             ORDER BY e.apellidos",
+            $params
+        );
+
+        $this->render('Central/admin/empleados_th', [
+            'pageTitle' => 'Crear cuenta desde empleado de Talento Humano',
+            'empleados' => $this->db()->fetchAll($stmt),
+            'buscar'    => $buscar,
+        ]);
+    }
+
+    /** GET /admin/usuarios/desde-th/{id}/nuevo — formulario con depto/rol autosugeridos. */
+    public function nuevoUsuarioDesdeEmpleado(int $idEmpleadoTh): void {
+        $this->requireAuth();
+        $this->requireLevel(3);
+
+        $emp = $this->db()->fetch($this->db()->query(
+            "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
+                    e.correo_institucional, u.codigo_uorg, u.nombre_unidad
+             FROM Talento_Humano.dbo.th_empleados e
+             LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+             WHERE e.empleado_id = ?",
+            [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
+        ));
+        if (!$emp) {
+            SessionHelper::flash('error', 'Empleado no encontrado en Talento Humano.');
+            $this->redirect('/admin/usuarios/desde-th');
+        }
+
+        // Autosugerencia por unidad organizacional (TH_Unidad_Map). Si la
+        // unidad no está mapeada, el admin elige departamento/rol a mano.
+        $mapa = $this->db()->fetch($this->db()->query(
+            'SELECT m.id_departamento, m.id_rol_director, m.id_rol_analista
+             FROM TH_Unidad_Map m WHERE m.codigo_uorg = ?',
+            [[$emp['codigo_uorg'] ?? '', SQLSRV_PARAM_IN]]
+        ));
+
+        $this->render('Central/admin/usuario_desde_empleado', [
+            'pageTitle'  => 'Nueva cuenta — ' . $emp['nombre_completo'],
+            'empleado'   => $emp,
+            'sugerido'   => $mapa ?: null,
+            'deptos'     => $this->deptos(),
+            'todosRoles' => $this->db()->fetchAll($this->db()->query('SELECT id_rol, nombre FROM CORE_Roles WHERE estado=1 ORDER BY nombre')),
+            'csrf'       => $this->csrfToken(),
+        ]);
+    }
+
+    /** POST /admin/usuarios/desde-th — crea la cuenta ligada al empleado TH. */
+    public function crearUsuarioDesdeEmpleado(): void {
+        $this->requireAuth();
+        $this->requireLevel(3);
+        $this->verifyCsrf();
+
+        if (!FormHelper::validate($_POST, [
+            'id_empleado_th'  => 'required|numeric',
+            'nombre_usuario'  => 'required|min:3|max:50|alpha_num',
+            'contrasena'      => 'required|min:8',
+            'nivel_jerarquia' => 'required|numeric',
+            'id_departamento' => 'required|numeric',
+            'id_rol'          => 'required|numeric',
+        ])) {
+            $_SESSION['_form_errors'] = FormHelper::errors();
+            $_SESSION['_old_input']   = $_POST;
+            $this->redirect('/admin/usuarios/desde-th/' . (int)($_POST['id_empleado_th'] ?? 0) . '/nuevo');
+        }
+
+        $idEmpleadoTh = (int)$_POST['id_empleado_th'];
+        $emp = $this->db()->fetch($this->db()->query(
+            "SELECT e.cedula, e.correo_institucional
+             FROM Talento_Humano.dbo.th_empleados e WHERE e.empleado_id = ?",
+            [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
+        ));
+        if (!$emp) {
+            SessionHelper::flash('error', 'Empleado no encontrado en Talento Humano.');
+            $this->redirect('/admin/usuarios/desde-th');
+        }
+
+        $hash = SecurityHelper::hashPassword($_POST['contrasena']);
+        $db   = $this->db();
+
+        // nombre_completo/cedula locales quedan como respaldo (por si el
+        // vínculo se rompe); vw_Usuarios_Identidad prioriza el dato en vivo.
+        $db->query(
+            'INSERT INTO CORE_Usuarios
+                (nombre_usuario, nombre_completo, correo, cedula, hash_contrasena,
+                 nivel_jerarquia, id_departamento, id_empleado_th, estado)
+             VALUES (?,?,?,?,?,?,?,?,1)',
+            [
+                [trim($_POST['nombre_usuario']), SQLSRV_PARAM_IN],
+                [$this->empleadoNombreCompleto($idEmpleadoTh), SQLSRV_PARAM_IN],
+                [trim($_POST['correo'] ?? $emp['correo_institucional'] ?? ''), SQLSRV_PARAM_IN],
+                [$emp['cedula'], SQLSRV_PARAM_IN],
+                [$hash, SQLSRV_PARAM_IN],
+                [(int)$_POST['nivel_jerarquia'], SQLSRV_PARAM_IN],
+                [(int)$_POST['id_departamento'], SQLSRV_PARAM_IN],
+                [$idEmpleadoTh, SQLSRV_PARAM_IN],
+            ]
+        );
+
+        $idUsuario = (int)$db->fetch($db->query('SELECT SCOPE_IDENTITY() AS id'))['id'];
+        $db->query(
+            'INSERT INTO CORE_Usuarios_Roles (id_usuario, id_rol, asignado_por) VALUES (?,?,?)',
+            [
+                [$idUsuario, SQLSRV_PARAM_IN],
+                [(int)$_POST['id_rol'], SQLSRV_PARAM_IN],
+                [(int)($_SESSION['user_id'] ?? 0), SQLSRV_PARAM_IN],
+            ]
+        );
+
+        SessionHelper::flash('success', 'Cuenta creada y vinculada al empleado de Talento Humano.');
+        $this->redirect('/admin/usuarios');
+    }
+
+    private function empleadoNombreCompleto(int $idEmpleadoTh): string {
+        $r = $this->db()->fetch($this->db()->query(
+            "SELECT nombres + ' ' + apellidos AS n FROM Talento_Humano.dbo.th_empleados WHERE empleado_id = ?",
+            [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
+        ));
+        return $r['n'] ?? '';
+    }
 }

@@ -49,7 +49,7 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
         <div class="kpi-card-left">
             <span class="kpi-label">Empleados Activos</span>
             <span class="kpi-value"><?= number_format((int)$v($th, 'total_empleados')) ?></span>
-            <span class="kpi-trend text-info" style="color:var(--accent-hover) !important;"><i class="fa-solid fa-file-contract"></i> <?= number_format((int)$v($th, 'contratos_vigentes')) ?> vigentes</span>
+            <span class="kpi-trend text-info" style="color:var(--accent-hover) !important;"><i class="fa-solid fa-building"></i> Talento Humano</span>
         </div>
         <div class="kpi-card-right bg-primary-light" style="background: rgba(2,132,199,0.1) !important;">
             <i class="fa-solid fa-users kpi-icon" style="color: #0284C7 !important;"></i>
@@ -125,18 +125,18 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
             <div id="chart-modulos" style="min-height:250px;"></div>
         </div>
 
-        <!-- TH: contratos próximos a vencer -->
+        <!-- Bienes: desglose por estado -->
         <div class="chart-card anim-up anim-d3">
             <div class="chart-card-header">
                 <div>
-                    <div class="chart-title">Contratos — Próximos a Vencer</div>
-                    <div class="chart-subtitle">Próximos 90 días</div>
+                    <div class="chart-title">Control de Bienes</div>
+                    <div class="chart-subtitle">Estado del inventario</div>
                 </div>
-                <a href="<?= APP_URL ?>/th/contratos" class="btn btn-ghost btn-sm" data-spa>
-                    Talento Humano <i class="fa-solid fa-arrow-right"></i>
+                <a href="<?= APP_URL ?>/panel/bienes" class="btn btn-ghost btn-sm" data-spa>
+                    Ver panel <i class="fa-solid fa-arrow-right"></i>
                 </a>
             </div>
-            <div id="chart-contratos" style="min-height:220px;"></div>
+            <div id="chart-bienes" style="min-height:220px;"></div>
         </div>
     </div>
 
@@ -209,21 +209,14 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
         dataLabels: { enabled: false },
     });
 
-    // Contratos area chart (próximos 12 semanas placeholder — SP should return series)
-    createChart('#chart-contratos', {
-        chart: { type: 'area', height: 220 },
-        series: [{
-            name: 'Contratos',
-            data: [
-                <?= (int)($th['contratos_30d'] ?? 0) ?>,
-                <?= (int)($th['contratos_60d'] ?? 0) ?>,
-                <?= (int)($th['contratos_90d'] ?? 0) ?>,
-            ]
-        }],
-        xaxis: { categories: ['30 días', '60 días', '90 días'] },
-        stroke: { curve: 'smooth' },
-        fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0.05 } },
-        dataLabels: { enabled: false },
+    // Bienes: operativos vs en mantenimiento
+    createChart('#chart-bienes', {
+        chart: { type: 'donut', height: 220 },
+        series: [
+            <?= (int)($bienes['bienes_activos'] ?? 0) ?>,
+            <?= (int)($bienes['bienes_mantenimiento'] ?? 0) ?>,
+        ],
+        labels: ['Operativos', 'En mantenimiento'],
     });
 })();
 </script>
