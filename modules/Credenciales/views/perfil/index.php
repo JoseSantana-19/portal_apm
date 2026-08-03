@@ -8,7 +8,7 @@ foreach (array_slice($words, 0, 2) as $w) { $init .= mb_strtoupper(mb_substr($w,
 ?>
 
 <?php if ($success): ?>
-<div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
 <?php endif; ?>
 
 <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-5);">

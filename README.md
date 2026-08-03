@@ -19,8 +19,8 @@ rondas) — más un dashboard analítico en Python. Backend PHP 8.2+ nativo
     sesión central del portal (SSO).
   - `modules/Portuaria`: Bitácoras CCTV/visitas/rondas — corre nativo en el
     router del portal pero con sus propias 2 bases de datos.
-  - Ver **`GUIA_INTEGRACION_MODULOS.md`** para el contrato que sigue todo
-    módulo nuevo que se quiera integrar.
+  - Ver **`INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md`** para el
+    contrato que sigue todo módulo nuevo, o cómo actualizar uno existente.
 - **`analytics/`**: dashboard ejecutivo en Python/Streamlit, embebido por
   iframe en el portal.
 - **`imgs/`**: logo institucional único (`logoapm.png` / `logoapm_banner.png`),
@@ -182,6 +182,7 @@ configuración (`.env`) y cómo dejarlo corriendo como servicio de Windows.
   `scratch/` (ver `.gitignore`). Los `.env` sí se versionan a propósito
   (ninguno tiene secretos reales — autenticación de Windows/local).
 - **¿Vas a construir o mantener un módulo independiente?** Ver
-  `GUIA_INTEGRACION_MODULOS.md` — de ahí sale toda integración nueva.
+  `INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` — de ahí sale toda
+  integración nueva, y cómo actualizar una ya existente con una versión nueva.
 - Documentación adicional: `DOCUMENTACION_SISTEMA.md` (arquitectura completa),
   `analisis_BD.md` (modelo de datos), `SYSPORT.md`.

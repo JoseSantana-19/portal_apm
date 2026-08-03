@@ -13,6 +13,9 @@ th.sortable:hover {
 th.sortable i {
     transition: all 0.2s ease;
 }
+.dataTables_filter {
+    display: none !important;
+}
 </style>
 
 <!-- InvCabecera de Página -->
@@ -39,15 +42,15 @@ th.sortable i {
     <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-boxes-stacked"></i></div>
         <div>
-            <div class="stat-value"><?= $stats['total'] ?></div>
-            <div class="stat-label">Total Bienes</div>
+            <div class="stat-value"><?= $stats['totalConsumoCorriente'] ?? 0 ?></div>
+            <div class="stat-label">Total de bienes de consumo corriente</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
         <div>
-            <div class="stat-value"><?= isset($stats['porEstado']['Operativo']) ? $stats['porEstado']['Operativo'] : 0 ?></div>
-            <div class="stat-label">Operativos</div>
+            <div class="stat-value"><?= $stats['totalActivoFijo'] ?? 0 ?></div>
+            <div class="stat-label">Total de bienes de activo fijo</div>
         </div>
     </div>
     <div class="stat-card">
@@ -68,22 +71,22 @@ th.sortable i {
 
 <!-- Barra de Filtros y Búsqueda -->
 <div class="filter-section animate-fade-in">
-    <div class="filter-tabs">
-        <a href="index.php?route=inventario" class="filter-tab <?= empty($filtros['categoria']) ? 'active' : '' ?>">Todos los Bienes</a>
-        <?php foreach ($categorias as $cat):
-            $isActive = ($filtros['categoria'] === $cat['nombre'] || $filtros['categoria'] === $cat['id']) ? 'active' : '';
-        ?>
-            <a href="index.php?route=inventario&categoria=<?= urlencode($cat['id']) ?>" class="filter-tab <?= $isActive ?>"><?= htmlspecialchars($cat['nombre']) ?></a>
-        <?php endforeach; ?>
-    </div>
-
     <form action="index.php" method="GET" class="filter-controls" id="filtros-form">
         <input type="hidden" name="route" value="inventario">
-        <input type="hidden" name="categoria" id="filtro-categoria" value="<?= htmlspecialchars($filtros['categoria'] ?? '') ?>">
 
         <div class="filter-group" style="flex:2;">
             <label>Término de Búsqueda</label>
             <input type="text" name="termino" placeholder="Buscar por código, nombre, marca..." value="<?= htmlspecialchars($filtros['termino']) ?>">
+        </div>
+
+        <div class="filter-group">
+            <label>Categoría</label>
+            <select name="categoria" id="filtro-categoria">
+                <option value="">Todas las Categorías</option>
+                <?php foreach ($categorias as $cat): ?>
+                    <option value="<?= htmlspecialchars($cat['id']) ?>" <?= (isset($filtros['categoria']) && ($filtros['categoria'] == $cat['id'] || $filtros['categoria'] == $cat['nombre'])) ? 'selected' : '' ?>><?= htmlspecialchars($cat['nombre']) ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <div class="filter-group">
@@ -113,11 +116,11 @@ th.sortable i {
     </form>
 </div>
 
-<!-- Panel de Tabla con Lazy Load -->
+<!-- Panel de Tabla con Carga Bajo Demanda -->
 <div class="panel animate-fade-in">
     <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <h3 id="tbl-titulo" style="margin:0;">Registros del Inventario — <span style="color:var(--text-muted);font-weight:500;font-size:14px;">Presione "Mostrar datos" para cargar</span></h3>
-        <button id="btn-mostrar-datos" class="btn-primary" onclick="cargarDatosInventario()" style="display:flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;">
+        <h3 id="tbl-titulo" style="margin:0;">Registros del Inventario — <span id="tbl-subtitulo" style="color:var(--text-muted);font-weight:500;font-size:14px;">Presione "Mostrar datos" para cargar</span></h3>
+        <button id="btn-mostrar-datos" class="btn-primary" onclick="cargarDatosInventario()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;cursor:pointer;">
             <i class="fa-solid fa-table-list" id="icon-mostrar"></i>
             <span id="lbl-mostrar">Mostrar datos</span>
         </button>
@@ -127,8 +130,8 @@ th.sortable i {
         <table id="tabla-inventario">
             <thead>
                 <tr>
-                    <th class="sortable" onclick="ordenarPor('secuencial')" style="cursor:pointer; user-select:none;">Secuencial <i class="fa-solid fa-sort" id="sort-secuencial" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
-                    <th class="sortable" onclick="ordenarPor('nombre')" style="cursor:pointer; user-select:none;">Equipo / Contenedor <i class="fa-solid fa-sort" id="sort-nombre" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
+                    <th style="display:none;">Secuencial</th>
+                    <th class="sortable" onclick="ordenarPor('nombre')" style="cursor:pointer; user-select:none;">Descripción <i class="fa-solid fa-sort" id="sort-nombre" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
                     <th class="sortable" onclick="ordenarPor('categoria')" style="cursor:pointer; user-select:none;">Categoría <i class="fa-solid fa-sort" id="sort-categoria" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
                     <th class="sortable" onclick="ordenarPor('unidad')" style="cursor:pointer; user-select:none;">Unidad <i class="fa-solid fa-sort" id="sort-unidad" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
                     <th class="sortable" onclick="ordenarPor('valor')" style="cursor:pointer; user-select:none;">Base ($) <i class="fa-solid fa-sort" id="sort-valor" style="margin-left:5px; font-size:11px; opacity:0.6;"></i></th>
@@ -139,14 +142,7 @@ th.sortable i {
                 </tr>
             </thead>
             <tbody id="tbody-inventario">
-                <!-- Los datos se inyectan aquí vía AJAX al pulsar "Mostrar datos" -->
-                <tr id="tr-placeholder">
-                    <td colspan="9" style="text-align:center;padding:48px 20px;color:var(--text-muted);">
-                        <i class="fa-solid fa-table-list" style="font-size:40px;display:block;margin-bottom:14px;opacity:0.25;"></i>
-                        <strong style="font-size:15px;display:block;margin-bottom:6px;">Datos no cargados</strong>
-                        <span style="font-size:13px;">Presione el botón <strong>"Mostrar datos"</strong> para consultar los registros.</span>
-                    </td>
-                </tr>
+                <!-- Los datos se inyectan dinámicamente vía DataTables AJAX al pulsar "Mostrar datos" -->
             </tbody>
         </table>
     </div>
@@ -260,15 +256,33 @@ th.sortable i {
 
 <script>
     var table;
+    var datosCargados = false;
+
+    // Prevenir cuadros de diálogo de alerta de DataTables
+    if (typeof $ !== 'undefined' && $.fn && $.fn.dataTable) {
+        $.fn.dataTable.ext.errMode = 'none';
+    }
+
+    function cargarDatosInventario() {
+        datosCargados = true;
+        sessionStorage.setItem('inventario_datos_mostrados', '1');
+        $('#lbl-mostrar').text('Actualizar datos');
+        $('#icon-mostrar').attr('class', 'fa-solid fa-rotate fa-spin');
+        table.ajax.reload(function() {
+            $('#icon-mostrar').attr('class', 'fa-solid fa-rotate');
+            $('#tbl-subtitulo').text('Listado actualizado');
+        });
+    }
+
     $(document).ready(function() {
-        // Ocultar la paginación manual y botón mostrar datos heredado
+        // Ocultar únicamente el contenedor de paginación manual antiguo
         $('#paginacion-container').hide();
-        $('#btn-mostrar-datos').hide();
         
-        // Inicializar DataTables
+        // Inicializar DataTables diferido (deferLoading: 0)
         table = $('#tabla-inventario').DataTable({
             processing: true,
             serverSide: true,
+            deferLoading: 0,
             ajax: {
                 url: 'index.php?route=inventario&action=listarAjax',
                 type: 'GET',
@@ -280,7 +294,7 @@ th.sortable i {
                 }
             },
             columns: [
-                { data: 'secuencial' },
+                { data: 'secuencial', visible: false },
                 { data: 'nombre' },
                 { data: 'categoria' },
                 { data: 'unidad' },
@@ -291,11 +305,22 @@ th.sortable i {
                 { data: 'acciones', orderable: false }
             ],
             pageLength: 50,
+            stateSave: true,
+            stateSaveCallback: function(settings, data) {
+                sessionStorage.setItem('inventario_estado_tabla', JSON.stringify(data));
+            },
+            stateLoadCallback: function() {
+                var estado = sessionStorage.getItem('inventario_estado_tabla');
+                if (!estado) return null;
+                try { return JSON.parse(estado); } catch (e) { return null; }
+            },
             lengthMenu: [10, 25, 50, 100],
             language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+                url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+                emptyTable: '<div style="text-align:center;padding:36px 20px;color:var(--text-muted);"><i class="fa-solid fa-table-list" style="font-size:38px;display:block;margin-bottom:12px;opacity:0.25;"></i><strong style="font-size:15px;display:block;margin-bottom:4px;">Datos no cargados</strong><span style="font-size:13px;">Presione el botón <strong>"Mostrar datos"</strong> para consultar los registros.</span></div>',
+                zeroRecords: 'No se encontraron bienes coincidentes'
             },
-            dom: '<"top"i>rt<"bottom"flp><"clear">',
+            dom: '<"top"i>rt<"bottom"lp><"clear">',
             ordering: true,
             order: [[0, 'desc']]
         });
@@ -303,46 +328,23 @@ th.sortable i {
         // Interceptar el envío del formulario de filtros
         $('#filtros-form').on('submit', function(e) {
             e.preventDefault();
-            table.ajax.reload();
+            cargarDatosInventario();
         });
 
-        // Interceptar el cambio en filtros select
-        $('select[name="unidad_id"], select[name="estado"]').on('change', function() {
-            table.ajax.reload();
+        // Interceptar cambios en los filtros select
+        $('#filtro-categoria, select[name="unidad_id"], select[name="estado"]').on('change', function() {
+            cargarDatosInventario();
         });
 
-        // Interceptar clic en pestañas de categoría
-        $('.filter-tab').on('click', function(e) {
-            e.preventDefault();
-            $('.filter-tab').removeClass('active');
-            $(this).addClass('active');
-            
-            var href = $(this).attr('href');
-            var catVal = '';
-            if (href && href.indexOf('categoria=') !== -1) {
-                catVal = decodeURIComponent(href.split('categoria=')[1]);
-            }
-            $('#filtro-categoria').val(catVal);
-            table.ajax.reload();
-        });
+        // Mantener la tabla cargada al volver desde otra pestaña durante la sesión.
+        if (sessionStorage.getItem('inventario_datos_mostrados') === '1') {
+            cargarDatosInventario();
+        }
     });
 
     /* ========== Modal InvInventario ========== */
     function abrirModalInventario() {
-        document.getElementById('inv-modal-title').textContent = 'Registrar Equipo';
-        document.getElementById('inv-inp-id').value = '0';
-        document.getElementById('inv-inp-producto-id').value = '';
-        document.getElementById('inv-inp-nombre').value = '';
-        document.getElementById('inv-inp-marca').value = '';
-        document.getElementById('inv-inp-categoria').value = '';
-        document.getElementById('inv-inp-zona').value = '';
-        document.getElementById('inv-inp-estado').value = '';
-        document.getElementById('inv-inp-responsable').value = '';
-        document.getElementById('inv-inp-valor').value = '';
-        document.getElementById('inv-inp-obs').value = '';
-        var selProd = document.getElementById('inv-sel-producto');
-        if (selProd) selProd.value = '';
-        document.getElementById('inv-modal').classList.add('active');
+        window.location.href = 'index.php?route=inv_items_sistema';
     }
 
     /* Auto-completar desde el catálogo de productos */
@@ -355,16 +357,13 @@ th.sortable i {
             return;
         }
         document.getElementById('inv-inp-producto-id').value = opt.value;
-        // Auto-completar nombre si está vacío
         if (!document.getElementById('inv-inp-nombre').value) {
             document.getElementById('inv-inp-nombre').value = opt.getAttribute('data-nombre') || '';
         }
-        // Auto-completar categoría
         var catId = opt.getAttribute('data-categoria');
         if (catId) {
             document.getElementById('inv-inp-categoria').value = catId;
         }
-        // Auto-completar precio si está vacío
         var precio = parseFloat(opt.getAttribute('data-precio') || '0');
         if (precio > 0 && !document.getElementById('inv-inp-valor').value) {
             document.getElementById('inv-inp-valor').value = precio.toFixed(2);
@@ -376,17 +375,12 @@ th.sortable i {
     }
 
     function editarRegistroInventario(item) {
-        document.getElementById('inv-modal-title').textContent = 'Editar Registro';
-        document.getElementById('inv-inp-id').value = item.id;
-        document.getElementById('inv-inp-nombre').value = item.nombre;
-        document.getElementById('inv-inp-marca').value = item.marca;
-        document.getElementById('inv-inp-categoria').value = item.categoria_id;
-        document.getElementById('inv-inp-zona').value = item.zona_id;
-        document.getElementById('inv-inp-estado').value = item.estado_id;
-        document.getElementById('inv-inp-responsable').value = item.responsable_id ? item.responsable_id : '';
-        document.getElementById('inv-inp-valor').value = item.valor;
-        document.getElementById('inv-inp-obs').value = item.observaciones;
-        document.getElementById('inv-modal').classList.add('active');
+        var itemId = (typeof item === 'object') ? (item.producto_id || item.id) : item;
+        if (itemId) {
+            window.location.href = 'index.php?route=inv_items_sistema&edit_id=' + itemId;
+        } else {
+            window.location.href = 'index.php?route=inv_items_sistema';
+        }
     }
 
     function cerrarDetallesInventario() {
@@ -421,7 +415,6 @@ th.sortable i {
                     '</div>' +
                     '<div class="modal-detail-layout">' +
                         '<div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">' +
-                            mkCampo(colorTema,'fa-list-ol','Secuencial','<code style="font-family:monospace;font-weight:700;">' + item.secuencial + '</code>') +
                             mkCampo(colorTema,'fa-tags','Categoría',item.categoria) +
                             mkCampo(colorTema,'fa-copyright','Marca',item.marca) +
                             mkCampo(colorTema,'fa-location-dot','Zona',item.zona) +
@@ -432,24 +425,7 @@ th.sortable i {
                             '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.04),rgba(59,130,246,0.08));padding:16px;border-radius:14px;margin-bottom:16px;border:1px solid rgba(59,130,246,0.12);">' +
                                 '<h4 style="margin:0 0 12px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;"><i class="fa-solid fa-calculator" style="color:var(--primary);margin-right:6px;"></i>Valores y Tasas</h4>' +
                                 '<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12.5px;color:var(--text-muted);"><span>Valor Base:</span><strong>$' + vBase.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
-                                (function() {
-                                    var html = '';
-                                    var aplicaIvaId = parseInt(item.producto_aplica_iva || 1);
-                                    (item.tipos_iva || []).forEach(function(tipo) {
-                                        var isApplied = (parseInt(tipo.id) === aplicaIvaId);
-                                        var rate = parseFloat(tipo.tasa_iva);
-                                        var calc = isApplied ? (vBase * (rate / 100)) : 0;
-                                        
-                                        var style = isApplied ? 'font-weight:700;color:var(--primary); font-size:13px;' : 'color:var(--text-muted);opacity:0.5;';
-                                        var label = isApplied ? '⚡ ' + tipo.nombre : tipo.nombre;
-                                        
-                                        html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12.5px;' + style + '">' +
-                                            '<span>' + label + ':</span>' +
-                                            '<strong>$' + calc.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong>' +
-                                        '</div>';
-                                    });
-                                    return html;
-                                })() +
+                                '<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12.5px;font-weight:700;color:var(--primary);"><span>' + (parseInt(item.aplica_iva,10) === 1 ? 'IVA del período (' + parseFloat(item.tasa_iva).toFixed(2) + '%)' : 'IVA (No aplica)') + ':</span><strong>$' + ivaCal.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
                                 '<div style="display:flex;justify-content:space-between;font-size:14px;border-top:1px dashed var(--border-color);padding-top:10px;font-weight:700;"><span>Costo Total:</span><strong style="font-size:16px;color:var(--primary);">$' + vTotal.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
                             '</div>' +
                             '<div style="background:var(--panel-bg);padding:14px;border-radius:12px;border:1px solid var(--border-color);">' +

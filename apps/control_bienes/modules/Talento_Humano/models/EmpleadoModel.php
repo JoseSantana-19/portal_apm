@@ -36,16 +36,41 @@ class EmpleadoModel extends Model
     public function obtenerPersonal(): array
     {
         try {
-            $sql = "SELECT 
-                        id, 
-                        apellidos + ' ' + nombres AS nombre, 
-                        direccion_area AS area_actual 
-                    FROM view_th_iddatosempledo 
-                    WHERE estado = 1
-                    ORDER BY apellidos ASC, nombres ASC";
-            return $this->db->query($sql)->fetchAll();
+            return $this->buscarResponsables(null, null, true);
         } catch (Exception $e) {
             $this->logger->warning("Error al obtener personal para bines: " . $e->getMessage(), 'EmpleadoModel::obtenerPersonal', $e);
+            return [];
+        }
+    }
+
+    /** Busca responsables por nombre o identificación mediante el procedimiento oficial. */
+    public function buscarResponsables(?string $termino = null, ?string $identificacion = null, bool $soloActivos = true): array
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "EXEC dbo.sp_th_buscar_responsables
+                    @termino = :termino,
+                    @identificacion = :identificacion,
+                    @solo_activos = :solo_activos"
+            );
+            $stmt->execute([
+                ':termino' => ($termino !== null && trim($termino) !== '') ? trim($termino) : null,
+                ':identificacion' => ($identificacion !== null && trim($identificacion) !== '') ? trim($identificacion) : null,
+                ':solo_activos' => $soloActivos ? 1 : 0,
+            ]);
+
+            $personal = [];
+            foreach ($stmt->fetchAll() as $fila) {
+                $fila['id'] = $fila['id_responsable'];
+                $fila['nombre'] = $fila['nombre_completo'];
+                $fila['area_actual'] = $fila['unidad'];
+                $fila['cedula'] = $fila['identificacion'];
+                $fila['direccion_area'] = $fila['unidad'];
+                $personal[] = $fila;
+            }
+            return $personal;
+        } catch (Exception $e) {
+            $this->logger->warning("Error al buscar responsables: " . $e->getMessage(), 'EmpleadoModel::buscarResponsables', $e);
             return [];
         }
     }
@@ -89,18 +114,8 @@ class EmpleadoModel extends Model
     public function obtenerPorCedula(string $cedula): ?array
     {
         try {
-            $sql = "SELECT id, cedula, apellidos, nombres, cargo, direccion_area,
-                           correo_institucional, estado, cargas_familiares,
-                           tipo_cuenta_bancaria, numero_cuenta_bancaria, institucion_bancaria
-                    FROM view_th_iddatosempledo
-                    WHERE cedula = :cedula";
-
-            $stmt = $this->db->prepare($sql);
-            $stmt->bindParam(':cedula', $cedula, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $res = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $res ?: null;
+            $resultados = $this->buscarResponsables(null, $cedula, false);
+            return $resultados[0] ?? null;
         } catch (Exception $e) {
             $this->logger->warning("Error al obtener empleado por cédula {$cedula}: " . $e->getMessage(), 'EmpleadoModel::obtenerPorCedula', $e);
             return null;

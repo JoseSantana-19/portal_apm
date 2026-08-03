@@ -266,24 +266,11 @@ $stockMapJson = json_encode($stockMap);
                 const ccId = this.value;
                 if (ccId) {
                     const cc = centrosConsumoData.find(c => c.id == ccId);
-                    if (cc && cc.funcionario) {
+                    if (cc && cc.funcionario_id) {
                         const respSelect = document.getElementById('egr-inp-responsable');
                         if (respSelect) {
-                            let encontrado = false;
-                            for (let i = 0; i < respSelect.options.length; i++) {
-                                const opt = respSelect.options[i];
-                                const optTextClean = opt.text.split('(')[0].trim().toLowerCase();
-                                const ccFuncClean = cc.funcionario.trim().toLowerCase();
-                                if (optTextClean.includes(ccFuncClean) || ccFuncClean.includes(optTextClean)) {
-                                    respSelect.value = opt.value;
-                                    encontrado = true;
-                                    console.log('[Telemetría Bodega] Responsable autocompletado: ' + cc.funcionario);
-                                    break;
-                                }
-                            }
-                            if (!encontrado) {
-                                console.log('[Telemetría Bodega] Funcionario ' + cc.funcionario + ' no encontrado en el catálogo de personal.');
-                            }
+                            respSelect.value = String(cc.funcionario_id);
+                            console.log('[Telemetría Bodega] Responsable autocompletado por ID oficial: ' + cc.funcionario);
                         }
                     }
                 }

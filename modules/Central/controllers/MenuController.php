@@ -17,11 +17,15 @@ class MenuController extends Controller {
         13 => ['label' => 'Bitácoras Portuarias (CCTV/Visitas)',    'icon' => 'fa-anchor',            'color' => '#0891b2'],
     ];
 
+    // Nodo MOIS de "Estructura del Menú" (Central > Administración).
+    // nivel_crud: 1=Ver, 2=Crear, 3=Editar, 4=Total.
+    private const NODO_MENU = [1, 2, 4, 0];
+
     private function db(): Database { return Database::getInstance(); }
 
     public function index(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_MENU, 1]);
 
         $db    = $this->db();
         $nodos = $db->fetchAll($db->query(
@@ -76,7 +80,7 @@ class MenuController extends Controller {
 
     public function nuevo(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_MENU, 1]);
 
         // Se cargan TODOS los nodos (incluidos inactivos): un nodo inactivo
         // sigue ocupando su tupla MOIS, y el formulario los necesita para
@@ -105,7 +109,7 @@ class MenuController extends Controller {
 
     public function crear(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_MENU, 2]);
         $this->verifyCsrf();
 
         if (!FormHelper::validate($_POST, [
@@ -158,7 +162,7 @@ class MenuController extends Controller {
 
     public function editar(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_MENU, 1]);
 
         $db   = $this->db();
         $nodo = $db->fetch($db->query('SELECT * FROM CORE_Menu_Nodos WHERE id_nodo=?', [[$id, SQLSRV_PARAM_IN]]));
@@ -181,7 +185,7 @@ class MenuController extends Controller {
 
     public function actualizar(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_MENU, 3]);
         $this->verifyCsrf();
 
         $urlRuta = trim($_POST['url_ruta'] ?? '');
@@ -203,20 +207,18 @@ class MenuController extends Controller {
         $this->redirect('/admin/menu');
     }
 
-    public function toggle(int $id): void {
-        $this->requireAuth();
-        $this->requireLevel(3);
-        $this->verifyCsrf();
-
-        $db   = $this->db();
-        $nodo = $db->fetch($db->query('SELECT * FROM CORE_Menu_Nodos WHERE id_nodo=?', [[$id, SQLSRV_PARAM_IN]]));
-        if (!$nodo) { $this->json(['ok' => false, 'msg' => 'Not found'], 404); return; }
-
-        $nuevo = $nodo['estado'] ? 0 : 1;
-        $mod   = (int)$nodo['id_modulo'];
-        $op    = (int)$nodo['opcion'];
-        $it    = (int)$nodo['items'];
-        $sub   = (int)$nodo['subitems'];
+    /**
+     * Aplica un cambio de estado a un nodo con la misma cascada que siempre
+     * tuvo el toggle individual: descendente al desactivar (oculta hijos) y
+     * ascendente al activar (activa ancestros para no quedar invisible).
+     * Devuelve los IDs de TODOS los nodos afectados (para reportar al frontend).
+     * Reutilizado por toggle() (single) y guardarLote() (batch, en transacción).
+     */
+    private function aplicarCascadaEstado(Database $db, int $id, array $nodo, int $nuevo): array {
+        $mod = (int)$nodo['id_modulo'];
+        $op  = (int)$nodo['opcion'];
+        $it  = (int)$nodo['items'];
+        $sub = (int)$nodo['subitems'];
 
         // Determinar alcance según nivel MOIS
         if ($op === 0) {
@@ -278,12 +280,88 @@ class MenuController extends Controller {
             }
         }
 
+        return $ids;
+    }
+
+    /** POST /admin/menu/{id}/toggle — cambio individual inmediato (uso puntual/API). */
+    public function toggle(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_MENU, 3]);
+        $this->verifyCsrf();
+
+        $db   = $this->db();
+        $nodo = $db->fetch($db->query('SELECT * FROM CORE_Menu_Nodos WHERE id_nodo=?', [[$id, SQLSRV_PARAM_IN]]));
+        if (!$nodo) { $this->json(['ok' => false, 'msg' => 'Not found'], 404); return; }
+
+        $nuevo = $nodo['estado'] ? 0 : 1;
+        $ids   = $this->aplicarCascadaEstado($db, $id, $nodo, $nuevo);
+
         $this->json(['ok' => true, 'estado' => $nuevo, 'cascaded' => $ids]);
+    }
+
+    /**
+     * POST /admin/menu/guardar-lote — aplica varios toggles pendientes de una
+     * vez, en una sola transacción (si uno falla, no queda estado parcial).
+     * Body: {cambios: [{id_nodo, estado}, ...]}
+     */
+    public function guardarLote(): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_MENU, 3]);
+        $this->verifyCsrf();
+
+        $body    = json_decode(file_get_contents('php://input'), true);
+        $cambios = is_array($body['cambios'] ?? null) ? $body['cambios'] : [];
+        if (!$cambios) { $this->json(['ok' => false, 'msg' => 'Sin cambios.'], 400); return; }
+
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $todosAfectados = [];
+            foreach ($cambios as $c) {
+                $id    = (int)($c['id_nodo'] ?? 0);
+                $nuevo = ((int)($c['estado'] ?? 0)) ? 1 : 0;
+                if ($id <= 0) continue;
+
+                $nodo = $db->fetch($db->query('SELECT * FROM CORE_Menu_Nodos WHERE id_nodo=?', [[$id, SQLSRV_PARAM_IN]]));
+                if (!$nodo) continue;
+                if ((int)$nodo['estado'] === $nuevo) continue; // ya está en ese estado, nada que hacer
+
+                $ids = $this->aplicarCascadaEstado($db, $id, $nodo, $nuevo);
+                foreach ($ids as $aid) { $todosAfectados[$aid] = true; }
+            }
+
+            // Estado final real de todos los afectados (varios cambios del
+            // mismo lote pueden pisarse entre sí — leemos la verdad post-cascada).
+            $estados = [];
+            if ($todosAfectados) {
+                $ids   = array_map('intval', array_keys($todosAfectados));
+                $place = implode(',', array_fill(0, count($ids), '?'));
+                $rows  = $db->fetchAll($db->query(
+                    "SELECT id_nodo, estado FROM CORE_Menu_Nodos WHERE id_nodo IN ($place)",
+                    array_map(fn($i) => [$i, SQLSRV_PARAM_IN], $ids)
+                ));
+                foreach ($rows as $r) { $estados[(int)$r['id_nodo']] = (int)$r['estado']; }
+            }
+
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollback();
+            $this->json(['ok' => false, 'msg' => 'No se pudieron guardar los cambios.'], 500);
+            return;
+        }
+
+        $this->json(['ok' => true, 'estados' => (object)$estados]);
+    }
+
+    /** GET /admin/menu/sidebar-fragmento — sidebar recién renderizado, para refrescarlo sin recargar la página. */
+    public function sidebarFragmento(): void {
+        $this->requireAuth();
+        View::partial('Central/layouts/sidebar');
     }
 
     public function eliminar(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(4);
+        $this->requireLevel(4, [...self::NODO_MENU, 4]);
         $this->verifyCsrf();
 
         $db   = $this->db();

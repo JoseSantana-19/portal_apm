@@ -47,16 +47,7 @@ $nivelDescs  = [
 </div>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger" style="margin-bottom:var(--sp-4);">
-    <div>
-        <div style="font-weight:var(--font-weight-semibold);margin-bottom:var(--sp-1);">
-            <i class="fa-solid fa-triangle-exclamation"></i> Corrige los errores:
-        </div>
-        <ul style="margin:0 0 0 var(--sp-4);padding:0;">
-            <?php foreach ($errors as $e): ?><li><?= htmlspecialchars($e, ENT_QUOTES, 'UTF-8') ?></li><?php endforeach; ?>
-        </ul>
-    </div>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.errorList('Corrige los errores', <?= json_encode(array_values($errors)) ?>));</script>
 <?php endif; ?>
 
 <form method="POST" action="<?= $action ?>">

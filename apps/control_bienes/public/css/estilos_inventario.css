@@ -2,9 +2,9 @@
 :root {
     /* Paleta de colores - Tonalidades Azules */
     --bg-color: #f0f4f8; 
-    --sidebar-bg: #075177; 
-    --sidebar-hover: #096393;
-    --sidebar-text: #94a3b8;
+    --sidebar-bg: #004264; 
+    --sidebar-hover: #075177;
+    --sidebar-text: #cbd5e1;
     --sidebar-active-text: #ffffff;
     
     --primary-blue: #2563eb; 
@@ -154,7 +154,7 @@ body {
 
 .menu-item.active {
     border-left-color: var(--secondary-blue);
-    background: linear-gradient(90deg, rgba(37,99,235,0.2) 0%, rgba(30,58,95,0) 100%);
+    background: linear-gradient(90deg, rgba(25, 88, 121, 0.3) 0%, rgba(25, 88, 121, 0) 100%);
     color: var(--sidebar-active-text);
 }
 

@@ -40,7 +40,8 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo
+                       p.codigo as producto_codigo,
+                       COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM inv_inventario i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
@@ -59,7 +60,8 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo
+                       p.codigo as producto_codigo,
+                       COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM inv_inventario i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
@@ -79,7 +81,8 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo
+                       p.codigo as producto_codigo,
+                       COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM inv_inventario i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
@@ -100,6 +103,7 @@ class BinModel extends Model {
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
                        p.codigo as producto_codigo,
+                       COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien,
                        u.nombre as unidad_nombre,
                        u.extra as unidad_abrev
                 FROM inv_inventario i
@@ -286,12 +290,19 @@ class BinModel extends Model {
         
         $stats = [
             'total' => count($items),
+            'totalConsumoCorriente' => 0,
+            'totalActivoFijo' => 0,
             'porEstado' => [],
             'porCategoria' => [],
             'porZona' => []
         ];
 
         foreach ($items as $i) {
+            if (($i['tipo_bien'] ?? 'CC') === 'AF') {
+                $stats['totalActivoFijo']++;
+            } else {
+                $stats['totalConsumoCorriente']++;
+            }
             $estado = $i['estado'];
             $categoria = $i['categoria'];
             $zona = $i['zona'];
@@ -317,7 +328,9 @@ class BinModel extends Model {
         
         foreach ($items as $i) {
             $valorBase = (float)$i['valor'];
-            $ivaCalc = $valorBase * ($tasaIva / 100);
+            $aplicaIva = isset($i['producto_aplica_iva']) && (int)$i['producto_aplica_iva'] === 1;
+            $tasaAplicada = $aplicaIva ? $tasaIva : 0.0;
+            $ivaCalc = $valorBase * ($tasaAplicada / 100);
             $valorTotal = $valorBase + $ivaCalc;
             
             $output .= sprintf(
@@ -330,7 +343,7 @@ class BinModel extends Model {
                 $i['responsable'] ? $i['responsable'] : 'Sin Responsable',
                 $i['estado'],
                 $valorBase,
-                $tasaIva,
+                $tasaAplicada,
                 $ivaCalc,
                 $valorTotal,
                 $i['fecha_registro']

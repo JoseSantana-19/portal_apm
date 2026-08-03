@@ -248,7 +248,7 @@ if ($tabActivo === 'items') {
                             <tr>
                                 <td><code style="background:var(--border-color); padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px; color:var(--primary);"><?= htmlspecialchars($r['codigo']) ?></code></td>
                                 <td style="font-weight: 600; color: var(--text-color);"><?= htmlspecialchars($r['nombre']) ?></td>
-                                <td><strong><?= htmlspecialchars($r['funcionario']) ?></strong></td>
+                                <td><strong><?= htmlspecialchars($r['funcionario_actual'] ?? $r['funcionario']) ?></strong></td>
                                 <td><span class="status-badge active" style="background:rgba(139,92,246,0.1); color:#8b5cf6; border-color:rgba(139,92,246,0.2); font-size:11px;"><?= htmlspecialchars($r['grupo_nombre']) ?> (<?= htmlspecialchars($r['grupo_codigo']) ?>)</span></td>
                                 <td style="text-align:center;"><strong><?= $r['total_egresos'] ?></strong></td>
                                 <td style="text-align:center;"><span class="status-badge dispatched" style="font-weight:700;"><?= $r['total_items'] ?> u.</span></td>

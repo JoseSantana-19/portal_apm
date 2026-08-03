@@ -1,5 +1,43 @@
 # Guía General del Proyecto: Control de Bines (SysPort)
 
+## Actualización 2026-07-27: filtro de ítems y centros de consumo
+
+En **Ítems del Sistema**, el grupo contable funciona como filtro real: al activarlo, la lista, la navegación y la búsqueda muestran solamente los productos cuyo `grupo_id` corresponde al grupo seleccionado. El término de búsqueda se conserva al cambiar de grupo y el selector para copiar una plantilla también se limita al grupo elegido en el formulario.
+
+Los grupos de centros de consumo continúan representando departamentos y los centros de consumo representan puestos o destinos de entrega. Sus campos **Funcionario representante** y **Funcionario responsable** ahora se alimentan exclusivamente con el personal activo de `Talento_Humano`. Se guardan `representante_id` y `funcionario_id` usando el ID oficial del empleado; los nombres de texto anteriores se mantienen como respaldo histórico.
+
+Al escoger un centro de consumo en un egreso, el sistema completa el funcionario receptor por su ID, sin intentar relacionarlo por coincidencias aproximadas de nombre. La migración reproducible está en `database/migrations/inv_20260727_centros_consumo_personal.sql`.
+
+## Actualización 2026-07-27: responsables desde Talento Humano
+
+Se restauró la base oficial `Talento_Humano` desde `base_talentoHumano/Talento_Humano.bak`. La fuente contiene 619 funcionarios, de los cuales 217 están activos. Antes de restaurarla se generó el respaldo recuperable `backup/Talento_Humano_actual_pre_restore_20260727.bak`; también se conservó una copia verificada del archivo recibido en `backup/Talento_Humano_20260727_113936.bak`.
+
+El inventario obtiene los responsables mediante `Talento_Humano.dbo.sp_th_buscar_responsables`, que permite consultar por nombre o identificación y devolver el ID original, nombres, apellidos, cargo, unidad, correo y estado. El selector de responsables carga solamente funcionarios activos y sigue apareciendo exclusivamente para activos fijos.
+
+`inventario.dbo.inv_talento_personal` conserva un espejo local con el mismo ID de Talento Humano y los campos `cargo`, `area`, `correo`, `estado` y `fecha_sincronizacion`. El disparador `trg_sync_th_empleados_to_inventario` replica altas, modificaciones y bajas lógicas sin borrar responsables que formen parte de movimientos históricos. La definición reproducible está en `database/migrations/th_20260727_responsables_inventario.sql`.
+
+El espejo local contiene 621 filas: las 619 oficiales y 2 registros de demostración anteriores que ya estaban referenciados por asignaciones. Esos dos registros se conservaron inactivos para no romper el historial y no aparecen en el selector.
+
+## Actualización 2026-07-27: clasificación del inventario
+
+El sistema distingue entre consumo corriente (`CC`), activo fijo (`AF`) y control administrativo histórico (`CA`). Los consumibles se controlan por cantidad y precio promedio y no tienen custodio permanente. Los activos fijos son bienes individualizados y son los únicos que pueden tener un funcionario responsable. `CA` permanece como clasificación independiente.
+
+En Ítems del Sistema, el tipo se determina automáticamente desde el código de la categoría contable: `1.3.x` corresponde a consumo corriente y `1.4.x` a activo fijo. El campo `aplica_iva` es una bandera de sí/no; cuando está activo, el porcentaje se obtiene del período vigente y se conserva en los movimientos y cierres históricos.
+
+La revisión histórica encontró 4.056 registros `AF` en `activos.DBF`: 1.976 vigentes y 2.080 dados de baja. También existen 3.691 registros `CA`. Los activos no estaban incluidos en la carga moderna original, razón por la que el tablero mostraba cero aunque sí existieran en FoxPro.
+
+El importador `database/migrations/importar_activos_dbf.php` incorporó 4.056 activos sin duplicar códigos: 1.976 vigentes y 2.080 conservados como registros inactivos por baja. Los códigos departamentales antiguos (`DCOD`) se guardan como referencia hasta cruzarlos correctamente con Talento Humano y centros de consumo.
+
+| Fuente | Información principal |
+|---|---|
+| `items.DBF` | Consumo corriente |
+| `activos.DBF` | Activos fijos y control administrativo |
+| `provee.DBF` | Proveedores y RUC |
+| `centros.DBF` / `CENT_RES.DBF` | Centros de consumo |
+| `cierres.DBF` / `cie_act.DBF` | Cortes históricos |
+
+---
+
 Bienvenido a la documentación explicativa de **Control_bines (SysPort)**. Este documento sirve como manual explicativo y guía técnica para entender el propósito de la aplicación, su alcance, características funcionales y la forma de integrarlo con otros proyectos.
 
 ---
@@ -80,5 +118,4 @@ El sistema cuenta con 4 cuentas de acceso iniciales para pruebas operativas:
 
 ## 🗃️ Diccionario de Datos
 
-Para conocer en detalle el diseño de las bases de datos de `inventario` y `Talento_Humano`, así como las relaciones, vistas y disparadores de sincronización automática, consulte el [Diccionario de Datos](file:///c:/xampp/htdocs/Control_bines/diccionario_datos.md).
-
+Para conocer en detalle el diseño de las bases de datos de `inventario` y `Talento_Humano`, así como las relaciones, vistas y disparadores de sincronización automática, consulte el [Diccionario de Datos](diccionario_datos.md).

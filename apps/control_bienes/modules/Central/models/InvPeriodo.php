@@ -46,11 +46,18 @@ class PeriodoModel extends Model {
      * Crea un nuevo período y le asigna su tasa de IVA (15%, 8%, 5%)
      */
     public function crear($nombre, $fechaInicio, $fechaFin, $tasaIva) {
+        if ($fechaInicio > $fechaFin) {
+            throw new InvalidArgumentException("La fecha de inicio no puede ser posterior a la fecha de fin.");
+        }
+
         try {
             $this->db->beginTransaction();
 
             // 1. Desactivar o cerrar el período activo anterior si existe
-            $this->db->exec("UPDATE inv_periodos SET estado = 'cerrado' WHERE estado = 'activo'");
+            $activo = $this->obtenerPeriodoActivo();
+            if ($activo) {
+                throw new Exception("Existe un periodo activo. Debe ejecutar su cierre y respaldo antes de crear otro.");
+            }
 
             // 2. Insertar período
             $stmt = $this->db->prepare("INSERT INTO inv_periodos (nombre, fecha_inicio, fecha_fin, estado) 
@@ -91,6 +98,23 @@ class PeriodoModel extends Model {
 
         try {
             $this->db->beginTransaction();
+
+            $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';
+            $sqlBloqueo = ($driver === 'sqlsrv')
+                ? "SELECT estado FROM inv_periodos WITH (UPDLOCK, HOLDLOCK) WHERE id = :id"
+                : "SELECT estado FROM inv_periodos WHERE id = :id";
+            $stmtBloqueo = $this->db->prepare($sqlBloqueo);
+            $stmtBloqueo->execute([':id' => $periodoId]);
+            $estadoActual = $stmtBloqueo->fetchColumn();
+            if ($estadoActual !== 'activo') {
+                throw new Exception("Solo se puede cerrar un periodo activo.");
+            }
+
+            $stmtExiste = $this->db->prepare("SELECT COUNT(*) FROM inv_respaldo_historico WHERE periodo_id = :id");
+            $stmtExiste->execute([':id' => $periodoId]);
+            if ((int)$stmtExiste->fetchColumn() > 0) {
+                throw new Exception("El periodo ya posee un respaldo historico y no puede cerrarse nuevamente.");
+            }
 
             // 1. Obtener todos los bienes activos del inventario al momento del corte
             $sql = "SELECT i.*, 

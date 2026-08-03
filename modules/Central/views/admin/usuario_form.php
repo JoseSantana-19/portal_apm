@@ -1,12 +1,11 @@
 <?php
-$isEdit   = !empty($usuario);
+// Esta pantalla es EXCLUSIVAMENTE de edición — la creación de cuentas es
+// solo desde Talento Humano (ver empleados_th.php / usuario_desde_empleado.php).
 $errors   = $_SESSION['_form_errors'] ?? [];
 $oldInput = $_SESSION['_old_input']   ?? [];
 unset($_SESSION['_form_errors'], $_SESSION['_old_input']);
 $v = fn(string $k) => htmlspecialchars($oldInput[$k] ?? ($usuario[$k] ?? ''), ENT_QUOTES, 'UTF-8');
-$action = $isEdit
-    ? APP_URL . '/admin/usuarios/' . (int)$usuario['id_usuario']
-    : APP_URL . '/admin/usuarios';
+$action = APP_URL . '/admin/usuarios/' . (int)$usuario['id_usuario'];
 
 $nivelActual = (int)($oldInput['nivel_jerarquia'] ?? $usuario['nivel_jerarquia'] ?? 0);
 $nivelOpts   = [0=>'Operativo',1=>'Analista',2=>'Jefatura',3=>'Director',4=>'Super Admin'];
@@ -20,34 +19,23 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
         <i class="fa-solid fa-arrow-left"></i> Usuarios
     </a>
     <span style="color:var(--color-text-muted);">/</span>
-    <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);"><?= $isEdit ? 'Editar' : 'Nuevo' ?></span>
+    <span style="color:var(--color-text-muted);font-size:var(--font-size-sm);">Editar</span>
 </div>
 
 <div class="page-header" style="margin-bottom:var(--sp-5);">
     <div>
         <h2 class="page-title">
-            <i class="fa-solid fa-<?= $isEdit ? 'user-pen' : 'user-plus' ?>" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
-            <?= $isEdit ? 'Editar Usuario' : 'Nuevo Usuario' ?>
+            <i class="fa-solid fa-user-pen" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
+            Editar Usuario
         </h2>
-        <?php if ($isEdit): ?>
         <p class="page-subtitle">
-            Modificando cuenta <code><?= htmlspecialchars($usuario['nombre_usuario'] ?? '', ENT_QUOTES, 'UTF-8') ?></code>
+            Modificando cuenta <code><?= htmlspecialchars($usuario['cedula'] ?? '', ENT_QUOTES, 'UTF-8') ?></code>
         </p>
-        <?php endif; ?>
     </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger" style="margin-bottom:var(--sp-4);">
-    <div>
-        <div style="font-weight:var(--font-weight-semibold);margin-bottom:var(--sp-1);">
-            <i class="fa-solid fa-triangle-exclamation"></i> Corrige los siguientes errores:
-        </div>
-        <ul style="margin:0 0 0 var(--sp-4);padding:0;">
-            <?php foreach ($errors as $e): ?><li><?= htmlspecialchars($e, ENT_QUOTES, 'UTF-8') ?></li><?php endforeach; ?>
-        </ul>
-    </div>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.errorList('Corrige los siguientes errores', <?= json_encode(array_values($errors)) ?>));</script>
 <?php endif; ?>
 
 <form method="POST" action="<?= $action ?>" id="usr-form">
@@ -66,12 +54,11 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
                     <div class="grid-2" style="gap:var(--sp-4);">
 
                         <div class="form-group">
-                            <label class="form-label">Nombre de Usuario *</label>
-                            <input type="text" name="nombre_usuario" class="form-control" required maxlength="50"
-                                   value="<?= $v('nombre_usuario') ?>"
-                                   <?= $isEdit ? 'readonly style="background:var(--color-surface-2);cursor:not-allowed;"' : '' ?>
-                                   placeholder="nombre.apellido">
-                            <span class="form-help">Solo letras y números, sin espacios</span>
+                            <label class="form-label">Cédula</label>
+                            <input type="text" class="form-control" readonly
+                                   style="background:var(--color-surface-2);cursor:not-allowed;"
+                                   value="<?= htmlspecialchars($usuario['cedula'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <span class="form-help">Login del usuario — se toma de Talento Humano, no se edita acá</span>
                         </div>
 
                         <div class="form-group">
@@ -86,28 +73,11 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
                                    value="<?= $v('correo') ?>" placeholder="usuario@apmpuerto.com">
                         </div>
 
-                        <?php if (!$isEdit): ?>
-                        <div class="form-group" style="grid-column:1/-1;">
-                            <label class="form-label">Contraseña Temporal *</label>
-                            <div style="position:relative;">
-                                <input type="password" name="contrasena" id="pwd-field" class="form-control"
-                                       required minlength="8" placeholder="Mínimo 8 caracteres"
-                                       style="padding-right:2.5rem;">
-                                <button type="button" onclick="togglePwd()"
-                                        style="position:absolute;right:var(--sp-3);top:50%;transform:translateY(-50%);
-                                               background:none;border:none;cursor:pointer;color:var(--color-text-muted);padding:0;">
-                                    <i id="pwd-eye" class="fa-regular fa-eye"></i>
-                                </button>
-                            </div>
-                            <span class="form-help">El usuario deberá cambiarla en su primer ingreso</span>
-                        </div>
-                        <?php endif; ?>
-
                     </div>
                 </div>
             </div>
 
-            <?php if ($isEdit && !empty($todosRoles)): ?>
+            <?php if (!empty($todosRoles)): ?>
             <div class="card">
                 <div class="card-header">
                     <i class="fa-solid fa-key" style="color:var(--color-primary);"></i>
@@ -196,7 +166,6 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
                         </div>
                     </div>
 
-                    <?php if ($isEdit): ?>
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="form-label">Estado de la Cuenta</label>
                         <select name="estado" class="form-control">
@@ -208,7 +177,6 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
                             </option>
                         </select>
                     </div>
-                    <?php endif; ?>
 
                 </div>
             </div>
@@ -216,7 +184,7 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
             <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
                 <button type="submit" class="btn btn-primary" style="justify-content:center;">
                     <i class="fa-solid fa-floppy-disk"></i>
-                    <?= $isEdit ? 'Guardar Cambios' : 'Crear Usuario' ?>
+                    Guardar Cambios
                 </button>
                 <a href="<?= APP_URL ?>/admin/usuarios" class="btn btn-ghost" data-spa style="justify-content:center;">
                     Cancelar
@@ -233,18 +201,6 @@ $nivelIcons  = [0=>'fa-user',1=>'fa-user-tie',2=>'fa-briefcase',3=>'fa-building'
 </style>
 
 <script>
-function togglePwd() {
-    const f = document.getElementById('pwd-field');
-    const e = document.getElementById('pwd-eye');
-    if (!f) return;
-    if (f.type === 'password') {
-        f.type = 'text';
-        e.className = 'fa-regular fa-eye-slash';
-    } else {
-        f.type = 'password';
-        e.className = 'fa-regular fa-eye';
-    }
-}
 function selectNivel(val) {
     document.querySelectorAll('[name="nivel_jerarquia"]').forEach((radio, i) => {
         const lbl = radio.closest('label');

@@ -9,7 +9,6 @@ $router->post('/set-theme',         'AuthController@setTheme');
 
 /* ── Home (public landing) ──────────────────────── */
 $router->get('/',                   'HomeController@index');
-$router->get('/api/demo-sso',       'HomeController@demoSso');
 
 /* ── Dashboard ──────────────────────────────────── */
 $router->get('/dashboard',          'DashboardController@index');
@@ -20,17 +19,6 @@ $router->get('/reportes',           'DashboardController@reportes');
 /* ── Paneles nativos de módulos integrados (KPIs en vivo, cross-DB) ── */
 $router->get('/panel/talento-humano', 'PanelController@talentoHumano');
 $router->get('/panel/bienes',         'PanelController@bienes');
-
-/* ── Control de Acceso ──────────────────────────── */
-$router->get('/acceso',                         'AccesoController@index');
-$router->get('/acceso/ingresar',                'AccesoController@ingresar');
-$router->post('/acceso/ingresar',               'AccesoController@registrarIngreso');
-$router->post('/acceso/salida',                 'AccesoController@registrarSalida');
-$router->get('/acceso/reporte',                 'AccesoController@reporte');
-$router->get('/acceso/visitantes',              'VisitanteController@index');
-$router->get('/acceso/visitantes/nuevo',        'VisitanteController@create');
-$router->post('/acceso/visitantes',             'VisitanteController@store');
-$router->get('/acceso/visitantes/{id}',         'VisitanteController@show');
 
 /* ── Sistemas origen embebidos: redirección robusta /apps/{app} → /apps/{app}/ ── */
 $router->get('/apps/{app}',                     'AppsController@abrir');
@@ -57,11 +45,11 @@ $router->get('/admin/usuarios/export/excel',    'AdminController@exportarUsuario
 $router->get('/admin/usuarios/export/pdf',      'AdminController@exportarUsuariosPdf');
 $router->get('/admin/usuarios/{id}/export/excel','AdminController@exportarUsuarioExcel');
 $router->get('/admin/usuarios/{id}/export/pdf', 'AdminController@exportarUsuarioPdf');
-$router->get('/admin/usuarios/nuevo',           'AdminController@nuevoUsuario');
+// "Nuevo Usuario" = SOLO desde Talento Humano (sin creación manual).
+$router->get('/admin/usuarios/nuevo',                 'AdminController@empleadosTh');
 $router->get('/admin/usuarios/desde-th',              'AdminController@empleadosTh');
 $router->get('/admin/usuarios/desde-th/{id}/nuevo',    'AdminController@nuevoUsuarioDesdeEmpleado');
 $router->post('/admin/usuarios/desde-th',              'AdminController@crearUsuarioDesdeEmpleado');
-$router->post('/admin/usuarios',                'AdminController@crearUsuario');
 $router->get('/admin/usuarios/{id}/editar',     'AdminController@editarUsuario');
 $router->post('/admin/usuarios/{id}',           'AdminController@actualizarUsuario');
 $router->post('/admin/usuarios/{id}/eliminar',  'AdminController@eliminarUsuario');
@@ -85,6 +73,25 @@ $router->get('/admin/menu/{id}/editar',      'MenuController@editar');
 $router->post('/admin/menu/{id}',            'MenuController@actualizar');
 $router->post('/admin/menu/{id}/toggle',     'MenuController@toggle');
 $router->post('/admin/menu/{id}/eliminar',   'MenuController@eliminar');
+$router->post('/admin/menu/guardar-lote',    'MenuController@guardarLote');
+$router->get('/admin/menu/sidebar-fragmento','MenuController@sidebarFragmento');
+
+/* ── Admin: Contenido del Portal (carrusel de fondos + ticker de noticias) ── */
+$router->get('/admin/landing',                        'LandingController@index');
+$router->post('/admin/landing/imagenes',               'LandingController@subirImagen');
+$router->post('/admin/landing/imagenes/{id}/mover',    'LandingController@moverImagen');
+$router->post('/admin/landing/imagenes/{id}/toggle',   'LandingController@toggleImagen');
+$router->post('/admin/landing/imagenes/{id}/eliminar', 'LandingController@eliminarImagen');
+$router->post('/admin/landing/noticias',                'LandingController@crearNoticia');
+$router->post('/admin/landing/noticias/{id}',            'LandingController@actualizarNoticia');
+$router->post('/admin/landing/noticias/{id}/mover',      'LandingController@moverNoticia');
+$router->post('/admin/landing/noticias/{id}/toggle',     'LandingController@toggleNoticia');
+$router->post('/admin/landing/noticias/{id}/eliminar',   'LandingController@eliminarNoticia');
+$router->post('/admin/landing/consejos',                 'LandingController@crearConsejo');
+$router->post('/admin/landing/consejos/{id}',             'LandingController@actualizarConsejo');
+$router->post('/admin/landing/consejos/{id}/mover',       'LandingController@moverConsejo');
+$router->post('/admin/landing/consejos/{id}/toggle',      'LandingController@toggleConsejo');
+$router->post('/admin/landing/consejos/{id}/eliminar',    'LandingController@eliminarConsejo');
 
 /* ── Portuaria (Bitácoras CCTV/Visitas/Rondas — integrado de portuaria_demoV4) ──
  * Los paths replican los alias del proyecto origen para que el JS portado

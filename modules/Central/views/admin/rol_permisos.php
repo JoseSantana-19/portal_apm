@@ -1,356 +1,480 @@
 <?php
+/**
+ * Roles y Permisos — tabla checklist (rediseño 2026-07-29, pulido x2).
+ * Modelo de datos sin cambios: nivel_crud 0-4 acumulativo por nodo
+ * (CORE_Permisos_Nodo). Los 4 checkboxes son presentación en cascada —
+ * el POST sigue viajando como permisos[clave] = entero 0-4, vía un
+ * <input type="hidden"> por fila que el JS mantiene sincronizado.
+ *
+ * Fix del pulido anterior: el scroll interno (max-height:70vh + sticky
+ * de fila de módulo con top adivinado a mano) generaba doble scrollbar
+ * y saltos — se sacó. Ahora la tabla fluye con la página, un solo
+ * scroll, y la cabecera de columnas se pega al tope de la PÁGINA (no de
+ * un contenedor propio) usando la posición real del <thead>, medida en
+ * runtime — nada de offsets fijos adivinados.
+ */
 $success = SessionHelper::getFlash('success');
+$cruds = [1=>'Ver', 2=>'Crear', 3=>'Editar', 4=>'Total'];
 
-$cruds = [0=>'Sin acceso', 1=>'Ver', 2=>'Crear', 3=>'Editar', 4=>'Total'];
-$crudColors = [
-    0 => ['bg'=>'transparent',                                        'text'=>'var(--color-text-muted)', 'border'=>'var(--color-border)'],
-    1 => ['bg'=>'color-mix(in srgb,var(--crud1) 10%,transparent)',    'text'=>'var(--crud1)',            'border'=>'var(--crud1)'],
-    2 => ['bg'=>'color-mix(in srgb,var(--crud2) 10%,transparent)',    'text'=>'var(--crud2)',            'border'=>'var(--crud2)'],
-    3 => ['bg'=>'color-mix(in srgb,var(--crud3-bd) 10%,transparent)', 'text'=>'var(--crud3)',            'border'=>'var(--crud3-bd)'],
-    4 => ['bg'=>'color-mix(in srgb,var(--color-primary) 10%,transparent)', 'text'=>'var(--color-primary)', 'border'=>'var(--color-primary)'],
-];
-
-// Count total configured nodos
-$totalNodos = 0;
-$configNodos = 0;
-foreach ($tree as $mod) {
-    if ($mod['raiz']) { $totalNodos++; if ($mod['raiz']['permiso']) $configNodos++; }
-    foreach ($mod['areas'] as $area) {
-        if ($area['nodo']) { $totalNodos++; if ($area['nodo']['permiso']) $configNodos++; }
-        foreach ($area['items'] as $item) {
-            if ($item['nodo']) { $totalNodos++; if ($item['nodo']['permiso']) $configNodos++; }
-            foreach ($item['subitems'] as $sub) { $totalNodos++; if ($sub['permiso']) $configNodos++; }
+// Aplana el árbol a filas [nivel, nodo] en el mismo orden que antes
+// (raíz, luego áreas → items → subitems), calculando de paso cuántos
+// nodos configurables tiene cada módulo y cuántos ya están configurados
+// (para el resumen por sección).
+function permisos_flatten(array $tree): array {
+    $rows = [];
+    foreach ($tree as $modId => $mod) {
+        $modRows = [];
+        if ($mod['raiz']) $modRows[] = ['tipo' => 'nodo', 'lvl' => 1, 'n' => $mod['raiz']];
+        foreach ($mod['areas'] as $area) {
+            if ($area['nodo']) $modRows[] = ['tipo' => 'nodo', 'lvl' => 2, 'n' => $area['nodo']];
+            foreach ($area['items'] as $item) {
+                if ($item['nodo']) $modRows[] = ['tipo' => 'nodo', 'lvl' => 3, 'n' => $item['nodo']];
+                foreach ($item['subitems'] as $sub) {
+                    $modRows[] = ['tipo' => 'nodo', 'lvl' => 4, 'n' => $sub];
+                }
+            }
         }
+        $modTotal  = count($modRows);
+        $modConfig = count(array_filter($modRows, fn($r) => $r['n']['permiso'] > 0));
+        $rows[] = ['tipo' => 'modulo', 'modId' => $modId, 'mod' => $mod, 'total' => $modTotal, 'config' => $modConfig];
+        array_push($rows, ...$modRows);
     }
+    return $rows;
 }
+$filas = permisos_flatten($tree);
+
+$totalNodos = count(array_filter($filas, fn($f) => $f['tipo'] === 'nodo'));
+$configNodos = count(array_filter($filas, fn($f) => $f['tipo'] === 'nodo' && $f['n']['permiso'] > 0));
+
+$nivelLabels = [0=>'Operativo',1=>'Analista',2=>'Jefatura',3=>'Director',4=>'Super Admin'];
 ?>
 
 <?php if ($success): ?>
-<div class="alert alert-success" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-circle-check"></i> <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
 <?php endif; ?>
 
-<!-- Header -->
-<div style="display:flex;align-items:flex-start;gap:var(--sp-3);margin-bottom:var(--sp-5);flex-wrap:wrap;">
-    <a href="<?= APP_URL ?>/admin/roles" class="btn btn-ghost btn-sm" data-spa style="margin-top:3px;">
-        <i class="fa-solid fa-arrow-left"></i>
+<style>
+.perm2 {
+    --g-bg: var(--surface-app); --g-bg-soft: var(--accent-app); --g-bd: var(--border-app);
+    --g-shadow: var(--shadow-app);
+    --l1: #8b5cf6; --l2: #3b82f6; --l3: #22c55e; --l4: #f59e0b;
+}
+.perm2 .gx { background:var(--g-bg); border:1px solid var(--g-bd); border-radius:var(--radius-lg); box-shadow:var(--g-shadow); }
+
+/* ── Hero del rol ── */
+.perm2-hero {
+    display:flex; align-items:center; gap:var(--sp-4); padding:var(--sp-4) var(--sp-5); margin-bottom:var(--sp-4);
+    position:relative; overflow:hidden;
+}
+.perm2-hero::before {
+    content:''; position:absolute; inset:0; opacity:.05; pointer-events:none;
+    background:radial-gradient(ellipse 60% 100% at 0% 50%, var(--color-primary), transparent);
+}
+.perm2-hero-ico {
+    width:52px; height:52px; border-radius:var(--radius-lg); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:1.15rem;
+    background:linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 55%, #000));
+    color:#fff; box-shadow:0 6px 18px -4px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+.perm2-hero-body { flex:1; min-width:0; position:relative; }
+.perm2-hero-name { font-size:var(--font-size-xl); font-weight:var(--font-weight-bold); letter-spacing:-.015em; color:var(--color-text); line-height:1.15; }
+.perm2-hero-meta { display:flex; align-items:center; gap:var(--sp-3); margin-top:6px; flex-wrap:wrap; font-size:var(--font-size-xs); color:var(--color-text-muted); }
+.perm2-hero-meta code { font-family:var(--font-mono); background:var(--g-bg-soft); border:1px solid var(--g-bd); padding:2px 7px; border-radius:var(--radius-sm); color:var(--color-primary); font-weight:var(--font-weight-semibold); }
+.perm2-hero-meta .sep { width:3px; height:3px; border-radius:50%; background:var(--color-text-light); }
+.perm2-hero-stats { display:flex; gap:var(--sp-5); flex-shrink:0; position:relative; }
+.perm2-stat { text-align:right; }
+.perm2-stat b { display:block; font-size:var(--font-size-lg); font-weight:var(--font-weight-bold); color:var(--color-text); line-height:1.1; font-variant-numeric:tabular-nums; }
+.perm2-stat span { font-size:10.5px; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.05em; }
+
+/* ── Toolbar ── */
+.perm2-toolbar { display:flex; align-items:center; gap:var(--sp-4); flex-wrap:wrap; padding:var(--sp-3) var(--sp-4); margin-bottom:var(--sp-4); }
+.perm2-search { position:relative; flex:1; min-width:220px; max-width:320px; }
+.perm2-search i { position:absolute; left:var(--sp-3); top:50%; transform:translateY(-50%); color:var(--color-text-light); font-size:11px; }
+.perm2-search input {
+    width:100%; padding:8px var(--sp-3) 8px 2rem; border-radius:var(--radius-md);
+    border:1px solid var(--g-bd); background:var(--g-bg-soft); color:var(--color-text);
+    font-size:var(--font-size-sm); transition:border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.perm2-search input:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--color-primary) 16%,transparent); }
+.perm2-search input::placeholder { color:var(--color-text-light); }
+
+.perm2-progress { display:flex; align-items:center; gap:10px; font-size:var(--font-size-xs); color:var(--color-text-muted); font-variant-numeric:tabular-nums; }
+.perm2-progress b { color:var(--color-text); font-weight:var(--font-weight-bold); font-size:var(--font-size-sm); }
+.perm2-ring { width:30px; height:30px; flex-shrink:0; transform:rotate(-90deg); }
+.perm2-ring circle { fill:none; stroke-width:3; }
+.perm2-ring .track { stroke:var(--color-surface-3); }
+.perm2-ring .fill { stroke:var(--color-primary); stroke-linecap:round; transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1); }
+
+.perm2-quick { display:flex; gap:4px; margin-left:auto; padding-left:var(--sp-3); border-left:1px solid var(--g-bd); }
+.perm2-quick button {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:var(--radius-md);
+    border:1px solid transparent; background:transparent; color:var(--color-text-muted);
+    font-size:var(--font-size-xs); font-weight:var(--font-weight-medium); cursor:pointer;
+    font-family:var(--font-family); transition:all var(--transition-fast);
+}
+.perm2-quick button:hover { color:var(--color-text); background:var(--g-bg-soft); border-color:var(--g-bd); }
+.perm2-quick button:active { transform:translateY(1px); }
+
+/* ── Tabla — un solo flujo de scroll (el de la página), sin contenedor propio ── */
+.perm2-table-wrap { overflow-x:auto; }
+table.perm2-table { width:100%; border-collapse:separate; border-spacing:0; font-size:var(--font-size-sm); }
+
+table.perm2-table thead th {
+    position:sticky; top:0; z-index:6; background:var(--g-bg-soft);
+    border-bottom:1px solid var(--g-bd); padding:11px var(--sp-2);
+    font-size:10.5px; font-weight:var(--font-weight-bold); color:var(--color-text-muted);
+    text-transform:uppercase; letter-spacing:.06em; white-space:nowrap;
+    transition:box-shadow .2s ease;
+}
+table.perm2-table.is-scrolled thead th { box-shadow:0 4px 10px -4px rgba(0,0,0,.18); }
+table.perm2-table th.col-nodo { text-align:left; padding-left:var(--sp-4); }
+table.perm2-table th.col-chk { text-align:center; width:72px; cursor:pointer; user-select:none; }
+table.perm2-table th.col-chk:hover { color:var(--color-primary); }
+table.perm2-table th.col-chk .hint { display:block; font-weight:var(--font-weight-normal); text-transform:none; letter-spacing:0; font-size:9px; opacity:.65; margin-top:2px; }
+
+/* Cabecera de módulo: acento de color sobre superficie neutra (no bloque sólido), NO sticky — fluye con la página */
+tr.perm2-modrow td {
+    padding:9px var(--sp-3) 9px 14px; font-weight:var(--font-weight-bold); font-size:12.5px;
+    letter-spacing:.02em; color:var(--color-text);
+    background:var(--g-bg-soft); border-left:3px solid var(--mod-c, var(--color-primary));
+    border-bottom:1px solid var(--g-bd); border-top:1px solid var(--g-bd);
+}
+tr.perm2-modrow:first-child td { border-top:none; }
+tr.perm2-modrow .modico {
+    display:inline-flex; align-items:center; justify-content:center; width:21px; height:21px; border-radius:6px;
+    background:color-mix(in srgb, var(--mod-c, var(--color-primary)) 16%, transparent);
+    color:var(--mod-c, var(--color-primary)); margin-right:9px; font-size:.68rem; flex-shrink:0;
+}
+tr.perm2-modrow .modcount {
+    float:right; font-size:10.5px; font-weight:var(--font-weight-semibold); color:var(--color-text-muted);
+    background:var(--g-bg); border:1px solid var(--g-bd); padding:1px 8px; border-radius:var(--radius-full);
+    font-variant-numeric:tabular-nums;
+}
+
+tr.perm2-noderow td { border-bottom:1px solid var(--g-bd); padding:5px var(--sp-2); vertical-align:middle; transition:background .15s ease; }
+tr.perm2-noderow:hover td { background:color-mix(in srgb, var(--g-bg-soft) 65%, transparent); }
+tr.perm2-noderow.changed td.col-nodo { border-left:2px solid var(--color-warning); }
+tr.perm2-noderow.changed td:first-child { padding-left:calc(var(--sp-2) - 2px); }
+
+.pn-nodo { display:flex; align-items:center; gap:9px; padding-left:calc(var(--lvl) * 18px); min-height:24px; }
+.pn-nodo[style*="--lvl: 1"], .pn-nodo[style*="--lvl:1"] { border-left:1px solid var(--g-bd); margin-left:9px; }
+.pn-nodo[style*="--lvl: 2"], .pn-nodo[style*="--lvl:2"] { border-left:1px solid var(--g-bd); margin-left:27px; }
+.pn-nodo[style*="--lvl: 3"], .pn-nodo[style*="--lvl:3"] { border-left:1px solid var(--g-bd); margin-left:45px; }
+
+.pn-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.pn-dot.l1 { background:var(--l1); } .pn-dot.l2 { background:var(--l2); }
+.pn-dot.l3 { background:var(--l3); } .pn-dot.l4 { background:var(--l4); }
+.pn-desc { color:var(--color-text); font-weight:var(--font-weight-medium); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
+.pn-badge {
+    margin-left:auto; font-size:9.5px; font-weight:var(--font-weight-semibold); padding:2px 8px 2px 6px;
+    border-radius:var(--radius-full); white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:4px;
+    transition:color .15s ease, background .15s ease;
+}
+.pn-badge .d { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.85; }
+
+/* ── Checklist en cascada: los 4 casilleros leen como UNA escala continua ── */
+td.col-chk {
+    text-align:center; position:relative;
+    background:color-mix(in srgb, var(--g-bg-soft) 55%, transparent);
+    border-left:1px solid var(--g-bd);
+}
+td.col-chk:last-child { border-right:1px solid var(--g-bd); }
+td.col-chk::after {
+    content:''; position:absolute; left:0; right:0; bottom:0; height:2.5px;
+    background:var(--g-bd); transition:background .2s ease;
+}
+td.col-chk.step-fill::after { background:var(--step-c); }
+
+.pn-cb { position:relative; display:inline-flex; width:18px; height:18px; }
+.pn-cb input { position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1; }
+.pn-cb .box {
+    position:absolute; inset:0; border:1.5px solid var(--g-bd); border-radius:5px; background:var(--g-bg);
+    transition:transform .12s cubic-bezier(.34,1.56,.64,1), background .15s ease, border-color .15s ease;
+    display:flex; align-items:center; justify-content:center;
+}
+.pn-cb .box i { font-size:9.5px; color:#fff; opacity:0; transform:scale(.4); transition:all .15s cubic-bezier(.34,1.56,.64,1); }
+.pn-cb input:hover ~ .box { border-color:var(--step-c, var(--color-primary)); }
+.pn-cb input:checked ~ .box i { opacity:1; transform:scale(1); }
+.pn-cb input:checked ~ .box { transform:scale(1.04); }
+.pn-cb.c1 input:checked ~ .box { background:var(--l1); border-color:var(--l1); }
+.pn-cb.c2 input:checked ~ .box { background:var(--l2); border-color:var(--l2); }
+.pn-cb.c3 input:checked ~ .box { background:var(--l3); border-color:var(--l3); }
+.pn-cb.c4 input:checked ~ .box { background:var(--l4); border-color:var(--l4); }
+.pn-cb input:focus-visible ~ .box { box-shadow:0 0 0 3px color-mix(in srgb,var(--color-primary) 30%,transparent); }
+
+@media (max-width:820px) {
+    .perm2-hero { flex-wrap:wrap; }
+    .perm2-hero-stats { width:100%; justify-content:space-between; }
+    .pn-desc { max-width:150px; }
+    table.perm2-table th.col-chk .hint { display:none; }
+    .perm2-quick { border-left:none; padding-left:0; margin-left:0; }
+}
+</style>
+
+<div class="perm2">
+
+<div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-2);">
+    <a href="<?= APP_URL ?>/admin/roles" class="btn btn-ghost btn-sm" data-spa>
+        <i class="fa-solid fa-arrow-left"></i> Roles
     </a>
-    <div style="flex:1;min-width:200px;">
-        <h2 class="page-title">
-            <i class="fa-solid fa-shield-halved" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
-            Permisos — <?= htmlspecialchars($rol['nombre'], ENT_QUOTES, 'UTF-8') ?>
-        </h2>
-        <div style="display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-1);flex-wrap:wrap;">
-            <code style="font-size:var(--font-size-xs);background:color-mix(in srgb,var(--color-primary) 8%,transparent);
-                         color:var(--color-primary);padding:2px 6px;border-radius:var(--radius-sm);">
-                <?= htmlspecialchars($rol['codigo'], ENT_QUOTES, 'UTF-8') ?>
-            </code>
-            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
-                <span id="perm-count" style="font-weight:var(--font-weight-semibold);color:var(--color-text);"><?= $configNodos ?></span>
-                / <?= $totalNodos ?> nodos configurados
-            </div>
-            <!-- Progress bar -->
-            <div style="flex:1;min-width:120px;max-width:200px;height:6px;background:var(--color-surface-3);border-radius:var(--radius-full);overflow:hidden;">
-                <div id="perm-bar" style="height:100%;width:<?= $totalNodos > 0 ? round($configNodos/$totalNodos*100) : 0 ?>%;
-                                          background:var(--color-primary);border-radius:var(--radius-full);transition:width 0.3s ease;"></div>
-            </div>
+</div>
+
+<div class="gx perm2-hero">
+    <div class="perm2-hero-ico"><i class="fa-solid fa-shield-halved"></i></div>
+    <div class="perm2-hero-body">
+        <div class="perm2-hero-name"><?= htmlspecialchars($rol['nombre'], ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="perm2-hero-meta">
+            <code><?= htmlspecialchars($rol['codigo'], ENT_QUOTES, 'UTF-8') ?></code>
+            <span class="sep"></span>
+            <span><?= $nivelLabels[(int)$rol['nivel_jerarquia']] ?? 'Operativo' ?></span>
+            <?php if (!empty($rol['departamento'])): ?>
+            <span class="sep"></span>
+            <span><i class="fa-solid fa-sitemap" style="opacity:.6;"></i> <?= htmlspecialchars($rol['departamento'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php endif; ?>
         </div>
+    </div>
+    <div class="perm2-hero-stats">
+        <div class="perm2-stat"><b><?= (int)$usuariosConRol ?></b><span>Usuario<?= $usuariosConRol === 1 ? '' : 's' ?></span></div>
+        <div class="perm2-stat"><b><?= $configNodos ?>/<?= $totalNodos ?></b><span>Permisos</span></div>
     </div>
 </div>
 
-<!-- Legend -->
-<div style="display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-4);flex-wrap:wrap;">
-    <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-right:var(--sp-1);">Niveles:</span>
-    <?php foreach ($cruds as $val => $lbl): ?>
-    <span style="display:inline-flex;align-items:center;gap:4px;font-size:var(--font-size-xs);
-                 padding:2px 8px;border-radius:var(--radius-full);
-                 background:<?= $crudColors[$val]['bg'] ?>;
-                 color:<?= $crudColors[$val]['text'] ?>;
-                 border:1px solid <?= $crudColors[$val]['border'] ?>;">
-        <?= $lbl ?>
-    </span>
-    <?php endforeach; ?>
-</div>
-
-<form method="POST" action="<?= APP_URL ?>/admin/roles/<?= (int)$rol['id_rol'] ?>/permisos" id="perms-form">
+<form method="POST" action="<?= APP_URL ?>/admin/roles/<?= (int)$rol['id_rol'] ?>/permisos" id="perm2-form" data-bypass>
     <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
 
-    <!-- Sticky toolbar -->
-    <div style="position:sticky;top:calc(var(--topbar-height) + var(--sp-2));z-index:10;
-                background:var(--color-bg);padding:var(--sp-3) 0;margin-bottom:var(--sp-4);">
-        <div class="card" style="border-radius:var(--radius-md);">
-            <div style="padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;">
-                <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-right:var(--sp-1);">Acceso rápido:</span>
-                <button type="button" class="btn btn-ghost btn-sm" onclick="setAll(0)">
-                    <i class="fa-solid fa-ban"></i> Sin acceso
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--crud1);" onclick="setAll(1)">
-                    <i class="fa-solid fa-eye"></i> Solo ver
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--crud2);" onclick="setAll(2)">
-                    <i class="fa-solid fa-plus"></i> Ver + Crear
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--crud3);" onclick="setAll(3)">
-                    <i class="fa-solid fa-pen"></i> Ver + Editar
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-primary);" onclick="setAll(4)">
-                    <i class="fa-solid fa-unlock"></i> Acceso total
-                </button>
-                <div style="flex:1;"></div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fa-solid fa-floppy-disk"></i> Guardar Permisos
-                </button>
-            </div>
+    <div class="gx perm2-toolbar">
+        <div class="perm2-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="perm2-q" placeholder="Buscar por nombre…" oninput="perm2Search(this.value)" autocomplete="off">
+        </div>
+        <div class="perm2-progress">
+            <svg class="perm2-ring" viewBox="0 0 36 36">
+                <circle class="track" cx="18" cy="18" r="15.5"></circle>
+                <circle class="fill" id="perm2-ring-fill" cx="18" cy="18" r="15.5"
+                        stroke-dasharray="97.4" stroke-dashoffset="<?= $totalNodos > 0 ? round(97.4 * (1 - $configNodos / $totalNodos)) : 97.4 ?>"></circle>
+            </svg>
+            <span id="perm2-count"><b><?= $configNodos ?></b>/<?= $totalNodos ?><br>configurados</span>
+        </div>
+        <div class="perm2-quick">
+            <button type="button" onclick="perm2SetAll(0)"><i class="fa-solid fa-ban"></i> Sin acceso</button>
+            <button type="button" onclick="perm2SetAll(1)"><i class="fa-solid fa-eye"></i> Solo ver</button>
+            <button type="button" onclick="perm2SetAll(4)"><i class="fa-solid fa-unlock"></i> Acceso total</button>
         </div>
     </div>
 
-    <!-- Tree -->
-    <?php foreach ($tree as $modId => $mod):
-        // Count configured in this module
-        $modTotal = 0; $modConfig = 0;
-        if ($mod['raiz']) { $modTotal++; if ($mod['raiz']['permiso']) $modConfig++; }
-        foreach ($mod['areas'] as $area) {
-            if ($area['nodo']) { $modTotal++; if ($area['nodo']['permiso']) $modConfig++; }
-            foreach ($area['items'] as $item) {
-                if ($item['nodo']) { $modTotal++; if ($item['nodo']['permiso']) $modConfig++; }
-                foreach ($item['subitems'] as $sub) { $modTotal++; if ($sub['permiso']) $modConfig++; }
-            }
-        }
-    ?>
-    <details class="perm-module" data-mod="<?= $modId ?>" style="margin-bottom:var(--sp-3);" open>
-        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:var(--sp-3);
-                        background:var(--color-surface-2);border:1px solid var(--color-border);
-                        border-radius:var(--radius-md);padding:var(--sp-3) var(--sp-4);
-                        transition:background var(--transition);"
-                 onmouseenter="this.style.background='var(--color-surface-3)'"
-                 onmouseleave="this.style.background='var(--color-surface-2)'">
-            <i class="fa-solid fa-chevron-right" style="font-size:0.65rem;color:var(--color-text-muted);
-               transition:transform 0.2s;flex-shrink:0;" id="chev-mod-<?= $modId ?>"></i>
-            <span style="font-weight:var(--font-weight-semibold);flex:1;">
-                <?= htmlspecialchars($mod['label'], ENT_QUOTES, 'UTF-8') ?>
-            </span>
-            <!-- Module config progress -->
-            <span style="font-size:var(--font-size-xs);color:var(--color-text-muted);" id="mod-badge-<?= $modId ?>">
-                <?= $modConfig ?>/<?= $modTotal ?>
-            </span>
-            <div style="width:60px;height:5px;background:var(--color-surface-3);border-radius:var(--radius-full);overflow:hidden;margin-left:var(--sp-1);"
-                 id="mod-bar-wrap-<?= $modId ?>">
-                <div style="height:100%;width:<?= $modTotal > 0 ? round($modConfig/$modTotal*100) : 0 ?>%;
-                             background:var(--color-primary);border-radius:var(--radius-full);transition:width 0.3s;"
-                     id="mod-bar-<?= $modId ?>"></div>
-            </div>
-            <?php if ($mod['raiz']): ?>
-            <div style="margin-left:var(--sp-2);" onclick="event.stopPropagation()">
-                <?php $pr = $mod['raiz']['permiso']; ?>
-                <select name="permisos[<?= $mod['raiz']['key'] ?>]"
-                        class="perm-select form-control" data-mod="<?= $modId ?>"
-                        style="width:110px;font-size:var(--font-size-xs);<?= permStyle($pr) ?>"
-                        onchange="handleSelect(this); cascadeModule(this, <?= $modId ?>)">
+    <div class="gx perm2-table-wrap">
+        <table class="perm2-table" id="perm2-table">
+            <thead>
+                <tr>
+                    <th class="col-nodo">Módulo / Pantalla</th>
                     <?php foreach ($cruds as $val => $lbl): ?>
-                    <option value="<?= $val ?>" <?= $pr === $val ? 'selected' : '' ?>><?= $lbl ?></option>
+                    <th class="col-chk" data-col="<?= $val ?>" onclick="perm2ToggleColumn(<?= $val ?>)">
+                        <?= $lbl ?><span class="hint">tildar todo</span>
+                    </th>
                     <?php endforeach; ?>
-                </select>
-            </div>
-            <?php endif; ?>
-        </summary>
-
-        <div style="border:1px solid var(--color-border);border-top:none;
-                    border-radius:0 0 var(--radius-md) var(--radius-md);
-                    padding:var(--sp-3) var(--sp-4) var(--sp-2);">
-        <?php foreach ($mod['areas'] as $opId => $area): ?>
-
-            <details class="perm-area" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                     style="margin-bottom:var(--sp-2);" open>
-                <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:var(--sp-2);
-                                padding:var(--sp-2) var(--sp-3);border-radius:var(--radius-md);
-                                background:color-mix(in srgb,var(--color-bg-subtle,var(--color-surface-2)) 40%,transparent);
-                                transition:background var(--transition);"
-                         onmouseenter="this.style.background='var(--color-surface-2)'"
-                         onmouseleave="this.style.background='color-mix(in srgb,var(--color-surface-2) 40%,transparent)'">
-                    <i class="fa-solid fa-chevron-right" style="font-size:0.6rem;color:var(--color-text-muted);
-                       transition:transform 0.2s;flex-shrink:0;" id="chev-area-<?= $modId ?>-<?= $opId ?>"></i>
-                    <span style="font-weight:var(--font-weight-medium);font-size:var(--font-size-sm);flex:1;">
-                        <?= htmlspecialchars($area['nodo']['descripcion'] ?? "Área $opId", ENT_QUOTES, 'UTF-8') ?>
-                    </span>
-                    <?php if ($area['nodo']): ?>
-                    <div onclick="event.stopPropagation()">
-                        <?php $pa = $area['nodo']['permiso']; ?>
-                        <select name="permisos[<?= $area['nodo']['key'] ?>]"
-                                class="perm-select form-control" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                                style="width:105px;font-size:var(--font-size-xs);<?= permStyle($pa) ?>"
-                                onchange="handleSelect(this); cascadeArea(this, <?= $modId ?>, <?= $opId ?>)">
-                            <?php foreach ($cruds as $val => $lbl): ?>
-                            <option value="<?= $val ?>" <?= $pa === $val ? 'selected' : '' ?>><?= $lbl ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <?php endif; ?>
-                </summary>
-
-                <?php if (!empty($area['items'])): ?>
-                <div style="padding:var(--sp-1) 0 0 var(--sp-4);">
-                    <table style="width:100%;">
-                    <?php foreach ($area['items'] as $itId => $item): ?>
-                        <?php if ($item['nodo']): ?>
-                        <tr class="perm-row" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                            style="border-bottom:1px solid var(--color-border-light);">
-                            <td style="padding:var(--sp-2) var(--sp-2);font-size:var(--font-size-sm);">
-                                <i class="fa-solid fa-minus" style="color:var(--color-text-light);margin-right:var(--sp-2);font-size:0.55rem;"></i>
-                                <?= htmlspecialchars($item['nodo']['descripcion'] ?? "Item $itId", ENT_QUOTES, 'UTF-8') ?>
-                            </td>
-                            <td style="width:115px;text-align:right;padding:var(--sp-1);">
-                                <?php $pi = $item['nodo']['permiso']; ?>
-                                <select name="permisos[<?= $item['nodo']['key'] ?>]"
-                                        class="perm-select form-control" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                                        style="width:105px;font-size:var(--font-size-xs);<?= permStyle($pi) ?>"
-                                        onchange="handleSelect(this)">
-                                    <?php foreach ($cruds as $val => $lbl): ?>
-                                    <option value="<?= $val ?>" <?= $pi === $val ? 'selected' : '' ?>><?= $lbl ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-                        <?php foreach ($item['subitems'] as $sub): ?>
-                        <tr class="perm-row" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                            style="border-bottom:1px solid var(--color-border-light);
-                                   background:color-mix(in srgb,var(--color-surface-2) 30%,transparent);">
-                            <td style="padding:var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-8);font-size:var(--font-size-sm);">
-                                <i class="fa-solid fa-corner-down-right" style="color:var(--color-text-light);margin-right:var(--sp-1);font-size:0.55rem;"></i>
-                                <?= htmlspecialchars($sub['descripcion'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                            </td>
-                            <td style="width:115px;text-align:right;padding:var(--sp-1);">
-                                <?php $ps = $sub['permiso']; ?>
-                                <select name="permisos[<?= $sub['key'] ?>]"
-                                        class="perm-select form-control" data-mod="<?= $modId ?>" data-op="<?= $opId ?>"
-                                        style="width:105px;font-size:var(--font-size-xs);<?= permStyle($ps) ?>"
-                                        onchange="handleSelect(this)">
-                                    <?php foreach ($cruds as $val => $lbl): ?>
-                                    <option value="<?= $val ?>" <?= $ps === $val ? 'selected' : '' ?>><?= $lbl ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($filas as $f): ?>
+                <?php if ($f['tipo'] === 'modulo'):
+                    $mod = $f['mod'];
+                ?>
+                <tr class="perm2-modrow" style="--mod-c:<?= $mod['color'] ?>;" data-mod-header="<?= $f['modId'] ?>">
+                    <td colspan="5">
+                        <span class="modcount"><?= $f['config'] ?>/<?= $f['total'] ?></span>
+                        <span class="modico"><i class="fa-solid <?= $mod['icon'] ?>"></i></span>
+                        <?= htmlspecialchars($mod['label'], ENT_QUOTES, 'UTF-8') ?>
+                    </td>
+                </tr>
+                <?php else:
+                    $n = $f['n']; $lvl = $f['lvl']; $perm = (int)$n['permiso'];
+                    $badgeInfo = [0=>['Sin acceso','var(--color-text-muted)','transparent'],1=>['Ver','var(--l1)','color-mix(in srgb,var(--l1) 12%,transparent)'],2=>['Crear','var(--l2)','color-mix(in srgb,var(--l2) 12%,transparent)'],3=>['Editar','var(--l3)','color-mix(in srgb,var(--l3) 12%,transparent)'],4=>['Total','var(--l4)','color-mix(in srgb,var(--l4) 14%,transparent)']][$perm];
+                ?>
+                <tr class="perm2-noderow" data-search="<?= strtolower(htmlspecialchars($n['descripcion'], ENT_QUOTES, 'UTF-8')) ?>" data-original="<?= $perm ?>">
+                    <td class="col-nodo">
+                        <div class="pn-nodo" style="--lvl:<?= $lvl - 1 ?>;">
+                            <span class="pn-dot l<?= $lvl ?>" title="Nivel L<?= $lvl ?>"></span>
+                            <span class="pn-desc" title="<?= htmlspecialchars($n['descripcion'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($n['descripcion'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <span class="pn-badge" data-role="badge" style="color:<?= $badgeInfo[1] ?>;background:<?= $badgeInfo[2] ?>;"><span class="d"></span><?= $badgeInfo[0] ?></span>
+                        </div>
+                        <input type="hidden" name="permisos[<?= $n['key'] ?>]" value="<?= $perm ?>" data-role="value">
+                    </td>
+                    <?php foreach ($cruds as $val => $lbl):
+                        $stepColor = ['', 'var(--l1)', 'var(--l2)', 'var(--l3)', 'var(--l4)'][$val];
+                    ?>
+                    <td class="col-chk <?= $perm >= $val ? 'step-fill' : '' ?>" style="--step-c:<?= $stepColor ?>;">
+                        <label class="pn-cb c<?= $val ?>">
+                            <input type="checkbox" data-lvl="<?= $val ?>" <?= $perm >= $val ? 'checked' : '' ?> onchange="perm2Toggle(this)">
+                            <span class="box"><i class="fa-solid fa-check"></i></span>
+                        </label>
+                    </td>
                     <?php endforeach; ?>
-                    </table>
-                </div>
+                </tr>
                 <?php endif; ?>
-            </details>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 
-        <?php endforeach; ?>
-        </div>
-    </details>
-    <?php endforeach; ?>
-
-    <div style="display:flex;justify-content:flex-end;gap:var(--sp-3);margin-top:var(--sp-5);padding-top:var(--sp-4);
-                border-top:1px solid var(--color-border);">
+    <div style="display:flex;justify-content:flex-end;gap:var(--sp-3);margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--g-bd);">
         <a href="<?= APP_URL ?>/admin/roles" class="btn btn-outline" data-spa>Cancelar</a>
         <button type="submit" class="btn btn-primary">
             <i class="fa-solid fa-floppy-disk"></i> Guardar Permisos
         </button>
     </div>
 </form>
-
-<?php
-function permStyle(int $v): string {
-    $styles = [
-        0 => '',
-        1 => 'border-color:var(--crud1);color:var(--crud1);background:color-mix(in srgb,var(--crud1) 8%,transparent);',
-        2 => 'border-color:var(--crud2);color:var(--crud2);background:color-mix(in srgb,var(--crud2) 8%,transparent);',
-        3 => 'border-color:var(--crud3-bd);color:var(--crud3);background:color-mix(in srgb,var(--crud3-bd) 8%,transparent);',
-        4 => 'border-color:var(--color-primary);color:var(--color-primary);background:color-mix(in srgb,var(--color-primary) 8%,transparent);',
-    ];
-    return $styles[$v] ?? '';
-}
-?>
-
-<style>
-/* Tokens CRUD — colores vivos legibles en los 3 temas (t1/t2/t3) */
-:root {
-    --crud1: #17a2b8;
-    --crud2: #28a745;
-    --crud3: #d4a005;
-    --crud3-bd: #d4a005;
-}
-/* Tema 2 (Cyber Dark) y Tema 3 (Porto): tonos más brillantes para contraste */
-body.t2, body.t3 {
-    --crud1: #39c5dd;
-    --crud2: #3fb950;
-    --crud3: #e0b341;
-    --crud3-bd: #e0b341;
-}
-
-details[open] > summary > i.fa-chevron-right { transform: rotate(90deg); }
-
-.perm-select { transition: border-color 0.15s, color 0.15s, background 0.15s; }
-</style>
+</div>
 
 <script>
-const CRUD_STYLES = {
-    0: '',
-    1: 'border-color:var(--crud1);color:var(--crud1);background:color-mix(in srgb,var(--crud1) 8%,transparent)',
-    2: 'border-color:var(--crud2);color:var(--crud2);background:color-mix(in srgb,var(--crud2) 8%,transparent)',
-    3: 'border-color:var(--crud3-bd);color:var(--crud3);background:color-mix(in srgb,var(--crud3-bd) 8%,transparent)',
-    4: 'border-color:var(--color-primary);color:var(--color-primary);background:color-mix(in srgb,var(--color-primary) 8%,transparent)',
+const PERM2_LABELS = {0:'Sin acceso',1:'Ver',2:'Crear',3:'Editar',4:'Total'};
+const PERM2_COLORS = {0:['var(--color-text-muted)','transparent'],1:['var(--l1)','color-mix(in srgb,var(--l1) 12%,transparent)'],2:['var(--l2)','color-mix(in srgb,var(--l2) 12%,transparent)'],3:['var(--l3)','color-mix(in srgb,var(--l3) 12%,transparent)'],4:['var(--l4)','color-mix(in srgb,var(--l4) 14%,transparent)']};
+
+function perm2Row(el) { return el.closest('tr.perm2-noderow'); }
+
+function perm2ApplyRow(tr, value) {
+    value = Math.max(0, Math.min(4, value));
+    tr.querySelectorAll('td.col-chk').forEach(td => {
+        const cb = td.querySelector('input[type=checkbox]');
+        const lvl = parseInt(cb.dataset.lvl);
+        cb.checked = lvl <= value;
+        td.classList.toggle('step-fill', lvl <= value);
+    });
+    tr.querySelector('[data-role="value"]').value = value;
+    const badge = tr.querySelector('[data-role="badge"]');
+    if (badge) {
+        badge.lastChild.textContent = PERM2_LABELS[value];
+        badge.style.color = PERM2_COLORS[value][0];
+        badge.style.background = PERM2_COLORS[value][1];
+    }
+    tr.classList.toggle('changed', String(value) !== tr.dataset.original);
+}
+
+window.perm2Toggle = function (checkbox) {
+    const tr = perm2Row(checkbox);
+    const lvl = parseInt(checkbox.dataset.lvl);
+    const newValue = checkbox.checked ? lvl : (lvl - 1);
+    perm2ApplyRow(tr, newValue);
+    perm2UpdateProgress();
 };
 
-function applyStyle(sel) {
-    sel.style.cssText = CRUD_STYLES[parseInt(sel.value)] || '';
-    sel.style.width   = sel.style.width || '105px';
-    sel.style.fontSize = 'var(--font-size-xs)';
-}
-
-function handleSelect(sel) {
-    applyStyle(sel);
-    updateProgress();
-}
-
-function setAll(val) {
-    document.querySelectorAll('.perm-select').forEach(s => {
-        s.value = val;
-        applyStyle(s);
+window.perm2ToggleColumn = function (lvl) {
+    const rows = [...document.querySelectorAll('tr.perm2-noderow')].filter(tr => tr.style.display !== 'none');
+    if (!rows.length) return;
+    const allAtLeast = rows.every(tr => parseInt(tr.querySelector('[data-role="value"]').value) >= lvl);
+    rows.forEach(tr => {
+        const cur = parseInt(tr.querySelector('[data-role="value"]').value);
+        perm2ApplyRow(tr, allAtLeast ? Math.min(cur, lvl - 1) : Math.max(cur, lvl));
     });
-    updateProgress();
-}
+    perm2UpdateProgress();
+};
 
-function cascadeModule(sel, modId) {
-    const val = parseInt(sel.value);
-    document.querySelectorAll(`.perm-select[data-mod="${modId}"]`).forEach(s => {
-        if (s !== sel) { s.value = val; applyStyle(s); }
+window.perm2SetAll = function (value) {
+    document.querySelectorAll('tr.perm2-noderow').forEach(tr => perm2ApplyRow(tr, value));
+    perm2UpdateProgress();
+};
+
+const RING_CIRC = 97.4;
+function perm2UpdateProgress() {
+    const rows = document.querySelectorAll('tr.perm2-noderow');
+    const total = rows.length;
+    let conf = 0;
+    rows.forEach(tr => { if (parseInt(tr.querySelector('[data-role="value"]').value) > 0) conf++; });
+
+    const countEl = document.getElementById('perm2-count');
+    const ringEl  = document.getElementById('perm2-ring-fill');
+    if (countEl) countEl.innerHTML = `<b>${conf}</b>/${total}<br>configurados`;
+    if (ringEl)  ringEl.style.strokeDashoffset = total > 0 ? (RING_CIRC * (1 - conf / total)) : RING_CIRC;
+
+    // Contador por módulo (badge redondo en cada fila de sección)
+    const perMod = {};
+    let curMod = null;
+    document.querySelectorAll('#perm2-table tbody tr').forEach(tr => {
+        if (tr.classList.contains('perm2-modrow')) { curMod = tr; perMod[tr.dataset.modHeader] = { c: 0, t: 0, tr }; return; }
+        if (!curMod) return;
+        const key = curMod.dataset.modHeader;
+        perMod[key].t++;
+        if (parseInt(tr.querySelector('[data-role="value"]').value) > 0) perMod[key].c++;
     });
-    updateProgress();
-}
-
-function cascadeArea(sel, modId, opId) {
-    const val = parseInt(sel.value);
-    document.querySelectorAll(`.perm-select[data-mod="${modId}"][data-op="${opId}"]`).forEach(s => {
-        if (s !== sel) { s.value = val; applyStyle(s); }
-    });
-    updateProgress();
-}
-
-function updateProgress() {
-    const all   = document.querySelectorAll('.perm-select');
-    const total = all.length;
-    const conf  = [...all].filter(s => parseInt(s.value) > 0).length;
-    const pct   = total > 0 ? Math.round(conf / total * 100) : 0;
-
-    const countEl = document.getElementById('perm-count');
-    const barEl   = document.getElementById('perm-bar');
-    if (countEl) countEl.textContent = conf;
-    if (barEl)   barEl.style.width   = pct + '%';
-
-    // Per-module badges
-    document.querySelectorAll('.perm-module').forEach(details => {
-        const modId = details.dataset.mod;
-        const mods  = details.querySelectorAll('.perm-select');
-        const mc    = [...mods].filter(s => parseInt(s.value) > 0).length;
-        const badge = document.getElementById('mod-badge-' + modId);
-        const bar   = document.getElementById('mod-bar-' + modId);
-        if (badge) badge.textContent = mc + '/' + mods.length;
-        if (bar)   bar.style.width   = (mods.length > 0 ? Math.round(mc/mods.length*100) : 0) + '%';
+    Object.values(perMod).forEach(m => {
+        const el = m.tr.querySelector('.modcount');
+        if (el) el.textContent = `${m.c}/${m.t}`;
     });
 }
+
+window.perm2Search = function (q) {
+    q = q.toLowerCase().trim();
+    const modGroups = {};
+    document.querySelectorAll('#perm2-table tbody tr').forEach(tr => {
+        if (tr.classList.contains('perm2-modrow')) { modGroups[tr.dataset.modHeader] = { tr, any: false }; return; }
+    });
+    let currentMod = null;
+    document.querySelectorAll('#perm2-table tbody tr').forEach(tr => {
+        if (tr.classList.contains('perm2-modrow')) { currentMod = tr.dataset.modHeader; return; }
+        const hit = !q || (tr.dataset.search || '').includes(q);
+        tr.style.display = hit ? '' : 'none';
+        if (hit && currentMod !== null) modGroups[currentMod].any = true;
+    });
+    Object.values(modGroups).forEach(g => { g.tr.style.display = (!q || g.any) ? '' : 'none'; });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Sombra en la cabecera pegajosa cuando el CONTENIDO DE LA PÁGINA (no un
+    // contenedor propio) se desplaza por debajo de ella — un solo scroll,
+    // sin offsets fijos adivinados.
+    const table = document.getElementById('perm2-table');
+    const thead = table?.querySelector('thead');
+    if (!table || !thead) return;
+    const onScroll = () => {
+        const r = thead.getBoundingClientRect();
+        table.classList.toggle('is-scrolled', r.top <= 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+});
+
+// Guardar por AJAX: los cambios quedan efectivos al instante y el sidebar se
+// refresca solo, sin recargar la página completa (mismo patrón que Estructura
+// del Menú).
+document.getElementById('perm2-form')?.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const btn = this.querySelector('button[type="submit"]');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando…';
+
+    let d;
+    try {
+        const r = await fetch(this.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(this),
+        });
+        const text = await r.text();
+        try {
+            d = JSON.parse(text);
+        } catch (parseErr) {
+            console.error('Respuesta no-JSON al guardar permisos:', text);
+            PortalAlert.error('El servidor respondió algo inesperado (revisa la consola).');
+            return;
+        }
+    } catch (err) {
+        console.error('Error de red al guardar permisos:', err);
+        PortalAlert.error('Error de conexión al guardar.');
+        return;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+
+    if (!d.ok) { PortalAlert.error(d.msg || 'No se pudieron guardar los permisos.'); return; }
+    PortalAlert.success(d.msg || 'Permisos guardados correctamente.');
+
+    // El refresco del sidebar es un extra visual — si falla, NUNCA debe
+    // hacer parecer que el guardado (ya confirmado arriba) fue el que falló.
+    try {
+        await window.refreshSidebar();
+    } catch (err) {
+        console.error('El guardado fue exitoso, pero no se pudo refrescar el sidebar:', err);
+    }
+});
 </script>

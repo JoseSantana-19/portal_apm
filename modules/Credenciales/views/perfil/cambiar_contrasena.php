@@ -9,9 +9,7 @@
 </div>
 
 <?php if ($error): ?>
-<div class="alert alert-danger" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-circle-exclamation"></i> <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.error(<?= json_encode($error) ?>));</script>
 <?php endif; ?>
 
 <div style="max-width:420px;">

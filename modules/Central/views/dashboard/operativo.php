@@ -6,7 +6,6 @@ $nivel    = (int)($_SESSION['nivel_jerarquia'] ?? 0);
 $th       = $kpis['th']       ?? [];
 $bienes   = $kpis['bienes']   ?? [];
 $bitacora = $kpis['bitacora'] ?? [];
-$acceso   = $kpis['acceso']   ?? [];
 
 $v = fn($arr, $key, $default = 0) => $arr[$key] ?? $default;
 
@@ -87,17 +86,6 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
         </div>
     </div>
 
-    <div class="kpi-card" title="Ingresos Hoy">
-        <div class="kpi-glow" style="background:#EF4444;"></div>
-        <div class="kpi-card-left">
-            <span class="kpi-label">Ingresos Hoy</span>
-            <span class="kpi-value"><?= number_format((int)$v($acceso, 'ingresos_hoy')) ?></span>
-        </div>
-        <div class="kpi-card-right bg-danger-light" style="background: rgba(239,68,68,0.1) !important;">
-            <i class="fa-solid fa-person-walking-arrow-right kpi-icon" style="color: #EF4444 !important;"></i>
-        </div>
-    </div>
-
 </div>
 
 <!-- Main two-column grid: activity feed + tasks -->
@@ -156,12 +144,6 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
 
         <!-- Charts below activity -->
         <div class="charts-grid" style="margin-top:var(--sp-4);">
-            <div class="chart-card anim-up anim-d3">
-                <div class="chart-card-header">
-                    <div class="chart-title">Control de Acceso — Hoy</div>
-                </div>
-                <div id="chart-acceso-hoy" style="min-height:200px;"></div>
-            </div>
             <div class="chart-card anim-up anim-d4">
                 <div class="chart-card-header">
                     <div class="chart-title">Bitácoras — Últimos 7 días</div>
@@ -185,7 +167,6 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
             ['icon'=>'fa-solid fa-user-plus',       'label'=>'Talento Humano',       'url'=>'/apps/talento_humano/',     'color'=>'var(--color-primary)'],
             ['icon'=>'fa-solid fa-cube',             'label'=>'Control de Bienes',     'url'=>'/apps/control_bienes/',     'color'=>'var(--color-success)'],
             ['icon'=>'fa-solid fa-pen-to-square',    'label'=>'Nueva Bitácora',        'url'=>'/portuaria',                'color'=>'var(--color-warning)'],
-            ['icon'=>'fa-solid fa-qrcode',           'label'=>'Registrar Ingreso',     'url'=>'/acceso/ingresar',          'color'=>'var(--color-danger)'],
             ['icon'=>'fa-solid fa-chart-line',       'label'=>'Reportes',              'url'=>'/reportes',                 'color'=>'var(--color-primary)'],
         ];
         foreach ($accesos as $item):
@@ -228,19 +209,6 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
 
 <script>
 (function() {
-    createChart('#chart-acceso-hoy', {
-        chart: { type: 'donut', height: 200 },
-        series: [
-            <?= (int)$v($acceso, 'empleados_hoy')   ?>,
-            <?= (int)$v($acceso, 'visitantes_hoy')  ?>,
-            <?= (int)$v($acceso, 'proveedores_hoy') ?>,
-        ],
-        labels: ['Empleados', 'Visitantes', 'Proveedores'],
-        legend: { position: 'bottom' },
-        dataLabels: { enabled: true },
-        plotOptions: { pie: { donut: { size: '55%' } } },
-    });
-
     createChart('#chart-bitacoras', {
         chart: { type: 'bar', height: 200 },
         series: [{ name: 'Eventos', data: <?= json_encode($kpis['bitacora_semana'] ?? [0,0,0,0,0,0,0]) ?> }],

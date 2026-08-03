@@ -59,13 +59,53 @@ abstract class Controller {
         $_SESSION['last_activity'] = time();
     }
 
-    protected function requireLevel(int $minLevel): void {
+    /**
+     * @param array{0:int,1:int,2:int,3:int,4:int}|null $nodo Tupla MOIS opcional
+     *   [id_modulo, opcion, items, subitems, nivel_crud_minimo] para exigir,
+     *   ADEMÁS de $minLevel, el permiso granular real configurado en
+     *   /admin/roles/{id}/permisos (CORE_Permisos_Nodo vía fn_TienePermisoNodo).
+     *   nivel_crud: 1=Ver, 2=Crear, 3=Editar, 4=Total. Sin este parámetro el
+     *   comportamiento es el de siempre (solo nivel_jerarquia).
+     */
+    protected function requireLevel(int $minLevel, ?array $nodo = null): void {
         $this->requireAuth();
         if (($_SESSION['nivel_jerarquia'] ?? 0) < $minLevel) {
-            if ($this->isAjax()) {
-                $this->json(['error' => 'Acceso denegado'], 403);
-            }
-            $this->redirect('/dashboard');
+            $this->denyAccess();
+        }
+        if ($nodo !== null && !$this->tienePermisoNodo(...$nodo)) {
+            $this->denyAccess();
+        }
+    }
+
+    private function denyAccess(): never {
+        if ($this->isAjax()) {
+            $this->json(['error' => 'Acceso denegado'], 403);
+        }
+        $this->redirect('/dashboard');
+    }
+
+    /** Consulta fn_TienePermisoNodo — permiso real del rol sobre un nodo MOIS. */
+    private function tienePermisoNodo(int $idModulo, int $opcion, int $items, int $subitems, int $nivelCrudMin): bool {
+        try {
+            $db   = Database::getInstance();
+            $stmt = sqlsrv_query(
+                $db->getConn(),
+                'SELECT dbo.fn_TienePermisoNodo(?,?,?,?,?,?,1) AS ok',
+                [
+                    [(int)($_SESSION['user_id'] ?? 0), SQLSRV_PARAM_IN],
+                    [$idModulo,     SQLSRV_PARAM_IN],
+                    [$opcion,       SQLSRV_PARAM_IN],
+                    [$items,        SQLSRV_PARAM_IN],
+                    [$subitems,     SQLSRV_PARAM_IN],
+                    [$nivelCrudMin, SQLSRV_PARAM_IN],
+                ]
+            );
+            if ($stmt === false) return false;
+            $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            sqlsrv_free_stmt($stmt);
+            return (bool)($row['ok'] ?? false);
+        } catch (Exception $e) {
+            return false;
         }
     }
 

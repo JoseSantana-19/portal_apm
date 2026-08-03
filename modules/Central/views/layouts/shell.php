@@ -14,6 +14,8 @@
 <link rel="stylesheet" href="<?= APP_URL ?>/css/style.css?v=<?= @filemtime(ROOT_PATH . '/css/style.css') ?: 1 ?>">
 <!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<!-- SweetAlert2 (vendorizado localmente, ver public/librerias/Otras_librerias/sweetalert2) -->
+<link rel="stylesheet" href="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
 <!-- ApexCharts (sync — must be available before view inline scripts run) -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
 <script src="<?= APP_URL ?>/public/js/charts.js"></script>
@@ -63,6 +65,8 @@
     };
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+<script src="<?= APP_URL ?>/js/alerts.js"></script>
 <script src="<?= APP_URL ?>/js/main.js"></script>
 
 </body>

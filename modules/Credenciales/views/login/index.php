@@ -1,572 +1,691 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portal APM — Acceso</title>
+<title>Portal APM — Acceso Corporativo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --navy-900: #020812;
-    --navy-800: #050e1f;
-    --navy-700: #091628;
-    --navy-600: #0d1f38;
-    --navy-500: #122847;
-    --blue-500: #0284c7;
-    --blue-400: #38bdf8;
-    --blue-300: #7dd3fc;
-    --amber:    #f59e0b;
-    --amber-l:  #fcd34d;
-    --white:    #f0f6ff;
-    --muted:    rgba(176,200,230,0.5);
-    --border:   rgba(56,189,248,0.14);
-    --card-bg:  rgba(9,22,40,0.82);
-    --glass:    rgba(255,255,255,0.03);
+    --p: #0284c7;
+    --p2: #0369a1;
+    --p3: #E0F2FE;
+    --p-glow: rgba(2, 132, 199, 0.2);
+    
+    /* Vibrant Light Theme Palette (Default) */
+    --bg-mesh: radial-gradient(at 0% 0%, #E0F2FE 0px, transparent 50%),
+               radial-gradient(at 100% 0%, #F5F3FF 0px, transparent 50%),
+               radial-gradient(at 100% 100%, #ECFDF5 0px, transparent 50%),
+               radial-gradient(at 0% 100%, #FEF3C7 0px, transparent 50%);
+    --bg-page: #F8FAFC;
+    --bg-card: rgba(255, 255, 255, 0.94);
+    --bg-input: #F1F5F9;
+    --border-color: #E2E8F0;
+    --border-hover: #CBD5E1;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --text-sub: #334155;
+    --shadow-card: 0 24px 48px -12px rgba(15, 23, 42, 0.12);
+    --shadow-subtle: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    --r: 14px;
+    --ease: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* HIGH SPECIFICITY LIGHT MODE OVERRIDES */
+html:not(.portal-dark-mode) body,
+body.light-mode {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}
+
+html:not(.portal-dark-mode) .panel-right,
+body.light-mode .panel-right {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(16px) !important;
+}
+
+html:not(.portal-dark-mode) .panel-left,
+body.light-mode .panel-left {
+    background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(241,245,249,0.85) 100%) !important;
+    border-right-color: #E2E8F0 !important;
+}
+
+html:not(.portal-dark-mode) .field-input,
+body.light-mode .field-input {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+
+html:not(.portal-dark-mode) .field-input:focus,
+body.light-mode .field-input:focus {
+    background-color: #FFFFFF !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15) !important;
+}
+
+html:not(.portal-dark-mode) .login-heading,
+html:not(.portal-dark-mode) .field-label,
+body.light-mode .login-heading,
+body.light-mode .field-label {
+    color: #0F172A !important;
+}
+
+/* DARK MODE OVERRIDES (Vibrant Cyber Space) */
+html.portal-dark-mode body,
+body.dark-mode {
+    --bg-mesh: radial-gradient(at 0% 0%, #0F172A 0px, transparent 50%),
+               radial-gradient(at 100% 0%, #1E1B4B 0px, transparent 50%),
+               radial-gradient(at 100% 100%, #064E3B 0px, transparent 50%),
+               radial-gradient(at 0% 100%, #451A03 0px, transparent 50%);
+    --bg-page: #070D19 !important;
+    --bg-card: rgba(15, 23, 42, 0.9) !important;
+    --bg-input: #0F172A !important;
+    --border-color: #334155 !important;
+    --border-hover: #475569 !important;
+    --text-main: #F8FAFC !important;
+    --text-muted: #94A3B8 !important;
+    --text-sub: #CBD5E1 !important;
+    --shadow-card: 0 24px 48px -12px rgba(0, 0, 0, 0.6) !important;
+    background-color: #070D19 !important;
+    color: #F8FAFC !important;
+}
+
+html.portal-dark-mode .panel-right,
+body.dark-mode .panel-right {
+    background: rgba(15, 23, 42, 0.92) !important;
+    backdrop-filter: blur(16px) !important;
+}
+
+html.portal-dark-mode .panel-left,
+body.dark-mode .panel-left {
+    background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.85) 100%) !important;
+    border-right-color: #334155 !important;
+}
+
+html.portal-dark-mode .field-input,
+body.dark-mode .field-input {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+html.portal-dark-mode .login-heading,
+html.portal-dark-mode .field-label,
+body.dark-mode .login-heading,
+body.dark-mode .field-label {
+    color: #F8FAFC !important;
 }
 
 html, body {
     height: 100%;
-    font-family: 'Outfit', sans-serif;
-    background: var(--navy-900);
-    color: var(--white);
-    overflow: hidden;
+    font-family: 'Sora', 'Outfit', sans-serif;
+    background: var(--bg-page);
+    color: var(--text-main);
+    overflow-x: hidden;
+    transition: background 0.35s ease, color 0.35s ease;
 }
 
-/* ── SCENE ─────────────────────────────────────────── */
+/* ── ANIMATED MESH BACKGROUND WITH FLOATING ORBS ── */
+.mesh-bg {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-page);
+    background-image: var(--bg-mesh);
+    z-index: 0;
+    pointer-events: none;
+    transition: all 0.5s ease;
+}
+
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.28;
+    animation: floatOrb 12s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+.orb-1 { width: 380px; height: 380px; background: #0284c7; top: -100px; left: -100px; animation-duration: 11s; }
+.orb-2 { width: 420px; height: 420px; background: #8B5CF6; bottom: -120px; right: -120px; animation-duration: 15s; }
+.orb-3 { width: 320px; height: 320px; background: #10B981; top: 35%; left: 25%; animation-duration: 13s; }
+.orb-4 { width: 280px; height: 280px; background: #F59E0B; bottom: 20%; right: 30%; animation-duration: 10s; }
+
+@keyframes floatOrb {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(35px, -45px) scale(1.12); }
+    100% { transform: translate(-25px, 35px) scale(0.92); }
+}
+
+/* ── SUN / MOON ANIMATED TOGGLE BUTTON ── */
+.theme-toggle-wrap {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 999;
+}
+
+.theme-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px 7px 10px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transition: var(--ease);
+    outline: none;
+    backdrop-filter: blur(12px);
+}
+
+body.dark-mode .theme-toggle-btn,
+html.portal-dark-mode .theme-toggle-btn {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border-color: #334155 !important;
+}
+
+.theme-toggle-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    border-color: #0284c7;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-track {
+    width: 38px;
+    height: 22px;
+    background: #E2E8F0;
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.3s ease;
+}
+
+body.dark-mode .toggle-track,
+html.portal-dark-mode .toggle-track {
+    background: #334155 !important;
+}
+
+.toggle-thumb {
+    width: 18px;
+    height: 18px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease;
+}
+
+body.dark-mode .toggle-thumb,
+html.portal-dark-mode .toggle-thumb {
+    transform: translateX(16px) !important;
+    background: #0F172A !important;
+}
+
+.icon-sun {
+    font-size: 11px;
+    color: #F59E0B;
+    transition: opacity 0.25s ease, transform 0.4s ease;
+}
+
+.icon-moon {
+    font-size: 10px;
+    color: #38BDF8;
+    position: absolute;
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+    transition: opacity 0.25s ease, transform 0.4s ease;
+}
+
+body.dark-mode .icon-sun,
+html.portal-dark-mode .icon-sun {
+    opacity: 0 !important;
+    transform: rotate(90deg) scale(0.5) !important;
+}
+
+body.dark-mode .icon-moon,
+html.portal-dark-mode .icon-moon {
+    opacity: 1 !important;
+    transform: rotate(0deg) scale(1) !important;
+}
+
+.toggle-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: 0.02em;
+    user-select: none;
+}
+
+/* ── SCENE & SPLIT LAYOUT ── */
 .scene {
     display: flex;
     height: 100vh;
+    width: 100%;
     position: relative;
+    z-index: 10;
 }
 
-/* ── LEFT PANEL ─────────────────────────────────────── */
+/* LEFT PANEL (BRANDING & VIBRANT MODULE BADGES) */
 .panel-left {
-    flex: 1 1 55%;
+    flex: 1 1 52%;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto;
     display: none;
+    background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(241,245,249,0.85) 100%);
+    border-right: 1px solid var(--border-color);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 48px;
+    transition: var(--ease);
 }
 
-@media (min-width: 900px) { .panel-left { display: block; } }
+@media (min-width: 900px) { .panel-left { display: flex; } }
 
-.sky {
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse 120% 70% at 50% 0%, #071830 0%, #020812 70%);
-}
-
-/* Stars */
-.stars {
-    position: absolute; inset: 0;
-    pointer-events: none;
-}
-.star {
-    position: absolute;
-    width: 2px; height: 2px;
-    border-radius: 50%;
-    background: rgba(180,210,255,0.7);
-    animation: twinkle var(--d,3s) ease-in-out infinite var(--delay,0s);
-}
-@keyframes twinkle {
-    0%,100% { opacity: 0.15; transform: scale(1); }
-    50%      { opacity: 0.9;  transform: scale(1.4); }
+.lb-logo {
+    width: 92px;
+    height: 92px;
+    background: linear-gradient(135deg, #0284c7 0%, #8B5CF6 50%, #10B981 100%);
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: 0 16px 36px rgba(2, 132, 199, 0.35);
+    animation: logoPulse 4s ease-in-out infinite alternate;
 }
 
-/* Water */
-.water {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 42%;
-    background: linear-gradient(180deg, #051220 0%, #081c35 40%, #0a2545 100%);
+@keyframes logoPulse {
+    0% { transform: scale(1); box-shadow: 0 14px 32px rgba(2, 132, 199, 0.3); }
+    100% { transform: scale(1.06) rotate(3deg); box-shadow: 0 20px 44px rgba(139, 92, 246, 0.45); }
 }
 
-.wave {
-    position: absolute;
-    width: 200%;
-    height: 60px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60'%3E%3Cpath d='M0,30 C150,55 350,5 600,30 C850,55 1050,5 1200,30 L1200,60 L0,60 Z' fill='%230e2f52' opacity='0.8'/%3E%3C/svg%3E") repeat-x;
-    background-size: 600px 60px;
-}
-.wave1 { bottom: 46%; animation: wave-move 7s linear infinite; opacity: 0.6; }
-.wave2 { bottom: 43%; animation: wave-move 11s linear infinite reverse; opacity: 0.4; }
-.wave3 { bottom: 40%; animation: wave-move 9s linear infinite; opacity: 0.3; }
-
-@keyframes wave-move { from { background-position-x: 0; } to { background-position-x: 600px; } }
-
-/* Lights on water */
-.water-shimmer {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 100%;
-    background: repeating-linear-gradient(
-        105deg,
-        transparent 0px,
-        transparent 60px,
-        rgba(2,132,199,0.04) 60px,
-        rgba(2,132,199,0.04) 62px
-    );
+.lb-logo i {
+    font-size: 42px;
+    color: #ffffff;
 }
 
-/* Port silhouette */
-.port-silhouette {
-    position: absolute;
-    bottom: 38%;
-    left: 0; right: 0;
-    height: 200px;
-}
-
-/* Crane SVG */
-.crane-wrap {
-    position: absolute;
-    bottom: 0;
-    left: 12%;
-    width: 180px;
-    animation: crane-sway 8s ease-in-out infinite;
-    transform-origin: bottom center;
-}
-@keyframes crane-sway {
-    0%,100% { transform: rotate(-0.3deg); }
-    50%      { transform: rotate(0.3deg); }
-}
-
-/* Ship */
-.ship-wrap {
-    position: absolute;
-    bottom: 0; right: 8%;
-    width: 220px;
-    animation: ship-bob 5s ease-in-out infinite;
-}
-@keyframes ship-bob {
-    0%,100% { transform: translateY(0); }
-    50%      { transform: translateY(-5px); }
-}
-
-/* Beacon light */
-.beacon {
-    position: absolute;
-    top: 22%; left: 68%;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--amber);
-    box-shadow: 0 0 12px 6px rgba(245,158,11,0.6);
-    animation: beacon-pulse 2s ease-in-out infinite;
-}
-@keyframes beacon-pulse {
-    0%,100% { opacity: 1; box-shadow: 0 0 12px 6px rgba(245,158,11,0.6); }
-    50%      { opacity: 0.4; box-shadow: 0 0 4px 2px rgba(245,158,11,0.2); }
-}
-
-/* Left panel branding */
-.panel-brand {
-    position: absolute;
-    top: 48px; left: 52px;
-    z-index: 10;
-}
-.panel-brand-logo {
-    display: flex; align-items: center; gap: 14px;
-    margin-bottom: 14px;
-}
-.panel-brand-icon {
-    width: 46px; height: 46px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--blue-500), #0369a1);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; color: #fff;
-    box-shadow: 0 8px 24px rgba(2,132,199,0.4);
-}
 .panel-brand-name {
-    font-size: 1.5rem;
+    font-size: 38px;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--white);
+    color: var(--brand-title);
+    line-height: 1.15;
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
 }
-.panel-brand-name span { color: var(--blue-400); }
+
+.panel-brand-name span.gradient-txt {
+    background: linear-gradient(135deg, #0284c7 0%, #8B5CF6 50%, #10B981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
 .panel-tagline {
-    font-size: 0.78rem;
-    font-weight: 400;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 14.5px;
+    color: var(--brand-sub);
+    text-align: center;
+    line-height: 1.65;
+    max-width: 400px;
+    margin-bottom: 40px;
 }
 
-/* Module badges at bottom-left */
-.module-badges {
-    position: absolute;
-    bottom: 52px; left: 52px;
-    z-index: 10;
-    display: flex; flex-direction: column; gap: 10px;
-}
-.mod-badge {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: rgba(9,22,40,0.6);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 8px 16px;
-    font-size: 0.78rem; font-weight: 500;
-    color: rgba(176,200,230,0.8);
-    backdrop-filter: blur(8px);
-    width: fit-content;
-    animation: badge-in 0.6s ease both;
-}
-.mod-badge:nth-child(1) { animation-delay: 0.2s; }
-.mod-badge:nth-child(2) { animation-delay: 0.35s; }
-.mod-badge:nth-child(3) { animation-delay: 0.5s; }
-.mod-badge:nth-child(4) { animation-delay: 0.65s; }
-.mod-badge i { color: var(--blue-400); font-size: 0.7rem; }
-@keyframes badge-in {
-    from { opacity: 0; transform: translateX(-12px); }
-    to   { opacity: 1; transform: translateX(0); }
+/* VIBRANT MODULE BADGES FLOW (Directorio Inspirado) */
+.module-badges-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    max-width: 500px;
 }
 
-/* ── RIGHT PANEL ─────────────────────────────────────── */
+.badge-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-color);
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: floatBadge 6s ease-in-out infinite alternate;
+}
+
+.badge-item:nth-child(1) { animation-delay: 0s; --b-color: #B45309; --b-bg: #FEF3C7; }
+.badge-item:nth-child(2) { animation-delay: 0.5s; --b-color: #0284c7; --b-bg: #F0F9FF; }
+.badge-item:nth-child(3) { animation-delay: 1s; --b-color: #8B5CF6; --b-bg: #F5F3FF; }
+.badge-item:nth-child(4) { animation-delay: 1.5s; --b-color: #4F46E5; --b-bg: #EEF2FF; }
+.badge-item:nth-child(5) { animation-delay: 2s; --b-color: #10B981; --b-bg: #ECFDF5; }
+.badge-item:nth-child(6) { animation-delay: 2.5s; --b-color: #2563EB; --b-bg: #EFF6FF; }
+.badge-item:nth-child(7) { animation-delay: 3s; --b-color: #14B8A6; --b-bg: #F0FDFA; }
+
+@keyframes floatBadge {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-6px); }
+}
+
+.badge-item:hover {
+    transform: translateY(-8px) scale(1.05);
+    border-color: var(--b-color);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.badge-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--b-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--b-color);
+    font-size: 13px;
+}
+
+/* RIGHT PANEL (FORM) */
 .panel-right {
-    flex: 0 0 100%;
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 48px;
     position: relative;
-    background: linear-gradient(160deg, #040d1a 0%, #020812 100%);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-card);
 }
 
 @media (min-width: 900px) {
     .panel-right {
-        flex: 0 0 420px;
-        border-left: 1px solid var(--border);
+        flex: 0 0 460px;
+        border-left: 1px solid var(--border-color);
     }
 }
 
-/* Subtle grid */
-.panel-right::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image:
-        linear-gradient(rgba(56,189,248,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56,189,248,0.025) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-}
-
-/* ── LOGIN CARD ──────────────────────────────────────── */
 .login-card {
     width: 100%;
-    max-width: 380px;
+    max-width: 400px;
     position: relative;
     z-index: 2;
-    animation: card-in 0.7s cubic-bezier(.22,.9,.36,1) both;
-}
-@keyframes card-in {
-    from { opacity: 0; transform: translateY(22px); }
-    to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Mobile logo (shown only when left panel hidden) */
+/* TOP VIBRANT MULTI-COLOR ACCENT LINE */
+.card-top-accent {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0284c7, #8B5CF6, #10B981, #B45309, #4F46E5);
+    border-radius: 99px;
+}
+
 .mobile-brand {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 36px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
 }
+
 .mobile-brand-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--blue-500), #0369a1);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem; color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0284c7, #8B5CF6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: #fff;
 }
-.mobile-brand-text { font-size: 1.2rem; font-weight: 800; }
-.mobile-brand-text span { color: var(--blue-400); }
+
+.mobile-brand-text {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
 
 @media (min-width: 900px) { .mobile-brand { display: none; } }
 
-/* Heading */
-.login-heading {
-    margin-bottom: 6px;
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--white);
+.back-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-sub);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 24px;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
+
+.back-home-link:hover {
+    color: #0284c7;
+    transform: translateX(-3px);
+}
+
+.login-heading {
+    margin-bottom: 8px;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+}
+
 .login-sub {
-    font-size: 0.82rem;
-    color: var(--muted);
-    margin-bottom: 32px;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
     line-height: 1.5;
 }
 
-/* Divider line */
 .heading-line {
-    width: 40px; height: 3px;
-    background: linear-gradient(90deg, var(--blue-500), var(--blue-400));
+    width: 50px;
+    height: 4px;
+    background: linear-gradient(90deg, #0284c7 0%, #8B5CF6 100%);
     border-radius: 99px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
-/* Error */
 .login-error {
-    display: flex; align-items: flex-start; gap: 10px;
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.25);
-    border-radius: 10px;
-    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FEF2F2;
+    border: 1.5px solid #FCA5A5;
+    border-radius: var(--r);
+    padding: 12px 16px;
     margin-bottom: 22px;
-    font-size: 0.82rem;
-    color: #fca5a5;
-    animation: shake 0.4s ease;
+    font-size: 13.5px;
+    color: #DC2626;
+    font-weight: 500;
 }
-@keyframes shake {
-    0%,100% { transform: translateX(0); }
-    20%,60%  { transform: translateX(-5px); }
-    40%,80%  { transform: translateX(5px); }
-}
-.login-error i { color: #f87171; margin-top: 1px; flex-shrink: 0; }
 
-/* Form */
-.field { margin-bottom: 18px; }
+body.dark-mode .login-error {
+    background: #2C1517;
+    border-color: #7F1D1D;
+    color: #FCA5A5;
+}
+
+.field { margin-bottom: 22px; }
 .field-label {
     display: block;
-    font-size: 0.73rem;
-    font-weight: 600;
-    letter-spacing: 0.07em;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: rgba(176,200,230,0.6);
+    color: var(--text-sub);
     margin-bottom: 8px;
 }
-.field-wrap {
-    position: relative;
-}
+
+.field-wrap { position: relative; }
 .field-icon {
     position: absolute;
-    left: 14px; top: 50%;
+    left: 15px;
+    top: 50%;
     transform: translateY(-50%);
-    color: rgba(56,189,248,0.4);
-    font-size: 0.82rem;
+    color: #94A3B8;
+    font-size: 15px;
     pointer-events: none;
-    transition: color 0.2s;
+    transition: color 0.2s ease;
 }
+
 .field-input {
     width: 100%;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(56,189,248,0.12);
-    border-radius: 10px;
-    padding: 13px 42px;
-    font-size: 0.9rem;
-    font-family: 'Outfit', sans-serif;
-    color: var(--white);
-    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--r);
+    padding: 14px 44px;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--text-main);
+    transition: var(--ease);
     outline: none;
 }
-.field-input::placeholder { color: rgba(176,200,230,0.25); }
+
 .field-input:focus {
-    border-color: rgba(56,189,248,0.45);
-    background: rgba(56,189,248,0.04);
-    box-shadow: 0 0 0 3px rgba(2,132,199,0.12);
+    border-color: #0284c7;
+    background: var(--bg-card);
+    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
 }
-.field-input:focus + .field-icon-after, /* unused */
-.field-wrap:focus-within .field-icon { color: var(--blue-400); }
+
+.field-wrap:focus-within .field-icon {
+    color: #0284c7;
+}
 
 .field-btn {
     position: absolute;
-    right: 12px; top: 50%;
+    right: 14px;
+    top: 50%;
     transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    color: rgba(176,200,230,0.3);
-    padding: 4px; line-height: 1;
-    transition: color 0.2s;
-    font-size: 0.85rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94A3B8;
+    padding: 6px;
+    outline: none;
+    transition: color 0.2s ease;
+    font-size: 14px;
 }
-.field-btn:hover { color: var(--blue-400); }
 
-/* Submit */
+.field-btn:hover { color: #0284c7; }
+
 .btn-login {
     width: 100%;
-    margin-top: 8px;
-    padding: 14px;
+    margin-top: 10px;
+    padding: 16px;
     border: none;
-    border-radius: 10px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
+    border-radius: var(--r);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    color: #fff;
-    letter-spacing: 0.03em;
-    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-    box-shadow: 0 4px 20px rgba(2,132,199,0.35);
-    position: relative;
-    overflow: hidden;
+    background: linear-gradient(135deg, #0284c7 0%, #8B5CF6 100%);
+    color: #ffffff;
+    transition: var(--ease);
+    box-shadow: 0 8px 24px rgba(2, 132, 199, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
-.btn-login::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
-    opacity: 0; transition: opacity 0.2s;
+
+.btn-login:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0369a1 0%, #7C3AED 100%);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.4);
 }
-.btn-login:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(2,132,199,0.45); }
-.btn-login:hover:not(:disabled)::before { opacity: 1; }
-.btn-login:active:not(:disabled) { transform: translateY(0); }
+
 .btn-login:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Loading state */
 .btn-text, .btn-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-loading { display: none; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; display: inline-block; }
 
-/* Footer */
 .login-footer {
-    margin-top: 28px;
+    margin-top: 38px;
     text-align: center;
-    font-size: 0.72rem;
-    color: rgba(176,200,230,0.25);
-    line-height: 1.7;
-}
-.login-footer strong { color: rgba(176,200,230,0.4); font-weight: 500; }
-
-/* Glow orbs */
-.orb {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    filter: blur(80px);
-    opacity: 0.18;
-}
-.orb1 { width: 280px; height: 280px; background: #0284c7; top: -80px; right: -60px; }
-.orb2 { width: 200px; height: 200px; background: #0369a1; bottom: -40px; left: -40px; }
-
-/* Back to home link */
-.back-home-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(176, 200, 230, 0.45);
-    font-size: 0.76rem;
-    font-weight: 500;
-    text-decoration: none;
-    margin-bottom: 28px;
-    letter-spacing: 0.03em;
-    transition: color 0.2s, transform 0.2s;
-}
-.back-home-link:hover {
-    color: var(--blue-400);
-    transform: translateX(-3px);
-}
-.back-home-link i {
-    font-size: 0.7rem;
-    transition: transform 0.2s;
-}
-.back-home-link:hover i {
-    transform: translateX(-2px);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
 }
 </style>
 </head>
-<body>
+<body class="light-mode">
+
+    <!-- FLOATING MULTI-COLOR ANIMATED MESH & ORBS -->
+    <div class="mesh-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+    </div>
+
+    <!-- 1. FLOATING SUN / MOON ANIMATED TOGGLE BUTTON -->
+    <div class="theme-toggle-wrap">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleMode()" title="Cambiar tema Día / Noche">
+            <div class="toggle-track">
+                <div class="toggle-thumb">
+                    <i class="fa-solid fa-sun icon-sun"></i>
+                    <i class="fa-solid fa-moon icon-moon"></i>
+                </div>
+            </div>
+            <span class="toggle-label" id="toggleLabel">Modo Claro</span>
+        </button>
+    </div>
 
 <div class="scene">
 
-    <!-- ── LEFT: ANIMATED PORT SCENE ── -->
+    <!-- ── LEFT: BRANDING & VIBRANT MODULE BADGES ── -->
     <div class="panel-left">
-        <div class="sky"></div>
-
-        <!-- Stars -->
-        <div class="stars" id="stars"></div>
-
-        <!-- Beacon -->
-        <div class="beacon"></div>
-
-        <!-- Waves -->
-        <div class="water">
-            <div class="wave wave1"></div>
-            <div class="wave wave2"></div>
-            <div class="wave wave3"></div>
-            <div class="water-shimmer"></div>
+        <div class="lb-logo">
+            <i class="fa-solid fa-anchor"></i>
         </div>
+        <div class="panel-brand-name">Sys<span class="gradient-txt">Port</span></div>
+        <div class="panel-tagline">Autoridad Portuaria de Manta · Sistema Integrado Corporativo SSO</div>
 
-        <!-- Port silhouette SVG -->
-        <div class="port-silhouette">
-            <!-- Crane -->
-            <div class="crane-wrap">
-                <svg width="180" height="200" viewBox="0 0 180 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Base -->
-                    <rect x="72" y="150" width="36" height="50" fill="#071628"/>
-                    <!-- Tower -->
-                    <rect x="82" y="60" width="16" height="92" fill="#071628"/>
-                    <!-- Horizontal boom -->
-                    <rect x="10" y="58" width="150" height="8" fill="#091e38"/>
-                    <!-- Counter-weight arm -->
-                    <rect x="10" y="58" width="40" height="4" fill="#0b2445"/>
-                    <!-- Cable vertical -->
-                    <line x1="120" y1="66" x2="120" y2="140" stroke="#0f2e50" stroke-width="2"/>
-                    <!-- Hook -->
-                    <rect x="114" y="138" width="12" height="8" rx="2" fill="#0d2644"/>
-                    <!-- Operator cabin -->
-                    <rect x="78" y="78" width="24" height="18" rx="2" fill="#0a1e36"/>
-                    <rect x="82" y="81" width="6" height="6" rx="1" fill="rgba(56,189,248,0.3)"/>
-                    <!-- Wheels -->
-                    <circle cx="75" cy="198" r="8" fill="#060f1e"/>
-                    <circle cx="105" cy="198" r="8" fill="#060f1e"/>
-                </svg>
+        <!-- Módulos reales del sistema (Inspirado en Directorio de Módulos) -->
+        <div class="module-badges-wrap">
+            <div class="badge-item">
+                <div class="badge-icon"><i class="fa-solid fa-users"></i></div>
+                <span>Talento Humano</span>
             </div>
-
-            <!-- Ship -->
-            <div class="ship-wrap">
-                <svg width="220" height="90" viewBox="0 0 220 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Hull -->
-                    <path d="M5,50 L30,70 L190,70 L215,50 L200,40 L20,40 Z" fill="#071628"/>
-                    <!-- Hull detail -->
-                    <path d="M30,70 L190,70 L200,60 L180,62 L40,62 L20,60 Z" fill="#061020"/>
-                    <!-- Superstructure -->
-                    <rect x="60" y="22" width="90" height="20" rx="3" fill="#091e38"/>
-                    <rect x="80" y="10" width="50" height="14" rx="3" fill="#0b2445"/>
-                    <!-- Funnel -->
-                    <rect x="118" y="2" width="14" height="22" rx="3" fill="#0d2644"/>
-                    <!-- Windows -->
-                    <rect x="70" y="26" width="8" height="6" rx="1" fill="rgba(56,189,248,0.2)"/>
-                    <rect x="84" y="26" width="8" height="6" rx="1" fill="rgba(56,189,248,0.2)"/>
-                    <rect x="98" y="26" width="8" height="6" rx="1" fill="rgba(245,158,11,0.25)"/>
-                    <rect x="112" y="26" width="8" height="6" rx="1" fill="rgba(56,189,248,0.2)"/>
-                    <!-- Mast -->
-                    <line x1="100" y1="2" x2="100" y2="22" stroke="#0f2e50" stroke-width="2"/>
-                </svg>
+            <div class="badge-item">
+                <div class="badge-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <span>Control de Bienes</span>
             </div>
-        </div>
-
-        <!-- Branding -->
-        <div class="panel-brand">
-            <div class="panel-brand-logo">
-                <div class="panel-brand-icon">
-                    <i class="fa-solid fa-anchor"></i>
-                </div>
-                <div>
-                    <div class="panel-brand-name">Portal <span>APM</span></div>
-                </div>
+            <div class="badge-item">
+                <div class="badge-icon"><i class="fa-solid fa-anchor"></i></div>
+                <span>Bitácoras Portuarias</span>
             </div>
-            <div class="panel-tagline">Autoridad Portuaria de Manta</div>
-        </div>
-
-        <!-- Module badges -->
-        <div class="module-badges">
-            <div class="mod-badge"><i class="fa-solid fa-users"></i> Talento Humano</div>
-            <div class="mod-badge"><i class="fa-solid fa-boxes-stacked"></i> Control de Bienes</div>
-            <div class="mod-badge"><i class="fa-solid fa-book-open"></i> Bitácoras</div>
-            <div class="mod-badge"><i class="fa-solid fa-door-open"></i> Control de Acceso</div>
         </div>
     </div>
 
     <!-- ── RIGHT: LOGIN FORM ── -->
     <div class="panel-right">
-        <div class="orb orb1"></div>
-        <div class="orb orb2"></div>
-
         <div class="login-card">
+            <div class="card-top-accent"></div>
 
-            <!-- Mobile-only brand -->
             <div class="mobile-brand">
                 <div class="mobile-brand-icon">
                     <i class="fa-solid fa-anchor"></i>
                 </div>
-                <div class="mobile-brand-text">Portal <span>APM</span></div>
+                <div class="mobile-brand-text">SysPort</div>
             </div>
 
             <a href="<?= APP_URL ?>" class="back-home-link">
@@ -575,7 +694,7 @@ html, body {
 
             <div class="login-heading">Iniciar sesión</div>
             <div class="heading-line"></div>
-            <div class="login-sub">Ingrese sus credenciales de acceso al sistema integrado portuario.</div>
+            <div class="login-sub">Ingrese sus credenciales de acceso al sistema portuario.</div>
 
             <?php if (!empty($error)): ?>
             <div class="login-error" role="alert">
@@ -588,7 +707,7 @@ html, body {
                 <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
                 <div class="field">
-                    <label class="field-label" for="username">Usuario o cédula</label>
+                    <label class="field-label" for="username">Usuario Institucional</label>
                     <div class="field-wrap">
                         <i class="fa-solid fa-user field-icon"></i>
                         <input
@@ -596,7 +715,7 @@ html, body {
                             id="username"
                             name="username"
                             class="field-input"
-                            placeholder="nombre.usuario o cédula"
+                            placeholder="nombre.apellido o cédula"
                             autocomplete="username"
                             required
                             autofocus
@@ -613,10 +732,10 @@ html, body {
                             id="password"
                             name="password"
                             class="field-input"
-                            placeholder="••••••••"
+                            placeholder="••••••••••••"
                             autocomplete="current-password"
                             required>
-                        <button type="button" class="field-btn" id="toggle-pass" title="Mostrar / ocultar">
+                        <button type="button" class="field-btn" id="toggle-pass" aria-label="Mostrar u ocultar contraseña" title="Mostrar u ocultar contraseña">
                             <i class="fa-regular fa-eye" id="eye-icon"></i>
                         </button>
                     </div>
@@ -633,8 +752,8 @@ html, body {
             </form>
 
             <div class="login-footer">
-                <strong>Sistema Integrado Portuario</strong><br>
-                Autoridad Portuaria de Manta &copy; <?= date('Y') ?>
+                <strong>Autoridad Portuaria de Manta</strong><br>
+                Sistema Integrado Corporativo &copy; <?= date('Y') ?>
             </div>
         </div>
     </div>
@@ -642,42 +761,72 @@ html, body {
 </div>
 
 <script>
-// Generate stars
-(function() {
-    const container = document.getElementById('stars');
-    if (!container) return;
-    for (let i = 0; i < 120; i++) {
-        const s = document.createElement('div');
-        s.className = 'star';
-        s.style.cssText = `
-            left:${Math.random()*100}%;
-            top:${Math.random()*58}%;
-            --d:${2+Math.random()*4}s;
-            --delay:-${Math.random()*4}s;
-            width:${Math.random()<0.15 ? 3 : 2}px;
-            height:${Math.random()<0.15 ? 3 : 2}px;
-            opacity:${0.1+Math.random()*0.6};
-        `;
-        container.appendChild(s);
+document.addEventListener("DOMContentLoaded", function() {
+    // Default theme mode (Light Mode default)
+    let savedMode = localStorage.getItem('apm_login_mode');
+    if (!savedMode) {
+        savedMode = 'light';
+        localStorage.setItem('apm_login_mode', 'light');
     }
-})();
+    applyMode(savedMode);
 
-// Password toggle
-document.getElementById('toggle-pass').addEventListener('click', function() {
-    const pwd  = document.getElementById('password');
-    const icon = document.getElementById('eye-icon');
-    const show = pwd.type === 'password';
-    pwd.type = show ? 'text' : 'password';
-    icon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
-    pwd.focus();
+    // Password toggle
+    const toggleBtn = document.getElementById('toggle-pass');
+    const pwdInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eye-icon');
+
+    if (toggleBtn && pwdInput && eyeIcon) {
+        toggleBtn.addEventListener('click', function() {
+            const show = pwdInput.type === 'password';
+            pwdInput.type = show ? 'text' : 'password';
+            eyeIcon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+        });
+    }
+
+    // Form submit loading
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function() {
+            const btnTxt = document.getElementById('btn-text');
+            const btnLoad = document.getElementById('btn-loading');
+            const btn = document.getElementById('login-btn');
+            if (btnTxt) btnTxt.style.display = 'none';
+            if (btnLoad) btnLoad.style.display = 'flex';
+            if (btn) btn.disabled = true;
+        });
+    }
 });
 
-// Submit loading state
-document.getElementById('login-form').addEventListener('submit', function() {
-    document.getElementById('btn-text').style.display    = 'none';
-    document.getElementById('btn-loading').style.display = 'flex';
-    document.getElementById('login-btn').disabled = true;
-});
+// Toggle between Light and Dark mode
+function toggleMode() {
+    const isDark = document.body.classList.contains('dark-mode') || document.documentElement.classList.contains('portal-dark-mode');
+    const newMode = isDark ? 'light' : 'dark';
+    applyMode(newMode);
+    localStorage.setItem('apm_login_mode', newMode);
+    localStorage.setItem('apm_theme_mode', newMode);
+}
+
+// Apply theme mode classes and update Sun/Moon label
+function applyMode(mode) {
+    const label = document.getElementById("toggleLabel");
+    const isDark = (mode === 'dark');
+
+    if (isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        document.documentElement.classList.add('portal-dark-mode');
+        document.body.classList.add('dark-mode', 'portal-dark-mode');
+        document.body.classList.remove('light-mode');
+        if (label) label.textContent = 'Modo Oscuro';
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+        document.documentElement.classList.remove('portal-dark-mode');
+        document.body.classList.remove('dark-mode', 'portal-dark-mode');
+        document.body.classList.add('light-mode');
+        if (label) label.textContent = 'Modo Claro';
+    }
+}
 </script>
 
 </body>

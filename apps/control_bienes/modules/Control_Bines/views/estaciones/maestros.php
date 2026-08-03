@@ -524,7 +524,13 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                     </div>
                     <div class="form-group">
                         <label>Funcionario Representante</label>
-                        <input type="text" name="representante" id="mae-inp-representante" required placeholder="Ej: MAYOR JHON BARRERA">
+                        <select name="representante_id" id="mae-inp-representante-id" required>
+                            <option value="">Seleccionar funcionario de Talento Humano...</option>
+                            <?php foreach ($personalList as $persona): ?>
+                                <option value="<?= (int)$persona['id'] ?>"><?= htmlspecialchars($persona['nombre']) ?><?= !empty($persona['area_actual']) ? ' (' . htmlspecialchars($persona['area_actual']) . ')' : '' ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small style="color:var(--text-muted);">Se muestran solamente funcionarios activos.</small>
                     </div>
 
                 <!-- Caso 3: Catálogo de Productos -->
@@ -585,7 +591,13 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                     </div>
                     <div class="form-group">
                         <label>Funcionario Responsable</label>
-                        <input type="text" name="funcionario" id="mae-inp-funcionario" required placeholder="Ej: MAYOR FABRICIO CORONEL">
+                        <select name="funcionario_id" id="mae-inp-funcionario-id" required>
+                            <option value="">Seleccionar funcionario de Talento Humano...</option>
+                            <?php foreach ($personalList as $persona): ?>
+                                <option value="<?= (int)$persona['id'] ?>"><?= htmlspecialchars($persona['nombre']) ?><?= !empty($persona['area_actual']) ? ' (' . htmlspecialchars($persona['area_actual']) . ')' : '' ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small style="color:var(--text-muted);">El responsable se guarda con su ID oficial.</small>
                     </div>
 
                 <!-- Caso 5: Proveedores -->
@@ -653,9 +665,9 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         if (extra) extra.value = '';
         var codigo = document.getElementById('mae-inp-codigo');
         if (codigo) codigo.value = '';
-        var representante = document.getElementById('mae-inp-representante');
+        var representante = document.getElementById('mae-inp-representante-id');
         if (representante) representante.value = '';
-        var funcionario = document.getElementById('mae-inp-funcionario');
+        var funcionario = document.getElementById('mae-inp-funcionario-id');
         if (funcionario) funcionario.value = '';
         var ruc = document.getElementById('mae-inp-ruc');
         if (ruc) ruc.value = '';
@@ -727,10 +739,10 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         if (extra) extra.value = item.extra || '';
         var codigo = document.getElementById('mae-inp-codigo');
         if (codigo) codigo.value = item.codigo || '';
-        var representante = document.getElementById('mae-inp-representante');
-        if (representante) representante.value = item.representante || '';
-        var funcionario = document.getElementById('mae-inp-funcionario');
-        if (funcionario) funcionario.value = item.funcionario || '';
+        var representante = document.getElementById('mae-inp-representante-id');
+        if (representante) representante.value = item.representante_id || '';
+        var funcionario = document.getElementById('mae-inp-funcionario-id');
+        if (funcionario) funcionario.value = item.funcionario_id || '';
         var ruc = document.getElementById('mae-inp-ruc');
         if (ruc) ruc.value = item.ruc || '';
         

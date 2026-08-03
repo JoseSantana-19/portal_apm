@@ -1,4 +1,40 @@
 # Bitácora de Modificaciones - Sistema de Inventario Portuario v3.0 PHP MVC + SQLite
+
+## Actualización 2026-07-27: grupos de ítems y centros de consumo
+
+- El filtro de grupo en Ítems del Sistema limita la lista y la navegación a los productos del grupo seleccionado.
+- La búsqueda por nombre o código respeta simultáneamente el grupo activo.
+- El selector de plantillas muestra solamente ítems del grupo elegido en el formulario.
+- Los representantes de grupos de centros y responsables de centros de consumo ahora se seleccionan entre los 217 funcionarios activos de Talento Humano.
+- Se agregaron `representante_id` y `funcionario_id` con relaciones hacia `inv_talento_personal`.
+- Los textos históricos de representantes y funcionarios no se eliminaron; se utilizan como respaldo cuando aún no existe una asignación oficial.
+- En egresos, el centro de consumo completa el receptor directamente mediante su ID oficial.
+
+## Actualización 2026-07-27: integración de responsables
+
+- Se verificó y restauró `base_talentoHumano/Talento_Humano.bak`, con 619 funcionarios (217 activos).
+- Se guardaron respaldos del archivo recibido y del estado anterior de la base antes de la restauración.
+- Se creó `sp_th_buscar_responsables` para buscar personal por nombre o cédula y devolver cargo, unidad, correo y estado.
+- El modelo de empleados usa el procedimiento para llenar el selector de responsables y para localizar funcionarios por cédula.
+- Se amplió `inv_talento_personal` con cargo, área, correo, estado y fecha de sincronización.
+- Se sincronizaron los IDs oficiales con el inventario y se instaló un disparador para conservar actualizado el espejo local sin eliminar referencias históricas.
+- Se conservaron como inactivos 2 registros de demostración previamente referenciados; no aparecen en el selector de responsables.
+- El responsable continúa disponible únicamente para bienes de activo fijo.
+
+## Actualización 2026-07-27: tipos de bienes y activos históricos
+
+- El tablero muestra por separado el total de consumo corriente (`CC`) y de activo fijo (`AF`).
+- El formulario permite escoger el tipo de bien.
+- El responsable solamente aparece para activos fijos; para consumo corriente se oculta, se limpia y el servidor fuerza el valor a `NULL`.
+- Se comprobó que `activos.DBF` contiene 4.056 activos fijos: 1.976 vigentes y 2.080 dados de baja.
+- Se identificaron además 3.691 bienes `CA` de control administrativo, que se mantienen separados de `AF`.
+- Se corrigió el modelo para almacenar `tipo_bien` también en `inv_inventario`, permitiendo clasificar activos individuales sin depender de un producto del catálogo.
+- Se añadió y ejecutó el importador idempotente `database/migrations/importar_activos_dbf.php`: insertó 4.056 activos, de los cuales 1.976 quedaron vigentes y 2.080 se conservaron como dados de baja.
+- La carga histórica no asigna automáticamente responsables usando `DCOD`, porque ese campo representa centro/departamento y no una persona verificada.
+- El tipo de bien ya no se escoge manualmente: las categorías contables `1.4.x` se detectan como activo fijo y las `1.3.x` como consumo corriente. El servidor vuelve a calcularlo antes de guardar.
+- El campo de IVA ahora pregunta solamente si aplica o no. Cuando aplica, los cálculos utilizan la tasa configurada en el período vigente; la tasa no se guarda ni se selecciona manualmente en el ítem.
+
+---
 > Última actualización: 21 de Mayo de 2026  
 > Autor: Antigravity AI  
 > Versión: 3.0.0

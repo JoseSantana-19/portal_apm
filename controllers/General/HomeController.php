@@ -1,6 +1,6 @@
 <?php
 /**
- * HomeController. Public landing page and demo SSO endpoint.
+ * HomeController. Public landing page.
  */
 class HomeController extends Controller {
 
@@ -9,62 +9,32 @@ class HomeController extends Controller {
     }
 
     public function index(): void {
-        if (isset($_SESSION['user_id'])) {
+        // ?preview=1 lo usa /admin/landing para mostrar el iframe de vista
+        // previa aun con sesion activa — el contenido es publico, no hay
+        // datos sensibles de por medio.
+        if (isset($_SESSION['user_id']) && !isset($_GET['preview'])) {
             $this->redirect('/dashboard');
         }
-        $this->render('General/home/index', ['title' => 'Portal Corporativo Único — Autoridad Portuaria de Manta'], false);
-    }
 
-    /**
-     * Demo SSO API: looks up a user by cedula, generates and verifies an SSO token,
-     * and returns the user's MOIS menu structure.
-     */
-    public function demoSso(): void {
-        try {
-            $cedula = $this->sanitize($_GET['cedula'] ?? '');
-            if (empty($cedula)) {
-                $this->json(['error' => 'Por favor, proporcione una cédula de identidad.'], 400);
-            }
+        $db = Database::getInstance();
+        $imagenes = array_column($db->fetchAll($db->query(
+            'SELECT ruta_archivo FROM CORE_Landing_Imagenes WHERE estado=1 ORDER BY orden, id_imagen'
+        )), 'ruta_archivo');
+        // Noticias (con imagen, carrusel visual) y Consejos (texto, franja
+        // aparte) son entidades independientes — no se derivan una de otra.
+        $noticias = $db->fetchAll($db->query(
+            'SELECT texto, imagen, enlace FROM CORE_Landing_Noticias WHERE estado=1 ORDER BY orden, id_noticia'
+        ));
+        $consejos = $db->fetchAll($db->query(
+            'SELECT texto, enlace FROM CORE_Landing_Consejos WHERE estado=1 ORDER BY orden, id_consejo'
+        ));
 
-            $db   = Database::getInstance();
-            $stmt = $db->query(
-                "SELECT id_usuario AS id, nombre_usuario, nombre_completo, correo, cedula
-                 FROM CORE_Usuarios WHERE cedula = ? AND estado = 1",
-                [[$cedula, SQLSRV_PARAM_IN]]
-            );
-            $user = $db->fetch($stmt);
-            $db->free($stmt);
-
-            if (!$user) {
-                $this->json(['error' => 'Usuario no encontrado con la cédula proporcionada o está inactivo.'], 404);
-            }
-
-            $token        = ModuleSecurity::generateSSOToken((int)$user['id'], $cedula);
-            $verification = ModuleSecurity::verifySSOToken($token);
-
-            $menuModel = new Menu();
-            $menuTree  = $menuModel->getUserMenu((int)$user['id']);
-
-            $this->json([
-                'success' => true,
-                'user'    => [
-                    'id'              => $user['id'],
-                    'nombre_usuario'  => $user['nombre_usuario'],
-                    'nombre_completo' => $user['nombre_completo'],
-                    'correo'          => $user['correo'],
-                    'cedula'          => $user['cedula'],
-                ],
-                'token' => [
-                    'raw'               => $token,
-                    'is_verified'       => $verification['success'],
-                    'decrypted_payload' => $verification['payload'] ?? null,
-                ],
-                'menu_mois' => $menuTree,
-            ]);
-
-        } catch (Exception $e) {
-            $this->json(['error' => 'Error en el SSO: ' . $e->getMessage()], 500);
-        }
+        $this->render('General/home/index', [
+            'title'    => 'Portal Corporativo Único — Autoridad Portuaria de Manta',
+            'imagenes' => $imagenes,
+            'noticias' => $noticias,
+            'consejos' => $consejos,
+        ], false);
     }
 
     /**

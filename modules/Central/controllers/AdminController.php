@@ -1,6 +1,13 @@
 <?php
 class AdminController extends Controller {
 
+    // Nodos MOIS (id_modulo,opcion,items,subitems) bajo Central > Administración.
+    // nivel_crud: 1=Ver, 2=Crear, 3=Editar, 4=Total (ver PORTAL_APM_COMPLETO.sql
+    // CORE_Menu_Nodos / CORE_Permisos_Nodo).
+    private const NODO_USUARIOS  = [1, 2, 1, 0];
+    private const NODO_ROLES     = [1, 2, 3, 0];
+    private const NODO_AUDITORIA = [1, 2, 5, 0];
+
     private function db(): Database {
         return Database::getInstance();
     }
@@ -9,10 +16,10 @@ class AdminController extends Controller {
 
     public function usuarios(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
 
         $stmt = $this->db()->query(
-            'SELECT u.id_usuario, u.nombre_usuario, u.nombre_completo, u.correo,
+            'SELECT u.id_usuario, u.cedula, u.nombre_completo, u.correo,
                     u.nivel_jerarquia, u.estado, d.nombre AS departamento
              FROM CORE_Usuarios u
              LEFT JOIN CORE_Departamentos d ON d.id_departamento = u.id_departamento
@@ -25,58 +32,14 @@ class AdminController extends Controller {
         ]);
     }
 
-    public function nuevoUsuario(): void {
-        $this->requireAuth();
-        $this->requireLevel(3);
-
-        $this->render('Central/admin/usuario_form', [
-            'pageTitle'         => 'Nuevo Usuario',
-            'usuario'           => null,
-            'deptos'            => $this->deptos(),
-            'todosRoles'        => [],
-            'rolesAsignadosIds' => [],
-            'csrf'              => $this->csrfToken(),
-        ]);
-    }
-
-    public function crearUsuario(): void {
-        $this->requireAuth();
-        $this->requireLevel(3);
-        $this->verifyCsrf();
-
-        if (!FormHelper::validate($_POST, [
-            'nombre_usuario'  => 'required|min:3|max:50|alpha_num',
-            'nombre_completo' => 'required|min:3|max:150',
-            'correo'          => 'required|email',
-            'contrasena'      => 'required|min:8',
-            'nivel_jerarquia' => 'required|numeric',
-            'id_departamento' => 'required|numeric',
-        ])) {
-            $_SESSION['_form_errors'] = FormHelper::errors();
-            $_SESSION['_old_input']   = $_POST;
-            $this->redirect('/admin/usuarios/nuevo');
-        }
-
-        $hash = SecurityHelper::hashPassword($_POST['contrasena']);
-        $this->db()->query(
-            'INSERT INTO CORE_Usuarios (nombre_usuario, nombre_completo, correo, hash_contrasena, nivel_jerarquia, id_departamento, estado)
-             VALUES (?,?,?,?,?,?,1)',
-            [
-                [trim($_POST['nombre_usuario']),     SQLSRV_PARAM_IN],
-                [trim($_POST['nombre_completo']),    SQLSRV_PARAM_IN],
-                [trim($_POST['correo']),             SQLSRV_PARAM_IN],
-                [$hash,                             SQLSRV_PARAM_IN],
-                [(int)$_POST['nivel_jerarquia'],    SQLSRV_PARAM_IN],
-                [(int)$_POST['id_departamento'],    SQLSRV_PARAM_IN],
-            ]
-        );
-        SessionHelper::flash('success', 'Usuario creado correctamente.');
-        $this->redirect('/admin/usuarios');
-    }
+    // "Nuevo Usuario" ya NO crea cuentas manuales — toda cuenta nueva se crea
+    // exclusivamente desde un empleado de Talento Humano (ver empleadosTh() /
+    // crearUsuarioDesdeEmpleado() más abajo). El botón "Nuevo Usuario" de
+    // /admin/usuarios enlaza directo a /admin/usuarios/desde-th.
 
     public function editarUsuario(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
 
         $db      = $this->db();
         $usuario = $db->fetch($db->query('SELECT * FROM CORE_Usuarios WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]));
@@ -99,7 +62,7 @@ class AdminController extends Controller {
 
     public function actualizarUsuario(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 3]);
         $this->verifyCsrf();
 
         $db = $this->db();
@@ -131,7 +94,7 @@ class AdminController extends Controller {
 
     public function eliminarUsuario(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 4]);
         $this->verifyCsrf();
 
         $this->db()->query('UPDATE CORE_Usuarios SET estado=0 WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
@@ -143,7 +106,7 @@ class AdminController extends Controller {
 
     public function roles(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
 
         $db    = $this->db();
         $roles = $db->fetchAll($db->query(
@@ -163,7 +126,7 @@ class AdminController extends Controller {
 
     public function nuevoRol(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
 
         $this->render('Central/admin/rol_form', [
             'pageTitle' => 'Nuevo Rol',
@@ -175,7 +138,7 @@ class AdminController extends Controller {
 
     public function crearRol(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 2]);
         $this->verifyCsrf();
 
         if (!FormHelper::validate($_POST, [
@@ -205,7 +168,7 @@ class AdminController extends Controller {
 
     public function editarRol(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
 
         $db  = $this->db();
         $rol = $db->fetch($db->query('SELECT * FROM CORE_Roles WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]));
@@ -221,7 +184,7 @@ class AdminController extends Controller {
 
     public function actualizarRol(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 3]);
         $this->verifyCsrf();
 
         $deptoId = !empty($_POST['id_departamento']) ? (int)$_POST['id_departamento'] : null;
@@ -242,7 +205,7 @@ class AdminController extends Controller {
 
     public function eliminarRol(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 4]);
         $this->verifyCsrf();
 
         $this->db()->query('UPDATE CORE_Roles SET estado=0 WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]);
@@ -254,11 +217,21 @@ class AdminController extends Controller {
 
     public function rolPermisos(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
 
         $db  = $this->db();
-        $rol = $db->fetch($db->query('SELECT * FROM CORE_Roles WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]));
+        $rol = $db->fetch($db->query(
+            'SELECT r.*, d.nombre AS departamento
+             FROM CORE_Roles r LEFT JOIN CORE_Departamentos d ON d.id_departamento = r.id_departamento
+             WHERE r.id_rol=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
         if (!$rol) { http_response_code(404); exit; }
+
+        $usuariosConRol = (int)($db->fetch($db->query(
+            'SELECT COUNT(*) AS n FROM CORE_Usuarios_Roles WHERE id_rol=? AND estado=1',
+            [[$id, SQLSRV_PARAM_IN]]
+        ))['n'] ?? 0);
 
         $nodos = $db->fetchAll($db->query(
             'SELECT id_nodo, id_modulo, opcion, items, subitems, descripcion, url_ruta, icono
@@ -277,13 +250,22 @@ class AdminController extends Controller {
             $permisosMap["{$p['id_modulo']}-{$p['opcion']}-{$p['items']}-{$p['subitems']}"] = (int)$p['nivel_crud'];
         }
 
-        $moduleNames = [
-            1=>'Planificación Estratégica', 2=>'Tecnología e Informática',
-            3=>'Asesoría Jurídica',         4=>'Infraestructura Portuaria',
-            5=>'Control de Acceso / Garita',6=>'Operaciones Portuarias',
-            7=>'Gerencia General',          8=>'Delegación de Servicios',
-            9=>'Dirección Administrativa',  10=>'Dirección Financiera',
-            11=>'Talento Humano',
+        // Mismo ícono/color que MenuController::MODULES — para que Estructura
+        // del Menú y Roles y Permisos "hablen el mismo idioma" visual.
+        $moduleMeta = [
+            1  => ['label' => 'Dirección de Planificación Estratégica', 'icon' => 'fa-chart-gantt',       'color' => '#6f42c1'],
+            2  => ['label' => 'Gestión de Tecnología de la Información','icon' => 'fa-server',            'color' => '#0056b3'],
+            3  => ['label' => 'Dirección de Asesoría Jurídica',         'icon' => 'fa-scale-balanced',    'color' => '#dc3545'],
+            4  => ['label' => 'Dirección de Infraestructura Portuaria', 'icon' => 'fa-hard-hat',          'color' => '#fd7e14'],
+            5  => ['label' => 'Garita de Acceso / Control de Acceso',   'icon' => 'fa-door-open',         'color' => '#20c997'],
+            6  => ['label' => 'Dirección de Operaciones',               'icon' => 'fa-ship',              'color' => '#17a2b8'],
+            7  => ['label' => 'Gerencia General',                       'icon' => 'fa-building',          'color' => '#343a40'],
+            8  => ['label' => 'Delegación de Servicios Portuarios',     'icon' => 'fa-landmark',          'color' => '#6f42c1'],
+            9  => ['label' => 'Dirección Administrativa',               'icon' => 'fa-briefcase',         'color' => '#0056b3'],
+            10 => ['label' => 'Dirección Financiera',                   'icon' => 'fa-wallet',            'color' => '#28a745'],
+            11 => ['label' => 'Dirección de Talento Humano',            'icon' => 'fa-users',             'color' => '#e83e8c'],
+            12 => ['label' => 'Control de Bienes (Inventario)',         'icon' => 'fa-boxes-stacked',     'color' => '#fd7e14'],
+            13 => ['label' => 'Bitácoras Portuarias (CCTV/Visitas)',    'icon' => 'fa-anchor',            'color' => '#0891b2'],
         ];
 
         $tree = [];
@@ -297,7 +279,8 @@ class AdminController extends Controller {
             $n['permiso'] = $permisosMap[$key] ?? 0;
 
             if (!isset($tree[$mod])) {
-                $tree[$mod] = ['label' => $moduleNames[$mod] ?? "Módulo $mod", 'raiz' => null, 'areas' => []];
+                $meta = $moduleMeta[$mod] ?? ['label' => "Módulo $mod", 'icon' => 'fa-folder', 'color' => '#6c757d'];
+                $tree[$mod] = ['label' => $meta['label'], 'icon' => $meta['icon'], 'color' => $meta['color'], 'raiz' => null, 'areas' => []];
             }
             if ($op === 0) {
                 $tree[$mod]['raiz'] = $n;
@@ -320,16 +303,17 @@ class AdminController extends Controller {
         }
 
         $this->render('Central/admin/rol_permisos', [
-            'pageTitle' => 'Permisos: ' . htmlspecialchars($rol['nombre'], ENT_QUOTES),
-            'rol'       => $rol,
-            'tree'      => $tree,
+            'pageTitle'      => 'Permisos: ' . htmlspecialchars($rol['nombre'], ENT_QUOTES),
+            'rol'            => $rol,
+            'usuariosConRol' => $usuariosConRol,
+            'tree'           => $tree,
             'csrf'      => $this->csrfToken(),
         ]);
     }
 
     public function guardarPermisos(int $id): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_ROLES, 4]);
         $this->verifyCsrf();
 
         $db = $this->db();
@@ -355,6 +339,10 @@ class AdminController extends Controller {
             );
         }
 
+        if (View::isAjax()) {
+            $this->json(['ok' => true, 'msg' => 'Permisos guardados correctamente.']);
+        }
+
         SessionHelper::flash('success', 'Permisos guardados correctamente.');
         $this->redirect('/admin/roles/' . $id . '/permisos');
     }
@@ -365,7 +353,7 @@ class AdminController extends Controller {
 
     public function auditoria(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_AUDITORIA, 1]);
 
         $db   = $this->db();
         [$where, $params, $f] = $this->auditoriaFiltros();
@@ -443,7 +431,7 @@ class AdminController extends Controller {
     /** GET /admin/auditoria/export/excel — .xlsx nativo con los filtros aplicados. */
     public function exportarAuditoriaExcel(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_AUDITORIA, 1]);
         require_once ROOT . '/libs/XlsxWriter.php';
 
         $rows = $this->auditoriaTodas();
@@ -472,7 +460,7 @@ class AdminController extends Controller {
     /** GET /admin/auditoria/export/pdf — PDF apaisado con los filtros aplicados. */
     public function exportarAuditoriaPdf(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_AUDITORIA, 1]);
         require_once ROOT . '/libs/fpdf/fpdf.php';
 
         $rows = $this->auditoriaTodas();
@@ -600,7 +588,7 @@ class AdminController extends Controller {
 
     /** GET /admin/usuarios/export/excel — todos los usuarios. */
     public function exportarUsuariosExcel(): void {
-        $this->requireAuth(); $this->requireLevel(3);
+        $this->requireAuth(); $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         require_once ROOT . '/libs/XlsxWriter.php';
         $x = new XlsxWriter('Usuarios');
         $x->setColumns([
@@ -622,7 +610,7 @@ class AdminController extends Controller {
 
     /** GET /admin/usuarios/export/pdf — todos los usuarios. */
     public function exportarUsuariosPdf(): void {
-        $this->requireAuth(); $this->requireLevel(3);
+        $this->requireAuth(); $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         require_once ROOT . '/libs/fpdf/fpdf.php';
         require_once ROOT . '/libs/ReportPdf.php';
         $cols = [
@@ -642,7 +630,7 @@ class AdminController extends Controller {
 
     /** GET /admin/usuarios/{id}/export/excel — un usuario (Campo/Valor). */
     public function exportarUsuarioExcel(int $id): void {
-        $this->requireAuth(); $this->requireLevel(3);
+        $this->requireAuth(); $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         require_once ROOT . '/libs/XlsxWriter.php';
         $u = $this->usuariosData($id)[0] ?? null;
         if (!$u) { http_response_code(404); die('Usuario no encontrado.'); }
@@ -654,7 +642,7 @@ class AdminController extends Controller {
 
     /** GET /admin/usuarios/{id}/export/pdf — un usuario (ficha). */
     public function exportarUsuarioPdf(int $id): void {
-        $this->requireAuth(); $this->requireLevel(3);
+        $this->requireAuth(); $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         require_once ROOT . '/libs/fpdf/fpdf.php';
         require_once ROOT . '/libs/ReportPdf.php';
         $u = $this->usuariosData($id)[0] ?? null;
@@ -711,22 +699,36 @@ class AdminController extends Controller {
     // acá solo se crea el vínculo (id_empleado_th) y se sugiere departamento/rol
     // según su unidad organizacional (TH_Unidad_Map).
 
-    /** GET /admin/usuarios/desde-th — empleados de TH sin cuenta de portal aún. */
+    private const TH_POR_PAGINA = 20;
+
+    /** GET /admin/usuarios/desde-th — empleados de TH sin cuenta de portal aún (paginado). */
     public function empleadosTh(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 2]);
 
         $buscar = trim((string)($_GET['q'] ?? ''));
+        $page   = max(1, (int)($_GET['pagina'] ?? 1));
+        $offset = ($page - 1) * self::TH_POR_PAGINA;
+
         $where  = $buscar !== ''
             ? "AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.cedula LIKE ?)"
             : '';
-        $params = [];
-        if ($buscar !== '') {
-            $like = '%' . $buscar . '%';
-            $params = [[$like, SQLSRV_PARAM_IN], [$like, SQLSRV_PARAM_IN], [$like, SQLSRV_PARAM_IN]];
-        }
+        $likeParams = $buscar !== ''
+            ? (function () use ($buscar) { $l = '%' . $buscar . '%'; return [[$l, SQLSRV_PARAM_IN], [$l, SQLSRV_PARAM_IN], [$l, SQLSRV_PARAM_IN]]; })()
+            : [];
 
-        $stmt = $this->db()->query(
+        $db = $this->db();
+
+        $total = (int)($db->fetch($db->query(
+            "SELECT COUNT(*) AS n
+             FROM Talento_Humano.dbo.th_empleados e
+             WHERE e.estado = 1
+               AND NOT EXISTS (SELECT 1 FROM CORE_Usuarios cu WHERE cu.id_empleado_th = e.empleado_id)
+               $where",
+            $likeParams
+        ))['n'] ?? 0);
+
+        $stmt = $db->query(
             "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
                     e.correo_institucional, u.codigo_uorg, u.nombre_unidad
              FROM Talento_Humano.dbo.th_empleados e
@@ -734,21 +736,25 @@ class AdminController extends Controller {
              WHERE e.estado = 1
                AND NOT EXISTS (SELECT 1 FROM CORE_Usuarios cu WHERE cu.id_empleado_th = e.empleado_id)
                $where
-             ORDER BY e.apellidos",
-            $params
+             ORDER BY e.apellidos
+             OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+            array_merge($likeParams, [[$offset, SQLSRV_PARAM_IN], [self::TH_POR_PAGINA, SQLSRV_PARAM_IN]])
         );
 
         $this->render('Central/admin/empleados_th', [
-            'pageTitle' => 'Crear cuenta desde empleado de Talento Humano',
-            'empleados' => $this->db()->fetchAll($stmt),
-            'buscar'    => $buscar,
+            'pageTitle'  => 'Nuevo Usuario — desde Talento Humano',
+            'empleados'  => $db->fetchAll($stmt),
+            'buscar'     => $buscar,
+            'page'       => $page,
+            'totalPages' => max(1, (int)ceil($total / self::TH_POR_PAGINA)),
+            'total'      => $total,
         ]);
     }
 
     /** GET /admin/usuarios/desde-th/{id}/nuevo — formulario con depto/rol autosugeridos. */
     public function nuevoUsuarioDesdeEmpleado(int $idEmpleadoTh): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 2]);
 
         $emp = $this->db()->fetch($this->db()->query(
             "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
@@ -784,12 +790,13 @@ class AdminController extends Controller {
     /** POST /admin/usuarios/desde-th — crea la cuenta ligada al empleado TH. */
     public function crearUsuarioDesdeEmpleado(): void {
         $this->requireAuth();
-        $this->requireLevel(3);
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 2]);
         $this->verifyCsrf();
 
+        // Ya no se pide "nombre de usuario": el login es SOLO por cédula, y la
+        // cédula viene de Talento Humano (fuente única, ya única por empleado).
         if (!FormHelper::validate($_POST, [
             'id_empleado_th'  => 'required|numeric',
-            'nombre_usuario'  => 'required|min:3|max:50|alpha_num',
             'contrasena'      => 'required|min:8',
             'nivel_jerarquia' => 'required|numeric',
             'id_departamento' => 'required|numeric',
@@ -811,18 +818,30 @@ class AdminController extends Controller {
             $this->redirect('/admin/usuarios/desde-th');
         }
 
+        $yaExiste = $this->db()->fetch($this->db()->query(
+            'SELECT 1 FROM CORE_Usuarios WHERE cedula=? OR nombre_usuario=?',
+            [[$emp['cedula'], SQLSRV_PARAM_IN], [$emp['cedula'], SQLSRV_PARAM_IN]]
+        ));
+        if ($yaExiste) {
+            SessionHelper::flash('error', 'Ya existe una cuenta con esa cédula.');
+            $this->redirect('/admin/usuarios/desde-th');
+        }
+
         $hash = SecurityHelper::hashPassword($_POST['contrasena']);
         $db   = $this->db();
 
         // nombre_completo/cedula locales quedan como respaldo (por si el
         // vínculo se rompe); vw_Usuarios_Identidad prioriza el dato en vivo.
+        // nombre_usuario = cédula: el login es únicamente por cédula, no se
+        // maneja un "usuario" separado (columna se mantiene por compatibilidad
+        // con sp_Login y el contrato SSO de TH/Bienes, pero es transparente).
         $db->query(
             'INSERT INTO CORE_Usuarios
                 (nombre_usuario, nombre_completo, correo, cedula, hash_contrasena,
                  nivel_jerarquia, id_departamento, id_empleado_th, estado)
              VALUES (?,?,?,?,?,?,?,?,1)',
             [
-                [trim($_POST['nombre_usuario']), SQLSRV_PARAM_IN],
+                [$emp['cedula'], SQLSRV_PARAM_IN],
                 [$this->empleadoNombreCompleto($idEmpleadoTh), SQLSRV_PARAM_IN],
                 [trim($_POST['correo'] ?? $emp['correo_institucional'] ?? ''), SQLSRV_PARAM_IN],
                 [$emp['cedula'], SQLSRV_PARAM_IN],

@@ -4,17 +4,20 @@
  */
 
 require_once ROOT_PATH . 'modules/Control_Bines/models/EstacionModel.php';
+require_once ROOT_PATH . 'modules/Talento_Humano/models/EmpleadoModel.php';
 require_once ROOT_PATH . 'modules/Central/models/NotificacionModel.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/LogModel.php';
 
 class EstacionController extends Controller {
     private $cabeceraModel;
     private $logger;
+    private $talentoModel;
 
     public function __construct() {
         parent::__construct();
         $this->logger = new Logger('cab');
         $this->cabeceraModel = new EstacionModel();
+        $this->talentoModel = new EmpleadoModel();
     }
 
     /**
@@ -66,6 +69,7 @@ class EstacionController extends Controller {
         $unidadesList   = [];
         $grupoCentrosList = [];
         $tiposIvaList = [];
+        $personalList = [];
         $resultados = [];
         
         $q = isset($_GET['q']) ? trim($_GET['q']) : '';
@@ -93,6 +97,9 @@ class EstacionController extends Controller {
                 } elseif ($tablaActiva === 'centros_consumo') {
                     $grupoCentrosList = $this->cabeceraModel->obtenerTodos('grupo_centros_consumo');
                 }
+                if (in_array($tablaActiva, ['grupo_centros_consumo', 'centros_consumo'], true)) {
+                    $personalList = $this->talentoModel->obtenerPersonal();
+                }
             } else {
                 if (strlen($q) >= 2) {
                     require_once ROOT_PATH . 'modules/Central/models/BusquedaGlobalModel.php';
@@ -113,6 +120,7 @@ class EstacionController extends Controller {
             'unidadesList'     => $unidadesList,
             'tiposIvaList'     => $tiposIvaList,
             'grupoCentrosList' => $grupoCentrosList,
+            'personalList'     => $personalList,
             'q'                => $q,
             'modulosSeleccionados' => $modulosSeleccionados,
             'resultados'       => $resultados,
@@ -150,6 +158,7 @@ class EstacionController extends Controller {
             'nombre' => trim($_POST['nombre']),
             'extra' => isset($_POST['extra']) ? trim($_POST['extra']) : ''
         ];
+        $validacionError = null;
 
         if ($tabla === 'estados') {
             $datos['clase'] = isset($_POST['clase']) ? trim($_POST['clase']) : 'active';
@@ -165,17 +174,24 @@ class EstacionController extends Controller {
             $datos['ruc'] = isset($_POST['ruc']) ? trim($_POST['ruc']) : '';
         } elseif ($tabla === 'grupo_centros_consumo') {
             $datos['codigo'] = isset($_POST['codigo']) ? trim($_POST['codigo']) : '';
-            $datos['representante'] = isset($_POST['representante']) ? trim($_POST['representante']) : '';
+            $datos['representante_id'] = isset($_POST['representante_id']) ? (int)$_POST['representante_id'] : 0;
+            $persona = $datos['representante_id'] > 0 ? $this->talentoModel->obtenerDetalleCompleto($datos['representante_id']) : null;
+            if (!$persona || (int)($persona['estado'] ?? 0) !== 1) $validacionError = 'Seleccione un funcionario activo como representante.';
+            $datos['representante'] = trim(($persona['apellidos'] ?? '') . ' ' . ($persona['nombres'] ?? ''));
         } elseif ($tabla === 'centros_consumo') {
             $datos['grupo_id'] = isset($_POST['grupo_id']) ? (int)$_POST['grupo_id'] : 0;
             $datos['codigo'] = isset($_POST['codigo']) ? trim($_POST['codigo']) : '';
-            $datos['funcionario'] = isset($_POST['funcionario']) ? trim($_POST['funcionario']) : '';
+            $datos['funcionario_id'] = isset($_POST['funcionario_id']) ? (int)$_POST['funcionario_id'] : 0;
+            $persona = $datos['funcionario_id'] > 0 ? $this->talentoModel->obtenerDetalleCompleto($datos['funcionario_id']) : null;
+            if (!$persona || (int)($persona['estado'] ?? 0) !== 1) $validacionError = 'Seleccione un funcionario activo para el centro de consumo.';
+            $datos['funcionario'] = trim(($persona['apellidos'] ?? '') . ' ' . ($persona['nombres'] ?? ''));
         }
 
         $referrer = $_SERVER['HTTP_REFERER'] ?? '';
         $redirectRoute = (strpos($referrer, 'route=inv_maestros') !== false) ? 'inv_maestros' : 'cabeceras';
 
         try {
+            if ($validacionError !== null) throw new InvalidArgumentException($validacionError);
             if ($id > 0) {
                 $registro = $this->cabeceraModel->actualizar($tabla, $id, $datos);
                 $this->registrarAuditoria('ACTUALIZAR', 'th', "Registro actualizado en {$tabla}: ID {$id} - {$datos['nombre']}");

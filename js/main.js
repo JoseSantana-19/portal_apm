@@ -26,6 +26,22 @@ window.C = {
     }
 };
 
+// Refresca el menú lateral (sidebar) sin recargar la página completa —
+// compartida por cualquier pantalla admin que guarde algo capaz de cambiar
+// lo que el usuario ve en el sidebar (Estructura del Menú, Roles y Permisos).
+window.refreshSidebar = async function () {
+    try {
+        const r = await fetch(`${APP_URL}/admin/menu/sidebar-fragmento`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!r.ok) return;
+        const html = await r.text();
+        const fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('.sidebar-mods');
+        const current = document.querySelector('.sidebar-mods');
+        if (fresh && current) current.innerHTML = fresh.innerHTML;
+    } catch (e) { /* el sidebar sigue con el estado anterior — no es fatal */ }
+};
+
 document.addEventListener("DOMContentLoaded", function() {
     // Initialize theme
     const savedTheme = localStorage.getItem('apm_theme') || '1';

@@ -15,7 +15,6 @@
         ['icon'=>'fa-solid fa-users',           'label'=>'Talento Humano',    'url'=>'/apps/talento_humano/', 'color'=>'var(--color-primary)'],
         ['icon'=>'fa-solid fa-boxes-stacked',   'label'=>'Control de Bienes', 'url'=>'/apps/control_bienes/', 'color'=>'var(--color-success)'],
         ['icon'=>'fa-solid fa-book-open',       'label'=>'Bitácoras',         'url'=>'/portuaria',           'color'=>'var(--color-warning)'],
-        ['icon'=>'fa-solid fa-id-card',         'label'=>'Control Acceso',    'url'=>'/acceso/reporte',      'color'=>'var(--color-danger)'],
         ['icon'=>'fa-solid fa-shield-halved',   'label'=>'Auditoría',         'url'=>'/admin/auditoria',     'color'=>'var(--color-primary)'],
     ];
     foreach ($links as $l):

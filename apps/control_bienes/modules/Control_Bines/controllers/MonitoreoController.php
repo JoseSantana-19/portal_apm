@@ -81,9 +81,11 @@ class MonitoreoController extends Controller {
         $areas = $this->talentoModel->obtenerAreas();
 
         $db = Database::getInstance()->getConnection();
-        $centrosConsumo = $db->query("SELECT cc.*, gcc.nombre as grupo_nombre 
+        $centrosConsumo = $db->query("SELECT cc.*, gcc.nombre as grupo_nombre,
+                                             COALESCE(p.nombre, cc.funcionario) as funcionario
                                       FROM inv_centros_consumo cc 
-                                      JOIN inv_grupo_centros_consumo gcc ON cc.grupo_id = gcc.id 
+                                      JOIN inv_grupo_centros_consumo gcc ON cc.grupo_id = gcc.id
+                                      LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                                       ORDER BY cc.nombre ASC")->fetchAll();
         
         $itemsInventario = $this->inventarioModel->obtenerActivos();

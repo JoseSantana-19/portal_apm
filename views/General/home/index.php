@@ -8,7 +8,12 @@ $baseUrl = str_replace('\\', '/', $baseUrl);
 if ($baseUrl === '/' || $baseUrl === '\\') {
     $baseUrl = '';
 }
-$isLoggedIn = isset($_SESSION['user_id']);
+$isLoggedIn = isset($_SESSION['user_id']) && !isset($_GET['preview']);
+// El hero se adapta según lo que realmente haya publicado el admin en
+// /admin/landing — nunca rellena con contenido falso/duplicado (antes el
+// carrusel de noticias reusaba las fotos de fondo cuando estaba vacío).
+$tieneNoticias = !empty($noticias);
+$tieneConsejos = !empty($consejos);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -48,9 +53,9 @@ $isLoggedIn = isset($_SESSION['user_id']);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background-image: linear-gradient(to bottom, rgba(9, 13, 22, 0.85) 0%, rgba(9, 13, 22, 0.6) 100%), url('<?= $baseUrl ?>/imgs/f1-pto-manta-2024.png');
-            background-size: cover;
-            background-position: center 30%;
+            /* Fijo con el mismo azul institucional del menú lateral de portal_apm
+               (ver css/style.css .sidebar --bg-sidebar) — sin foto de fondo. */
+            background: #075177;
             border-bottom: 2px solid var(--border-app);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
             position: relative;
@@ -87,13 +92,13 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
         .portal-hero {
             display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
+            grid-template-columns: 1.05fr 0.95fr;
             gap: 32px;
             max-width: 1400px;
             margin: 0 auto;
             width: 100%;
             padding: 40px 48px;
-            align-items: start;
+            align-items: stretch;
             flex: 1;
         }
 
@@ -104,14 +109,37 @@ $isLoggedIn = isset($_SESSION['user_id']);
             }
         }
 
+        @media (max-width: 480px) {
+            .portal-hero {
+                padding: 16px;
+                gap: 20px;
+            }
+        }
+
+        /* Sin noticias ni consejos publicados: colapsa a una sola columna
+           centrada — nunca se muestra una caja vacía o contenido relleno. */
+        .portal-hero.hero-single {
+            grid-template-columns: 1fr;
+            justify-items: center;
+        }
+
+        .portal-hero.hero-single .portal-hero-left {
+            max-width: 760px;
+            width: 100%;
+        }
+
         .hero-glass-card {
             background: var(--surface-app);
             backdrop-filter: var(--backdrop);
             border: 1.5px solid var(--border-app);
             border-radius: var(--r-lg);
-            padding: 36px;
+            padding: clamp(22px, 4vw, 36px);
             box-shadow: var(--shadow-app);
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
         }
 
         .hero-glass-card:hover {
@@ -130,17 +158,28 @@ $isLoggedIn = isset($_SESSION['user_id']);
             font-size: 12px;
             font-weight: 700;
             margin-bottom: 16px;
+            width: fit-content;
         }
 
         .ph-title {
             font-family: 'Fira Code', monospace;
-            font-size: 2.2rem;
+            font-size: clamp(1.65rem, 1.1rem + 2.2vw, 2.6rem);
+            line-height: 1.15;
             margin: 0 0 16px 0;
             color: var(--text-app);
         }
 
+        .ph-title-sub {
+            font-size: 0.4em;
+            font-weight: 300;
+            opacity: 0.8;
+            margin-left: 8px;
+            display: inline-block;
+        }
+
         .ph-sub {
             color: var(--text-muted);
+            font-size: clamp(13px, 12px + 0.3vw, 15px);
             line-height: 1.6;
             margin-bottom: 28px;
         }
@@ -158,11 +197,29 @@ $isLoggedIn = isset($_SESSION['user_id']);
         }
 
         .h-feat {
+            position: relative;
             background: rgba(255, 255, 255, 0.015);
             border: 1px solid var(--border-app);
-            padding: 16px;
+            padding: 18px 16px 16px;
             border-radius: var(--r-md);
             transition: all 0.3s ease;
+        }
+
+        .h-feat-num {
+            position: absolute;
+            top: -10px;
+            left: 14px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-hover);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, .4);
         }
 
         .h-feat-icon {
@@ -236,6 +293,278 @@ $isLoggedIn = isset($_SESSION['user_id']);
             color: var(--accent-hover);
         }
 
+        .portal-hero-right {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- News image carousel (noticias publicadas con imagen) --- */
+        .news-image-carousel {
+            position: relative;
+            flex: 1;
+            min-height: 420px;
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            border: 1.5px solid var(--border-app);
+            box-shadow: var(--shadow-app);
+            background: #0a1929;
+        }
+
+        @media (max-width: 1024px) {
+            .news-image-carousel { min-height: 340px; }
+        }
+
+        @media (max-width: 480px) {
+            .news-image-carousel { min-height: 260px; }
+        }
+
+        .nic-slide {
+            position: absolute;
+            inset: 0;
+            display: block;
+            opacity: 0;
+            transition: opacity .9s ease;
+            text-decoration: none;
+        }
+
+        .nic-slide.active {
+            opacity: 1;
+            z-index: 1;
+        }
+
+        /* Copia de fondo, desenfocada y ampliada: llena el marco sin dejar
+           bandas vacías cuando la imagen real no coincide con el ratio del
+           card. La copia de primer plano (contain) es la que se ve nítida
+           y siempre completa, sin recortes. */
+        .nic-slide-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(26px) brightness(.5) saturate(1.15);
+            transform: scale(1.15);
+        }
+
+        .nic-slide-fg {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .nic-slide::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(to top, rgba(5, 10, 20, .85) 0%, rgba(5, 10, 20, .15) 42%, transparent 68%);
+        }
+
+        .nic-caption {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 20px 22px 18px;
+            z-index: 3;
+        }
+
+        .nic-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 13px;
+            z-index: 1;
+        }
+
+        /* --- Panel vertical de Consejos y Novedades (cuando NO hay noticias
+           con imagen — ocupa el lugar del carrusel, en vez de dejarlo vacío) --- */
+        .tips-panel-tall {
+            position: relative;
+            flex: 1;
+            min-height: 420px;
+            border-radius: var(--r-lg);
+            border: 1.5px solid var(--border-app);
+            box-shadow: var(--shadow-app);
+            background: var(--surface-app);
+            overflow: hidden;
+        }
+
+        @media (max-width: 1024px) { .tips-panel-tall { min-height: 320px; } }
+        @media (max-width: 480px) { .tips-panel-tall { min-height: 260px; } }
+
+        .tpt-badge {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+            z-index: 2;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-hover);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .tpt-slide {
+            position: absolute;
+            inset: 56px 32px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 16px;
+            opacity: 0;
+            transition: opacity .6s ease;
+        }
+
+        .tpt-slide.active { opacity: 1; z-index: 1; }
+
+        .tpt-icon {
+            font-size: 26px;
+            color: var(--accent-hover);
+        }
+
+        .tpt-text {
+            font-size: clamp(16px, 14px + 0.8vw, 21px);
+            font-weight: 600;
+            color: var(--text-app);
+            line-height: 1.5;
+            max-width: 420px;
+        }
+
+        .tpt-cta {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-hover);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tpt-cta:hover { text-decoration: underline; }
+
+        .tpt-dots {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            gap: 6px;
+        }
+
+        .tpt-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            border: 0;
+            background: var(--border-app);
+            cursor: pointer;
+            padding: 0;
+            transition: all .25s ease;
+        }
+
+        .tpt-dot.active {
+            background: var(--accent-hover);
+            width: 20px;
+            border-radius: 4px;
+        }
+
+        .nic-caption-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            color: #fff;
+            font-weight: 600;
+            font-size: clamp(14.5px, 13px + 0.3vw, 16.5px);
+            line-height: 1.45;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+        }
+
+        .nic-caption-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #38BDF8;
+        }
+
+        .nic-badge {
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            z-index: 2;
+            background: rgba(5, 10, 20, .55);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nic-dots {
+            position: absolute;
+            right: 16px;
+            bottom: 16px;
+            z-index: 2;
+            display: flex;
+            gap: 6px;
+        }
+
+        .nic-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            border: 0;
+            background: rgba(255, 255, 255, .35);
+            cursor: pointer;
+            padding: 0;
+            transition: all .25s ease;
+        }
+
+        .nic-dot.active {
+            background: #fff;
+            width: 20px;
+            border-radius: 4px;
+        }
+
+        .portal-tips-wrap {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 0 48px 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        @media (max-width: 1024px) {
+            .portal-tips-wrap { padding: 0 24px 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .portal-tips-wrap { padding: 0 16px 20px; }
+        }
+
         .news-ticker-card {
             background: var(--surface-app);
             border: 1.5px solid var(--border-app);
@@ -257,6 +586,23 @@ $isLoggedIn = isset($_SESSION['user_id']);
             white-space: nowrap;
         }
 
+        .news-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            display: inline-block;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, .6);
+            animation: newsPulse 2s infinite;
+        }
+
+        @keyframes newsPulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .5); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
         .news-container {
             position: relative;
             flex: 1;
@@ -269,19 +615,52 @@ $isLoggedIn = isset($_SESSION['user_id']);
             top: 0;
             left: 0;
             right: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             opacity: 0;
             transform: translateY(20px);
             transition: all 0.5s ease;
             font-size: 13px;
             color: var(--text-muted);
             white-space: nowrap;
-            text-overflow: ellipsis;
             overflow: hidden;
         }
 
         .news-slide.active {
             opacity: 1;
             transform: translateY(0);
+        }
+
+        .news-slide-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .news-slide-link {
+            flex-shrink: 0;
+            margin-left: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-hover);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .news-slide-link:hover {
+            text-decoration: underline;
+        }
+
+        .news-counter {
+            flex-shrink: 0;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: var(--accent-app);
+            border: 1px solid var(--border-app);
+            padding: 3px 9px;
+            border-radius: 999px;
         }
 
         /* Modal Overlays & Styles */
@@ -1055,9 +1434,11 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
     <!-- Slideshow Background cycling smoothly -->
     <div class="slideshow-bg">
-        <div class="slide-img active" style="background-image: url('<?= $baseUrl ?>/imgs/formato-fotos-para-web-cruise-01.jpg');"></div>
-        <div class="slide-img" style="background-image: url('<?= $baseUrl ?>/imgs/5NM4Z6GW7RAJTN7GDWF7UTE6VA.jpg');"></div>
-        <div class="slide-img" style="background-image: url('<?= $baseUrl ?>/imgs/f1-pto-manta-2024.png');"></div>
+        <?php if (empty($imagenes)): ?>
+        <div class="slide-img active" style="background:#0a1929;"></div>
+        <?php else: foreach ($imagenes as $i => $ruta): ?>
+        <div class="slide-img <?= $i === 0 ? 'active' : '' ?>" style="background-image: url('<?= $baseUrl ?>/<?= htmlspecialchars($ruta, ENT_QUOTES, 'UTF-8') ?>');"></div>
+        <?php endforeach; endif; ?>
         <div class="slideshow-overlay"></div>
     </div>
     
@@ -1092,143 +1473,119 @@ $isLoggedIn = isset($_SESSION['user_id']);
     </div>
 
     <!-- 2. Balanced Two-Column Operations Hub Hero Grid -->
-    <div class="portal-hero">
+    <div class="portal-hero<?= (!$tieneNoticias && !$tieneConsejos) ? ' hero-single' : '' ?>">
         <!-- LEFT COLUMN -->
         <div class="portal-hero-left">
             <!-- Welcome Glass Card -->
             <div class="hero-glass-card">
                 <div class="ph-badge"><i class="fa-solid fa-shield-halved"></i> SysPort · Acceso Unificado</div>
-                <h1 class="ph-title" style="font-size: 2.6rem; line-height: 1.1; margin-bottom: 20px;">
+                <h1 class="ph-title">
                     <span style="color: var(--accent-hover, #0284C7); font-weight: 800;">Sys</span>Port
-                    <span style="font-size: 18px; font-weight: 300; opacity: 0.8; margin-left: 8px;">| Acceso Corporativo</span>
+                    <span class="ph-title-sub">| Acceso Corporativo</span>
                 </h1>
                 <p class="ph-sub">Bienvenido a <strong>SysPort</strong>, el portal único de integración operativa y administrativa de la Autoridad Portuaria de Manta. Inicie sesión de manera segura para acceder a sus módulos correspondientes.</p>
-                
+
                 <div class="hero-features-grid">
                     <div class="h-feat">
-                        <div class="h-feat-icon" style="color: #38BDF8;"><i class="fa-solid fa-network-wired"></i></div>
-                        <div class="h-feat-title">SSO Integrado</div>
-                        <div class="h-feat-desc">Autenticación compartida segura entre departamentos.</div>
+                        <div class="h-feat-num">1</div>
+                        <div class="h-feat-icon" style="color: #38BDF8;"><i class="fa-solid fa-id-card"></i></div>
+                        <div class="h-feat-title">Ingresa con tu cédula</div>
+                        <div class="h-feat-desc">Un solo número de identificación — sin usuarios ni contraseñas distintas por módulo.</div>
                     </div>
                     <div class="h-feat">
-                        <div class="h-feat-icon" style="color: #34D399;"><i class="fa-solid fa-shield-halved"></i></div>
-                        <div class="h-feat-title">Seguridad Cripto</div>
-                        <div class="h-feat-desc">Conexiones cifradas AES-256 y MFA.</div>
+                        <div class="h-feat-num">2</div>
+                        <div class="h-feat-icon" style="color: #34D399;"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="h-feat-title">Elige tu módulo</div>
+                        <div class="h-feat-desc">Talento Humano, Control de Bienes o Bitácoras Portuarias, según tu perfil.</div>
                     </div>
                     <div class="h-feat">
-                        <div class="h-feat-icon" style="color: #818CF8;"><i class="fa-solid fa-server"></i></div>
-                        <div class="h-feat-title">Auditoría TI</div>
-                        <div class="h-feat-desc">Monitoreo transaccional de accesos y logs.</div>
+                        <div class="h-feat-num">3</div>
+                        <div class="h-feat-icon" style="color: #818CF8;"><i class="fa-solid fa-clipboard-check"></i></div>
+                        <div class="h-feat-title">Acceso auditado</div>
+                        <div class="h-feat-desc">Cada sesión queda registrada para control interno de la Autoridad Portuaria.</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <?php if ($tieneNoticias || $tieneConsejos): ?>
+        <!-- RIGHT COLUMN — solo existe si hay contenido real que mostrar -->
         <div class="portal-hero-right">
-            <!-- Quick Services Card (Interactive Grid) -->
-            <div class="quick-services-card">
-                <div class="qs-title">
-                    <i class="fa-solid fa-anchor" style="color:var(--accent-hover)"></i>
-                    <span>Servicios Portuarios Rápidos</span>
+            <?php if ($tieneNoticias): ?>
+            <!-- News Image Carousel (noticias publicadas, siempre con imagen — administrable
+                 en /admin/landing, independiente de Consejos y Novedades). -->
+            <div class="news-image-carousel" id="newsImgCarousel">
+                <div class="nic-badge"><i class="fa-solid fa-newspaper"></i> Noticias APM</div>
+                <?php foreach ($noticias as $i => $n): $tag = !empty($n['enlace']) ? 'a' : 'div'; ?>
+                <<?= $tag ?> class="nic-slide <?= $i === 0 ? 'active' : '' ?>"
+                    <?php if (!empty($n['enlace'])): ?>href="<?= htmlspecialchars($n['enlace'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener"<?php endif; ?>>
+                    <div class="nic-slide-bg" style="background-image:url('<?= $baseUrl ?>/<?= htmlspecialchars($n['imagen'], ENT_QUOTES, 'UTF-8') ?>');"></div>
+                    <div class="nic-slide-fg" style="background-image:url('<?= $baseUrl ?>/<?= htmlspecialchars($n['imagen'], ENT_QUOTES, 'UTF-8') ?>');"></div>
+                    <div class="nic-caption">
+                        <span class="nic-caption-text"><?= htmlspecialchars($n['texto'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if (!empty($n['enlace'])): ?><span class="nic-caption-cta">Ver más <i class="fa-solid fa-arrow-up-right-from-square"></i></span><?php endif; ?>
+                    </div>
+                </<?= $tag ?>>
+                <?php endforeach; ?>
+                <?php if (count($noticias) > 1): ?>
+                <div class="nic-dots">
+                    <?php foreach ($noticias as $i => $n): ?>
+                    <button type="button" class="nic-dot <?= $i === 0 ? 'active' : '' ?>" data-i="<?= $i ?>" aria-label="Noticia <?= $i + 1 ?>"></button>
+                    <?php endforeach; ?>
                 </div>
-                <div class="qs-grid">
-                    <button class="qs-btn" onclick="openServiceModal('buques')">
-                        <div class="qs-btn-icon"><i class="fa-solid fa-ship"></i></div>
-                        <div>
-                            <div style="font-weight:700">Cronograma</div>
-                            <div style="font-size:10px; color:var(--text-muted)">Próximos buques</div>
-                        </div>
-                    </button>
-                    <button class="qs-btn" onclick="openServiceModal('tarifas')">
-                        <div class="qs-btn-icon"><i class="fa-solid fa-calculator"></i></div>
-                        <div>
-                            <div style="font-weight:700">Simulador Tasas</div>
-                            <div style="font-size:10px; color:var(--text-muted)">Cálculo de tarifas</div>
-                        </div>
-                    </button>
-                    <button class="qs-btn" onclick="openServiceModal('manifiestos')">
-                        <div class="qs-btn-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-                        <div>
-                            <div style="font-weight:700">Manifiestos</div>
-                            <div style="font-size:10px; color:var(--text-muted)">Buscar contenedor</div>
-                        </div>
-                    </button>
-                    <button class="qs-btn" onclick="openServiceModal('turnos')">
-                        <div class="qs-btn-icon"><i class="fa-solid fa-calendar-days"></i></div>
-                        <div>
-                            <div style="font-weight:700">Turnos Esclusas</div>
-                            <div style="font-size:10px; color:var(--text-muted)">Fila transportistas</div>
-                        </div>
-                    </button>
-                </div>
+                <?php endif; ?>
             </div>
 
-            <!-- News & Alerts Ticker Carousel -->
-            <div class="news-ticker-card">
-                <div class="news-label"><i class="fa-solid fa-bullhorn"></i> Boletín APM</div>
-                <div class="news-container">
-                    <div class="news-slide active" id="newsSlide0">
-                        <span style="color:var(--accent-hover); font-weight:700">●</span> 
-                        <span>Puerto de Manta incrementa el calado de acceso en muelle internacional a 13 metros.</span>
-                    </div>
-                    <div class="news-slide" id="newsSlide1">
-                        <span style="color:var(--accent-hover); font-weight:700">●</span> 
-                        <span>Nuevo récord operativo: transferencia de más de 45,000 TEUs en el último trimestre.</span>
-                    </div>
-                    <div class="news-slide" id="newsSlide2">
-                        <span style="color:var(--accent-hover); font-weight:700">●</span> 
-                        <span>Mantenimiento preventivo en báscula electrónica norte programado para este domingo 04:00 AM.</span>
-                    </div>
+            <?php elseif ($tieneConsejos): ?>
+            <!-- Sin noticias con imagen: el panel de Consejos y Novedades ocupa el lugar
+                 del carrusel (versión vertical), en vez de dejar la columna vacía. -->
+            <div class="tips-panel-tall" id="tipsPanelTall">
+                <div class="tpt-badge"><i class="fa-solid fa-lightbulb"></i> Consejos y novedades</div>
+                <?php foreach ($consejos as $i => $c): ?>
+                <div class="tpt-slide <?= $i === 0 ? 'active' : '' ?>">
+                    <span class="tpt-icon"><i class="fa-solid fa-circle-info"></i></span>
+                    <p class="tpt-text"><?= htmlspecialchars($c['texto'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <?php if (!empty($c['enlace'])): ?>
+                    <a class="tpt-cta" href="<?= htmlspecialchars($c['enlace'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Ver más <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    <?php endif; ?>
                 </div>
+                <?php endforeach; ?>
+                <?php if (count($consejos) > 1): ?>
+                <div class="tpt-dots">
+                    <?php foreach ($consejos as $i => $c): ?>
+                    <button type="button" class="tpt-dot <?= $i === 0 ? 'active' : '' ?>" data-i="<?= $i ?>" aria-label="Consejo <?= $i + 1 ?>"></button>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
 
-    <!-- 3. Welcome Welcome Modal with Dynamic Carousel -->
-    <div class="w-modal-overlay show" id="welcomeModal">
-        <div class="w-modal-card">
-            <button class="w-close" onclick="closeWelcomeModal()"><i class="fa-solid fa-xmark"></i></button>
-            <div class="w-logo-hdr">
-                <img src="<?= $baseUrl ?>/imgs/logoapm.png" alt="Logo APM Manta" onerror="this.src='https://i.imgur.com/8QG4pQA.png'">
-                <div class="w-logo-title" style="font-family: 'Sora', sans-serif; font-size: 22px;">
-                    <span style="color: var(--accent-hover, #0284C7); font-weight: 800;">Sys</span>Port <span style="font-size: 14px; font-weight: 300; opacity: 0.8; margin-left: 4px;">· APM</span>
+    <?php if ($tieneNoticias && $tieneConsejos): ?>
+    <!-- Consejos y novedades del portal — franja aparte, separada del carrusel de noticias.
+         Solo se muestra cuando YA existe el carrusel de noticias arriba (si no hay noticias,
+         los consejos ya se ven en el panel vertical de la columna derecha). -->
+    <div class="portal-tips-wrap">
+        <div class="news-ticker-card">
+            <div class="news-label"><span class="news-dot"></span> Consejos y novedades</div>
+            <div class="news-container">
+                <?php foreach ($consejos as $i => $consejo): ?>
+                <div class="news-slide <?= $i === 0 ? 'active' : '' ?>">
+                    <span class="news-slide-text"><?= htmlspecialchars($consejo['texto'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php if (!empty($consejo['enlace'])): ?>
+                    <a href="<?= htmlspecialchars($consejo['enlace'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" class="news-slide-link">Ver <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    <?php endif; ?>
                 </div>
+                <?php endforeach; ?>
             </div>
-            
-            <div class="w-carousel">
-                <div class="wc-slide active" id="welcomeSlide0">
-                    <div class="wc-title">Bienvenido a SysPort</div>
-                    <div class="wc-desc">
-                        Bienvenido a <strong>SysPort</strong>. Hemos consolidado los accesos departamentales de la Autoridad Portuaria de Manta bajo una arquitectura de software robusta, estable y de alta seguridad. Su sesión le otorgará privilegios SSO según su perfil.
-                    </div>
-                </div>
-                <div class="wc-slide" id="welcomeSlide1">
-                    <div class="wc-title">Conectividad Relacional SQL Server</div>
-                    <div class="wc-desc">
-                        Toda la información operativa se sincroniza en tiempo real con el servidor de base de datos de APM. Se registran logs de auditoría exhaustivos y firmas digitales para cada operación crítica.
-                    </div>
-                </div>
-                <div class="wc-slide" id="welcomeSlide2">
-                    <div class="wc-title">Seguridad de Nivel Gubernamental</div>
-                    <div class="wc-desc">
-                        Protegemos la información portuaria mediante cifrado AES-256, hashes seguros y autenticación en dos pasos (MFA). Su IP y actividad serán monitoreadas para cumplir con los estándares ISO 27001.
-                    </div>
-                </div>
-            </div>
-
-            <div class="wc-dots">
-                <div class="wc-dot active" onclick="setWelcomeSlide(0)"></div>
-                <div class="wc-dot" onclick="setWelcomeSlide(1)"></div>
-                <div class="wc-dot" onclick="setWelcomeSlide(2)"></div>
-            </div>
-
-            <div class="w-footer">
-                <button class="btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-app); padding:8px 16px; font-weight:700; color:var(--text-muted);" onclick="closeWelcomeModal()">Omitir</button>
-                <button class="btn btn-primary" id="btnNextWelcome" onclick="nextWelcomeSlide()">Siguiente <i class="fa-solid fa-arrow-right"></i></button>
-            </div>
+            <?php if (count($consejos) > 1): ?>
+            <div class="news-counter" id="newsCounter">1 / <?= count($consejos) ?></div>
+            <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- 4. Folder Directory Overlay Modal -->
     <div class="folders-overlay" id="moduleFoldersOverlay" onclick="if(event.target===this) closeFolders()">
@@ -1241,45 +1598,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
             <div class="fm-subtitle">Selecciona el departamento al cual deseas ingresar. La autenticación compartida (SSO) te permitirá navegar entre módulos autorizados de forma fluida.</div>
             
             <div class="folders-grid">
-                <!-- 1. Dirección de Asesoría Jurídica Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/dashboard' ?>" class="folder-card" style="--folder-color: #B45309;">
-                    <div class="fc-glow" style="background:#B45309"></div>
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#B45309"></div>
-                    <div class="fc-icon" style="background:#B4530918;border:1px solid #B4530930"><i class="fa-solid fa-scale-balanced" style="color:#B45309"></i></div>
-                    <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Dir. Asesoría Jurídica</div>
-                    <p class="fc-desc">Contratos, certificaciones, resoluciones y absolución de consultas legales institucionales de la APM.</p>
-                    <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#B4530915;color:#B45309">Revisión de contratos</span>
-                        <span class="fc-area-tag" style="background:#B4530915;color:#B45309">Certificaciones</span>
-                        <span class="fc-area-tag" style="background:#B4530915;color:#B45309">Buzón de Consultas</span>
-                    </div>
-                    <button class="fc-action" style="background:#B45309">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar al módulo
-                    </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/juridica/login</div>
-                </a>
-
-                <!-- 2. Infraestructuras Portuarias Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/acceso' ?>" class="folder-card" style="--folder-color: #0284c7;">
-                    <div class="fc-glow" style="background:#0284c7"></div>
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#0284c7"></div>
-                    <div class="fc-icon" style="background:#0284c718;border:1px solid #0284c730"><i class="fa-solid fa-industry" style="color:#0284c7"></i></div>
-                    <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Infraestructuras Portuarias</div>
-                    <p class="fc-desc">Control de acceso perimetral, monitoreo CCTV de muelles, bandeja de trámites y bitácoras físicas.</p>
-                    <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#0284c715;color:#0284c7">Control de Acceso</span>
-                        <span class="fc-area-tag" style="background:#0284c715;color:#0284c7">Rondas CCTV</span>
-                        <span class="fc-area-tag" style="background:#0284c715;color:#0284c7">Bitácoras</span>
-                    </div>
-                    <button class="fc-action" style="background:#0284c7">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar al módulo
-                    </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/infraestructura/login</div>
-                </a>
-
-                <!-- 3. Talento Humano Card -->
+                <!-- 1. Talento Humano Card -->
                 <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/talento_humano/' ?>" class="folder-card" style="--folder-color: #8B5CF6;">
                     <div class="fc-glow" style="background:#8B5CF6"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#8B5CF6"></div>
@@ -1298,514 +1617,43 @@ $isLoggedIn = isset($_SESSION['user_id']);
                     <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/talento-humano/login</div>
                 </a>
 
-                <!-- 4. Gerencia General Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/dashboard' ?>" class="folder-card" style="--folder-color: #4F46E5;">
-                    <div class="fc-glow" style="background:#4F46E5"></div>
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#4F46E5"></div>
-                    <div class="fc-icon" style="background:#4F46E518;border:1px solid #4F46E530"><i class="fa-solid fa-briefcase" style="color:#4F46E5"></i></div>
-                    <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Gerencia General</div>
-                    <p class="fc-desc">Cuadro de mando integral (KPIs), reportes consolidados y autorizaciones ejecutivas del puerto.</p>
-                    <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#4F46E515;color:#4F46E5">KPIs Estratégicos</span>
-                        <span class="fc-area-tag" style="background:#4F46E515;color:#4F46E5">Aprobaciones</span>
-                        <span class="fc-area-tag" style="background:#4F46E515;color:#4F46E5">Reportes Consolidados</span>
-                    </div>
-                    <button class="fc-action" style="background:#4F46E5">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar al módulo
-                    </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/gerencia/login</div>
-                </a>
-
-                <!-- 5. Dirección Administrativa Card -->
+                <!-- 2. Control de Bienes Card -->
                 <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/control_bienes/' ?>" class="folder-card" style="--folder-color: #10B981;">
                     <div class="fc-glow" style="background:#10B981"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#10B981"></div>
-                    <div class="fc-icon" style="background:#10B98118;border:1px solid #10B98130"><i class="fa-solid fa-gear" style="color:#10B981"></i></div>
+                    <div class="fc-icon" style="background:#10B98118;border:1px solid #10B98130"><i class="fa-solid fa-boxes-stacked" style="color:#10B981"></i></div>
                     <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Dirección Administrativa</div>
-                    <p class="fc-desc">Control patrimonial de activos fijos, inventario de bienes muebles e infraestructura tecnológica portuaria.</p>
+                    <div class="fc-name">Control de Bienes</div>
+                    <p class="fc-desc">Inventario general de activos, ingresos y egresos de bodega, y catálogo de ítems del sistema.</p>
                     <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Control Patrimonial</span>
-                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Activos TI</span>
-                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Suministros</span>
+                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Inventario General</span>
+                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Bodega</span>
+                        <span class="fc-area-tag" style="background:#10B98115;color:#10B981">Catálogo de Ítems</span>
                     </div>
                     <button class="fc-action" style="background:#10B981">
                         <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar al módulo
                     </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/admin/login</div>
+                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/control-bienes/login</div>
                 </a>
 
-                <!-- 6. Dirección Financiera Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/dashboard' ?>" class="folder-card" style="--folder-color: #2563EB;">
-                    <div class="fc-glow" style="background:#2563EB"></div>
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#2563EB"></div>
-                    <div class="fc-icon" style="background:#2563EB18;border:1px solid #2563EB30"><i class="fa-solid fa-chart-pie" style="color:#2563EB"></i></div>
+                <!-- 3. Bitácoras Portuarias Card -->
+                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/portuaria' ?>" class="folder-card" style="--folder-color: #0891b2;">
+                    <div class="fc-glow" style="background:#0891b2"></div>
+                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#0891b2"></div>
+                    <div class="fc-icon" style="background:#0891b218;border:1px solid #0891b230"><i class="fa-solid fa-anchor" style="color:#0891b2"></i></div>
                     <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Dirección Financiera</div>
-                    <p class="fc-desc">Planificación presupuestaria anual y cuatrimestral, control de tesorería y contabilidad gubernamental.</p>
+                    <div class="fc-name">Bitácoras Portuarias</div>
+                    <p class="fc-desc">Registro de visitas, rondas de vigilancia y bitácora de cámaras CCTV en las instalaciones portuarias.</p>
                     <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#2563EB15;color:#2563EB">Presupuesto</span>
-                        <span class="fc-area-tag" style="background:#2563EB15;color:#2563EB">Tesorería & Caja</span>
-                        <span class="fc-area-tag" style="background:#2563EB15;color:#2563EB">Reportes de Cierre</span>
+                        <span class="fc-area-tag" style="background:#0891b215;color:#0891b2">Visitas</span>
+                        <span class="fc-area-tag" style="background:#0891b215;color:#0891b2">Rondas</span>
+                        <span class="fc-area-tag" style="background:#0891b215;color:#0891b2">Cámaras CCTV</span>
                     </div>
-                    <button class="fc-action" style="background:#2563EB">
+                    <button class="fc-action" style="background:#0891b2">
                         <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar al módulo
                     </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/financiero/login</div>
+                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/bitacoras/login</div>
                 </a>
-
-                <!-- 7. Administración Esquema BD Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/admin/auditoria' ?>" class="folder-card card-span-3" style="--folder-color: #14B8A6;">
-                    <div class="fc-glow" style="background:#14B8A6"></div>
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#14B8A6"></div>
-                    <div class="fc-icon" style="background:#14B8A618;border:1px solid #14B8A630"><i class="fa-solid fa-diagram-project" style="color:#14B8A6"></i></div>
-                    <div class="fc-dept">Módulo APM</div>
-                    <div class="fc-name">Administración Esquema BD & ERD</div>
-                    <p class="fc-desc">Matriz técnica de diccionario de tablas físicas, llaves relacionales y script DDL interactivo en SQL Server.</p>
-                    <div class="fc-areas">
-                        <span class="fc-area-tag" style="background:#14B8A615;color:#14B8A6">Modelo ERD</span>
-                        <span class="fc-area-tag" style="background:#14B8A615;color:#14B8A6">Diccionario de Datos</span>
-                        <span class="fc-area-tag" style="background:#14B8A615;color:#14B8A6">Script DDL SQL</span>
-                    </div>
-                    <button class="fc-action" style="background:#14B8A6">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Explorar base de datos
-                    </button>
-                    <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/database-admin/login</div>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Live Developer SSO & Views Integration Console -->
-    <div class="section-container" style="margin-top: 40px; margin-bottom: 40px;">
-        <div class="hero-glass-card" style="border: 1px solid rgba(255, 255, 255, 0.1); padding: 30px; background: rgba(10, 25, 47, 0.65);">
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom: 10px;">
-                <div style="background:#2563EB; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;">
-                    <i class="fa-solid fa-code"></i>
-                </div>
-                <div>
-                    <h3 style="font-size: 20px; font-weight: 800; margin: 0; color:#fff; font-family:'Sora', sans-serif;">Consola de Integración SSO Portuaria <span style="font-size:11px; font-weight:400; background:#2563EB30; color:#38BDF8; padding:3px 8px; border-radius:20px; margin-left:8px; border:1px solid #2563EB50;">Área de Desarrolladores</span></h3>
-                    <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;">Prueba y valida la conexión independiente, generación de tokens criptográficos y consulta de vistas relacionales de seguridad.</p>
-                </div>
-            </div>
-            
-            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:30px; margin-top:25px;">
-                <!-- Left panel: Trigger authentication -->
-                <div style="background: rgba(0,0,0,0.2); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; gap:16px;">
-                    <div>
-                        <label style="display:block; font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85); margin-bottom:8px;">SELECCIONAR FUNCIONARIO DEMO</label>
-                        <select id="ssoDemoSelect" style="width:100%; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15); color:#fff; padding:10px; border-radius:8px; font-size:12.5px; outline:none; font-family:'Sora', sans-serif;" onchange="updateDemoInput()">
-                            <option value="1300000001">Ana Castro (Gerente - Cédula: 1300000001)</option>
-                            <option value="1300000003">Felipe Mora (Jefe Infraestructura - Cédula: 1300000003)</option>
-                            <option value="1300000010">Nadia Vera (Analista Financiera - Cédula: 1300000010)</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label style="display:block; font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85); margin-bottom:8px;">CÉDULA DE IDENTIDAD</label>
-                        <div style="position:relative;">
-                            <input type="text" id="ssoCedulaInput" value="1300000001" style="width:100%; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15); color:#fff; padding:10px 10px 10px 35px; border-radius:8px; font-size:13px; outline:none; font-family:'JetBrains Mono', monospace;" placeholder="Ingrese cédula">
-                            <i class="fa-solid fa-address-card" style="position:absolute; left:12px; top:13px; color:rgba(255,255,255,0.4); font-size:13px;"></i>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-primary" style="width:100%; background:#2563EB; border:none; padding:12px; border-radius:8px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; font-size:12.5px; transition:all 0.2s;" onclick="runDemoSSO()">
-                        <i class="fa-solid fa-key"></i> Simular Autenticación y Firmar Token
-                    </button>
-                    
-                    <div style="font-size:11px; color:var(--text-muted); line-height:1.4; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
-                        <i class="fa-solid fa-circle-info" style="color:#38BDF8; margin-right:4px;"></i> La autenticación consulta la vista <code>View_portal_apm_usuario</code> en SQL Server y valida que el estado sea activo antes de firmar digitalmente el token de acceso.
-                    </div>
-                </div>
-                
-                <!-- Right panel: Interactive console output -->
-                <div style="background: rgba(0,0,0,0.25); border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; overflow:hidden;">
-                    <!-- Tabs header -->
-                    <div style="display:flex; background:rgba(15,23,42,0.6); border-bottom:1px solid rgba(255,255,255,0.08);">
-                        <button class="sso-tab-btn active" id="ssoTabBtnToken" onclick="switchSsoTab('token')"><i class="fa-solid fa-ticket-simple"></i> Token SSO Firmado</button>
-                        <button class="sso-tab-btn" id="ssoTabBtnViews" onclick="switchSsoTab('views')"><i class="fa-solid fa-database"></i> Respuestas SQL Server (Vistas)</button>
-                        <button class="sso-tab-btn" id="ssoTabBtnPHP" onclick="switchSsoTab('php')"><i class="fa-brands fa-php"></i> Snippet de Integración PHP</button>
-                    </div>
-                    
-                    <!-- Content panes -->
-                    <div style="padding:20px; flex-grow:1; min-height: 280px; display:flex; flex-direction:column;">
-                        <!-- Pane 1: Token -->
-                        <div class="sso-tab-pane active" id="ssoTabPaneToken">
-                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; width: 100%;">
-                                <span style="font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85);">Estructura del Token (SSO Token Stream)</span>
-                                <span id="ssoTokenStatus" style="font-size:10px; font-weight:700; background:#10B98120; color:#34D399; border:1px solid #10B98140; padding:2px 8px; border-radius:20px; display:none;"><i class="fa-solid fa-circle-check"></i> FIRMA CRIPTOGRÁFICA VERIFICADA (HMAC-SHA256)</span>
-                            </div>
-                            <div id="ssoTokenRaw" style="font-family:'JetBrains Mono', monospace; font-size:11px; background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); color:#a7f3d0; word-break:break-all; min-height:48px; margin-bottom:15px;">Seleccione un funcionario y presione el botón de simulación para generar el token.</div>
-                            
-                            <span style="display:block; font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85); margin-bottom:8px;">Cuerpo del Payload Desencriptado (JSON Claims)</span>
-                            <pre id="ssoTokenDecoded" style="font-family:'JetBrains Mono', monospace; font-size:11px; background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); color:#38bdf8; margin:0; overflow-x:auto;">{
-  "info": "Espere inicialización..."
-}</pre>
-                        </div>
-                        
-                        <!-- Pane 2: Views -->
-                        <div class="sso-tab-pane" id="ssoTabPaneViews" style="display:none;">
-                            <div style="display:flex; gap:10px; margin-bottom:12px;">
-                                <select id="ssoViewSelect" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15); color:#fff; padding:6px 12px; border-radius:6px; font-size:11.5px; outline:none; font-family:'Sora', sans-serif;" onchange="renderSsoViewData()">
-                                    <option value="usuario">dbo.View_portal_apm_usuario (Autenticación y Cédula)</option>
-                                    <option value="modulos">dbo.view_portal_apm_modulos (Autorizaciones de Módulo)</option>
-                                    <option value="menu">dbo.view_portal_apm_menu (Árbol de Menús)</option>
-                                    <option value="opciones">dbo.view_portal_apm_opciones (Acción sobre Menús)</option>
-                                    <option value="formulario">dbo.view_portal_apm_formulario (Formularios y Permisos 1-4)</option>
-                                </select>
-                            </div>
-                            <pre id="ssoViewOutput" style="font-family:'JetBrains Mono', monospace; font-size:11px; background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); color:#fbbf24; margin:0; flex-grow:1; overflow-y:auto; max-height:220px;">Seleccione una vista para visualizar los registros retornados para este usuario...</pre>
-                        </div>
-                        
-                        <!-- Pane 3: PHP integration -->
-                        <div class="sso-tab-pane" id="ssoTabPanePHP" style="display:none;">
-                            <span style="display:block; font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85); margin-bottom:8px;">Uso del Helper de Seguridad Compartido en Formularios Independientes</span>
-                            <pre style="font-family:'JetBrains Mono', monospace; font-size:11.5px; background:rgba(0,0,0,0.4); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); color:#f472b6; margin:0; overflow-x:auto; line-height:1.4;">// 1. Verificar autenticidad y expiración del Token de Acceso SSO
-require_once 'core/ModuleSecurity.php';
-$token = $_SESSION['sso_token'] ?? $_GET['token'] ?? '';
-$sso = ModuleSecurity::verifySSOToken($token);
-
-if (!$sso['success']) {
-    die("Acceso Denegado: " . $sso['error']);
-}
-$userId = $sso['payload']['id'];
-
-// 2. Verificar permisos para el módulo, menú y nivel de formulario (ej: TH_Empleados, Permiso Crear=2)
-if (!ModuleSecurity::checkAccess($userId, 'TH', null, 5, 2)) {
-    die("Acceso Denegado: Privilegios insuficientes para crear fichas.");
-}
-
-// 3. Registrar auditoría transaccional de movimientos en la tabla dual (TH_Auditoria_Movimientos)
-ModuleSecurity::audit(
-    'TH',             // Prefijo del módulo
-    'MOVIMIENTO',     // Tipo de auditoría (ACCESO o MOVIMIENTO)
-    $userId,          // ID del usuario logueado
-    'INSERT',         // Operación ejecutada
-    'TH_Empleados',   // Tabla afectada
-    $newRecordId,     // ID del registro insertado
-    null,             // Datos anteriores (JSON)
-    json_encode($newEmployeeData) // Datos nuevos (JSON)
-);</pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    let lastSsoResult = null;
-
-    function updateDemoInput() {
-        const select = document.getElementById('ssoDemoSelect');
-        const input = document.getElementById('ssoCedulaInput');
-        input.value = select.value;
-    }
-
-    function switchSsoTab(tab) {
-        document.getElementById('ssoTabBtnToken').classList.remove('active');
-        document.getElementById('ssoTabBtnViews').classList.remove('active');
-        document.getElementById('ssoTabBtnPHP').classList.remove('active');
-        
-        document.getElementById('ssoTabPaneToken').style.display = 'none';
-        document.getElementById('ssoTabPaneViews').style.display = 'none';
-        document.getElementById('ssoTabPanePHP').style.display = 'none';
-        
-        if (tab === 'token') {
-            document.getElementById('ssoTabBtnToken').classList.add('active');
-            document.getElementById('ssoTabPaneToken').style.display = 'block';
-        } else if (tab === 'views') {
-            document.getElementById('ssoTabBtnViews').classList.add('active');
-            document.getElementById('ssoTabPaneViews').style.display = 'block';
-            renderSsoViewData();
-        } else if (tab === 'php') {
-            document.getElementById('ssoTabBtnPHP').classList.add('active');
-            document.getElementById('ssoTabPanePHP').style.display = 'block';
-        }
-    }
-
-    function runDemoSSO() {
-        const cedula = document.getElementById('ssoCedulaInput').value.trim();
-        if (!cedula) {
-            alert('Por favor ingrese una cédula.');
-            return;
-        }
-        
-        const baseUrl = '<?= $baseUrl ?>';
-        
-        fetch(`${baseUrl}/api/demo-sso?cedula=${cedula}`)
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Error del servidor'); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                lastSsoResult = data;
-                
-                document.getElementById('ssoTokenStatus').style.display = 'inline-flex';
-                document.getElementById('ssoTokenRaw').textContent = data.token.raw;
-                document.getElementById('ssoTokenDecoded').textContent = JSON.stringify(data.token.decrypted_payload, null, 2);
-                
-                renderSsoViewData();
-                
-                document.getElementById('ssoTokenRaw').style.borderColor = '#10B981';
-                setTimeout(() => {
-                    document.getElementById('ssoTokenRaw').style.borderColor = 'rgba(255,255,255,0.08)';
-                }, 1000);
-            })
-            .catch(err => {
-                alert('Error en Autenticación SSO: ' + err.message);
-                document.getElementById('ssoTokenStatus').style.display = 'none';
-                document.getElementById('ssoTokenRaw').textContent = 'Error: ' + err.message;
-                document.getElementById('ssoTokenDecoded').textContent = '{\n  "error": "' + err.message + '"\n}';
-                lastSsoResult = null;
-                renderSsoViewData();
-            });
-    }
-
-    function renderSsoViewData() {
-        const view = document.getElementById('ssoViewSelect').value;
-        const output = document.getElementById('ssoViewOutput');
-        
-        if (!lastSsoResult) {
-            output.textContent = 'Ningún usuario autenticado. Presione "Simular Autenticación y Firmar Token" primero.';
-            return;
-        }
-        
-        let subset = {};
-        if (view === 'usuario') {
-            subset = lastSsoResult.user;
-        } else if (view === 'modulos') {
-            subset = lastSsoResult.permisos.modulos;
-        } else if (view === 'menu') {
-            subset = lastSsoResult.permisos.menus;
-        } else if (view === 'opciones') {
-            subset = lastSsoResult.permisos.opciones;
-        } else if (view === 'formulario') {
-            subset = lastSsoResult.permisos.formularios;
-        }
-        
-        output.textContent = JSON.stringify(subset, null, 2);
-    }
-    </script>
-
-    <style>
-    .sso-tab-btn {
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
-        padding: 12px 18px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        font-family: 'Sora', sans-serif;
-        transition: all 0.2s;
-        border-bottom: 2px solid transparent;
-        outline: none;
-    }
-    .sso-tab-btn:hover {
-        color: #fff;
-        background: rgba(255,255,255,0.02);
-    }
-    .sso-tab-btn.active {
-        color: #38BDF8;
-        border-bottom-color: #38BDF8;
-        background: rgba(255,255,255,0.04);
-    }
-    </style>
-
-    <!-- 5. Services Overlays (Quick Modals) -->
-    <!-- Buques Modal -->
-    <div class="services-overlay" id="serviceModalBuques" onclick="if(event.target===this) closeServiceModal('buques')">
-        <div class="services-modal">
-            <button class="sm-close" onclick="closeServiceModal('buques')"><i class="fa-solid fa-xmark"></i></button>
-            <div class="sm-header-block">
-                <div class="sm-icon" style="color:var(--accent-hover); font-size:24px"><i class="fa-solid fa-ship"></i></div>
-                <div class="sm-title-text">
-                    <h2>Cronograma de Buques Anunciados</h2>
-                    <p>Arribos estimados y estado de atraques en las próximas 72 horas</p>
-                </div>
-            </div>
-            <div class="sched-list">
-                <div class="sched-item">
-                    <div class="sc-left">
-                        <span class="sc-name">Maersk Salina</span>
-                        <span class="sc-line">Línea: Maersk Line · Capacidad: 8400 TEUs</span>
-                    </div>
-                    <div class="sc-right">
-                        <span class="sc-eta">ETA: 22-May 08:30</span>
-                        <span class="sc-dock">Asignado: Muelle 1</span>
-                    </div>
-                </div>
-                <div class="sched-item">
-                    <div class="sc-left">
-                        <span class="sc-name">CMA CGM Tigris</span>
-                        <span class="sc-line">Línea: CMA CGM · Capacidad: 9200 TEUs</span>
-                    </div>
-                    <div class="sc-right">
-                        <span class="sc-eta">ETA: 22-May 15:45</span>
-                        <span class="sc-dock">Asignado: Muelle 2</span>
-                    </div>
-                </div>
-                <div class="sched-item">
-                    <div class="sc-left">
-                        <span class="sc-name">Hapag-Lloyd Andes</span>
-                        <span class="sc-line">Línea: Hapag-Lloyd · Capacidad: 10500 TEUs</span>
-                    </div>
-                    <div class="sc-right">
-                        <span class="sc-eta">ETA: 23-May 02:15</span>
-                        <span class="sc-dock">Fondeadero: Zona A</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tarifas Modal -->
-    <div class="services-overlay" id="serviceModalTarifas" onclick="if(event.target===this) closeServiceModal('tarifas')">
-        <div class="services-modal">
-            <button class="sm-close" onclick="closeServiceModal('tarifas')"><i class="fa-solid fa-xmark"></i></button>
-            <div class="sm-header-block">
-                <div class="sm-icon" style="color:var(--accent-hover); font-size:24px"><i class="fa-solid fa-calculator"></i></div>
-                <div class="sm-title-text">
-                    <h2>Simulador de Tasas Portuarias</h2>
-                    <p>Cálculo referencial de tarifas operativas de carga general y contenedores</p>
-                </div>
-            </div>
-            
-            <div class="calc-row">
-                <div class="sm-field">
-                    <label for="calcLoadType">Tipo de Carga</label>
-                    <select id="calcLoadType" onchange="updateTariffCalculation()">
-                        <option value="cnt20">Contenedor 20 FT (Dry)</option>
-                        <option value="cnt40">Contenedor 40 FT (Dry)</option>
-                        <option value="reefer">Contenedor Refrigerado (Reefer)</option>
-                        <option value="bulk">Carga General / Granel (Toneladas)</option>
-                    </select>
-                </div>
-                <div class="sm-field">
-                    <label for="calcWeight">Cantidad (Peso en Ton / Unidades)</label>
-                    <input type="number" id="calcWeight" value="1" min="1" oninput="updateTariffCalculation()">
-                </div>
-            </div>
-            
-            <div class="calc-row">
-                <div class="sm-field">
-                    <label for="calcDays">Días de Permanencia en Patio</label>
-                    <input type="number" id="calcDays" value="3" min="1" oninput="updateTariffCalculation()">
-                </div>
-                <div class="sm-field">
-                    <label for="calcOperator">Operador de Estiba</label>
-                    <select id="calcOperator" onchange="updateTariffCalculation()">
-                        <option value="std">Estiba Estándar APM</option>
-                        <option value="prio">Estiba Prioritaria / Express</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="calc-result-box">
-                <div class="cr-row">
-                    <span class="l">Tasa por Uso de Muelle (Muellaje):</span>
-                    <span class="v" id="calcResMuellaje">$0.00</span>
-                </div>
-                <div class="cr-row">
-                    <span class="l">Servicio de Almacenamiento en Patio:</span>
-                    <span class="v" id="calcResPatio">$0.00</span>
-                </div>
-                <div class="cr-row">
-                    <span class="l">Operación de Carga/Descarga:</span>
-                    <span class="v" id="calcResOperacion">$0.00</span>
-                </div>
-                <div class="cr-row cr-total">
-                    <span class="l">Total Estimado Tasas Portuarias:</span>
-                    <span class="v" id="calcResTotal">$0.00</span>
-                </div>
-                <div style="font-size:10px; color:var(--text-muted); text-align:center; margin-top:8px">
-                    *Los valores son referenciales basados en el tarifario oficial de la APM y no incluyen IVA.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Manifiestos Modal -->
-    <div class="services-overlay" id="serviceModalManifiestos" onclick="if(event.target===this) closeServiceModal('manifiestos')">
-        <div class="services-modal">
-            <button class="sm-close" onclick="closeServiceModal('manifiestos')"><i class="fa-solid fa-xmark"></i></button>
-            <div class="sm-header-block">
-                <div class="sm-icon" style="color:var(--accent-hover); font-size:24px"><i class="fa-solid fa-magnifying-glass"></i></div>
-                <div class="sm-title-text">
-                    <h2>Consulta de Manifiestos de Contenedores</h2>
-                    <p>Verifica el estado de desaduanamiento, liberación y ubicación física de tu carga</p>
-                </div>
-            </div>
-            
-            <div class="search-bar-wrap">
-                <input type="text" class="sm-search-input" id="manifestSearchCode" placeholder="Ingrese código del contenedor (Pruebe con: APM-83492, APM-91048)..." onkeydown="if(event.key==='Enter') searchContainerManifest()">
-                <button class="sm-search-btn" onclick="searchContainerManifest()"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
-            </div>
-            
-            <div class="manifest-result" id="manifestResultBox">
-                <div class="mr-header">
-                    <span class="mr-code" id="mrResCode">APM-83492</span>
-                    <span class="dr-badge" id="mrResStatus" style="background:#10B981">Liberado</span>
-                </div>
-                <div class="mr-grid">
-                    <div class="mr-item">
-                        <span class="mr-lbl">Consignatario</span>
-                        <span class="mr-val" id="mrResConsignee">Importadora Manta S.A.</span>
-                    </div>
-                    <div class="mr-item">
-                        <span class="mr-lbl">Tipo de Carga / Tamaño</span>
-                        <span class="mr-val" id="mrResType">40 FT Dry Cargo</span>
-                    </div>
-                    <div class="mr-item">
-                        <span class="mr-lbl">Ubicación en Patio</span>
-                        <span class="mr-val" id="mrResLocation">Zona C - Bloque 4 - Fila 2</span>
-                    </div>
-                    <div class="mr-item">
-                        <span class="mr-lbl">Último Movimiento</span>
-                        <span class="mr-val" id="mrResDate">21-May-2026 09:12</span>
-                    </div>
-                </div>
-            </div>
-            <div id="manifestErrorMsg" style="display:none; color:#EF4444; font-size:13px; font-weight:600; text-align:center; padding:10px; border:1px solid #FCA5A5; background:#FEF2F2; border-radius:8px;">
-                Código de contenedor no encontrado. Pruebe con: APM-83492, APM-91048 o APM-12495.
-            </div>
-        </div>
-    </div>
-
-    <!-- Turnos Modal -->
-    <div class="services-overlay" id="serviceModalTurnos" onclick="if(event.target===this) closeServiceModal('turnos')">
-        <div class="services-modal">
-            <button class="sm-close" onclick="closeServiceModal('turnos')"><i class="fa-solid fa-xmark"></i></button>
-            <div class="sm-header-block">
-                <div class="sm-icon" style="color:var(--accent-hover); font-size:24px"><i class="fa-solid fa-calendar-days"></i></div>
-                <div class="sm-title-text">
-                    <h2>Turnos y Flujo en Esclusas de Ingreso</h2>
-                    <p>Monitoreo del tráfico y tiempos de espera para transportistas de carga pesada</p>
-                </div>
-            </div>
-            
-            <div class="docking-board">
-                <div style="font-weight:700; color:var(--text-app); font-size:14px; margin-bottom:12px;">Esclusas de Acceso Activas</div>
-                <div class="docking-list">
-                    <div class="sched-item" style="padding:10px 14px">
-                        <div class="sc-left">
-                            <span style="font-weight:700; font-size:12.5px; color:var(--text-app)">Esclusa Norte (Ingreso Contenedores)</span>
-                            <span class="sc-line">Estado: Activo · Tiempos de espera: ~12 minutos</span>
-                        </div>
-                        <span class="dr-badge" style="background:#10B981">Tránsito Fluido</span>
-                    </div>
-                    <div class="sched-item" style="padding:10px 14px">
-                        <div class="sc-left">
-                            <span style="font-weight:700; font-size:12.5px; color:var(--text-app)">Esclusa Central (Carga Fraccionada)</span>
-                            <span class="sc-line">Estado: Activo · Tiempos de espera: ~25 minutos</span>
-                        </div>
-                        <span class="dr-badge" style="background:#F59E0B">Tránsito Medio</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1825,23 +1673,21 @@ ModuleSecurity::audit(
     <script src="<?= $baseUrl ?>/js/main.js"></script>
     <script>
         // Interactive state handlers
-        let welcomeSlideIndex = 0;
         let newsTickerIndex = 0;
 
         document.addEventListener("DOMContentLoaded", function() {
             lucide.createIcons();
-            
-            // Start the news ticker automatic rotation
-            setInterval(rotateNewsTicker, 5000);
-            
-            // Initialize tariff simulation first values
-            updateTariffCalculation();
+
+            // Start the news ticker automatic rotation (solo si hay más de 1 noticia activa)
+            if (document.querySelectorAll(".news-slide").length > 1) {
+                setInterval(rotateNewsTicker, 5000);
+            }
 
             // Start the background image slideshow rotation
             let currentBgSlide = 0;
             const bgSlides = document.querySelectorAll('.slideshow-bg .slide-img');
             const bgCount = bgSlides.length;
-            if (bgCount > 0) {
+            if (bgCount > 1) {
                 setInterval(() => {
                     const prev = currentBgSlide;
                     currentBgSlide = (currentBgSlide + 1) % bgCount;
@@ -1849,41 +1695,55 @@ ModuleSecurity::audit(
                     if (bgSlides[currentBgSlide]) bgSlides[currentBgSlide].classList.add('active');
                 }, 5000);
             }
+
+            // News image carousel (noticias con imagen)
+            const nic = document.getElementById('newsImgCarousel');
+            if (nic) {
+                const nicSlides = nic.querySelectorAll('.nic-slide');
+                const nicDots = nic.querySelectorAll('.nic-dot');
+                if (nicSlides.length > 1) {
+                    let ni = 0, nicTimer;
+                    const nicGoTo = (idx) => {
+                        nicSlides[ni].classList.remove('active');
+                        nicDots[ni]?.classList.remove('active');
+                        ni = idx;
+                        nicSlides[ni].classList.add('active');
+                        nicDots[ni]?.classList.add('active');
+                    };
+                    const nicNext = () => nicGoTo((ni + 1) % nicSlides.length);
+                    const nicStart = () => { nicTimer = setInterval(nicNext, 5500); };
+                    const nicStop = () => clearInterval(nicTimer);
+                    nicDots.forEach(d => d.addEventListener('click', () => { nicStop(); nicGoTo(parseInt(d.dataset.i, 10)); nicStart(); }));
+                    nic.addEventListener('mouseenter', nicStop);
+                    nic.addEventListener('mouseleave', nicStart);
+                    nicStart();
+                }
+            }
+
+            // Panel vertical de Consejos y Novedades (cuando no hay noticias con imagen)
+            const tpt = document.getElementById('tipsPanelTall');
+            if (tpt) {
+                const tptSlides = tpt.querySelectorAll('.tpt-slide');
+                const tptDots = tpt.querySelectorAll('.tpt-dot');
+                if (tptSlides.length > 1) {
+                    let ti = 0, tptTimer;
+                    const tptGoTo = (idx) => {
+                        tptSlides[ti].classList.remove('active');
+                        tptDots[ti]?.classList.remove('active');
+                        ti = idx;
+                        tptSlides[ti].classList.add('active');
+                        tptDots[ti]?.classList.add('active');
+                    };
+                    const tptNext = () => tptGoTo((ti + 1) % tptSlides.length);
+                    const tptStart = () => { tptTimer = setInterval(tptNext, 5000); };
+                    const tptStop = () => clearInterval(tptTimer);
+                    tptDots.forEach(d => d.addEventListener('click', () => { tptStop(); tptGoTo(parseInt(d.dataset.i, 10)); tptStart(); }));
+                    tpt.addEventListener('mouseenter', tptStop);
+                    tpt.addEventListener('mouseleave', tptStart);
+                    tptStart();
+                }
+            }
         });
-
-        // Welcome Modal slides controls
-        function closeWelcomeModal() {
-            document.getElementById("welcomeModal").classList.remove("show");
-        }
-
-        function setWelcomeSlide(index) {
-            welcomeSlideIndex = index;
-            const slides = document.querySelectorAll(".wc-slide");
-            const dots = document.querySelectorAll(".wc-dot");
-            
-            slides.forEach((s, idx) => {
-                s.classList.toggle("active", idx === index);
-            });
-            dots.forEach((d, idx) => {
-                d.classList.toggle("active", idx === index);
-            });
-
-            const btnNext = document.getElementById("btnNextWelcome");
-            if (index === slides.length - 1) {
-                btnNext.innerHTML = 'Comenzar <i class="fa-solid fa-circle-check"></i>';
-            } else {
-                btnNext.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
-            }
-        }
-
-        function nextWelcomeSlide() {
-            const slides = document.querySelectorAll(".wc-slide");
-            if (welcomeSlideIndex < slides.length - 1) {
-                setWelcomeSlide(welcomeSlideIndex + 1);
-            } else {
-                closeWelcomeModal();
-            }
-        }
 
         // Folder Modal operations
         function openFolders() {
@@ -1894,95 +1754,17 @@ ModuleSecurity::audit(
             document.getElementById("moduleFoldersOverlay").classList.remove("show");
         }
 
-        // Service Modals operations
-        function openServiceModal(id) {
-            const modalId = "serviceModal" + id.charAt(0).toUpperCase() + id.slice(1);
-            document.getElementById(modalId).classList.add("show");
-        }
-
-        function closeServiceModal(id) {
-            const modalId = "serviceModal" + id.charAt(0).toUpperCase() + id.slice(1);
-            document.getElementById(modalId).classList.remove("show");
-        }
-
         // News ticker slider
         function rotateNewsTicker() {
             const slides = document.querySelectorAll(".news-slide");
+            if (!slides.length) return;
             slides[newsTickerIndex].classList.remove("active");
-            
+
             newsTickerIndex = (newsTickerIndex + 1) % slides.length;
             slides[newsTickerIndex].classList.add("active");
-        }
 
-        // Tariff Calculator Algorithm
-        function updateTariffCalculation() {
-            const type = document.getElementById("calcLoadType").value;
-            const weight = parseFloat(document.getElementById("calcWeight").value) || 1;
-            const days = parseFloat(document.getElementById("calcDays").value) || 1;
-            const operator = document.getElementById("calcOperator").value;
-
-            let muellaje = 0;
-            let patio = 0;
-            let operacion = 0;
-
-            if (type === 'cnt20') {
-                muellaje = 45.00 * weight;
-                patio = 8.50 * weight * days;
-                operacion = 12.00 * weight;
-            } else if (type === 'cnt40') {
-                muellaje = 75.00 * weight;
-                patio = 14.00 * weight * days;
-                operacion = 22.00 * weight;
-            } else if (type === 'reefer') {
-                muellaje = 90.00 * weight;
-                patio = 25.00 * weight * days; // Includes electrical hookup
-                operacion = 30.00 * weight;
-            } else if (type === 'bulk') {
-                muellaje = 2.50 * weight; // Per Ton
-                patio = 0.60 * weight * days;
-                operacion = 1.10 * weight;
-            }
-
-            if (operator === 'prio') {
-                operacion *= 1.35; // Express estiba surcharge
-            }
-
-            const total = muellaje + patio + operacion;
-
-            document.getElementById("calcResMuellaje").innerText = "$" + muellaje.toFixed(2);
-            document.getElementById("calcResPatio").innerText = "$" + patio.toFixed(2);
-            document.getElementById("calcResOperacion").innerText = "$" + operacion.toFixed(2);
-            document.getElementById("calcResTotal").innerText = "$" + total.toFixed(2);
-        }
-
-        // Container manifests mock search engine
-        function searchContainerManifest() {
-            const query = document.getElementById("manifestSearchCode").value.trim().toUpperCase();
-            const resultBox = document.getElementById("manifestResultBox");
-            const errorMsg = document.getElementById("manifestErrorMsg");
-            
-            const database = {
-                "APM-83492": { consignee: "Importadora Manta S.A.", type: "40 FT Dry Cargo", location: "Zona C - Bloque 4 - Fila 2", date: "21-May-2026 09:12", status: "Liberado", statusColor: "#10B981" },
-                "APM-91048": { consignee: "Pesquera Oceanía Cía. Ltda.", type: "40 FT Reefer Cargo", location: "Zona Refrigerados A - Enchufe 14", date: "22-May-2026 05:45", status: "En Inspección Senae", statusColor: "#F59E0B" },
-                "APM-12495": { consignee: "Corporación Logística del Pacífico", type: "20 FT Dry Cargo", location: "Zona B - Bloque 1 - Fila 5", date: "20-May-2026 14:30", status: "Liberado", statusColor: "#10B981" }
-            };
-
-            if (database[query]) {
-                const info = database[query];
-                document.getElementById("mrResCode").innerText = query;
-                document.getElementById("mrResStatus").innerText = info.status;
-                document.getElementById("mrResStatus").style.background = info.statusColor;
-                document.getElementById("mrResConsignee").innerText = info.consignee;
-                document.getElementById("mrResType").innerText = info.type;
-                document.getElementById("mrResLocation").innerText = info.location;
-                document.getElementById("mrResDate").innerText = info.date;
-                
-                resultBox.style.display = "flex";
-                errorMsg.style.display = "none";
-            } else {
-                resultBox.style.display = "none";
-                errorMsg.style.display = "block";
-            }
+            const counter = document.getElementById("newsCounter");
+            if (counter) counter.textContent = (newsTickerIndex + 1) + " / " + slides.length;
         }
     </script>
 </body>

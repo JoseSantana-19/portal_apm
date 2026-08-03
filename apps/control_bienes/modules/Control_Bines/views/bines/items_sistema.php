@@ -454,7 +454,7 @@
         <p>Mantenimiento y configuración del catálogo global de productos e insumos portuarios.</p>
     </div>
     <div style="display:flex;gap:12px;align-items:center;">
-        <label style="font-size:12.5px;font-weight:700;color:var(--text-muted);">Filtrar Grupo:</label>
+        <label style="font-size:12.5px;font-weight:700;color:var(--text-muted);">Grupo activo:</label>
         <select id="filtro-grupo" onchange="filtrarPorGrupo()" class="its-field-input-new" style="width:240px;">
             <option value="0">— Todos los Grupos —</option>
             <?php foreach ($grupos as $g): ?>
@@ -477,6 +477,7 @@
             <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;padding:8px 0;">
                 <form action="index.php" method="GET" style="display:flex;gap:8px;align-items:center;">
                     <input type="hidden" name="route" value="inv_items_sistema">
+                    <input type="hidden" name="grupo_id" value="<?= (int)$grupoId ?>">
                     <input type="text" name="termino" value="<?= htmlspecialchars($termino) ?>"
                            placeholder="Buscar por código, nombre..." id="inp-buscar"
                            class="its-field-input-new" style="width:220px;padding:8px 12px;font-size:12.5px;">
@@ -526,6 +527,7 @@
         <div class="its-tab-content active" id="content-campos" style="padding:24px;">
             <form id="form-item" action="index.php?route=inv_items_sistema&action=guardar" method="POST">
                 <input type="hidden" name="id"  id="form-id"  value="0">
+                <input type="hidden" name="copiar_desde_id" id="form-copiar-desde-id" value="0">
                 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
                     <!-- Columna Interna Izquierda -->
@@ -544,12 +546,27 @@
                                 </div>
                                 <div class="its-field-row-new">
                                     <label>Grupo / Categoría Contable</label>
-                                    <select name="grupo_id" id="form-grupo" class="its-field-input-new" required onchange="actualizarLivePreview()">
+                                    <select name="grupo_id" id="form-grupo" class="its-field-input-new" required onchange="detectarTipoBienDesdeGrupo(); filtrarPlantillasPorGrupo(); actualizarLivePreview()">
                                         <option value="">Seleccionar grupo contable...</option>
                                         <?php foreach ($grupos as $g): ?>
-                                            <option value="<?= $g['id'] ?>"><?= htmlspecialchars($g['nombre']) ?></option>
+                                            <option value="<?= $g['id'] ?>" data-codigo="<?= htmlspecialchars($g['codigo'] ?? '') ?>"><?= htmlspecialchars($g['nombre']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                </div>
+                                <div class="its-field-row-new">
+                                    <label>Tipo de bien</label>
+                                    <input type="hidden" name="tipo_bien" id="form-tipo-bien" value="CC">
+                                    <input type="text" id="form-tipo-bien-label" class="its-field-input-new" value="Bien de consumo corriente" readonly style="margin-bottom:16px;">
+                                    <div id="row-responsable-activo" style="display:none;margin-bottom:16px;">
+                                        <label style="display:block;margin-bottom:6px;">Responsable del activo fijo</label>
+                                        <select name="responsable_id" id="form-responsable" class="its-field-input-new" disabled>
+                                            <option value="">Seleccionar funcionario...</option>
+                                            <?php foreach ($personal as $p): ?>
+                                                <option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?><?= !empty($p['area_actual']) ? ' ('.htmlspecialchars($p['area_actual']).')' : '' ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <small style="display:block;margin-top:6px;color:var(--text-muted);">Disponible solamente para bienes de activo fijo.</small>
+                                    </div>
                                 </div>
                                 <div class="its-field-row-new">
                                     <label>Código Maestro</label>
@@ -588,12 +605,12 @@
                                         </select>
                                     </div>
                                     <div class="its-field-row-new">
-                                        <label>Tasa de IVA</label>
-                                        <select name="aplica_iva" id="form-iva" class="its-field-input-new" required onchange="actualizarLivePreview()">
-                                            <?php foreach ($tiposIva as $tipo): ?>
-                                                <option value="<?= $tipo['id'] ?>"><?= htmlspecialchars($tipo['nombre']) ?></option>
-                                            <?php endforeach; ?>
+                                        <label>¿Aplica IVA?</label>
+                                        <select name="aplica_iva" id="form-iva" class="its-field-input-new" required onchange="calcularTotal()">
+                                            <option value="1">Sí aplica — período vigente <?= number_format((float)$tasaIvaVigente, 2) ?>%</option>
+                                            <option value="0">No aplica IVA</option>
                                         </select>
+                                        <small style="color:var(--text-muted);">La tasa se obtiene automáticamente del período <?= htmlspecialchars($periodoActivo['nombre'] ?? 'sin período activo') ?>.</small>
                                     </div>
                                 </div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -623,8 +640,8 @@
                                     <label>Ubicación Física en Almacén</label>
                                     <select name="ubicacion" id="form-ubicacion" class="its-field-input-new" required>
                                         <option value="">Seleccionar ubicación...</option>
-                                        <option value="bodega1">bodega1</option>
-                                        <option value="bodega2">bodega2</option>
+                                        <option value="bodega principal">bodega principal</option>
+                                        <option value="bodega patio 300">bodega patio 300</option>
                                         <option value="bodega3">bodega3</option>
                                         <option value="bodega4">bodega4</option>
                                     </select>
@@ -742,7 +759,9 @@
 <script>
 /* ===== Datos del catálogo actual para navegación ===== */
 var _items = <?= json_encode(array_values($items)) ?>;
+var _plantillas = <?= json_encode(array_values($plantillas ?? $items)) ?>;
 var _currentIdx = -1; // -1 = ninguno seleccionado
+var _tasaIvaVigente = <?= json_encode((float)$tasaIvaVigente) ?>;
 
 /* ===== Tabs ===== */
 function cambiarTab(tab) {
@@ -766,13 +785,47 @@ function cambiarTab(tab) {
 function calcularTotal() {
     var precio = parseFloat(document.getElementById('form-precio').value) || 0;
     var exist  = parseFloat(document.getElementById('form-existencia').value) || 0;
-    var total  = (precio * exist).toFixed(4);
+    var subtotal = precio * exist;
+    var aplicaIva = parseInt(document.getElementById('form-iva').value, 10) === 1;
+    var total  = (subtotal + (aplicaIva ? subtotal * (_tasaIvaVigente / 100) : 0)).toFixed(4);
     
     document.getElementById('form-total').value = total;
     document.getElementById('si-total').textContent = '$' + parseFloat(total).toLocaleString('es-EC', {minimumFractionDigits: 2, maximumFractionDigits: 4});
     
     actualizarLivePreview();
 }
+
+function detectarTipoBienDesdeGrupo() {
+    var grupo = document.getElementById('form-grupo');
+    var tipo = document.getElementById('form-tipo-bien');
+    var etiqueta = document.getElementById('form-tipo-bien-label');
+    if (!grupo || !tipo || !etiqueta) return;
+
+    var opcion = grupo.options[grupo.selectedIndex];
+    var codigo = opcion ? (opcion.getAttribute('data-codigo') || '').trim() : '';
+    var nombreCategoria = opcion && opcion.value ? opcion.textContent.trim() : '';
+    var esActivoFijo = codigo.indexOf('1.4.') === 0;
+    tipo.value = esActivoFijo ? 'AF' : 'CC';
+    etiqueta.value = nombreCategoria
+        ? (esActivoFijo ? 'Activo fijo — ' : 'Consumo corriente — ') + nombreCategoria
+        : (esActivoFijo ? 'Bien de activo fijo' : 'Bien de consumo corriente');
+    actualizarResponsablePorTipo();
+}
+
+function actualizarResponsablePorTipo() {
+    var tipo = document.getElementById('form-tipo-bien');
+    var fila = document.getElementById('row-responsable-activo');
+    var responsable = document.getElementById('form-responsable');
+    if (!tipo || !fila || !responsable) return;
+
+    var esActivoFijo = tipo.value === 'AF';
+    fila.style.display = esActivoFijo ? 'block' : 'none';
+    responsable.disabled = !esActivoFijo;
+    responsable.required = false;
+    if (!esActivoFijo) responsable.value = '';
+}
+
+actualizarResponsablePorTipo();
 
 function actualizarLivePreview() {
     // 1. Nombre y Código
@@ -831,7 +884,10 @@ function actualizarLivePreview() {
 /* ===== Filtrar por grupo (GET) ===== */
 function filtrarPorGrupo() {
     var gid = document.getElementById('filtro-grupo').value;
-    window.location.href = 'index.php?route=inv_items_sistema&grupo_id=' + gid;
+    var termino = document.getElementById('inp-buscar');
+    var url = 'index.php?route=inv_items_sistema&grupo_id=' + encodeURIComponent(gid);
+    if (termino && termino.value.trim() !== '') url += '&termino=' + encodeURIComponent(termino.value.trim());
+    window.location.href = url;
 }
 
 /* ===== Nuevo ítem (limpiar formulario) ===== */
@@ -858,8 +914,12 @@ function updateSelectValue(selectId, value) {
 
 function limpiarFormulario() {
     document.getElementById('form-id').value           = '0';
+    document.getElementById('form-copiar-desde-id').value = '0';
     document.getElementById('form-codigo').value       = '';
     updateSelectValue('form-grupo', '');
+    updateSelectValue('form-tipo-bien', 'CC');
+    updateSelectValue('form-responsable', '');
+    actualizarResponsablePorTipo();
     document.getElementById('form-nombre').value       = '';
     document.getElementById('form-descripcion').value  = '';
     updateSelectValue('form-unidad', '');
@@ -871,9 +931,10 @@ function limpiarFormulario() {
     // Reset Ubicación dropdown and remove legacy options
     var selectUbicacion = document.getElementById('form-ubicacion');
     if (selectUbicacion) {
+        var baseOpts = ['bodega principal', 'bodega patio 300', 'bodega3', 'bodega4', 'bodega1', 'bodega2'];
         for (var i = selectUbicacion.options.length - 1; i >= 0; i--) {
             var optVal = selectUbicacion.options[i].value;
-            if (optVal !== '' && optVal !== 'bodega1' && optVal !== 'bodega2' && optVal !== 'bodega3' && optVal !== 'bodega4') {
+            if (optVal !== '' && baseOpts.indexOf(optVal) === -1) {
                 selectUbicacion.remove(i);
             }
         }
@@ -902,6 +963,8 @@ function cargarItemEnFormulario(item) {
     document.getElementById('form-id').value           = item.id;
     document.getElementById('form-codigo').value       = item.codigo || '';
     updateSelectValue('form-grupo', item.grupo_id);
+    detectarTipoBienDesdeGrupo();
+    updateSelectValue('form-responsable', document.getElementById('form-tipo-bien').value === 'AF' ? (item.responsable_id || '') : '');
     document.getElementById('form-nombre').value       = item.nombre;
     document.getElementById('form-descripcion').value  = item.descripcion || '';
     updateSelectValue('form-unidad', item.unidad_id);
@@ -909,8 +972,11 @@ function cargarItemEnFormulario(item) {
     document.getElementById('form-precio').value       = parseFloat(item.precio_promedio || 0).toFixed(4);
     document.getElementById('form-iva').value          = item.aplica_iva;
     
-    // Ubicacion: check if option already exists
+    // Ubicacion: check if option already exists or map legacy names
     var valUbicacion = item.ubicacion || '';
+    if (valUbicacion === 'bodega1') valUbicacion = 'bodega principal';
+    if (valUbicacion === 'bodega2') valUbicacion = 'bodega patio 300';
+    
     var selectUbicacion = document.getElementById('form-ubicacion');
     if (selectUbicacion) {
         var optionExists = false;
@@ -992,8 +1058,6 @@ function renderListaTable(page) {
     var end = Math.min(start + _listaLimit, _items.length);
     var html = '';
 
-    var tiposIva = <?= json_encode($tiposIva) ?>;
-
     for (var idx = start; idx < end; idx++) {
         var item = _items[idx];
         
@@ -1006,17 +1070,8 @@ function renderListaTable(page) {
         var exStatus = (exist <= exMin && exMin > 0) ? 'warn' : 'ok';
         var exColor = exStatus === 'warn' ? '#f59e0b' : 'var(--text-color)';
 
-        // Buscar nombre de IVA
-        var ivaNombre = '0%';
-        var aplicaIva = parseInt(item.aplica_iva) || 0;
-        for (var k = 0; k < tiposIva.length; k++) {
-            if (parseInt(tiposIva[k].id) === aplicaIva) {
-                ivaNombre = parseFloat(tiposIva[k].tasa_iva).toFixed(0) + '%';
-                break;
-            }
-        }
-
-        var isApplied = parseFloat(ivaNombre) > 0;
+        var isApplied = parseInt(item.aplica_iva, 10) === 1;
+        var ivaNombre = isApplied ? ('Sí (' + _tasaIvaVigente.toFixed(2) + '%)') : 'No aplica';
         var ivaClass = isApplied ? 'active' : 'inactive';
 
         var itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
@@ -1267,9 +1322,9 @@ function initSearchableSelect(selectId, placeholder) {
 
 function populatePlantillaSelect() {
     var selectPlantilla = document.getElementById('form-copiar-plantilla');
-    if (selectPlantilla && typeof _items !== 'undefined') {
+    if (selectPlantilla && typeof _plantillas !== 'undefined') {
         selectPlantilla.innerHTML = '<option value="">— Seleccionar ítem para copiar campos —</option>';
-        _items.forEach(function(item) {
+        _plantillas.forEach(function(item) {
             var opt = document.createElement('option');
             opt.value = item.id;
             opt.textContent = (item.codigo ? '[' + item.codigo + '] ' : '') + item.nombre;
@@ -1280,17 +1335,49 @@ function populatePlantillaSelect() {
     }
 }
 
+function filtrarPlantillasPorGrupo() {
+    var grupo = document.getElementById('form-grupo');
+    var selectPlantilla = document.getElementById('form-copiar-plantilla');
+    if (!grupo || !selectPlantilla) return;
+    var grupoId = String(grupo.value || '');
+    selectPlantilla.innerHTML = '<option value="">— Seleccionar ítem para copiar campos —</option>';
+    // Priorizar el grupo elegido, sin ocultar las plantillas de otros grupos.
+    // Esto permite copiar campos hacia un grupo de activo fijo distinto.
+    var plantillasOrdenadas = _plantillas.slice().sort(function(a, b) {
+        var aMismoGrupo = grupoId !== '' && String(a.grupo_id) === grupoId ? 0 : 1;
+        var bMismoGrupo = grupoId !== '' && String(b.grupo_id) === grupoId ? 0 : 1;
+        return aMismoGrupo - bMismoGrupo;
+    });
+    plantillasOrdenadas.forEach(function(item) {
+        var opt = document.createElement('option');
+        opt.value = item.id;
+        var esOtroGrupo = grupoId !== '' && String(item.grupo_id) !== grupoId;
+        opt.textContent = (item.codigo ? '[' + item.codigo + '] ' : '') + item.nombre + (esOtroGrupo ? ' - otro grupo' : '');
+        selectPlantilla.appendChild(opt);
+    });
+    selectPlantilla.value = '';
+    selectPlantilla.dispatchEvent(new Event('sync-custom'));
+}
+
 // Cargar plantilla cuando el usuario selecciona una
 document.getElementById('form-copiar-plantilla').addEventListener('change', function(e) {
     var selectedId = e.target.value;
     if (!selectedId) return;
     
-    var item = _items.find(function(it) {
+    var item = _plantillas.find(function(it) {
         return String(it.id) === String(selectedId);
     });
     
     if (item) {
-        updateSelectValue('form-grupo', item.grupo_id);
+        var grupoDestino = document.getElementById('form-grupo').value;
+        document.getElementById('form-id').value = '0';
+        document.getElementById('form-codigo').value = '';
+        document.getElementById('form-copiar-desde-id').value = item.id;
+        if (!grupoDestino) {
+            updateSelectValue('form-grupo', item.grupo_id);
+        } else {
+            detectarTipoBienDesdeGrupo();
+        }
         document.getElementById('form-nombre').value = item.nombre;
         document.getElementById('form-descripcion').value = item.descripcion || '';
         updateSelectValue('form-unidad', item.unidad_id);
@@ -1350,6 +1437,33 @@ document.addEventListener('DOMContentLoaded', function() {
     initSearchableSelect('form-unidad', 'Seleccionar...');
     
     actualizarLivePreview();
+
+    // Cargar automáticamente el ítem especificado en la URL si existe (edit_id o id)
+    var urlParams = new URLSearchParams(window.location.search);
+    var editId = urlParams.get('edit_id') || urlParams.get('id');
+    if (editId) {
+        var foundItem = null;
+        if (typeof _items !== 'undefined' && Array.isArray(_items)) {
+            for (var i = 0; i < _items.length; i++) {
+                if (_items[i].id == editId || _items[i].producto_id == editId) {
+                    foundItem = _items[i];
+                    break;
+                }
+            }
+        }
+        if (foundItem) {
+            cargarItemEnFormulario(foundItem);
+        } else {
+            fetch('index.php?route=inv_items_sistema&action=ver&id=' + editId)
+                .then(function(r) { return r.json(); })
+                .then(function(item) {
+                    if (item && item.id) {
+                        cargarItemEnFormulario(item);
+                    }
+                })
+                .catch(function(e) { console.log('Info:', e); });
+        }
+    }
 });
 </script>
 

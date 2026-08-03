@@ -8,7 +8,6 @@ $resumen  = $kpis['resumen']  ?? [];
 $th       = $kpis['th']       ?? [];
 $bienes   = $kpis['bienes']   ?? [];
 $bitacora = $kpis['bitacora'] ?? [];
-$acceso   = $kpis['acceso']   ?? [];
 
 // Safe value accessor
 $v = fn($arr, $key, $default = 0) => $arr[$key] ?? $default;
@@ -77,18 +76,6 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
         </div>
         <div class="kpi-card-right bg-warning-light" style="background: rgba(245,158,11,0.1) !important;">
             <i class="fa-solid fa-book-open kpi-icon" style="color: #F59E0B !important;"></i>
-        </div>
-    </div>
-
-    <div class="kpi-card" title="Ingresos Hoy">
-        <div class="kpi-glow" style="background:#06B6D4;"></div>
-        <div class="kpi-card-left">
-            <span class="kpi-label">Ingresos Hoy</span>
-            <span class="kpi-value"><?= number_format((int)$v($acceso, 'ingresos_hoy')) ?></span>
-            <span class="kpi-trend text-info" style="color:var(--accent-hover) !important;"><i class="fa-solid fa-user-check"></i> <?= number_format((int)$v($acceso, 'visitantes_activos')) ?> activos</span>
-        </div>
-        <div class="kpi-card-right bg-info-light" style="background: rgba(6,182,212,0.1) !important;">
-            <i class="fa-solid fa-id-card kpi-icon" style="color: #06B6D4 !important;"></i>
         </div>
     </div>
 
@@ -199,11 +186,10 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
                 <?= (int)($th['total_empleados']       ?? 0) ?>,
                 <?= (int)($bienes['total_bienes']       ?? 0) ?>,
                 <?= (int)($bitacora['eventos_mes']      ?? 0) ?>,
-                <?= (int)($acceso['ingresos_hoy']       ?? 0) ?>,
             ]
         }],
         xaxis: {
-            categories: ['Talento Humano', 'Control Bienes', 'Bitácoras', 'Control Acceso']
+            categories: ['Talento Humano', 'Control Bienes', 'Bitácoras']
         },
         plotOptions: { bar: { borderRadius: 4, horizontal: false } },
         dataLabels: { enabled: false },

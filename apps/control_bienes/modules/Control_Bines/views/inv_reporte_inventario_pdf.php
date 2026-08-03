@@ -375,8 +375,8 @@
         <!-- Encabezado Institucional -->
         <div class="report-header">
             <div class="brand-section">
-                <?php if (file_exists(__DIR__ . '/../../../../imgs/logoapm.png')): ?>
-                    <img src="<?= BASE_URL ?>../../imgs/logoapm.png" class="brand-logo" alt="APM Logo">
+                <?php if (file_exists(__DIR__ . '/../../logoapm.png')): ?>
+                    <img src="logoapm.png" class="brand-logo" alt="APM Logo">
                 <?php else: ?>
                     <div class="brand-logo-fallback"><i class="fa-solid fa-anchor"></i></div>
                 <?php endif; ?>
@@ -399,15 +399,18 @@
             $conMantenimiento = 0;
             $conTransito = 0;
             $valorBaseSuma = 0.0;
+            $ivaCalculadoSuma = 0.0;
 
             foreach ($items as $itm) {
                 $valorBaseSuma += (float)$itm['valor'];
+                if (isset($itm['producto_aplica_iva']) && (int)$itm['producto_aplica_iva'] === 1) {
+                    $ivaCalculadoSuma += (float)$itm['valor'] * ($tasaIva / 100);
+                }
                 if ($itm['estado'] === 'Operativo') $conOperativo++;
                 elseif ($itm['estado'] === 'En Mantenimiento') $conMantenimiento++;
                 elseif ($itm['estado'] === 'En Tránsito') $conTransito++;
             }
 
-            $ivaCalculadoSuma = $valorBaseSuma * ($tasaIva / 100);
             $valorTotalSuma = $valorBaseSuma + $ivaCalculadoSuma;
         ?>
 
@@ -507,7 +510,9 @@
                 <?php else: ?>
                     <?php foreach ($items as $item): 
                         $valBase = (float)$item['valor'];
-                        $valIva = $valBase * ($tasaIva / 100);
+                        $valIva = (isset($item['producto_aplica_iva']) && (int)$item['producto_aplica_iva'] === 1)
+                            ? $valBase * ($tasaIva / 100)
+                            : 0.0;
                         $valTotal = $valBase + $valIva;
                     ?>
                         <tr>

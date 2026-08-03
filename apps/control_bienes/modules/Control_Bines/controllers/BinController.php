@@ -19,6 +19,24 @@ class BinController extends Controller {
     private $itemModel;
     private $logger;
 
+    /**
+     * Devuelve solo categorias finales. Los nodos contables padre sirven para
+     * ordenar el catalogo, pero no son grupos validos para asignar bienes.
+     */
+    private function categoriasAsignables(array $categorias): array {
+        return array_values(array_filter($categorias, function ($categoria) use ($categorias) {
+            $codigo = trim((string)($categoria['codigo'] ?? ''));
+            if ($codigo === '') return true;
+            foreach ($categorias as $posibleHija) {
+                $codigoHija = trim((string)($posibleHija['codigo'] ?? ''));
+                if ($codigoHija !== $codigo && strpos($codigoHija, $codigo) === 0) {
+                    return false;
+                }
+            }
+            return true;
+        }));
+    }
+
     public function __construct() {
         parent::__construct();
         $this->logger = new Logger('inv');
@@ -48,7 +66,7 @@ class BinController extends Controller {
         $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
         $tasaIva       = $periodoActivo ? $periodoActivo['tasa_iva'] : 15.0;
 
-        $categorias = $this->cabeceraModel->obtenerTodos('categorias');
+        $categorias = $this->categoriasAsignables($this->cabeceraModel->obtenerTodos('categorias'));
         $zonas      = $this->cabeceraModel->obtenerTodos('zonas');
         $estados    = $this->cabeceraModel->obtenerTodos('estados');
         $personal   = $this->talentoModel->obtenerPersonal();
@@ -95,7 +113,7 @@ class BinController extends Controller {
         ];
 
         $resumenCategorias = $this->inventarioModel->obtenerResumenPorCategoria($filtros['termino']);
-        $categorias = $this->cabeceraModel->obtenerTodos('categorias');
+        $categorias = $this->categoriasAsignables($this->cabeceraModel->obtenerTodos('categorias'));
         $zonas = $this->cabeceraModel->obtenerTodos('zonas');
         $estados = $this->cabeceraModel->obtenerTodos('estados');
         $personal = $this->talentoModel->obtenerPersonal();
@@ -142,8 +160,8 @@ class BinController extends Controller {
         }
 
         $db = Database::getInstance()->getConnection();
-        $ivasStmt = $db->query("SELECT * FROM inv_tipos_iva ORDER BY tasa_iva DESC");
-        $tiposIva = $ivasStmt->fetchAll();
+        $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
+        $tasaIvaVigente = $periodoActivo ? (float)$periodoActivo['tasa_iva'] : 0.0;
 
         // Paginación
         $limit = 50;
@@ -178,21 +196,12 @@ class BinController extends Controller {
             $data = [];
             foreach ($items as $item) {
                 $valorBase = (float)$item['valor'];
-                $aplicaIvaId = isset($item['producto_aplica_iva']) ? (int)$item['producto_aplica_iva'] : 1;
-                
-                $ivaNombre = '0%';
-                $ivaCalc = 0.0;
-                foreach ($tiposIva as $tipo) {
-                    if ($aplicaIvaId === (int)$tipo['id']) {
-                        $tasa = (float)$tipo['tasa_iva'];
-                        $ivaCalc = $valorBase * ($tasa / 100);
-                        $ivaNombre = number_format($tasa, 0) . '%';
-                        break;
-                    }
-                }
+                $aplicaIva = isset($item['producto_aplica_iva']) && (int)$item['producto_aplica_iva'] === 1;
+                $ivaCalc = $aplicaIva ? $valorBase * ($tasaIvaVigente / 100) : 0.0;
+                $ivaNombre = $aplicaIva ? number_format($tasaIvaVigente, 2) . '%' : 'No aplica';
                 $valorTotal = $valorBase + $ivaCalc;
                 
-                $isApplied = ($ivaCalc > 0);
+                $isApplied = $aplicaIva;
                 $ivaClass = $isApplied ? 'active' : 'inactive';
                 $ivaHtml = '<span class="status-badge ' . $ivaClass . '" style="font-size:11px;">' . $ivaNombre . '</span>';
 
@@ -237,21 +246,12 @@ class BinController extends Controller {
             $html = '';
             foreach ($items as $item) {
                 $valorBase = (float)$item['valor'];
-                $aplicaIvaId = isset($item['producto_aplica_iva']) ? (int)$item['producto_aplica_iva'] : 1;
-
-                $ivaNombre = '0%';
-                $ivaCalc = 0.0;
-                foreach ($tiposIva as $tipo) {
-                    if ($aplicaIvaId === (int)$tipo['id']) {
-                        $tasa = (float)$tipo['tasa_iva'];
-                        $ivaCalc = $valorBase * ($tasa / 100);
-                        $ivaNombre = number_format($tasa, 0) . '%';
-                        break;
-                    }
-                }
+                $aplicaIva = isset($item['producto_aplica_iva']) && (int)$item['producto_aplica_iva'] === 1;
+                $ivaCalc = $aplicaIva ? $valorBase * ($tasaIvaVigente / 100) : 0.0;
+                $ivaNombre = $aplicaIva ? number_format($tasaIvaVigente, 2) . '%' : 'No aplica';
                 $valorTotal = $valorBase + $ivaCalc;
                 
-                $isApplied = ($ivaCalc > 0);
+                $isApplied = $aplicaIva;
                 $ivaClass = $isApplied ? 'active' : 'inactive';
                 $ivaCellsHtml = '<td style="text-align:center;"><span class="status-badge ' . $ivaClass . '" style="font-size:11px;">' . $ivaNombre . '</span></td>';
 
@@ -330,22 +330,12 @@ class BinController extends Controller {
         if ($item) {
             $this->registrarAuditoria('CONSULTA', 'inv', 'Detalle consultado del bien ID: ' . $item['secuencial']);
 
-            $db = Database::getInstance()->getConnection();
-            $ivasStmt = $db->query("SELECT * FROM inv_tipos_iva ORDER BY tasa_iva DESC");
-            $tiposIva = $ivasStmt->fetchAll();
-            $item['tipos_iva'] = $tiposIva;
-
-            $aplicaIvaId = isset($item['producto_aplica_iva']) ? (int)$item['producto_aplica_iva'] : 1;
-            
-            $tasaIva = 15.0;
-            foreach ($tiposIva as $tipo) {
-                if ((int)$tipo['id'] === $aplicaIvaId) {
-                    $tasaIva = (float)$tipo['tasa_iva'];
-                    break;
-                }
-            }
+            $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
+            $aplicaIva = isset($item['producto_aplica_iva']) && (int)$item['producto_aplica_iva'] === 1;
+            $tasaIva = $aplicaIva && $periodoActivo ? (float)$periodoActivo['tasa_iva'] : 0.0;
 
             $item['tasa_iva']       = $tasaIva;
+            $item['aplica_iva']     = $aplicaIva ? 1 : 0;
             $item['iva_calculado']  = $item['valor'] * ($tasaIva / 100);
             $item['valor_total']    = $item['valor'] + $item['iva_calculado'];
             $item['cantidad']       = max(1, (int)($item['cantidad'] ?? 1));
@@ -496,13 +486,22 @@ class BinController extends Controller {
         $termino = isset($_GET['termino'])  ? trim($_GET['termino'])  : '';
 
         if ($termino !== '') {
-            $items = $this->itemModel->buscar($termino);
+            $items = $this->itemModel->buscar($termino, $grupoId);
         } else {
             $items = $this->itemModel->obtenerTodos($grupoId);
         }
 
-        $grupos   = $this->cabeceraModel->obtenerTodos('categorias');
+        // La lista puede estar filtrada, pero las plantillas para crear un
+        // registro nuevo deben seguir disponibles desde cualquier grupo.
+        $plantillas = ($grupoId === 0 && $termino === '')
+            ? $items
+            : $this->itemModel->obtenerTodos();
+
+        $grupos   = $this->categoriasAsignables($this->cabeceraModel->obtenerTodos('categorias'));
         $unidades = $this->cabeceraModel->obtenerTodos('unidades');
+        $personal = $this->talentoModel->obtenerPersonal();
+        $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
+        $tasaIvaVigente = $periodoActivo ? (float)$periodoActivo['tasa_iva'] : 0.0;
 
         // Cargar tipos de IVA
         $db = Database::getInstance()->getConnection();
@@ -517,9 +516,13 @@ class BinController extends Controller {
 
         $this->render('bines/items_sistema', [
             'items'         => $items,
+            'plantillas'    => $plantillas,
             'itemsPorGrupo' => $itemsPorGrupo,
             'grupos'        => $grupos,
             'unidades'      => $unidades,
+            'personal'      => $personal,
+            'periodoActivo' => $periodoActivo,
+            'tasaIvaVigente'=> $tasaIvaVigente,
             'grupoId'       => $grupoId,
             'termino'       => $termino,
             'tiposIva'      => $tiposIva,
@@ -553,7 +556,7 @@ class BinController extends Controller {
             'nombre'           => trim($_POST['nombre']),
             'grupo_id'         => (int)$_POST['grupo_id'],
             'unidad_id'        => (int)$_POST['unidad_id'],
-            'aplica_iva'       => isset($_POST['aplica_iva']) ? (int)$_POST['aplica_iva'] : 0,
+            'aplica_iva'       => (isset($_POST['aplica_iva']) && (string)$_POST['aplica_iva'] === '1') ? 1 : 0,
             'codigo'           => trim($_POST['codigo'] ?? ''),
             'descripcion'      => trim($_POST['descripcion'] ?? ''),
             'ubicacion'        => trim($_POST['ubicacion'] ?? ''),
@@ -561,6 +564,9 @@ class BinController extends Controller {
             'existencia_max'   => (float)($_POST['existencia_max'] ?? 0),
             'precio_promedio'  => (float)($_POST['precio_promedio'] ?? 0),
             'existencia_actual'=> (float)($_POST['existencia_actual'] ?? 0),
+            'tipo_bien'        => 'CC', // El modelo lo determina desde el código de la categoría.
+            'responsable_id'   => !empty($_POST['responsable_id']) ? (int)$_POST['responsable_id'] : null,
+            'copiar_desde_id'  => isset($_POST['copiar_desde_id']) ? (int)$_POST['copiar_desde_id'] : 0,
         ];
 
         try {

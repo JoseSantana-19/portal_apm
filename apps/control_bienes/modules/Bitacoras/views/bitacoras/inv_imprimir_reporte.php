@@ -233,7 +233,7 @@
                     <tr>
                         <td><code><?= htmlspecialchars($r['codigo']) ?></code></td>
                         <td style="font-weight:600;"><?= htmlspecialchars($r['nombre']) ?></td>
-                        <td><?= htmlspecialchars($r['funcionario']) ?></td>
+                        <td><?= htmlspecialchars($r['funcionario_actual'] ?? $r['funcionario']) ?></td>
                         <td><?= htmlspecialchars($r['grupo_nombre']) ?> (<?= htmlspecialchars($r['grupo_codigo']) ?>)</td>
                         <td style="text-align:center;"><?= $r['total_egresos'] ?></td>
                         <td style="text-align:center; font-weight:700;"><?= $r['total_items'] ?> u.</td>

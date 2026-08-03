@@ -6,8 +6,43 @@
  */
 
 require_once ROOT_PATH . 'core/Model.php';
+require_once ROOT_PATH . 'modules/Central/models/InvSecuencial.php';
 
 class ItemSistemaModel extends Model {
+
+    private function generarNombreCopia(string $nombre): string {
+        $base = trim($nombre);
+        $numero = 1;
+
+        do {
+            $sufijo = $numero === 1 ? ' (copia)' : ' (copia ' . $numero . ')';
+            $candidato = $base . $sufijo;
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM inv_productos WHERE nombre = :nombre");
+            $stmt->execute([':nombre' => $candidato]);
+            $existe = (int)$stmt->fetchColumn() > 0;
+            $numero++;
+        } while ($existe);
+
+        return $candidato;
+    }
+
+    private function detectarTipoBien(int $grupoId): string {
+        $stmt = $this->db->prepare("SELECT codigo FROM inv_categorias WHERE id = :id");
+        $stmt->execute([':id' => $grupoId]);
+        $codigo = trim((string)$stmt->fetchColumn());
+        if ($codigo === '') {
+            throw new InvalidArgumentException('El grupo contable seleccionado no existe.');
+        }
+
+        $stmtHijas = $this->db->prepare(
+            "SELECT COUNT(*) FROM inv_categorias WHERE id <> :id AND codigo LIKE :prefijo"
+        );
+        $stmtHijas->execute([':id' => $grupoId, ':prefijo' => $codigo . '%']);
+        if ((int)$stmtHijas->fetchColumn() > 0) {
+            throw new InvalidArgumentException('Seleccione una categoria contable final, no un grupo padre.');
+        }
+        return strpos($codigo, '1.4.') === 0 ? 'AF' : 'CC';
+    }
 
     public function __construct() {
         parent::__construct();
@@ -29,6 +64,7 @@ class ItemSistemaModel extends Model {
                 'existencia_max'   => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN existencia_max DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD existencia_max FLOAT DEFAULT 0",
                 'precio_promedio'  => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN precio_promedio DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD precio_promedio FLOAT DEFAULT 0",
                 'existencia_actual'=> $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN existencia_actual DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD existencia_actual FLOAT DEFAULT 0",
+                'tipo_bien'        => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'" : "ALTER TABLE inv_productos ADD tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'",
             ];
         } else {
             $check = $this->db->query("PRAGMA table_info(inv_productos)");
@@ -42,6 +78,7 @@ class ItemSistemaModel extends Model {
                 'existencia_max'   => "ALTER TABLE inv_productos ADD COLUMN existencia_max REAL DEFAULT 0",
                 'precio_promedio'  => "ALTER TABLE inv_productos ADD COLUMN precio_promedio REAL DEFAULT 0",
                 'existencia_actual'=> "ALTER TABLE inv_productos ADD COLUMN existencia_actual REAL DEFAULT 0",
+                'tipo_bien'        => "ALTER TABLE inv_productos ADD COLUMN tipo_bien TEXT NOT NULL DEFAULT 'CC'",
             ];
         }
 
@@ -52,6 +89,26 @@ class ItemSistemaModel extends Model {
                 } catch (Exception $e) {
                     // Ignorar si ya existe
                 }
+            }
+        }
+
+        // Clasificar automaticamente como activo fijo los grupos contables historicos 1.4.x.
+        if ($driver === 'sqlsrv') {
+            $this->db->exec("UPDATE p SET tipo_bien = 'AF' FROM inv_productos p JOIN inv_categorias c ON c.id = p.grupo_id WHERE c.codigo LIKE '1.4.%'");
+            $this->db->exec("UPDATE p SET aplica_iva = CASE WHEN iva.tasa_iva = 0 THEN 0 ELSE 1 END FROM inv_productos p LEFT JOIN inv_tipos_iva iva ON iva.id = p.aplica_iva WHERE p.aplica_iva NOT IN (0,1)");
+            if (!$this->db->query("SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='inv_inventario' AND COLUMN_NAME='tipo_bien'")->fetchColumn()) {
+                $this->db->exec("ALTER TABLE inv_inventario ADD tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'");
+            }
+        } elseif ($driver === 'pgsql') {
+            $this->db->exec("UPDATE inv_productos p SET tipo_bien = 'AF' FROM inv_categorias c WHERE c.id = p.grupo_id AND c.codigo LIKE '1.4.%'");
+            $this->db->exec("UPDATE inv_productos p SET aplica_iva = CASE WHEN iva.tasa_iva = 0 THEN 0 ELSE 1 END FROM inv_tipos_iva iva WHERE iva.id = p.aplica_iva AND p.aplica_iva NOT IN (0,1)");
+            $this->db->exec("ALTER TABLE inv_inventario ADD COLUMN IF NOT EXISTS tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'");
+        } else {
+            $this->db->exec("UPDATE inv_productos SET tipo_bien = 'AF' WHERE grupo_id IN (SELECT id FROM inv_categorias WHERE codigo LIKE '1.4.%')");
+            $this->db->exec("UPDATE inv_productos SET aplica_iva = CASE WHEN COALESCE((SELECT tasa_iva FROM inv_tipos_iva WHERE id=aplica_iva),0)=0 THEN 0 ELSE 1 END WHERE aplica_iva NOT IN (0,1)");
+            $invCols = $this->db->query("PRAGMA table_info(inv_inventario)")->fetchAll(PDO::FETCH_COLUMN, 1);
+            if (!in_array('tipo_bien', $invCols)) {
+                $this->db->exec("ALTER TABLE inv_inventario ADD COLUMN tipo_bien TEXT NOT NULL DEFAULT 'CC'");
             }
         }
 
@@ -73,19 +130,21 @@ class ItemSistemaModel extends Model {
      */
     public function obtenerTodos(int $grupoId = 0): array {
         if ($grupoId > 0) {
-            $sql = "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev
+            $sql = "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev, i.responsable_id
                     FROM inv_productos p
                     JOIN inv_categorias g ON p.grupo_id = g.id
                     JOIN inv_unidades u ON p.unidad_id = u.id
+                    LEFT JOIN inv_inventario i ON i.producto_id = p.id
                     WHERE p.grupo_id = :gid
                     ORDER BY p.codigo ASC, p.nombre ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([':gid' => $grupoId]);
         } else {
-            $sql = "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev
+            $sql = "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev, i.responsable_id
                     FROM inv_productos p
                     JOIN inv_categorias g ON p.grupo_id = g.id
                     JOIN inv_unidades u ON p.unidad_id = u.id
+                    LEFT JOIN inv_inventario i ON i.producto_id = p.id
                     ORDER BY g.nombre ASC, p.codigo ASC, p.nombre ASC";
             $stmt = $this->db->query($sql);
         }
@@ -97,10 +156,11 @@ class ItemSistemaModel extends Model {
      */
     public function buscarPorId(int $id): ?array {
         $stmt = $this->db->prepare(
-            "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev
+            "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev, i.responsable_id
              FROM inv_productos p
              JOIN inv_categorias g ON p.grupo_id = g.id
              JOIN inv_unidades u ON p.unidad_id = u.id
+             LEFT JOIN inv_inventario i ON i.producto_id = p.id
              WHERE p.id = :id"
         );
         $stmt->execute([':id' => $id]);
@@ -111,26 +171,31 @@ class ItemSistemaModel extends Model {
     /**
      * Busca ítems por término de búsqueda
      */
-    public function buscar(string $termino): array {
+    public function buscar(string $termino, int $grupoId = 0): array {
+        $filtroGrupo = $grupoId > 0 ? " AND p.grupo_id = :grupo_id" : "";
         $stmt = $this->db->prepare(
-            "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev
+            "SELECT p.*, g.nombre as grupo_nombre, u.nombre as unidad_nombre, u.extra as unidad_abrev, i.responsable_id
              FROM inv_productos p
              JOIN inv_categorias g ON p.grupo_id = g.id
              JOIN inv_unidades u ON p.unidad_id = u.id
-             WHERE TRANSLATE(LOWER(p.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term1
+             LEFT JOIN inv_inventario i ON i.producto_id = p.id
+             WHERE (TRANSLATE(LOWER(p.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term1
                 OR p.codigo LIKE :raw_term
                 OR TRANSLATE(LOWER(p.descripcion), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term2
-                OR TRANSLATE(LOWER(g.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term3
+                OR TRANSLATE(LOWER(g.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term3)
+             {$filtroGrupo}
              ORDER BY p.codigo ASC"
         );
         
         $normTerm = $this->normalizarTexto($termino);
-        $stmt->execute([
+        $params = [
             ':term1' => '%' . $normTerm . '%',
             ':term2' => '%' . $normTerm . '%',
             ':term3' => '%' . $normTerm . '%',
             ':raw_term' => '%' . $termino . '%'
-        ]);
+        ];
+        if ($grupoId > 0) $params[':grupo_id'] = $grupoId;
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -148,10 +213,10 @@ class ItemSistemaModel extends Model {
      * Crea un nuevo ítem del sistema
      */
     public function crear(array $datos): array {
+        $datos['tipo_bien'] = $this->detectarTipoBien((int)$datos['grupo_id']);
+        if ($datos['tipo_bien'] !== 'AF') $datos['responsable_id'] = null;
         if (empty($datos['codigo'])) {
-            $sec = $this->db->query("SELECT ultimo_numero FROM inv_secuenciales WHERE modulo = 'itm'")->fetchColumn();
-            $nuevo = (int)$sec + 1;
-            $this->db->exec("UPDATE inv_secuenciales SET ultimo_numero = {$nuevo} WHERE modulo = 'itm'");
+            $nuevo = (new InvSecuencial())->generarNumero('itm');
             $datos['codigo'] = str_pad($nuevo, 6, '0', STR_PAD_LEFT);
         } else {
             $codigo = $datos['codigo'];
@@ -161,9 +226,7 @@ class ItemSistemaModel extends Model {
                 if ($stmtCheck->fetchColumn() == 0) {
                     break;
                 }
-                $sec = $this->db->query("SELECT ultimo_numero FROM inv_secuenciales WHERE modulo = 'itm'")->fetchColumn();
-                $nuevo = (int)$sec + 1;
-                $this->db->exec("UPDATE inv_secuenciales SET ultimo_numero = {$nuevo} WHERE modulo = 'itm'");
+                $nuevo = (new InvSecuencial())->generarNumero('itm');
                 $codigo = str_pad($nuevo, 6, '0', STR_PAD_LEFT);
             }
             $datos['codigo'] = $codigo;
@@ -174,15 +237,21 @@ class ItemSistemaModel extends Model {
         $existingId = $stmtNameCheck->fetchColumn();
 
         if ($existingId) {
-            return $this->actualizar((int)$existingId, $datos);
+            // Una copia siempre crea otro registro; no debe sobrescribir la
+            // plantilla original aunque el usuario conserve el mismo nombre.
+            if (!empty($datos['copiar_desde_id'])) {
+                $datos['nombre'] = $this->generarNombreCopia($datos['nombre']);
+            } else {
+                return $this->actualizar((int)$existingId, $datos);
+            }
         }
 
         $stmt = $this->db->prepare(
             "INSERT INTO inv_productos
-             (nombre, grupo_id, unidad_id, aplica_iva, codigo, descripcion, ubicacion,
+             (nombre, grupo_id, unidad_id, aplica_iva, codigo, descripcion, ubicacion, tipo_bien,
               existencia_min, existencia_max, precio_promedio, existencia_actual)
              VALUES
-             (:nombre, :grupo_id, :unidad_id, :aplica_iva, :codigo, :desc, :ubicacion,
+             (:nombre, :grupo_id, :unidad_id, :aplica_iva, :codigo, :desc, :ubicacion, :tipo_bien,
               :exmin, :exmax, :precio, :exactu)"
         );
         $stmt->execute([
@@ -193,6 +262,7 @@ class ItemSistemaModel extends Model {
             ':codigo'    => $datos['codigo'],
             ':desc'      => $datos['descripcion'] ?? '',
             ':ubicacion' => $datos['ubicacion'] ?? '',
+            ':tipo_bien' => $datos['tipo_bien'] ?? 'CC',
             ':exmin'     => (float)($datos['existencia_min'] ?? 0),
             ':exmax'     => (float)($datos['existencia_max'] ?? 0),
             ':precio'    => (float)($datos['precio_promedio'] ?? 0),
@@ -200,7 +270,7 @@ class ItemSistemaModel extends Model {
         ]);
 
         $id = (int)$this->db->lastInsertId();
-        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1));
+        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
         return $this->buscarPorId($id);
     }
 
@@ -208,11 +278,13 @@ class ItemSistemaModel extends Model {
      * Actualiza un ítem del sistema
      */
     public function actualizar(int $id, array $datos): array {
+        $datos['tipo_bien'] = $this->detectarTipoBien((int)$datos['grupo_id']);
+        if ($datos['tipo_bien'] !== 'AF') $datos['responsable_id'] = null;
         $stmt = $this->db->prepare(
             "UPDATE inv_productos SET
              nombre = :nombre, grupo_id = :grupo_id, unidad_id = :unidad_id,
              aplica_iva = :aplica_iva, codigo = :codigo, descripcion = :desc,
-             ubicacion = :ubicacion, existencia_min = :exmin, existencia_max = :exmax,
+             ubicacion = :ubicacion, tipo_bien = :tipo_bien, existencia_min = :exmin, existencia_max = :exmax,
              precio_promedio = :precio, existencia_actual = :exactu
              WHERE id = :id"
         );
@@ -224,17 +296,20 @@ class ItemSistemaModel extends Model {
             ':codigo'    => $datos['codigo'] ?? '',
             ':desc'      => $datos['descripcion'] ?? '',
             ':ubicacion' => $datos['ubicacion'] ?? '',
+            ':tipo_bien' => $datos['tipo_bien'] ?? 'CC',
             ':exmin'     => (float)($datos['existencia_min'] ?? 0),
             ':exmax'     => (float)($datos['existencia_max'] ?? 0),
             ':precio'    => (float)($datos['precio_promedio'] ?? 0),
             ':exactu'    => (float)($datos['existencia_actual'] ?? 0),
             ':id'        => $id,
         ]);
-        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1));
+        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
         return $this->buscarPorId($id);
     }
 
-    public static function syncProductToInventory($db, int $productId, string $nombre, int $grupoId, int $aplicaIva, float $valor = 0.0, float $cantidad = 1.0): void {
+    public static function syncProductToInventory($db, int $productId, string $nombre, int $grupoId, int $aplicaIva, float $valor = 0.0, float $cantidad = 1.0, string $tipoBien = 'CC', ?int $responsableId = null): void {
+        $tipoBien = $tipoBien === 'AF' ? 'AF' : 'CC';
+        $responsableId = $tipoBien === 'AF' && $responsableId ? $responsableId : null;
         $stmt = $db->prepare("SELECT id FROM inv_inventario WHERE producto_id = :prod_id");
         $stmt->execute([':prod_id' => $productId]);
         $invRecord = $stmt->fetch();
@@ -245,7 +320,9 @@ class ItemSistemaModel extends Model {
                     nombre = :nombre,
                     categoria_id = :cat_id,
                     valor = :valor,
-                    cantidad = :cantidad
+                    cantidad = :cantidad,
+                    tipo_bien = :tipo_bien,
+                    responsable_id = :responsable_id
                  WHERE id = :id"
             );
             $updateStmt->execute([
@@ -253,6 +330,8 @@ class ItemSistemaModel extends Model {
                 ':cat_id'    => $grupoId,
                 ':valor'     => $valor,
                 ':cantidad'  => $cantidad,
+                ':tipo_bien' => $tipoBien,
+                ':responsable_id' => $responsableId,
                 ':id'        => (int)$invRecord['id']
             ]);
         } else {
@@ -281,10 +360,10 @@ class ItemSistemaModel extends Model {
             $insertStmt = $db->prepare(
                 "INSERT INTO inv_inventario (
                     secuencial, nombre, marca, categoria_id, zona_id, estado_id,
-                    responsable_id, valor, fecha_registro, observaciones, activo, cantidad, producto_id
+                    responsable_id, valor, fecha_registro, observaciones, activo, cantidad, producto_id, tipo_bien
                 ) VALUES (
                     :sec, :nombre, :marca, :cat_id, :zona_id, :est_id,
-                    NULL, :valor, :fecha, :obs, 1, :cantidad, :prod_id
+                    :responsable_id, :valor, :fecha, :obs, 1, :cantidad, :prod_id, :tipo_bien
                 )"
             );
             $insertStmt->execute([
@@ -298,6 +377,8 @@ class ItemSistemaModel extends Model {
                 ':fecha'     => date('Y-m-d'),
                 ':obs'       => 'Creado automáticamente desde Ítems del Sistema',
                 ':cantidad'  => $cantidad,
+                ':responsable_id' => $responsableId,
+                ':tipo_bien' => $tipoBien,
                 ':prod_id'   => $productId
             ]);
         }

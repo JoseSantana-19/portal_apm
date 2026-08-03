@@ -16,7 +16,7 @@ function mois_actions(array $n, bool $puedeEliminar): string {
         : '';
     $html  = $mfa;
     $html .= '<label class="sw" title="Activar / Desactivar" data-node-id="' . $id . '" '
-           . 'onclick="event.preventDefault();event.stopPropagation();toggleNode(' . $id . ', this)">'
+           . 'onclick="event.preventDefault();event.stopPropagation();stageToggle(' . $id . ', this)">'
            . '<input type="checkbox"' . $checked . ' tabindex="-1">'
            . '<span class="sw-track"></span><span class="sw-thumb"></span></label>';
     $html .= '<a href="' . $editUrl . '" class="row-btn" data-spa title="Editar nodo" '
@@ -386,6 +386,35 @@ details > summary::-webkit-details-marker { display: none; }
     font-size: 10px; font-weight: var(--font-weight-bold);
 }
 
+/* ── Barra flotante de cambios pendientes ── */
+.save-bar {
+    position: fixed; left: 50%; bottom: var(--sp-5); transform: translate(-50%, 24px);
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-lg);
+    background: var(--g-bg); backdrop-filter: blur(16px) saturate(1.6);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    border: 1px solid var(--g-bd); box-shadow: 0 12px 40px rgba(0,0,0,.28), var(--g-shadow);
+    z-index: 500; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+.save-bar.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.save-bar-count {
+    display: flex; align-items: center; gap: 8px;
+    font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text);
+}
+.save-bar-count .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    color: var(--color-primary); font-size: 12px; font-weight: var(--font-weight-bold);
+}
+.save-bar .btn-sm { padding: 6px 14px; }
+.node-pending { position: relative; }
+.node-pending::after {
+    content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+    width: 5px; height: 5px; border-radius: 50%; background: var(--color-warning);
+}
+
 /* ── Responsive ── */
 @media (max-width: 720px) {
     .help-grid { grid-template-columns: 1fr 1fr; }
@@ -399,14 +428,10 @@ details > summary::-webkit-details-marker { display: none; }
 <div class="mois">
 
 <?php if (!empty($success)): ?>
-<div class="alert alert-success" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-circle-check"></i> <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
 <?php endif; ?>
 <?php if (!empty($error)): ?>
-<div class="alert alert-danger" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-triangle-exclamation"></i> <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.error(<?= json_encode($error) ?>));</script>
 <?php endif; ?>
 
 <!-- ── Sticky top: cabecera + stats + toolbar + ayuda ── -->
@@ -611,6 +636,15 @@ details > summary::-webkit-details-marker { display: none; }
 <?php endforeach; ?>
 </div>
 
+<!-- barra flotante: cambios de estado sin guardar -->
+<div class="gx save-bar" id="save-bar">
+    <span class="save-bar-count"><span class="n" id="save-bar-n">0</span> cambios sin guardar</span>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="discardPending()">Descartar</button>
+    <button type="button" class="btn btn-primary btn-sm" id="save-bar-btn" onclick="saveBatch()">
+        <i class="fa-solid fa-floppy-disk"></i> Guardar cambios
+    </button>
+</div>
+
 <!-- form oculto para eliminar -->
 <?php if ($puedeEliminar): ?>
 <form id="mois-del" method="POST" style="display:none;">
@@ -625,41 +659,100 @@ details > summary::-webkit-details-marker { display: none; }
     const BASE = '<?= APP_URL ?>';
     const CSRF = '<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>';
 
-    window.toggleNode = async function (id, label) {
-        const inp  = label.querySelector('input');
-        const prev = inp.checked;
-        inp.checked = !prev; // optimista
-        try {
-            const r = await fetch(`${BASE}/admin/menu/${id}/toggle`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded',
-                           'X-Requested-With': 'XMLHttpRequest' },
-                body: `_csrf_token=${encodeURIComponent(CSRF)}`,
-            });
-            const d = await r.json();
-            if (!d.ok) { inp.checked = prev; return; }
-            const on = !!d.estado;
-            // Actualizar todos los nodos afectados (cascade)
-            (d.cascaded || [id]).forEach(nid => {
-                const sw = document.querySelector(`.sw[data-node-id="${nid}"]`);
-                if (!sw) return;
-                const swInput = sw.querySelector('input');
-                if (swInput) swInput.checked = on;
-                const nodeRow = sw.closest('.node, .mod-summary');
-                if (nodeRow) {
-                    const desc = nodeRow.querySelector('.row-desc');
-                    if (desc) desc.classList.toggle('row-off', !on);
-                }
-            });
-        } catch (e) { inp.checked = prev; }
+    // ── Guardado en lote: los interruptores ya NO guardan al toque.
+    //    Solo cambian de estilo y quedan "pendientes" en este Map hasta que
+    //    se presiona "Guardar cambios" en la barra flotante.
+    const pending = new Map(); // id_nodo -> nuevoEstado (0|1)
+
+    function applySwitchVisual(id, on) {
+        const sw = document.querySelector(`.sw[data-node-id="${id}"]`);
+        if (!sw) return;
+        const inp = sw.querySelector('input');
+        if (inp) inp.checked = on;
+        const nodeRow = sw.closest('.node, .mod-summary');
+        if (nodeRow) {
+            const desc = nodeRow.querySelector('.row-desc');
+            if (desc) desc.classList.toggle('row-off', !on);
+            nodeRow.classList.toggle('node-pending', pending.has(id));
+        }
+    }
+
+    function updateSaveBar() {
+        const bar = document.getElementById('save-bar');
+        const n   = document.getElementById('save-bar-n');
+        if (n) n.textContent = pending.size;
+        if (bar) bar.classList.toggle('show', pending.size > 0);
+    }
+
+    window.stageToggle = function (id, label) {
+        const inp = label.querySelector('input');
+        const originalOn = inp.defaultChecked; // estado tal como llegó del servidor
+        const newOn = !inp.checked;
+
+        if (newOn === originalOn) {
+            pending.delete(id); // volvió a como estaba — ya no hay nada pendiente para este nodo
+        } else {
+            pending.set(id, newOn ? 1 : 0);
+        }
+        applySwitchVisual(id, newOn);
+        updateSaveBar();
     };
 
+    window.discardPending = function () {
+        pending.forEach((_, id) => applySwitchVisual(id, document.querySelector(`.sw[data-node-id="${id}"] input`)?.defaultChecked));
+        pending.clear();
+        updateSaveBar();
+    };
+
+    window.saveBatch = async function () {
+        if (pending.size === 0) return;
+        const btn = document.getElementById('save-bar-btn');
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando…';
+
+        try {
+            const cambios = [...pending.entries()].map(([id_nodo, estado]) => ({ id_nodo, estado }));
+            const r = await fetch(`${BASE}/admin/menu/guardar-lote`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': CSRF,
+                },
+                body: JSON.stringify({ cambios }),
+            });
+            const d = await r.json();
+            if (!d.ok) { PortalAlert.error(d.msg || 'No se pudieron guardar los cambios.'); return; }
+
+            // Sincronizar TODOS los nodos afectados (incluye cascada, no solo los tocados a mano)
+            Object.entries(d.estados || {}).forEach(([id, estado]) => {
+                pending.delete(parseInt(id));
+                applySwitchVisual(parseInt(id), !!estado);
+            });
+            pending.clear();
+            updateSaveBar();
+            await refreshSidebar();
+        } catch (e) {
+            PortalAlert.error('Error de conexión al guardar.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
+
+    // Aviso del navegador si hay cambios sin guardar y se intenta salir de la página.
+    window.addEventListener('beforeunload', (e) => {
+        if (pending.size > 0) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // refreshSidebar() ahora vive en js/main.js (compartida con Roles y Permisos).
+
     window.delNode = function (id) {
-        if (!confirm('¿Eliminar este nodo del menú? Esta acción no se puede deshacer.')) return;
         const f = document.getElementById('mois-del');
         if (!f) return;
         f.action = `${BASE}/admin/menu/${id}/eliminar`;
-        f.submit();
+        PortalAlert.confirmDelete('¿Eliminar este nodo del menú? Esta acción no se puede deshacer.', f);
     };
 
     window.moisSearch = function (q) {

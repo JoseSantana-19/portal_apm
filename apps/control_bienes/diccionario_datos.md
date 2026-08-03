@@ -101,6 +101,11 @@ Ficha espejo de los empleados autorizados en la base de datos `Talento_Humano` (
 | `id` | `INT` | `PRIMARY KEY` | ID de empleado correlativo en la base original `Talento_Humano`. |
 | `nombre` | `NVARCHAR(255)` | `NOT NULL` | Concatenación de apellidos y nombres del funcionario. |
 | `identificacion` | `NVARCHAR(50)` | `NOT NULL`, `UNIQUE` | Número de cédula de identidad o pasaporte. |
+| `cargo` | `NVARCHAR(150)` | `NULL` | Puesto vigente recibido desde Talento Humano. |
+| `area` | `NVARCHAR(150)` | `NULL` | Unidad organizacional vigente del funcionario. |
+| `correo` | `NVARCHAR(150)` | `NULL` | Correo institucional. |
+| `estado` | `BIT` | `NOT NULL` | `1` si puede seleccionarse como responsable; `0` si está inactivo. |
+| `fecha_sincronizacion` | `DATETIME2` | `NULL` | Momento de la última réplica desde Talento Humano. |
 
 #### 2.3 `inv_talento_asignaciones`
 Histórico de movimientos internos de personal entre áreas dentro del inventario.
@@ -373,7 +378,8 @@ Estructura organizativa mayor para la asignación contable de bodega.
 | `id` | `INT` | `PRIMARY KEY`, `IDENTITY` | Identificador del grupo. |
 | `codigo` | `NVARCHAR(50)` | `NOT NULL`, `UNIQUE` | Código institucional del grupo de consumo (ej. `04`). |
 | `nombre` | `NVARCHAR(255)` | `NOT NULL`, `UNIQUE` | Nombre del grupo de centros. |
-| `representante` | `NVARCHAR(255)` | `NULL` | Director o encargado principal. |
+| `representante` | `NVARCHAR(255)` | `NULL` | Nombre histórico del director o encargado principal. |
+| `representante_id` | `INT` | `FOREIGN KEY`, `NULL` | Funcionario activo seleccionado desde `inv_talento_personal`. |
 
 #### 6.6 `inv_centros_consumo`
 Subcentro o área contable final de asignación física de materiales.
@@ -384,7 +390,8 @@ Subcentro o área contable final de asignación física de materiales.
 | `grupo_id` | `INT` | `FOREIGN KEY` | Enlace al grupo superior [inv_grupo_centros_consumo](#65-inv_grupo_centros_consumo). |
 | `codigo` | `NVARCHAR(50)` | `NOT NULL`, `UNIQUE` | Código oficial del centro (`0002`). |
 | `nombre` | `NVARCHAR(255)` | `NOT NULL` | Descripción del centro de consumo. |
-| `funcionario` | `NVARCHAR(255)` | `NOT NULL` | Encargado del consumo del área. |
+| `funcionario` | `NVARCHAR(255)` | `NOT NULL` | Nombre histórico del encargado del consumo del área. |
+| `funcionario_id` | `INT` | `FOREIGN KEY`, `NULL` | ID oficial del funcionario responsable en `inv_talento_personal`. |
 
 ---
 

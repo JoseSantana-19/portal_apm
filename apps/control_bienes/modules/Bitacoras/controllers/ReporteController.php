@@ -64,11 +64,12 @@ class ReporteController extends Controller {
                         break;
 
                     case 'centros_consumo':
-                        $sql = "SELECT cc.*, gcc.nombre as grupo_nombre, gcc.codigo as grupo_codigo,
+                        $sql = "SELECT cc.*, COALESCE(p.nombre, cc.funcionario) AS funcionario_actual, gcc.nombre as grupo_nombre, gcc.codigo as grupo_codigo,
                                        (SELECT COUNT(*) FROM inv_bod_egresos e WHERE e.area_id = cc.id) as total_egresos,
                                        (SELECT COALESCE(SUM(ed.cantidad), 0) FROM inv_bod_egresos_detalles ed JOIN inv_bod_egresos e ON ed.egreso_id = e.id WHERE e.area_id = cc.id) as total_items
                                 FROM inv_centros_consumo cc
                                 JOIN inv_grupo_centros_consumo gcc ON cc.grupo_id = gcc.id
+                                LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                                 WHERE 1=1";
                         $params = [];
                         if (!empty($idInicio)) {
@@ -80,7 +81,7 @@ class ReporteController extends Controller {
                             $params[':id_fin'] = (int)$idFin;
                         }
                         if (!empty($termino)) {
-                            $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR cc.funcionario LIKE :term OR gcc.nombre LIKE :term)";
+                            $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term)";
                             $params[':term'] = '%' . $termino . '%';
                         }
                         $sql .= " ORDER BY cc.codigo ASC";
@@ -263,11 +264,12 @@ class ReporteController extends Controller {
                     break;
 
                 case 'centros_consumo':
-                    $sql = "SELECT cc.*, gcc.nombre as grupo_nombre, gcc.codigo as grupo_codigo,
+                    $sql = "SELECT cc.*, COALESCE(p.nombre, cc.funcionario) AS funcionario_actual, gcc.nombre as grupo_nombre, gcc.codigo as grupo_codigo,
                                    (SELECT COUNT(*) FROM inv_bod_egresos e WHERE e.area_id = cc.id) as total_egresos,
                                    (SELECT COALESCE(SUM(ed.cantidad), 0) FROM inv_bod_egresos_detalles ed JOIN inv_bod_egresos e ON ed.egreso_id = e.id WHERE e.area_id = cc.id) as total_items
                             FROM inv_centros_consumo cc
                             JOIN inv_grupo_centros_consumo gcc ON cc.grupo_id = gcc.id
+                            LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                             WHERE 1=1";
                     $params = [];
                     if (!empty($idInicio)) {
@@ -279,7 +281,7 @@ class ReporteController extends Controller {
                         $params[':id_fin'] = (int)$idFin;
                     }
                     if (!empty($termino)) {
-                        $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR cc.funcionario LIKE :term OR gcc.nombre LIKE :term)";
+                        $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term)";
                         $params[':term'] = '%' . $termino . '%';
                     }
                     $sql .= " ORDER BY cc.codigo ASC";

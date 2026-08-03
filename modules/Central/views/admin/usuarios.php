@@ -9,9 +9,7 @@ $inactivos = $total - $activos;
 ?>
 
 <?php if ($success): ?>
-<div class="alert alert-success" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-circle-check"></i> <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
 <?php endif; ?>
 
 <!-- Header -->
@@ -77,7 +75,7 @@ $inactivos = $total - $activos;
     <div style="padding:var(--sp-4);border-bottom:1px solid var(--color-border-light);">
         <div style="position:relative;max-width:340px;">
             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:var(--sp-3);top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:var(--font-size-xs);pointer-events:none;"></i>
-            <input type="text" id="usr-search" placeholder="Buscar por nombre, usuario o correo…"
+            <input type="text" id="usr-search" placeholder="Buscar por nombre, cédula o correo…"
                    class="form-control" style="padding-left:calc(var(--sp-3)*2 + 0.75rem);"
                    oninput="filterUsers(this.value)">
         </div>
@@ -88,7 +86,7 @@ $inactivos = $total - $activos;
         <table id="usr-table">
             <thead>
                 <tr>
-                    <th>Usuario</th>
+                    <th>Cédula</th>
                     <th>Nombre Completo</th>
                     <th>Correo</th>
                     <th>Nivel</th>
@@ -112,12 +110,12 @@ $inactivos = $total - $activos;
                 $nivelLbl   = $nivelLabels[$nivel] ?? 'Operativo';
                 $nivelColor = $nivelColors[$nivel] ?? 'badge-gray';
                 $initials   = implode('', array_map(fn($w) => strtoupper(mb_substr($w,0,1)),
-                                array_slice(explode(' ', $u['nombre_completo'] ?? $u['nombre_usuario']), 0, 2)));
+                                array_slice(explode(' ', $u['nombre_completo'] ?? ($u['cedula'] ?? '')), 0, 2)));
                 $avatarColors = ['#0056b3','#28a745','#17a2b8','#6f42c1','#dc3545'];
                 $avatarBg     = $avatarColors[$nivel % count($avatarColors)];
                 $isSelf       = $u['id_usuario'] == ($_SESSION['user_id'] ?? 0);
             ?>
-            <tr data-search="<?= strtolower(htmlspecialchars($u['nombre_usuario'].' '.$u['nombre_completo'].' '.($u['correo']??''), ENT_QUOTES)) ?>">
+            <tr data-search="<?= strtolower(htmlspecialchars(($u['cedula']??'').' '.$u['nombre_completo'].' '.($u['correo']??''), ENT_QUOTES)) ?>">
                 <td>
                     <div style="display:flex;align-items:center;gap:var(--sp-2);">
                         <div style="width:32px;height:32px;border-radius:var(--radius-full);background:<?= $avatarBg ?>;
@@ -125,7 +123,7 @@ $inactivos = $total - $activos;
                                     color:#fff;font-size:var(--font-size-xs);font-weight:var(--font-weight-bold);flex-shrink:0;">
                             <?= htmlspecialchars($initials, ENT_QUOTES, 'UTF-8') ?>
                         </div>
-                        <code style="font-size:var(--font-size-xs);"><?= htmlspecialchars($u['nombre_usuario'], ENT_QUOTES, 'UTF-8') ?></code>
+                        <code style="font-size:var(--font-size-xs);"><?= htmlspecialchars($u['cedula'] ?? '—', ENT_QUOTES, 'UTF-8') ?></code>
                         <?php if ($isSelf): ?><span class="badge badge-info" style="font-size:0.6rem;">Tú</span><?php endif; ?>
                     </div>
                 </td>
@@ -153,10 +151,10 @@ $inactivos = $total - $activos;
                         <i class="fa-solid fa-file-excel"></i>
                     </a>
                     <?php if (!$isSelf && $u['estado']): ?>
-                    <form method="POST" action="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/eliminar"
-                          style="display:inline;" onsubmit="return confirm('¿Desactivar a <?= htmlspecialchars($u['nombre_completo'], ENT_QUOTES) ?>?')">
+                    <form method="POST" action="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/eliminar" style="display:inline;">
                         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
-                        <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar">
+                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar"
+                                onclick="PortalAlert.confirmAction('¿Desactivar a <?= htmlspecialchars($u['nombre_completo'], ENT_QUOTES) ?>?', this.form, {title:'¿Desactivar usuario?', confirmText:'Sí, desactivar'})">
                             <i class="fa-solid fa-ban"></i>
                         </button>
                     </form>

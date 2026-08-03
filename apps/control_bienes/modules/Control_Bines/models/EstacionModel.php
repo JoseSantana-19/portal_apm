@@ -1,5 +1,6 @@
 <?php
 require_once ROOT_PATH . 'core/Model.php';
+require_once ROOT_PATH . 'modules/Central/models/InvSecuencial.php';
 
 class EstacionModel extends Model {
     // Lista de tablas permitidas para prevenir inyección SQL en nombres de tablas
@@ -16,6 +17,32 @@ class EstacionModel extends Model {
         'grupo_centros_consumo' => 'inv_grupo_centros_consumo',
         'centros_consumo' => 'inv_centros_consumo'
     ];
+
+    public function __construct() {
+        parent::__construct();
+        $this->migrarResponsablesCentros();
+    }
+
+    /** Mantiene los textos históricos y agrega el enlace oficial al personal. */
+    private function migrarResponsablesCentros(): void {
+        $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';
+        try {
+            if ($driver === 'sqlsrv') {
+                $this->db->exec("IF COL_LENGTH('dbo.inv_grupo_centros_consumo','representante_id') IS NULL ALTER TABLE dbo.inv_grupo_centros_consumo ADD representante_id INT NULL");
+                $this->db->exec("IF COL_LENGTH('dbo.inv_centros_consumo','funcionario_id') IS NULL ALTER TABLE dbo.inv_centros_consumo ADD funcionario_id INT NULL");
+            } elseif ($driver === 'pgsql') {
+                $this->db->exec("ALTER TABLE inv_grupo_centros_consumo ADD COLUMN IF NOT EXISTS representante_id INT NULL");
+                $this->db->exec("ALTER TABLE inv_centros_consumo ADD COLUMN IF NOT EXISTS funcionario_id INT NULL");
+            } else {
+                $grupoCols = $this->db->query("PRAGMA table_info(inv_grupo_centros_consumo)")->fetchAll(PDO::FETCH_COLUMN, 1);
+                $centroCols = $this->db->query("PRAGMA table_info(inv_centros_consumo)")->fetchAll(PDO::FETCH_COLUMN, 1);
+                if (!in_array('representante_id', $grupoCols, true)) $this->db->exec("ALTER TABLE inv_grupo_centros_consumo ADD COLUMN representante_id INTEGER NULL");
+                if (!in_array('funcionario_id', $centroCols, true)) $this->db->exec("ALTER TABLE inv_centros_consumo ADD COLUMN funcionario_id INTEGER NULL");
+            }
+        } catch (Exception $e) {
+            // La migración SQL formal agrega también las claves foráneas.
+        }
+    }
 
 
     private function getNombreTablaReal($tablaKey) {
@@ -35,10 +62,22 @@ class EstacionModel extends Model {
                     ORDER BY p.id ASC";
             $stmt = $this->db->query($sql);
             return $stmt->fetchAll();
+        } elseif ($tablaKey === 'grupo_centros_consumo') {
+            $sql = "SELECT gcc.*,
+                           COALESCE(NULLIF(p.nombre, ''), gcc.representante) AS representante,
+                           p.identificacion AS representante_identificacion
+                    FROM inv_grupo_centros_consumo gcc
+                    LEFT JOIN inv_talento_personal p ON p.id = gcc.representante_id
+                    ORDER BY gcc.id ASC";
+            $stmt = $this->db->query($sql);
+            return $stmt->fetchAll();
         } elseif ($tablaKey === 'centros_consumo') {
-            $sql = "SELECT cc.*, gcc.nombre as grupo_nombre 
+            $sql = "SELECT cc.*, gcc.nombre as grupo_nombre,
+                           COALESCE(NULLIF(p.nombre, ''), cc.funcionario) AS funcionario,
+                           p.identificacion AS funcionario_identificacion
                     FROM inv_centros_consumo cc
                     JOIN inv_grupo_centros_consumo gcc ON cc.grupo_id = gcc.id
+                    LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                     ORDER BY cc.id ASC";
             $stmt = $this->db->query($sql);
             return $stmt->fetchAll();
@@ -119,9 +158,7 @@ class EstacionModel extends Model {
             ]);
         } elseif ($tablaKey === 'productos') {
             // Auto-generar código secuencial si no tiene
-            $sec = $this->db->query("SELECT ultimo_numero FROM inv_secuenciales WHERE modulo = 'itm'")->fetchColumn();
-            $nuevo = (int)$sec + 1;
-            $this->db->exec("UPDATE inv_secuenciales SET ultimo_numero = {$nuevo} WHERE modulo = 'itm'");
+            $nuevo = (new InvSecuencial())->generarNumero('itm');
             $codigo = str_pad($nuevo, 6, '0', STR_PAD_LEFT);
 
             $stmt = $this->db->prepare("INSERT INTO {$tabla} (nombre, grupo_id, unidad_id, aplica_iva, codigo) VALUES (:nombre, :grupo_id, :unidad_id, :aplica_iva, :codigo)");
@@ -150,19 +187,21 @@ class EstacionModel extends Model {
                 ':extra' => isset($datos['extra']) ? $datos['extra'] : ''
             ]);
         } elseif ($tablaKey === 'grupo_centros_consumo') {
-            $stmt = $this->db->prepare("INSERT INTO {$tabla} (codigo, nombre, representante) VALUES (:codigo, :nombre, :representante)");
+            $stmt = $this->db->prepare("INSERT INTO {$tabla} (codigo, nombre, representante, representante_id) VALUES (:codigo, :nombre, :representante, :representante_id)");
             $stmt->execute([
                 ':codigo' => $datos['codigo'],
                 ':nombre' => $datos['nombre'],
-                ':representante' => isset($datos['representante']) ? $datos['representante'] : ''
+                ':representante' => isset($datos['representante']) ? $datos['representante'] : '',
+                ':representante_id' => !empty($datos['representante_id']) ? (int)$datos['representante_id'] : null
             ]);
         } elseif ($tablaKey === 'centros_consumo') {
-            $stmt = $this->db->prepare("INSERT INTO {$tabla} (grupo_id, codigo, nombre, funcionario) VALUES (:grupo_id, :codigo, :nombre, :funcionario)");
+            $stmt = $this->db->prepare("INSERT INTO {$tabla} (grupo_id, codigo, nombre, funcionario, funcionario_id) VALUES (:grupo_id, :codigo, :nombre, :funcionario, :funcionario_id)");
             $stmt->execute([
                 ':grupo_id' => (int)$datos['grupo_id'],
                 ':codigo' => $datos['codigo'],
                 ':nombre' => $datos['nombre'],
-                ':funcionario' => isset($datos['funcionario']) ? $datos['funcionario'] : ''
+                ':funcionario' => isset($datos['funcionario']) ? $datos['funcionario'] : '',
+                ':funcionario_id' => !empty($datos['funcionario_id']) ? (int)$datos['funcionario_id'] : null
             ]);
         } else {
             $stmt = $this->db->prepare("INSERT INTO {$tabla} (nombre, extra) VALUES (:nombre, :extra)");
@@ -222,20 +261,22 @@ class EstacionModel extends Model {
                 ':id' => $id
             ]);
         } elseif ($tablaKey === 'grupo_centros_consumo') {
-            $stmt = $this->db->prepare("UPDATE {$tabla} SET codigo = :codigo, nombre = :nombre, representante = :representante WHERE id = :id");
+            $stmt = $this->db->prepare("UPDATE {$tabla} SET codigo = :codigo, nombre = :nombre, representante = :representante, representante_id = :representante_id WHERE id = :id");
             $stmt->execute([
                 ':codigo' => $datos['codigo'],
                 ':nombre' => $datos['nombre'],
                 ':representante' => isset($datos['representante']) ? $datos['representante'] : '',
+                ':representante_id' => !empty($datos['representante_id']) ? (int)$datos['representante_id'] : null,
                 ':id' => $id
             ]);
         } elseif ($tablaKey === 'centros_consumo') {
-            $stmt = $this->db->prepare("UPDATE {$tabla} SET grupo_id = :grupo_id, codigo = :codigo, nombre = :nombre, funcionario = :funcionario WHERE id = :id");
+            $stmt = $this->db->prepare("UPDATE {$tabla} SET grupo_id = :grupo_id, codigo = :codigo, nombre = :nombre, funcionario = :funcionario, funcionario_id = :funcionario_id WHERE id = :id");
             $stmt->execute([
                 ':grupo_id' => (int)$datos['grupo_id'],
                 ':codigo' => $datos['codigo'],
                 ':nombre' => $datos['nombre'],
                 ':funcionario' => isset($datos['funcionario']) ? $datos['funcionario'] : '',
+                ':funcionario_id' => !empty($datos['funcionario_id']) ? (int)$datos['funcionario_id'] : null,
                 ':id' => $id
             ]);
         } else {

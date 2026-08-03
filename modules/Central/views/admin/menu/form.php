@@ -345,17 +345,7 @@ body.t3 .mois-f {
 <?php endif; ?>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger" style="margin-bottom:var(--sp-4);">
-    <i class="fa-solid fa-triangle-exclamation"></i>
-    <div>
-        <strong>Corrige los errores:</strong>
-        <ul style="margin:var(--sp-1) 0 0 var(--sp-4);padding:0;">
-            <?php foreach ((array)$errors as $e): ?>
-            <li><?= htmlspecialchars((string)$e, ENT_QUOTES, 'UTF-8') ?></li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-</div>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.errorList('Corrige los errores', <?= json_encode(array_values((array)$errors)) ?>));</script>
 <?php endif; ?>
 
 <form method="POST" action="<?= $action ?>" id="mois-form">

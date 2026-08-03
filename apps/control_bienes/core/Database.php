@@ -129,7 +129,12 @@ class Database {
             "CREATE TABLE inv_talento_personal (
                 id SERIAL PRIMARY KEY,
                 nombre VARCHAR(255) NOT NULL,
-                identificacion VARCHAR(50) NOT NULL UNIQUE
+                identificacion VARCHAR(50) NOT NULL UNIQUE,
+                cargo VARCHAR(150),
+                area VARCHAR(150),
+                correo VARCHAR(150),
+                estado BOOLEAN NOT NULL DEFAULT TRUE,
+                fecha_sincronizacion TIMESTAMP
             );",
 
             "CREATE TABLE inv_talento_asignaciones (
@@ -356,7 +361,9 @@ class Database {
                 id SERIAL PRIMARY KEY,
                 codigo VARCHAR(50) NOT NULL UNIQUE,
                 nombre VARCHAR(255) NOT NULL UNIQUE,
-                representante VARCHAR(255)
+                representante VARCHAR(255),
+                representante_id INT,
+                FOREIGN KEY (representante_id) REFERENCES inv_talento_personal(id)
             );",
 
             // 19. Centros de Consumo
@@ -366,7 +373,9 @@ class Database {
                 codigo VARCHAR(50) NOT NULL UNIQUE,
                 nombre VARCHAR(255) NOT NULL,
                 funcionario VARCHAR(255) NOT NULL,
-                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id)
+                funcionario_id INT,
+                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id),
+                FOREIGN KEY (funcionario_id) REFERENCES inv_talento_personal(id)
             );",
 
             // 20. Notificaciones
@@ -421,7 +430,9 @@ class Database {
                     id SERIAL PRIMARY KEY,
                     codigo VARCHAR(50) NOT NULL UNIQUE,
                     nombre VARCHAR(255) NOT NULL UNIQUE,
-                    representante VARCHAR(255)
+                    representante VARCHAR(255),
+                    representante_id INT,
+                    FOREIGN KEY (representante_id) REFERENCES inv_talento_personal(id)
                 );");
                 
                 $this->pdo->exec("INSERT INTO inv_grupo_centros_consumo (codigo, nombre, representante) VALUES 
@@ -438,7 +449,9 @@ class Database {
                     codigo VARCHAR(50) NOT NULL UNIQUE,
                     nombre VARCHAR(255) NOT NULL,
                     funcionario VARCHAR(255) NOT NULL,
-                    FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id)
+                    funcionario_id INT,
+                    FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id),
+                    FOREIGN KEY (funcionario_id) REFERENCES inv_talento_personal(id)
                 );");
 
                 $this->pdo->exec("INSERT INTO inv_centros_consumo (grupo_id, codigo, nombre, funcionario) VALUES 
@@ -537,7 +550,12 @@ class Database {
             "CREATE TABLE inv_talento_personal (
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 nombre NVARCHAR(255) NOT NULL,
-                identificacion NVARCHAR(50) NOT NULL UNIQUE
+                identificacion NVARCHAR(50) NOT NULL UNIQUE,
+                cargo NVARCHAR(150),
+                area NVARCHAR(150),
+                correo NVARCHAR(150),
+                estado BIT NOT NULL DEFAULT 1,
+                fecha_sincronizacion DATETIME2
             );",
 
             "CREATE TABLE inv_talento_asignaciones (
@@ -764,7 +782,9 @@ class Database {
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 codigo NVARCHAR(50) NOT NULL UNIQUE,
                 nombre NVARCHAR(255) NOT NULL UNIQUE,
-                representante NVARCHAR(255)
+                representante NVARCHAR(255),
+                representante_id INT,
+                FOREIGN KEY (representante_id) REFERENCES inv_talento_personal(id)
             );",
 
             // 19. Centros de Consumo
@@ -774,7 +794,9 @@ class Database {
                 codigo NVARCHAR(50) NOT NULL UNIQUE,
                 nombre NVARCHAR(255) NOT NULL,
                 funcionario NVARCHAR(255) NOT NULL,
-                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id)
+                funcionario_id INT,
+                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id),
+                FOREIGN KEY (funcionario_id) REFERENCES inv_talento_personal(id)
             );",
 
             // 20. Notificaciones
@@ -1016,7 +1038,9 @@ class Database {
                     id INT IDENTITY(1,1) PRIMARY KEY,
                     codigo NVARCHAR(50) NOT NULL UNIQUE,
                     nombre NVARCHAR(255) NOT NULL UNIQUE,
-                    representante NVARCHAR(255)
+                    representante NVARCHAR(255),
+                    representante_id INT,
+                    FOREIGN KEY (representante_id) REFERENCES inv_talento_personal(id)
                 );");
                 
                 $this->pdo->exec("INSERT INTO inv_grupo_centros_consumo (codigo, nombre, representante) VALUES 
@@ -1033,7 +1057,9 @@ class Database {
                     codigo NVARCHAR(50) NOT NULL UNIQUE,
                     nombre NVARCHAR(255) NOT NULL,
                     funcionario NVARCHAR(255) NOT NULL,
-                    FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id)
+                    funcionario_id INT,
+                    FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id),
+                    FOREIGN KEY (funcionario_id) REFERENCES inv_talento_personal(id)
                 );");
 
                 $this->pdo->exec("INSERT INTO inv_centros_consumo (grupo_id, codigo, nombre, funcionario) VALUES 
@@ -1112,7 +1138,12 @@ class Database {
             "CREATE TABLE IF NOT EXISTS inv_talento_personal (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
-                identificacion TEXT NOT NULL UNIQUE
+                identificacion TEXT NOT NULL UNIQUE,
+                cargo TEXT,
+                area TEXT,
+                correo TEXT,
+                estado INTEGER NOT NULL DEFAULT 1,
+                fecha_sincronizacion DATETIME
             );",
             "CREATE TABLE IF NOT EXISTS inv_talento_asignaciones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1485,7 +1516,9 @@ class Database {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 codigo TEXT NOT NULL UNIQUE,
                 nombre TEXT NOT NULL UNIQUE,
-                representante TEXT
+                representante TEXT,
+                representante_id INTEGER,
+                FOREIGN KEY (representante_id) REFERENCES inv_talento_personal(id)
             );");
 
             $countGcc = $this->pdo->query("SELECT COUNT(*) FROM inv_grupo_centros_consumo")->fetchColumn();
@@ -1502,7 +1535,9 @@ class Database {
                 codigo TEXT NOT NULL UNIQUE,
                 nombre TEXT NOT NULL,
                 funcionario TEXT NOT NULL,
-                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id)
+                funcionario_id INTEGER,
+                FOREIGN KEY (grupo_id) REFERENCES inv_grupo_centros_consumo(id),
+                FOREIGN KEY (funcionario_id) REFERENCES inv_talento_personal(id)
             );");
 
             $countCc = $this->pdo->query("SELECT COUNT(*) FROM inv_centros_consumo")->fetchColumn();
