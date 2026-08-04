@@ -115,23 +115,30 @@ lee `config/app.php`/`config/connections.php`. Es lo único que cuenta como
 "propio" de PORTAL_APM — dashboards, admin, login, menú, contenido de la
 landing pública. Sin módulos de negocio propios (ver §1).
 
-### Patrón B — App embebida + SSO (Talento Humano, Control de Bienes)
+### Patrón B — App embebida + SSO (Talento Humano, Control de Bienes, Bitácoras)
 Cada una es su propia mini-app PHP (`apps/<nombre>/`), con su propio front
 controller y su propio kernel MVC (copiado del más simple existente, no
 reescrito desde cero). Se autentica contra la sesión central del portal
 (puente SSO en su `index.php`: sin sesión → redirige a `/login`). Su BD es
 propia y separada. Es el patrón estándar para integrar un módulo nuevo — ver §17.
 
-### Patrón C — Nativo con stack propio (Portuaria)
-Corre dentro del router nativo del portal (no es una app aparte, no necesita
-puente SSO) pero mantiene su propio layout Bootstrap y sus propias 2 bases de
-datos (`PortuariaDemo`, `PortuariaExterna`) — decisión real de dominio
-(operativo vs. maestros externos), no un accidente a corregir.
+### Patrón C — retirado (2026-08-04)
+Existió como "nativo con stack propio" para Bitácoras (`modules/Portuaria/`,
+router del portal, sin puente SSO). Se migró a Patrón B (`apps/bitacoras/`)
+porque en la práctica el módulo terminó desperdigado por 9 carpetas del
+árbol propio del portal (`includes/`, `apis/`, `pendientes/`, `views/layouts/`,
+`public/js/portuaria/`, `conexion/`, `rutas/`, `dbf/`, `analytics/`, además
+de `modules/Portuaria/`) — lejos del aislamiento real que sí tenían TH/Bienes.
+La migración además corrigió un bug de producción real: `bit_movimientos`/
+`bit_rondas_cabecera` tienen FK a `bit_usuarios_apm`, pero el puente de
+sesión escribía ahí el ID de `CORE_Usuarios` del portal directo (espacio de
+IDs distinto) — los registros existentes quedaron mal atribuidos a una
+cuenta demo vieja. Se resolvió con un resolver find-or-create por cédula en
+`apps/bitacoras/modules/Portuaria/models/Auth.php::resolveUsuarioApmId()`.
 
 ```
                     ┌─ Patrón A: Central, Credenciales (dentro de core/)
-index.php → Router ─┼─ Patrón B: /apps/talento_humano, /apps/control_bienes
-                    └─ Patrón C: modules/Portuaria (stack propio, mismo router)
+index.php → Router ─┴─ Patrón B: /apps/talento_humano, /apps/control_bienes, /apps/bitacoras
 ```
 
 Además, dentro del portal nativo:
@@ -202,14 +209,14 @@ portal_apm/
 │
 ├── helpers/                          ← security_helper, session_helper, url_helper, form_helper
 │
-├── modules/                          ← Patrón A y C únicamente
+├── modules/                          ← Patrón A únicamente (2 carpetas reales)
 │   ├── Central/                      ← Dashboard, paneles nativos, Admin, Landing pública, layouts (Patrón A)
-│   ├── Credenciales/                 ← Auth (login por cédula), Perfil, SSO server-to-server (Patrón A)
-│   └── Portuaria/                    ← Bitácoras CCTV/Visitas/Rondas (Patrón C, stack propio)
+│   └── Credenciales/                 ← Auth (login por cédula), Perfil, SSO server-to-server (Patrón A)
 │
 ├── apps/                             ← Patrón B: módulos externos embebidos
 │   ├── talento_humano/               ← Mini-app propia. BD: Talento_Humano. Ver §7.3
-│   └── control_bienes/               ← Mini-app propia. BD: inventario. Ver §7.4
+│   ├── control_bienes/               ← Mini-app propia. BD: inventario. Ver §7.4
+│   └── bitacoras/                    ← Mini-app propia. BDs: PortuariaDemo/PortuariaExterna. Ver §7.5
 │
 ├── db/                                ← Migraciones SQL (idempotentes), aplicadas sobre PORTAL_APM
 │   ├── identidad_cross_db.sql          ← CORE_Usuarios.id_empleado_th + vw_Usuarios_Identidad
@@ -443,20 +450,30 @@ layout.
 
 ---
 
-### 7.5 Portuaria — Bitácoras (Patrón C)
+### 7.5 Bitácoras (Patrón B)
 
-**Dónde vive:** `modules/Portuaria/` — nativo en el router del portal, layout
-Bootstrap propio, dos BDs propias: `PortuariaDemo` (operativo: visitas,
-rondas, cámaras) y `PortuariaExterna` (maestros externos APM).
+**Dónde vive:** `apps/bitacoras/` — app independiente, front controller y
+router propios (`apps/bitacoras/index.php`, `apps/bitacoras/routes.php`),
+layout Bootstrap propio, dos BDs propias: `PortuariaDemo` (operativo:
+visitas, rondas, cámaras) y `PortuariaExterna` (maestros externos APM).
+Migrado desde `modules/Portuaria/` (Patrón C) el 2026-08-04 — motivo y
+detalle del bug de identidad corregido en la migración: ver §3.
 
-**`PortalPortuariaController@hub`** → `/portuaria` — el equivalente de
-`PanelController` para este módulo (existía antes de que TH/Bienes tuvieran
-el suyo — de ahí que se les agregara uno igual, ver §18).
+Los controladores (`PortVisitaController`, `PortRondaController`,
+`PortCamaraController`, `PortCatalogoController`, `PortDashboardController`,
+todos bajo `apps/bitacoras/modules/Portuaria/controllers/`) replican los
+paths del proyecto origen (`portuaria_demoV4`) para que el JS portado
+funcione sin reescritura — mismas rutas de antes, solo que ahora resueltas
+por el router propio de la app en vez del router del portal.
 
-El resto de controladores (`PortVisitaController`, `PortRondaController`,
-`PortCamaraController`, `PortCatalogoController`, `PortDashboardController`)
-replican los paths del proyecto origen (`portuaria_demoV4`) para que el JS
-portado funcione sin reescritura — ver rutas completas en §14.
+Identidad: sin login propio — sesión compartida del portal
+(`apps/bitacoras/modules/Portuaria/models/Auth.php::hydrateFromPortal()`).
+`bit_usuarios_apm` se sigue usando como catálogo interno (FK de
+`bit_movimientos`/`bit_rondas_cabecera`), pero resuelto por cédula
+(find-or-create), no por el ID de `CORE_Usuarios`.
+
+No tiene panel nativo en el portal (`/panel/bitacoras`) como sí tienen TH/Bienes
+— queda como mejora futura, no bloqueaba la migración.
 
 > **Control de Acceso**, que en v4.x vivía acá como §7.6 (`modules/Control_Acceso/`,
 > tablas `ACCESO_*`), se dio de baja por completo el 2026-07-28 — nunca se
@@ -525,7 +542,7 @@ según su unidad organizacional. Ver §11.
 |---|---|---|
 | `Talento_Humano` | Talento Humano (Patrón B) | `th_empleados`, `th_unidades_organizacionales`, `th_puestos`, `th_acciones_personal` |
 | `inventario` | Control de Bienes (Patrón B) | `inv_inventario`, `inv_categorias`, `inv_estados`, `inv_productos`, `inv_talento_personal` (sincronizada por trigger desde `Talento_Humano`, ver §7.4), `inv_activos_fijos`, `inv_terceros`, `inv_cierres_periodo` |
-| `PortuariaDemo` / `PortuariaExterna` | Portuaria (Patrón C) | `bit_visitas`, `bit_totales_visitas`, maestros externos |
+| `PortuariaDemo` / `PortuariaExterna` | Bitácoras (Patrón B) | `bit_visitas`, `bit_totales_visitas`, `bit_usuarios_apm`, maestros externos |
 
 ### 9.6 Stored Procedures
 
@@ -631,23 +648,23 @@ L1 (12,0,0,0) Control de Bienes
 El ítem 5 ("Sistema Completo") lo registra `db/apps_origen_integration.sql`.
 El "Panel" (ítem 1) lo registra `db/panel_th_bienes_menu.sql`.
 
-### Módulo 13 (Portuaria) — simplificado al mismo patrón que TH/Bienes
+### Módulo 13 (Bitácoras) — mismo patrón que TH/Bienes (sin Panel nativo)
 
 ```
 L1 (13,0,0,0) Bitácoras Portuarias
   L2 (13,1,0,0) Bitácoras
-    L3 (13,1,1,0) Panel Portuario   → /portuaria
-    L3 (13,1,7,0) Sistema de Bitácoras → /visitas
+    L3 (13,1,7,0) Sistema de Bitácoras → /apps/bitacoras/
 ```
 
-Antes tenía ~29 nodos (visitas, rondas, cámaras, catálogos como entradas de
-menú separadas), pero la mayoría ya estaban con `estado=0` (invisibles para
-cualquier usuario) — el sidebar real ya mostraba solo estos 2 ítems. Lo que
-sobraba era la pantalla de administración `/admin/menu`, que sí lista los
-nodos deshabilitados y mostraba un árbol de 29 contra 2-3 en TH/Bienes. Se
-borraron los nodos ya inertes (y sus permisos) — la funcionalidad real
-(`/visitas`, `/rondas`, `/camaras`, `/catalogos`…) no cambió, sigue
-alcanzable desde los accesos directos dentro del propio hub (`/portuaria`).
+Historial: tenía ~29 nodos (visitas, rondas, cámaras, catálogos como entradas
+separadas), la mayoría ya `estado=0` desde antes — se simplificó a 2 ítems
+(`db/portuaria_menu_simplificar.sql`, 2026-08). Al migrar a Patrón B
+(2026-08-04, `db/bitacoras_apps_migration_menu.sql`) se borró además el nodo
+"Panel Portuario" (apuntaba a `/portuaria`, vista SPA nativa que ya no existe
+— la app es standalone) y "Sistema de Bitácoras" pasó de `/visitas` a
+`/apps/bitacoras/`. A diferencia de TH/Bienes, Bitácoras no tiene un Panel
+nativo equivalente (`/panel/bitacoras`) todavía — construirlo queda como
+mejora futura, no bloqueó la migración.
 
 ### Visibilidad: dos capas independientes
 
@@ -923,11 +940,15 @@ archivo huérfano de una versión anterior — nada lo referencia, no editar ah�
 | GET | `/apps/{app}` | AppsController@abrir (redirección robusta a `/apps/{app}/`) |
 | POST | `/api/sso/login` \| `/validate` \| `/logout` | ApiSsoController |
 
-### Portuaria (Bitácoras) — Patrón C, paths del proyecto origen
-| Método | URL | Acción |
+### Bitácoras (Patrón B) — rutas en `apps/bitacoras/routes.php`, no en el portal
+Desde 2026-08-04 estas rutas ya **no viven en `routes.php` del portal** — las
+resuelve el router propio de `apps/bitacoras/` (mismos paths que antes, para
+que el JS portado no se rompa). `/portuaria` (hub SPA nativo) se eliminó —
+la app es standalone; `/` de `apps/bitacoras/` ahora sirve
+`PortDashboardController@index` directo.
+
+| Método | URL (dentro de `/apps/bitacoras/`) | Acción |
 |---|---|---|
-| GET | `/portuaria` | PortalPortuariaController@hub (panel nativo) |
-| GET | `/portuaria/visitas-resumen` \| `/portuaria/actividad` | vistas rápidas |
 | GET | `/portuaria/dashboard` \| `/dashboard-jefe` \| `/dashboard-ejecutivo` | PortDashboardController |
 | GET/POST | `/visitas*` \| `/bitacoras/visita/*` | PortVisitaController |
 | GET/POST | `/rondas` \| `/bitacoras/ronda/api` | PortRondaController |

@@ -60,28 +60,14 @@ define('DB_PASS', $__conn['credentials']['pass']);
 define('DB_TRUST_CERT', $__conn['options']['trust_cert']);
 define('DB_ENCRYPT', $__conn['options']['encrypt']);
 
-// ─── Módulo Portuaria (Bitácoras CCTV/Visitas/Rondas — integrado de portuaria_demoV4) ──
+// ─── BDs de Bitácoras (apps/bitacoras/, Patrón B) ─────────────
+// Bitácoras ya no es nativo del portal — vive en apps/bitacoras/, que tiene
+// su propia copia de estas constantes en apps/bitacoras/config/app.php.
+// Acá solo quedan porque helpers/module_stats_helper.php (badges del
+// sidebar del portal) consulta PortuariaDemo directo para el contador
+// "Visitas en puerto".
 define('DB_PORTUARIA_NAME', $__conn['databases']['portuaria']['name']);
 define('DB_PORTUARIA_EXT_NAME', $__conn['databases']['portuaria_ext']['name']);
 
-// Constantes de rutas compat demoV4 (usadas por código portado del módulo Portuaria)
-define('MODULES_PATH', ROOT . '/modules');
 if (!defined('ROOT_PATH'))
     define('ROOT_PATH', ROOT);
-if (!defined('PUBLIC_PATH'))
-    define('PUBLIC_PATH', ROOT . '/public');
-if (!defined('VIEWS_LAYOUT_PATH'))
-    define('VIEWS_LAYOUT_PATH', ROOT . '/views/layouts');
-
-// Constantes de negocio del módulo Portuaria (antes includes/bit_config_constants.php)
-if (!defined('ID_DEPARTAMENTO_ADMIN'))
-    define('ID_DEPARTAMENTO_ADMIN', 1);
-if (!defined('ID_EDIFICIO_ADMIN'))
-    define('ID_EDIFICIO_ADMIN', 8);
-if (!defined('ID_DEPARTAMENTO_GERENCIA'))
-    define('ID_DEPARTAMENTO_GERENCIA', 5);
-
-// URL del Dashboard Ejecutivo en Python (Streamlit) — analytics/dashboard.py
-if (!defined('APM_DASHBOARD_EJECUTIVO_URL')) {
-    define('APM_DASHBOARD_EJECUTIVO_URL', 'http://localhost:8501/?embed=true');
-}

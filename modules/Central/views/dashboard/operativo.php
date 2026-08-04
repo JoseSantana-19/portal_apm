@@ -166,7 +166,7 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
         $accesos = [
             ['icon'=>'fa-solid fa-user-plus',       'label'=>'Talento Humano',       'url'=>'/apps/talento_humano/',     'color'=>'var(--color-primary)'],
             ['icon'=>'fa-solid fa-cube',             'label'=>'Control de Bienes',     'url'=>'/apps/control_bienes/',     'color'=>'var(--color-success)'],
-            ['icon'=>'fa-solid fa-pen-to-square',    'label'=>'Nueva Bitácora',        'url'=>'/portuaria',                'color'=>'var(--color-warning)'],
+            ['icon'=>'fa-solid fa-pen-to-square',    'label'=>'Nueva Bitácora',        'url'=>'/apps/bitacoras/',          'color'=>'var(--color-warning)'],
             ['icon'=>'fa-solid fa-chart-line',       'label'=>'Reportes',              'url'=>'/reportes',                 'color'=>'var(--color-primary)'],
         ];
         foreach ($accesos as $item):

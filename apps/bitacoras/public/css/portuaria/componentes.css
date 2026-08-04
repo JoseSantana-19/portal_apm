@@ -1,0 +1,171 @@
+/* css/componentes.css — botones, tablas, tarjetas y formularios */
+
+/* Tarjetas de resumen */
+.resumen-card {
+    border-radius: 0.75rem;
+}
+
+.resumen-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Botones principales */
+.btn-primary {
+    background-color: var(--apm-color-primary);
+    border-color: var(--apm-color-primary);
+}
+
+.btn-primary:hover {
+    background-color: var(--apm-color-primary-dark);
+    border-color: var(--apm-color-primary-dark);
+}
+
+/* Tablas */
+.table th {
+    white-space: nowrap;
+}
+
+.table {
+    width: 100%;
+}
+
+/* Tarjetas generales */
+.card {
+    border-radius: 0.75rem;
+}
+
+/* Formulario de ingreso */
+.formulario-ingreso-container {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.formulario-ingreso-card .card-body.formulario-ingreso-body {
+    padding: 1rem 1.5rem 1.25rem;
+}
+
+.formulario-ingreso-card .form-label {
+    font-size: 0.9375rem;
+    margin-bottom: 0.35rem;
+}
+
+.formulario-ingreso-card .form-control,
+.formulario-ingreso-card .form-select {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.9375rem;
+}
+
+.formulario-ingreso-card .input-group .btn {
+    padding: 0.45rem 0.65rem;
+}
+
+.formulario-ingreso-card .formulario-fila {
+    --bs-gutter-y: 0.75rem;
+}
+
+.formulario-ingreso-card .formulario-seccion {
+    margin-top: 1.25rem;
+}
+
+.formulario-ingreso-card .formulario-botones.formulario-seccion {
+    margin-top: 0.75rem;
+}
+
+.formulario-alertas ul {
+    font-size: 0.875rem;
+}
+
+.formulario-alertas .btn-close {
+    font-size: 0.75rem;
+}
+
+/* Input group con Select2 (cédula, empresa, funcionario, motivo — misma estructura) */
+.apm-input-group-cedula,
+.apm-input-group-empresa,
+.apm-input-group-funcionario,
+.apm-input-group-motivo {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+}
+.apm-input-group-cedula .select2-container,
+.apm-input-group-empresa .select2-container,
+.apm-input-group-funcionario .select2-container,
+.apm-input-group-motivo .select2-container {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+.apm-input-group-cedula .select2-container .select2-selection,
+.apm-input-group-empresa .select2-container .select2-selection,
+.apm-input-group-funcionario .select2-container .select2-selection,
+.apm-input-group-motivo .select2-container .select2-selection {
+    height: 100%;
+    min-height: 38px;
+    border-radius: 0;
+    border-right: 0;
+}
+.apm-input-group-cedula .select2-container--bootstrap-5 .select2-selection,
+.apm-input-group-empresa .select2-container--bootstrap-5 .select2-selection,
+.apm-input-group-funcionario .select2-container--bootstrap-5 .select2-selection,
+.apm-input-group-motivo .select2-container--bootstrap-5 .select2-selection {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.apm-input-group-empresa .btn.btn-outline-primary { border-radius: 0; }
+.apm-input-group-empresa .btn.btn-outline-success { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+.apm-input-group-cedula .btn,
+.apm-input-group-empresa .btn,
+.apm-input-group-funcionario .btn,
+.apm-input-group-motivo .btn {
+    flex-shrink: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Caso sin botón a la derecha (Motivo): cerrar borde y radios del select */
+.apm-input-group-solo-select .select2-container .select2-selection {
+    border-right: 1px solid #ced4da !important;
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+    border-left: 1px solid #ced4da !important;
+    border-top-left-radius: 0.375rem !important;
+    border-bottom-left-radius: 0.375rem !important;
+}
+.apm-input-group-solo-select .form-select {
+    border-right: 1px solid #ced4da !important;
+    border-left: 1px solid #ced4da !important;
+    border-radius: 0.375rem !important;
+}
+.apm-input-group-solo-select .select2-container--bootstrap-5 .select2-selection {
+    border-right: 1px solid #ced4da !important;
+    border-left: 1px solid #ced4da !important;
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+    border-top-left-radius: 0.375rem !important;
+    border-bottom-left-radius: 0.375rem !important;
+}
+.apm-input-group-solo-select .select2-container--bootstrap-5.select2-container--open .select2-selection,
+.apm-input-group-solo-select .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+    border-right: 1px solid #86b7fe !important;
+    border-left: 1px solid #86b7fe !important;
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+    border-top-left-radius: 0.375rem !important;
+    border-bottom-left-radius: 0.375rem !important;
+}
+
+/* Input-group minimalista para campos bloqueados (candado) */
+.apm-lock-group .input-group-text {
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+}
+.apm-lock-group .input-group-text i {
+    font-size: 0.95rem;
+}

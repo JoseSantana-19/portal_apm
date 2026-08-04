@@ -93,57 +93,5 @@ $router->post('/admin/landing/consejos/{id}/mover',       'LandingController@mov
 $router->post('/admin/landing/consejos/{id}/toggle',      'LandingController@toggleConsejo');
 $router->post('/admin/landing/consejos/{id}/eliminar',    'LandingController@eliminarConsejo');
 
-/* ── Portuaria (Bitácoras CCTV/Visitas/Rondas — integrado de portuaria_demoV4) ──
- * Los paths replican los alias del proyecto origen para que el JS portado
- * (listado_visitas.js, bitacora_rondas.js, bit_camaras.js, catalogos.js…)
- * funcione sin reescritura. BDs: PortuariaDemo / PortuariaExterna.       */
-
-// Vistas nativas en el shell del portal (hub + vistas rápidas)
-$router->get('/portuaria',                        'PortalPortuariaController@hub');
-$router->get('/portuaria/visitas-resumen',        'PortalPortuariaController@visitasResumen');
-$router->get('/portuaria/actividad',              'PortalPortuariaController@actividad');
-
-// Dashboards del módulo (layout propio Bootstrap)
-$router->get('/portuaria/dashboard',              'PortDashboardController@index');
-$router->get('/dashboard-jefe',                   'PortDashboardController@jefe');
-$router->get('/dashboard-ejecutivo',              'PortDashboardController@ejecutivo');
-
-// Visitas (Bitácoras)
-$router->get('/visitas',                          'PortVisitaController@listado');
-$router->get('/visitas/registrar',                'PortVisitaController@registrar');
-$router->post('/bitacoras/visita/guardar',        'PortVisitaController@guardar');
-$router->get('/bitacoras/visita/listado',         'PortVisitaController@listado');
-$router->post('/bitacoras/visita/registrarSalida','PortVisitaController@registrarSalida');
-$router->post('/bitacoras/visita/actualizarHoras','PortVisitaController@actualizarHoras');
-$router->post('/bitacoras/visita/actualizar',     'PortVisitaController@actualizar');
-$router->get('/bitacoras/visita/detalle',         'PortVisitaController@detalle');
-
-// Bitácora de rondas
-$router->get('/rondas',                           'PortRondaController@index');
-$router->get('/bitacoras/ronda/api',              'PortRondaController@api');
-$router->post('/bitacoras/ronda/api',             'PortRondaController@api');
-
-// CCTV Cámaras (bitácora + maestro + motivos)
-$router->get('/camaras',                          'PortCamaraController@index');
-$router->get('/camaras/motivos',                  'PortCamaraController@motivos');
-$router->get('/camaras/inventario',               'PortCamaraController@inventario');
-$router->get('/bitacoras/camara/api',             'PortCamaraController@api');
-$router->post('/bitacoras/camara/api',            'PortCamaraController@api');
-$router->get('/bitacoras/camara/apiMotivos',      'PortCamaraController@apiMotivos');
-$router->post('/bitacoras/camara/apiMotivos',     'PortCamaraController@apiMotivos');
-$router->get('/bitacoras/camara/apiInventario',   'PortCamaraController@apiInventario');
-$router->post('/bitacoras/camara/apiInventario',  'PortCamaraController@apiInventario');
-
-// Catálogos maestros
-$router->get('/catalogos',                        'PortCatalogoController@index');
-$router->get('/catalogos/personas',               'PortCatalogoController@personas');
-$router->get('/catalogos/empresas',               'PortCatalogoController@empresas');
-$router->get('/catalogos/destinos',               'PortCatalogoController@destinos');
-$router->get('/catalogos/motivos',                'PortCatalogoController@motivos');
-$router->get('/catalogos/funcionarios',           'PortCatalogoController@funcionarios');
-$router->get('/catalogos/niveles-incidente',      'PortCatalogoController@nivelesIncidente');
-$router->get('/importar-funcionarios',            'PortCatalogoController@importarFuncionarios');
-$router->get('/bitacoras/catalogo/api',           'PortCatalogoController@api');
-$router->post('/bitacoras/catalogo/api',          'PortCatalogoController@api');
-$router->get('/bitacoras/catalogo/apiPersonas',   'PortCatalogoController@apiPersonas');
-$router->post('/bitacoras/catalogo/apiPersonas',  'PortCatalogoController@apiPersonas');
+// Bitácoras migrado a apps/bitacoras/ (Patrón B, app independiente) — ver
+// docs/superpowers/plans/2026-08-03-actualizacion-th-bienes-bitacoras-apps.md

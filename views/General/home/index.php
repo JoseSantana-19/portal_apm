@@ -1637,7 +1637,7 @@ $tieneConsejos = !empty($consejos);
                 </a>
 
                 <!-- 3. Bitácoras Portuarias Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/portuaria' ?>" class="folder-card" style="--folder-color: #0891b2;">
+                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/bitacoras/' ?>" class="folder-card" style="--folder-color: #0891b2;">
                     <div class="fc-glow" style="background:#0891b2"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#0891b2"></div>
                     <div class="fc-icon" style="background:#0891b218;border:1px solid #0891b230"><i class="fa-solid fa-anchor" style="color:#0891b2"></i></div>

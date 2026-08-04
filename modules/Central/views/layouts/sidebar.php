@@ -45,10 +45,8 @@ foreach ($userMenu as $__mid => $__mod) {
 if ($sidebarFocusId === null) {
     // Rutas internas del módulo que no están en el menú (formularios, detalle…)
     $__prefijosModulo = [
-        '/apps/talento_humano' => 11, '/apps/control_bienes' => 12, '/portuaria' => 13,
+        '/apps/talento_humano' => 11, '/apps/control_bienes' => 12, '/apps/bitacoras' => 13,
         '/panel/talento-humano' => 11, '/panel/bienes' => 12,
-        '/visitas' => 13, '/rondas' => 13, '/camaras' => 13, '/catalogos' => 13,
-        '/importar-funcionarios' => 13, '/dashboard-jefe' => 13, '/dashboard-ejecutivo' => 13,
     ];
     foreach ($__prefijosModulo as $__p => $__m) {
         if ($currentPath === $__p || str_starts_with($currentPath, $__p . '/')) { $sidebarFocusId = $__m; break; }

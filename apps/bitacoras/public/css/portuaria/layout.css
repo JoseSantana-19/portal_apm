@@ -1,0 +1,212 @@
+/* css/layout.css — navbar, sidebar y estructura principal */
+
+.apm-main .container-fluid {
+    padding-left: var(--margin-lateral) !important;
+    padding-right: var(--margin-lateral) !important;
+}
+
+/* Evita desplazamiento horizontal por gutters negativos en Bootstrap */
+.apm-main .container-fluid > .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Navbar */
+.navbar {
+    background: linear-gradient(90deg, var(--apm-color-nav-start), var(--apm-color-nav-end));
+}
+
+.navbar.sticky-top {
+    z-index: 1080;
+}
+
+@media (max-width: 576px) {
+    .navbar-brand {
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+}
+
+.navbar-brand span {
+    font-size: 0.8rem;
+}
+
+/* Layout con menú lateral */
+.apm-layout {
+    min-height: calc(100vh - var(--apm-navbar-height));
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.apm-sidebar {
+    background: linear-gradient(180deg, var(--apm-color-nav-start), var(--apm-color-nav-end));
+    color: #ffffff;
+}
+
+/* El sidebar debe poder scrollear su propio contenido en CUALQUIER tamaño de
+   pantalla (antes esto solo estaba definido dentro de @media min-width:992px,
+   así que en celular/ventana angosta un submenú desplegado podía quedar
+   inaccesible incluso haciendo scroll de la página). */
+#sidebarMenu.apm-sidebar {
+    max-height: 100vh;
+}
+
+#sidebarMenu .apm-sidebar-nav.offcanvas-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - var(--apm-navbar-height, 0px));
+}
+
+.apm-sidebar.offcanvas {
+    width: var(--apm-sidebar-width);
+}
+
+.apm-sidebar-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--apm-sidebar-muted);
+    margin-bottom: 0.75rem;
+}
+
+.apm-sidebar-nav .nav-link {
+    font-size: 0.95rem;
+    color: var(--apm-sidebar-link);
+    padding: 0.45rem 0.4rem;
+    border-radius: 0.4rem;
+    display: flex;
+    align-items: center;
+}
+
+.apm-sidebar-nav .nav-link i {
+    width: 1.4rem;
+    margin-right: 0.4rem;
+}
+
+.apm-sidebar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+}
+
+.apm-sidebar-nav .nav-link.active {
+    background-color: #ffffff;
+    color: var(--apm-sidebar-active-text);
+    font-weight: 600;
+}
+
+/* Flecha del acordeón Edificio Administrativo: caja cuadrada + centro estable al rotar */
+.apm-admin-group-arrow-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    flex-shrink: 0;
+    width: 1.35rem;
+    height: 1.35rem;
+    line-height: 0;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: 50% 50%;
+}
+
+/* Anula el ancho/margen del .nav-link i genérico y centra el glifo (::before) en el cuadrado */
+#adminGroupArrow .bi,
+#segOpGroupArrow .bi {
+    margin-right: 0 !important;
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+#adminGroupToggle[aria-expanded="true"] .apm-admin-group-arrow-wrap,
+#segOpGroupToggle[aria-expanded="true"] .apm-admin-group-arrow-wrap,
+.apm-admin-group-arrow-wrap.is-open {
+    transform: rotate(90deg);
+}
+
+/* Menú de usuario (parte inferior): al expandir, la flecha apunta hacia arriba. */
+#userActionsToggle[aria-expanded="true"] .apm-admin-group-arrow-wrap {
+    transform: rotate(-90deg);
+}
+
+/* Restauración de estado al entrar a otra vista: sin animar el collapse */
+#adminGroupItems.apm-collapse-no-anim {
+    transition: none !important;
+}
+
+.apm-main {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Contenido principal: efecto push en escritorio (padding en el layout, más fiable que margin en main) */
+@media (min-width: 992px) {
+    .apm-layout {
+        transition: padding-left 0.3s ease;
+        padding-left: 0;
+    }
+
+    body.sidebar-expanded .apm-layout {
+        padding-left: var(--apm-sidebar-width);
+    }
+
+    .apm-layout .apm-main {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        padding: 1rem 1.5rem 1.25rem;
+    }
+
+    /* Sidebar fijo bajo la navbar: empuja el contenido sin overlay oscuro */
+    #sidebarMenu.offcanvas-start.apm-sidebar {
+        top: var(--apm-navbar-height);
+        left: 0;
+        width: var(--apm-sidebar-width);
+        height: calc(100vh - var(--apm-navbar-height));
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        visibility: visible !important;
+        z-index: 1020;
+    }
+
+    body.sidebar-expanded #sidebarMenu.offcanvas-start.apm-sidebar {
+        transform: translateX(0) !important;
+    }
+
+    /* Restauración desde sessionStorage: sin animación en el primer frame (evita parpadeo) */
+    body.apm-sidebar-no-transition .apm-layout,
+    body.apm-sidebar-no-transition #sidebarMenu.offcanvas-start.apm-sidebar {
+        transition: none !important;
+    }
+
+    /* Escritorio: sin backdrop que bloquee la página */
+    .offcanvas-backdrop {
+        display: none !important;
+    }
+}
+
+.apm-main > .container {
+    max-width: 1200px;
+}
+
+/* Responsivo general */
+@media (max-width: 991.98px) {
+    .apm-layout {
+        min-height: auto;
+    }
+
+    .apm-main {
+        padding: 1rem 0.75rem 2.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar-brand span {
+        display: none;
+    }
+}
