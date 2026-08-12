@@ -10,37 +10,41 @@ class Conexion
      * En 'production': se ocultan rutas internas; el usuario solo ve mensaje institucional.
      * En 'development': se muestra el cuadro rojo detallado con archivo y línea del error.
      */
-    private const ENTORNO = 'development';
-
     public static function conectar()
     {
         if (self::$conexion === null) {
             try {
-                // Config única del sistema (config/connections.php en la raíz de
-                // portal_apm) — para cambiar servidor/credenciales, editar solo ahí.
-                // No se sube a git: copiar config/connections.example.php la primera vez.
-                $__connPath = __DIR__ . '/../../../config/connections.php';
-                if (!file_exists($__connPath)) {
-                    die('Falta config/connections.php en la raíz de portal_apm — copiá config/connections.example.php y ajustalo a tu servidor.');
-                }
-                $conn      = require $__connPath;
-                $servidor  = $conn['databases']['talento']['server'] ?? $conn['server_default'];
-                $baseDatos = $conn['databases']['talento']['name'];
-                $usuario   = $conn['credentials']['user'];
-                $clave     = $conn['credentials']['pass'];
+                $config    = Config::database();
+                $servidor  = $config['server'];
+                $baseDatos = $config['database'];
+                // '' (config/connections.php en desarrollo) => Autenticación de
+                // Windows: PDO_SQLSRV la usa cuando UID/PWD no se especifican,
+                // lo que solo ocurre pasando null (no una cadena vacía).
+                $usuario   = $config['user'] !== '' ? $config['user'] : null;
+                $clave     = $config['password'] !== '' ? $config['password'] : null;
 
-                $dsn = "sqlsrv:Server=$servidor;Database=$baseDatos;TrustServerCertificate=true";
+                // DSN limpio y estándar para evitar errores de sintaxis de palabras clave
+                // PDO_SQLSRV documenta estas opciones como 1/0 o true/false.
+                $encrypt = !empty($config['encrypt']) ? 'true' : 'false';
+                $trustCertificate = !empty($config['trust_server_certificate']) ? 'true' : 'false';
+                $dsn = "sqlsrv:Server=$servidor;Database=$baseDatos;Encrypt=$encrypt;TrustServerCertificate=$trustCertificate";
 
                 // Opciones de inicialización segura con codificación forzada de Microsoft
-                self::$conexion = new PDO($dsn, $usuario ?: null, $clave ?: null, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                self::$conexion = new PDO($dsn, $usuario, $clave, [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8
+                    // Esta constante nativa configura de forma segura el UTF-8 en el driver
+                    PDO::SQLSRV_ATTR_ENCODING    => PDO::SQLSRV_ENCODING_UTF8
                 ]);
+
             } catch (PDOException $e) {
                 // Dirige el log al módulo de conexión base (sin ruta expuesta)
-                self::registrarErrorLog($e, 'Core');
-                die("Error de comunicación institucional: El servicio no se encuentra disponible. La incidencia ha sido reportada a la Dirección de TI.");
+                self::registrarErrorLog($e, 'Core', false);
+                throw new RuntimeException(
+                    'Error de comunicación institucional: el servicio no se encuentra disponible.',
+                    0,
+                    $e
+                );
             }
         }
         return self::$conexion;
@@ -51,7 +55,7 @@ class Conexion
      * dirname(__FILE__) para que la ruta de logs sea siempre relativa a la raíz del
      * proyecto, independientemente de dónde esté ubicado este archivo.
      *
-     * - Cada módulo tiene su propia subcarpeta protegida: /modules/{Modulo}/log/
+     * - Cada módulo tiene una subcarpeta normalizada en /storage/logs/.
      * - Archivo independiente por cada día: log_YYYY-MM-DD.txt
      * - En producción, el usuario NUNCA ve rutas internas (C:\wamp64\...).
      *
@@ -63,14 +67,18 @@ class Conexion
     public static function registrarErrorLog(Exception $e, string $modulo = 'talento-humano', bool $detenerEjecucion = true): void
     {
         $fechaActual = date('Y-m-d');
-        $horaActual = date('H:i:s');
+        $horaActual  = date('H:i:s');
 
         // RECTIFICADO v2.1: Usa ROOT para ruta absoluta estable desde cualquier ubicación
         // ROOT se define en index.php como define('ROOT', __DIR__)
         $raiz = defined('ROOT') ? ROOT : dirname(__DIR__);
 
-        // Ruta interna: /modules/{Modulo}/log/ — nunca expuesta al navegador
-        $directorioLog = $raiz . "/modules/" . $modulo . "/log";
+        // Repositorio central fuera del árbol público. La normalización evita
+        // duplicados históricos como Talento_Humano y talento-humano.
+        $moduloNormalizado = strtolower(trim($modulo));
+        $moduloNormalizado = str_replace('_', '-', $moduloNormalizado);
+        $moduloNormalizado = preg_replace('/[^a-z0-9-]+/', '-', $moduloNormalizado) ?: 'sistema';
+        $directorioLog = $raiz . '/storage/logs/' . trim($moduloNormalizado, '-');
 
         if (!is_dir($directorioLog)) {
             mkdir($directorioLog, 0755, true);
@@ -80,8 +88,8 @@ class Conexion
         $archivoLog = $directorioLog . "/log_" . $fechaActual . ".txt";
 
         $traza = "[$horaActual] EXCEPCIÓN -> " . $e->getMessage()
-            . " en " . $e->getFile()
-            . " (Línea " . $e->getLine() . ")" . PHP_EOL;
+               . " en " . $e->getFile()
+               . " (Línea " . $e->getLine() . ")" . PHP_EOL;
 
         file_put_contents($archivoLog, $traza, FILE_APPEND | LOCK_EX);
 
@@ -91,7 +99,7 @@ class Conexion
         }
 
         // RECTIFICADO: Control estricto de visualización por entorno
-        if (self::ENTORNO === 'production') {
+        if (Config::isProduction()) {
             // En producción: NUNCA se exponen rutas internas ni mensajes técnicos
             die("Error de comunicación institucional: El servicio no se encuentra disponible. La incidencia ha sido reportada a la Dirección de TI.");
         } else {
@@ -100,7 +108,7 @@ class Conexion
             echo "<h3>&#9888; Excepción del Framework MVC — Módulo: " . htmlspecialchars($modulo) . "</h3>";
             echo "<p><b>Mensaje:</b> " . htmlspecialchars($e->getMessage()) . "</p>";
             echo "<p><b>Archivo:</b> " . htmlspecialchars($e->getFile()) . " (Línea " . $e->getLine() . ")</p>";
-            echo "<p><b>Log guardado en:</b> modules/" . htmlspecialchars($modulo) . "/log/log_" . $fechaActual . ".txt</p>";
+            echo "<p><b>Log guardado en:</b> storage/logs/" . htmlspecialchars($moduloNormalizado) . "/log_" . $fechaActual . ".txt</p>";
             echo "</div>";
             exit;
         }

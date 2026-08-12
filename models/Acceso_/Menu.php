@@ -44,6 +44,22 @@ class Menu extends Model {
                     if (!isset($modules[$mod]['areas'][$op])) {
                         $modules[$mod]['areas'][$op] = ['id' => $op, 'label' => $label, 'icon' => $icon, 'items' => []];
                     }
+                    // Nodos de opción con URL propia (TH/Bienes/Bitácoras,
+                    // Fase 1-3 2026-08-11: cada pantalla real es un nodo
+                    // "opcion" plano con items=0, porque fn_TienePermisoNodo
+                    // solo distingue por id_modulo+opcion+items+subitems y
+                    // esos 3 módulos no necesitan más niveles) también se
+                    // registran como ítem clickeable de su propia área — sin
+                    // esto, la limpieza de "módulos sin contenido navegable"
+                    // de más abajo los descarta enteros, aunque el usuario sí
+                    // tenga el permiso real. Se ve reflejado en producción:
+                    // el módulo completo desaparecía del sidebar.
+                    if ($url !== null && $url !== '') {
+                        $modules[$mod]['areas'][$op]['items'][0] = [
+                            'id' => 0, 'label' => $label, 'url' => $url, 'icon' => $icon,
+                            'spa' => $spa, 'crud' => $crud, 'children' => [],
+                        ];
+                    }
                 } elseif ($sub === 0) {
                     // Level 3 — menu item
                     $this->ensureModule($modules, $mod);
@@ -82,6 +98,30 @@ class Menu extends Model {
                 }
                 if (empty($modules[$mk]['areas'])) {
                     unset($modules[$mk]);
+                }
+            }
+
+            // El auto-registro de arriba (items[0] = la propia área) evita que
+            // un área de pantalla única desaparezca del sidebar -- pero si esa
+            // misma área YA tiene ítems reales propios (ej. "Registros Base"
+            // con 6 catálogos reales debajo), items[0] queda como una fila
+            // duplicada con el mismo nombre que el encabezado del área. Si uno
+            // de esos ítems reales apunta a la MISMA url que el auto-registro
+            // (patrón: se agregó a propósito un ítem real con el nombre
+            // correcto para esa pantalla, ej. "Ver todo (catálogos)"), el
+            // auto-registro es redundante -- se descarta y queda solo el
+            // ítem real, correctamente nombrado.
+            foreach ($modules as $mk => $m) {
+                foreach ($m['areas'] as $ak => $a) {
+                    if (!isset($a['items'][0]) || count($a['items']) <= 1) continue;
+                    $urlRaiz = $a['items'][0]['url'] ?? null;
+                    if ($urlRaiz === null) continue;
+                    foreach ($a['items'] as $itId => $it) {
+                        if ($itId !== 0 && ($it['url'] ?? null) === $urlRaiz) {
+                            unset($modules[$mk]['areas'][$ak]['items'][0]);
+                            break;
+                        }
+                    }
                 }
             }
 

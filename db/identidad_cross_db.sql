@@ -42,7 +42,7 @@ SELECT
     u.estado,
     u.id_empleado_th,
     COALESCE(NULLIF(LTRIM(RTRIM(e.nombres + ' ' + e.apellidos)), ''), u.nombre_completo) AS nombre_completo,
-    COALESCE(e.cedula, u.cedula) AS cedula,
+    COALESCE(e.identificacion, u.cedula) AS cedula,
     COALESCE(e.ruta_foto, u.foto) AS foto
 FROM CORE_Usuarios u
 LEFT JOIN Talento_Humano.dbo.th_empleados e ON e.empleado_id = u.id_empleado_th;

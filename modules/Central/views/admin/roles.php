@@ -20,9 +20,14 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
         </h2>
         <p class="page-subtitle">Define roles y configura los permisos de acceso por módulo</p>
     </div>
-    <a href="<?= APP_URL ?>/admin/roles/nuevo" class="btn btn-primary" data-spa>
-        <i class="fa-solid fa-plus"></i> Nuevo Rol
-    </a>
+    <div style="display:flex;gap:var(--sp-2);">
+        <a href="<?= APP_URL ?>/admin/roles/matriz" class="btn btn-ghost" data-spa title="Ver quién tiene acceso a cada módulo">
+            <i class="fa-solid fa-table-cells"></i> Matriz de Permisos
+        </a>
+        <a href="<?= APP_URL ?>/admin/roles/nuevo" class="btn btn-primary" data-spa>
+            <i class="fa-solid fa-plus"></i> Nuevo Rol
+        </a>
+    </div>
 </div>
 
 <!-- Stats -->
@@ -131,6 +136,15 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
                         <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar"
                                 onclick="PortalAlert.confirmAction('¿Desactivar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Desactivar rol?', confirmText:'Sí, desactivar'})">
                             <i class="fa-solid fa-ban"></i>
+                        </button>
+                    </form>
+                    <?php else: ?>
+                    <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/activar" style="display:inline;">
+                        <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                        <button type="button" class="btn btn-sm" title="Activar"
+                                style="background:color-mix(in srgb, var(--color-success) 15%, transparent);color:var(--color-success);border:1px solid color-mix(in srgb, var(--color-success) 45%, transparent);font-weight:700;"
+                                onclick="PortalAlert.confirmAction('¿Activar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Activar rol?', confirmText:'Sí, activar'})">
+                            <i class="fa-solid fa-circle-check"></i> Activar
                         </button>
                     </form>
                     <?php endif; ?>

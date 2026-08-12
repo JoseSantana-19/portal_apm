@@ -38,6 +38,8 @@ require_once ROOT . '/core/View.php';
 require_once ROOT . '/core/Router.php';
 require_once ROOT . '/core/Controller.php';
 require_once ROOT . '/core/ModuleSecurity.php';
+require_once ROOT . '/core/CatalogoModulos.php';
+require_once ROOT . '/core/SyncPermisosModulo.php';
 
 // 3. Module class autoloader (modules/ take priority; legacy controllers/ as fallback)
 spl_autoload_register(function (string $class): void {

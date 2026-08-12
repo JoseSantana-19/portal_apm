@@ -1,16 +1,25 @@
 Options -Indexes
 
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+</IfModule>
+
 RewriteEngine On
 RewriteBase /portal_apm/apps/talento_humano/
 
 # Bloquear acceso directo a carpetas de log de todos los módulos
 <IfModule mod_rewrite.c>
     RewriteRule ^modules/.*/log/.*$ - [F,L]
+    RewriteRule ^(?:config|core|database|docs|libs|rutas|scripts|shared|SQL|tmp|output|backups)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:\.git|\.portal-portuario-private)(?:/|$) - [F,L,NC]
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(?:README.*|.*\.(?:md|sql|csv|bak|log))$ - [F,L,NC]
+    RewriteRule ^(?:composer\.(?:json|lock)|package(?:-lock)?\.json)$ - [F,L,NC]
 </IfModule>
-
-# Los assets bajo /public nunca pasan por el router (404 real si faltan,
-# nunca un redirect HTML servido como CSS/JS)
-RewriteRule ^public/ - [L]
 
 # Redirigir todo (excepto archivos y carpetas reales) a index.php
 RewriteCond %{REQUEST_FILENAME} !-f

@@ -63,11 +63,27 @@
         nivel: <?= (int)($_SESSION['nivel_jerarquia'] ?? 0) ?>,
         tema:  '<?= htmlspecialchars($_SESSION['tema'] ?? 'light', ENT_QUOTES, 'UTF-8') ?>'
     };
+    // window.X explícito (no const/let): un `const` de nivel superior en un
+    // <script> NUNCA se adjunta a `window` en un navegador real — solo crea
+    // un binding léxico global invisible para `window.APP_INACTIVIDAD`, que
+    // es justo lo que lee js/inactivity-warning.js. Con const, ese script
+    // siempre recibía `undefined` y se abortaba en silencio (sin error de
+    // consola) — bug real, confirmado con Playwright, no solo supuesto.
+    window.APP_INACTIVIDAD = {
+        timeoutSegundos: <?= (int)($_SESSION['_inactividad_segundos'] ?? 1800) ?>,
+        avisoSegundos:   <?= (int)($_SESSION['_inactividad_aviso'] ?? 60) ?>,
+        keepaliveUrl:    APP_URL + '/api/keepalive',
+        logoutUrl:       APP_URL + '/logout'
+    };
 </script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
 <script src="<?= APP_URL ?>/js/alerts.js"></script>
-<script src="<?= APP_URL ?>/js/main.js"></script>
+<!-- ?v=filemtime: cache-busting — sin esto, un navegador que ya tenía este
+     archivo en caché de una visita anterior puede seguir usando una copia
+     vieja indefinidamente aunque el archivo en el servidor ya se corrigió. -->
+<script src="<?= APP_URL ?>/js/inactivity-warning.js?v=<?= @filemtime(ROOT_PATH . '/js/inactivity-warning.js') ?: time() ?>"></script>
+<script src="<?= APP_URL ?>/js/main.js?v=<?= @filemtime(ROOT_PATH . '/js/main.js') ?: time() ?>"></script>
 
 </body>
 </html>

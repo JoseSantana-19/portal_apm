@@ -55,7 +55,7 @@
         if (!url) {
             return url;
         }
-        if (url.indexOf('bitacoras/visita/detalle') === -1 && url.indexOf('bit_consulta.php') === -1) {
+        if (url.indexOf('bitacoras/visita/detalle') === -1 && url.indexOf('bitacoras/ronda/detalle') === -1) {
             return url;
         }
         return url + (url.indexOf('?') !== -1 ? '&' : '?') + 'from=dashboard';
@@ -89,13 +89,13 @@
             return 'bitacoras/visita/detalle?id=' + encodeURIComponent(String(lid));
         }
         if (lt === 'ronda' && lid) {
-            return 'bit_consulta.php?id_detalle=' + encodeURIComponent(String(lid)) + '&action=view';
+            return 'bitacoras/ronda/detalle?id_detalle=' + encodeURIComponent(String(lid)) + '&action=view';
         }
         if ((tipo === 'INGRESO' || tipo === 'SALIDA') && lid) {
             return 'bitacoras/visita/detalle?id=' + encodeURIComponent(String(lid));
         }
         if (tipo === 'RONDA' && lid) {
-            return 'bit_consulta.php?id_detalle=' + encodeURIComponent(String(lid)) + '&action=view';
+            return 'bitacoras/ronda/detalle?id_detalle=' + encodeURIComponent(String(lid)) + '&action=view';
         }
         if (tipo === 'INGRESO' || tipo === 'SALIDA') {
             return 'visitas';
@@ -132,7 +132,7 @@
             var verUrl = appendFromDashboard(buildVerUrl(r));
             var btn = '<span class="text-muted small">—</span>';
             if (verUrl) {
-                if (verUrl.indexOf('bitacoras/visita/detalle') !== -1 || verUrl.indexOf('bit_consulta.php') !== -1) {
+                if (verUrl.indexOf('bitacoras/visita/detalle') !== -1 || verUrl.indexOf('bitacoras/ronda/detalle') !== -1) {
                     btn = '<a class="btn btn-sm btn-outline-primary apm-dash-open-modal" data-modal-url="' + esc(modalOnlyUrl(verUrl)) + '" href="' + esc(verUrl) + '">Ver detalle</a>';
                 } else {
                     btn = '<a class="btn btn-sm btn-outline-primary" href="' + esc(verUrl) + '">Ver detalle</a>';

@@ -50,14 +50,86 @@ class AdminController extends Controller {
             [[$id, SQLSRV_PARAM_IN]]
         ));
 
+        // Permisos individuales (Fase 0 del sistema central de permisos):
+        // cascada usuario > rol — mismo árbol que rolPermisos(), acá con
+        // el override propio de ESTE usuario en vez del permiso del rol.
+        $nodosPermisos = $db->fetchAll($db->query(
+            'SELECT id_nodo, id_modulo, opcion, items, subitems, descripcion, url_ruta, icono
+             FROM CORE_Menu_Nodos WHERE estado=1
+             ORDER BY id_modulo, opcion, items, subitems'
+        ));
+        $overrides = $db->fetchAll($db->query(
+            'SELECT id_modulo, opcion, items, subitems, nivel_crud FROM CORE_Permisos_Nodo_Usuario WHERE id_usuario=? AND estado=1',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+        $overridesMap = [];
+        foreach ($overrides as $o) {
+            $overridesMap["{$o['id_modulo']}-{$o['opcion']}-{$o['items']}-{$o['subitems']}"] = (int)$o['nivel_crud'];
+        }
+        $treePermisosUsuario = $this->construirArbolPermisos($nodosPermisos, $overridesMap);
+
         $this->render('Central/admin/usuario_form', [
-            'pageTitle'         => 'Editar Usuario',
-            'usuario'           => $usuario,
-            'deptos'            => $this->deptos(),
-            'todosRoles'        => $db->fetchAll($db->query('SELECT id_rol, nombre, codigo FROM CORE_Roles WHERE estado=1 ORDER BY nombre')),
-            'rolesAsignadosIds' => array_map('intval', array_column($asignados, 'id_rol')),
-            'csrf'              => $this->csrfToken(),
+            'pageTitle'            => 'Editar Usuario',
+            'usuario'              => $usuario,
+            'deptos'               => $this->deptos(),
+            'todosRoles'           => $db->fetchAll($db->query('SELECT id_rol, nombre, codigo FROM CORE_Roles WHERE estado=1 ORDER BY nombre')),
+            'rolesAsignadosIds'    => array_map('intval', array_column($asignados, 'id_rol')),
+            'treePermisosUsuario'  => $treePermisosUsuario,
+            // Claves que SÍ tienen una fila de override real (distingue "sin
+            // excepción" de "excepción guardada en nivel 0 = revocado") —
+            // construirArbolPermisos() solo expone el nivel resultante,
+            // que por defecto también es 0 para un nodo sin fila alguna.
+            'overridesActivos'     => $overridesMap,
+            'csrf'                 => $this->csrfToken(),
         ]);
+    }
+
+    /**
+     * POST /admin/usuarios/{id}/permisos — override de permiso por USUARIO
+     * individual (cascada usuario > rol, Fase 0 del sistema central de
+     * permisos). Mismo POST shape que guardarPermisos() (permisos[mod-op-it-sub]
+     * = nivel 0-4), pero nivel 0 acá SÍ se guarda (revoca explícitamente
+     * aunque el rol dé acceso) en vez de omitirse.
+     */
+    public function guardarPermisosUsuario(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(4, [...self::NODO_USUARIOS, 4]);
+        $this->verifyCsrf();
+
+        $db = $this->db();
+        $antes = $db->fetchAll($db->query(
+            'SELECT id_modulo, opcion, items, subitems, nivel_crud FROM CORE_Permisos_Nodo_Usuario WHERE id_usuario=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+        $db->query('DELETE FROM CORE_Permisos_Nodo_Usuario WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+
+        $despues = [];
+        foreach ($_POST['overrides'] ?? [] as $key => $nivel) {
+            $nivel = (int)$nivel;
+            if ($nivel < 0 || $nivel > 4) continue;
+            $parts = explode('-', (string)$key);
+            if (count($parts) !== 4) continue;
+            [$mod, $op, $it, $sub] = array_map('intval', $parts);
+            $db->query(
+                'INSERT INTO CORE_Permisos_Nodo_Usuario (id_usuario, id_modulo, opcion, items, subitems, nivel_crud, estado, asignado_por)
+                 VALUES (?,?,?,?,?,?,1,?)',
+                [
+                    [$id, SQLSRV_PARAM_IN], [$mod, SQLSRV_PARAM_IN], [$op, SQLSRV_PARAM_IN],
+                    [$it, SQLSRV_PARAM_IN], [$sub, SQLSRV_PARAM_IN], [$nivel, SQLSRV_PARAM_IN],
+                    [(int)($_SESSION['user_id'] ?? 0), SQLSRV_PARAM_IN],
+                ]
+            );
+            $despues[(string)$key] = $nivel;
+        }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Permisos_Nodo_Usuario', (string)$id, $antes ?: null, $despues ?: null, 'EXITO', 'Override de permisos por usuario individual');
+
+        if (View::isAjax()) {
+            $this->json(['ok' => true, 'msg' => 'Permisos individuales guardados.']);
+        }
+
+        SessionHelper::flash('success', 'Permisos individuales guardados.');
+        $this->redirect('/admin/usuarios/' . $id . '/editar');
     }
 
     public function actualizarUsuario(int $id): void {
@@ -65,7 +137,12 @@ class AdminController extends Controller {
         $this->requireLevel(3, [...self::NODO_USUARIOS, 3]);
         $this->verifyCsrf();
 
-        $db = $this->db();
+        $db     = $this->db();
+        $antes  = $db->fetch($db->query(
+            'SELECT nombre_completo, correo, nivel_jerarquia, id_departamento, estado FROM CORE_Usuarios WHERE id_usuario=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+
         $db->query(
             'UPDATE CORE_Usuarios SET nombre_completo=?, correo=?, nivel_jerarquia=?, id_departamento=?, estado=? WHERE id_usuario=?',
             [
@@ -79,14 +156,29 @@ class AdminController extends Controller {
         );
 
         $db->query('DELETE FROM CORE_Usuarios_Roles WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+        $rolesNuevos = [];
         foreach (array_map('intval', $_POST['roles'] ?? []) as $rolId) {
             if ($rolId > 0) {
                 $db->query(
                     'INSERT INTO CORE_Usuarios_Roles (id_usuario, id_rol) VALUES (?,?)',
                     [[$id, SQLSRV_PARAM_IN], [$rolId, SQLSRV_PARAM_IN]]
                 );
+                $rolesNuevos[] = $rolId;
             }
         }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Usuarios', (string)$id,
+            $antes ? [
+                'nombre_completo' => $antes['nombre_completo'], 'correo' => $antes['correo'],
+                'nivel_jerarquia' => (int)$antes['nivel_jerarquia'], 'id_departamento' => $antes['id_departamento'],
+                'estado' => (int)$antes['estado'],
+            ] : null,
+            [
+                'nombre_completo' => trim($_POST['nombre_completo']), 'correo' => trim($_POST['correo']),
+                'nivel_jerarquia' => (int)$_POST['nivel_jerarquia'], 'id_departamento' => (int)$_POST['id_departamento'],
+                'estado' => (int)($_POST['estado'] ?? 1), 'roles' => $rolesNuevos,
+            ]
+        );
 
         SessionHelper::flash('success', 'Usuario actualizado correctamente.');
         $this->redirect('/admin/usuarios');
@@ -97,8 +189,36 @@ class AdminController extends Controller {
         $this->requireLevel(3, [...self::NODO_USUARIOS, 4]);
         $this->verifyCsrf();
 
-        $this->db()->query('UPDATE CORE_Usuarios SET estado=0 WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+        $db    = $this->db();
+        $antes = $db->fetch($db->query('SELECT nombre_completo, estado FROM CORE_Usuarios WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]));
+        $db->query('UPDATE CORE_Usuarios SET estado=0 WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+
+        ModuleSecurity::audit('CORE', 'DESACTIVAR', 'CORE_Usuarios', (string)$id,
+            $antes ? ['estado' => (int)$antes['estado']] : null,
+            ['estado' => 0],
+            'EXITO', $antes['nombre_completo'] ?? null
+        );
+
         SessionHelper::flash('success', 'Usuario desactivado.');
+        $this->redirect('/admin/usuarios');
+    }
+
+    public function activarUsuario(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 4]);
+        $this->verifyCsrf();
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query('SELECT nombre_completo, estado FROM CORE_Usuarios WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]));
+        $db->query('UPDATE CORE_Usuarios SET estado=1 WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+
+        ModuleSecurity::audit('CORE', 'ACTIVAR', 'CORE_Usuarios', (string)$id,
+            $antes ? ['estado' => (int)$antes['estado']] : null,
+            ['estado' => 1],
+            'EXITO', $antes['nombre_completo'] ?? null
+        );
+
+        SessionHelper::flash('success', 'Usuario activado.');
         $this->redirect('/admin/usuarios');
     }
 
@@ -124,6 +244,111 @@ class AdminController extends Controller {
         ]);
     }
 
+    /** GET /admin/departamentos — listado, sincronizado desde Talento Humano. */
+    public function departamentos(): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
+
+        $db = $this->db();
+        $deptos = $db->fetchAll($db->query(
+            'SELECT id_departamento, codigo, nombre, descripcion, id_padre, nivel, estado,
+                    icono, color_badge, codigo_uorg_th, origen_th
+             FROM CORE_Departamentos
+             ORDER BY nivel, nombre'
+        ));
+
+        $this->render('Central/admin/departamentos', [
+            'pageTitle' => 'Departamentos',
+            'deptos'    => $deptos,
+            'csrf'      => $this->csrfToken(),
+        ]);
+    }
+
+    /** GET /admin/departamentos/{id}/editar */
+    public function editarDepartamento(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
+
+        $db     = $this->db();
+        $depto  = $db->fetch($db->query('SELECT * FROM CORE_Departamentos WHERE id_departamento=?', [[$id, SQLSRV_PARAM_IN]]));
+        if (!$depto) { http_response_code(404); exit; }
+
+        $this->render('Central/admin/departamento_form', [
+            'pageTitle' => 'Editar Departamento',
+            'depto'     => $depto,
+            'csrf'      => $this->csrfToken(),
+        ]);
+    }
+
+    /**
+     * POST /admin/departamentos/{id} — solo campos propios del portal
+     * (icono, color, descripción). El nombre/estructura vienen de Talento
+     * Humano cuando el departamento está sincronizado (origen_th=1) — un
+     * cambio manual de nombre ahí se sobrescribe en la próxima sincronización,
+     * así que no se ofrece editar nombre para esos. Los departamentos sin
+     * vínculo a TH (origen_th=0) sí permiten nombre libre, como siempre.
+     */
+    public function actualizarDepartamento(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_ROLES, 3]);
+        $this->verifyCsrf();
+
+        $db    = $this->db();
+        $depto = $db->fetch($db->query('SELECT * FROM CORE_Departamentos WHERE id_departamento=?', [[$id, SQLSRV_PARAM_IN]]));
+        if (!$depto) { http_response_code(404); exit; }
+
+        $icono      = trim($_POST['icono'] ?? '');
+        $colorBadge = trim($_POST['color_badge'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        $estado     = (int)($_POST['estado'] ?? 1);
+
+        if ((int)$depto['origen_th'] === 1) {
+            // Sincronizado desde TH: nombre no se toca acá.
+            $db->query(
+                'UPDATE CORE_Departamentos SET icono=?, color_badge=?, descripcion=?, estado=? WHERE id_departamento=?',
+                [
+                    [$icono ?: null,      SQLSRV_PARAM_IN],
+                    [$colorBadge ?: null, SQLSRV_PARAM_IN],
+                    [$descripcion,        SQLSRV_PARAM_IN],
+                    [$estado,             SQLSRV_PARAM_IN],
+                    [$id,                 SQLSRV_PARAM_IN],
+                ]
+            );
+        } else {
+            $nombre = trim($_POST['nombre'] ?? '');
+            if ($nombre === '') {
+                $_SESSION['_form_errors'] = ['nombre' => 'El nombre es obligatorio.'];
+                $this->redirect('/admin/departamentos/' . $id . '/editar');
+            }
+            $db->query(
+                'UPDATE CORE_Departamentos SET nombre=?, icono=?, color_badge=?, descripcion=?, estado=? WHERE id_departamento=?',
+                [
+                    [$nombre,             SQLSRV_PARAM_IN],
+                    [$icono ?: null,      SQLSRV_PARAM_IN],
+                    [$colorBadge ?: null, SQLSRV_PARAM_IN],
+                    [$descripcion,        SQLSRV_PARAM_IN],
+                    [$estado,             SQLSRV_PARAM_IN],
+                    [$id,                 SQLSRV_PARAM_IN],
+                ]
+            );
+        }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Departamentos', (string)$id,
+            [
+                'nombre' => $depto['nombre'], 'icono' => $depto['icono'],
+                'color_badge' => $depto['color_badge'], 'descripcion' => $depto['descripcion'], 'estado' => (int)$depto['estado'],
+            ],
+            [
+                'nombre' => (int)$depto['origen_th'] === 1 ? $depto['nombre'] : trim($_POST['nombre'] ?? ''),
+                'icono' => $icono ?: null, 'color_badge' => $colorBadge ?: null,
+                'descripcion' => $descripcion, 'estado' => $estado,
+            ]
+        );
+
+        SessionHelper::flash('success', 'Departamento actualizado correctamente.');
+        $this->redirect('/admin/departamentos');
+    }
+
     public function nuevoRol(): void {
         $this->requireAuth();
         $this->requireLevel(3, [...self::NODO_ROLES, 1]);
@@ -132,6 +357,7 @@ class AdminController extends Controller {
             'pageTitle' => 'Nuevo Rol',
             'rol'       => null,
             'deptos'    => $this->deptos(),
+            'puestos'   => $this->puestosTh(),
             'csrf'      => $this->csrfToken(),
         ]);
     }
@@ -151,9 +377,24 @@ class AdminController extends Controller {
             $this->redirect('/admin/roles/nuevo');
         }
 
+        // El nombre del rol se elige del catálogo real de cargos de Talento
+        // Humano — no texto libre. Verificar que coincide con uno existente.
+        $nombreRol = trim($_POST['nombre']);
+        $existePuesto = $this->db()->fetch($this->db()->query(
+            'SELECT TOP 1 1 FROM Talento_Humano.dbo.th_puestos WHERE nombre_puesto = ? AND activo = 1',
+            [[$nombreRol, SQLSRV_PARAM_IN]]
+        ));
+        if (!$existePuesto) {
+            $_SESSION['_form_errors'] = ['nombre' => 'El nombre debe ser un cargo real y activo del catálogo de Talento Humano.'];
+            $_SESSION['_old_input']   = $_POST;
+            $this->redirect('/admin/roles/nuevo');
+        }
+
         $deptoId = !empty($_POST['id_departamento']) ? (int)$_POST['id_departamento'] : null;
-        $this->db()->query(
-            'INSERT INTO CORE_Roles (codigo, nombre, descripcion, id_departamento, nivel_jerarquia, estado) VALUES (?,?,?,?,?,1)',
+        $stmt = $this->db()->query(
+            'INSERT INTO CORE_Roles (codigo, nombre, descripcion, id_departamento, nivel_jerarquia, estado)
+             OUTPUT INSERTED.id_rol
+             VALUES (?,?,?,?,?,1)',
             [
                 [strtoupper(trim($_POST['codigo'])),   SQLSRV_PARAM_IN],
                 [trim($_POST['nombre']),               SQLSRV_PARAM_IN],
@@ -162,6 +403,14 @@ class AdminController extends Controller {
                 [(int)$_POST['nivel_jerarquia'],       SQLSRV_PARAM_IN],
             ]
         );
+        $idRol = (int)$this->db()->fetch($stmt)['id_rol'];
+
+        ModuleSecurity::audit('CORE', 'CREAR', 'CORE_Roles', (string)$idRol, null, [
+            'codigo' => strtoupper(trim($_POST['codigo'])), 'nombre' => trim($_POST['nombre']),
+            'descripcion' => trim($_POST['descripcion'] ?? ''), 'id_departamento' => $deptoId,
+            'nivel_jerarquia' => (int)$_POST['nivel_jerarquia'],
+        ]);
+
         SessionHelper::flash('success', 'Rol creado correctamente.');
         $this->redirect('/admin/roles');
     }
@@ -178,6 +427,7 @@ class AdminController extends Controller {
             'pageTitle' => 'Editar Rol',
             'rol'       => $rol,
             'deptos'    => $this->deptos(),
+            'puestos'   => $this->puestosTh(),
             'csrf'      => $this->csrfToken(),
         ]);
     }
@@ -187,8 +437,22 @@ class AdminController extends Controller {
         $this->requireLevel(3, [...self::NODO_ROLES, 3]);
         $this->verifyCsrf();
 
+        $nombreRol = trim($_POST['nombre'] ?? '');
+        $existePuesto = $this->db()->fetch($this->db()->query(
+            'SELECT TOP 1 1 FROM Talento_Humano.dbo.th_puestos WHERE nombre_puesto = ? AND activo = 1',
+            [[$nombreRol, SQLSRV_PARAM_IN]]
+        ));
+        if (!$existePuesto) {
+            $_SESSION['_form_errors'] = ['nombre' => 'El nombre debe ser un cargo real y activo del catálogo de Talento Humano.'];
+            $_SESSION['_old_input']   = $_POST;
+            $this->redirect('/admin/roles/' . $id . '/editar');
+        }
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query('SELECT nombre, descripcion, id_departamento, nivel_jerarquia, estado FROM CORE_Roles WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]));
+
         $deptoId = !empty($_POST['id_departamento']) ? (int)$_POST['id_departamento'] : null;
-        $this->db()->query(
+        $db->query(
             'UPDATE CORE_Roles SET nombre=?, descripcion=?, id_departamento=?, nivel_jerarquia=?, estado=? WHERE id_rol=?',
             [
                 [trim($_POST['nombre']),             SQLSRV_PARAM_IN],
@@ -199,6 +463,20 @@ class AdminController extends Controller {
                 [$id,                                SQLSRV_PARAM_IN],
             ]
         );
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Roles', (string)$id,
+            $antes ? [
+                'nombre' => $antes['nombre'], 'descripcion' => $antes['descripcion'],
+                'id_departamento' => $antes['id_departamento'], 'nivel_jerarquia' => (int)$antes['nivel_jerarquia'],
+                'estado' => (int)$antes['estado'],
+            ] : null,
+            [
+                'nombre' => trim($_POST['nombre']), 'descripcion' => trim($_POST['descripcion'] ?? ''),
+                'id_departamento' => $deptoId, 'nivel_jerarquia' => (int)$_POST['nivel_jerarquia'],
+                'estado' => (int)($_POST['estado'] ?? 1),
+            ]
+        );
+
         SessionHelper::flash('success', 'Rol actualizado correctamente.');
         $this->redirect('/admin/roles');
     }
@@ -208,8 +486,36 @@ class AdminController extends Controller {
         $this->requireLevel(3, [...self::NODO_ROLES, 4]);
         $this->verifyCsrf();
 
-        $this->db()->query('UPDATE CORE_Roles SET estado=0 WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]);
+        $db    = $this->db();
+        $antes = $db->fetch($db->query('SELECT nombre, estado FROM CORE_Roles WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]));
+        $db->query('UPDATE CORE_Roles SET estado=0 WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]);
+
+        ModuleSecurity::audit('CORE', 'DESACTIVAR', 'CORE_Roles', (string)$id,
+            $antes ? ['estado' => (int)$antes['estado']] : null,
+            ['estado' => 0],
+            'EXITO', $antes['nombre'] ?? null
+        );
+
         SessionHelper::flash('success', 'Rol desactivado.');
+        $this->redirect('/admin/roles');
+    }
+
+    public function activarRol(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_ROLES, 4]);
+        $this->verifyCsrf();
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query('SELECT nombre, estado FROM CORE_Roles WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]));
+        $db->query('UPDATE CORE_Roles SET estado=1 WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]);
+
+        ModuleSecurity::audit('CORE', 'ACTIVAR', 'CORE_Roles', (string)$id,
+            $antes ? ['estado' => (int)$antes['estado']] : null,
+            ['estado' => 1],
+            'EXITO', $antes['nombre'] ?? null
+        );
+
+        SessionHelper::flash('success', 'Rol activado.');
         $this->redirect('/admin/roles');
     }
 
@@ -250,23 +556,29 @@ class AdminController extends Controller {
             $permisosMap["{$p['id_modulo']}-{$p['opcion']}-{$p['items']}-{$p['subitems']}"] = (int)$p['nivel_crud'];
         }
 
-        // Mismo ícono/color que MenuController::MODULES — para que Estructura
-        // del Menú y Roles y Permisos "hablen el mismo idioma" visual.
-        $moduleMeta = [
-            1  => ['label' => 'Dirección de Planificación Estratégica', 'icon' => 'fa-chart-gantt',       'color' => '#6f42c1'],
-            2  => ['label' => 'Gestión de Tecnología de la Información','icon' => 'fa-server',            'color' => '#0056b3'],
-            3  => ['label' => 'Dirección de Asesoría Jurídica',         'icon' => 'fa-scale-balanced',    'color' => '#dc3545'],
-            4  => ['label' => 'Dirección de Infraestructura Portuaria', 'icon' => 'fa-hard-hat',          'color' => '#fd7e14'],
-            5  => ['label' => 'Garita de Acceso / Control de Acceso',   'icon' => 'fa-door-open',         'color' => '#20c997'],
-            6  => ['label' => 'Dirección de Operaciones',               'icon' => 'fa-ship',              'color' => '#17a2b8'],
-            7  => ['label' => 'Gerencia General',                       'icon' => 'fa-building',          'color' => '#343a40'],
-            8  => ['label' => 'Delegación de Servicios Portuarios',     'icon' => 'fa-landmark',          'color' => '#6f42c1'],
-            9  => ['label' => 'Dirección Administrativa',               'icon' => 'fa-briefcase',         'color' => '#0056b3'],
-            10 => ['label' => 'Dirección Financiera',                   'icon' => 'fa-wallet',            'color' => '#28a745'],
-            11 => ['label' => 'Dirección de Talento Humano',            'icon' => 'fa-users',             'color' => '#e83e8c'],
-            12 => ['label' => 'Control de Bienes (Inventario)',         'icon' => 'fa-boxes-stacked',     'color' => '#fd7e14'],
-            13 => ['label' => 'Bitácoras Portuarias (CCTV/Visitas)',    'icon' => 'fa-anchor',            'color' => '#0891b2'],
-        ];
+        $tree = $this->construirArbolPermisos($nodos, $permisosMap);
+
+        $this->render('Central/admin/rol_permisos', [
+            'pageTitle'      => 'Permisos: ' . htmlspecialchars($rol['nombre'], ENT_QUOTES),
+            'rol'            => $rol,
+            'usuariosConRol' => $usuariosConRol,
+            'tree'           => $tree,
+            'csrf'      => $this->csrfToken(),
+        ]);
+    }
+
+    /**
+     * Arma el árbol Módulo>Opción>Ítem>Sub-ítem para la tabla-checklist de
+     * permisos, marcando el nivel_crud vigente en cada nodo según
+     * $permisosMap (clave "mod-op-it-sub" => nivel_crud). Reutilizado por
+     * rolPermisos() (permiso por ROL) y editarUsuario() (override por
+     * USUARIO individual, Fase 0 del sistema central de permisos) — misma
+     * forma de árbol, distinta fuente de $permisosMap.
+     */
+    private function construirArbolPermisos(array $nodos, array $permisosMap): array {
+        // Mismo ícono/color que CatalogoModulos — para que Estructura del
+        // Menú y Roles y Permisos "hablen el mismo idioma" visual.
+        $moduleMeta = CatalogoModulos::todos();
 
         $tree = [];
         foreach ($nodos as $n) {
@@ -301,14 +613,7 @@ class AdminController extends Controller {
                 $tree[$mod]['areas'][$op]['items'][$it]['subitems'][] = $n;
             }
         }
-
-        $this->render('Central/admin/rol_permisos', [
-            'pageTitle'      => 'Permisos: ' . htmlspecialchars($rol['nombre'], ENT_QUOTES),
-            'rol'            => $rol,
-            'usuariosConRol' => $usuariosConRol,
-            'tree'           => $tree,
-            'csrf'      => $this->csrfToken(),
-        ]);
+        return $tree;
     }
 
     public function guardarPermisos(int $id): void {
@@ -317,8 +622,19 @@ class AdminController extends Controller {
         $this->verifyCsrf();
 
         $db = $this->db();
+
+        $antesRows = $db->fetchAll($db->query(
+            'SELECT id_modulo, opcion, items, subitems, nivel_crud FROM CORE_Permisos_Nodo WHERE id_rol=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+        $antesMap = [];
+        foreach ($antesRows as $r) {
+            $antesMap["{$r['id_modulo']}-{$r['opcion']}-{$r['items']}-{$r['subitems']}"] = (int)$r['nivel_crud'];
+        }
+
         $db->query('DELETE FROM CORE_Permisos_Nodo WHERE id_rol=?', [[$id, SQLSRV_PARAM_IN]]);
 
+        $despuesMap = [];
         foreach ($_POST['permisos'] ?? [] as $key => $nivel) {
             $nivel = (int)$nivel;
             if ($nivel < 1 || $nivel > 4) continue;
@@ -337,7 +653,20 @@ class AdminController extends Controller {
                     [$nivel, SQLSRV_PARAM_IN],
                 ]
             );
+            $despuesMap[(string)$key] = $nivel;
         }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Permisos_Nodo', (string)$id,
+            $antesMap ?: null, $despuesMap ?: null,
+            'EXITO', 'nivel_crud por nodo MOIS (id_modulo-opcion-items-subitems)'
+        );
+
+        // Sync bidireccional Fase 1/2: si este rol tiene mapeo en un módulo
+        // con RBAC propio (TH, Bienes), refleja el cambio allá también. No
+        // bloquea el guardado si el módulo destino no está disponible --
+        // ver SyncPermisosModulo::registrarFalloSync().
+        SyncPermisosModulo::centralHaciaTh($id, $despuesMap);
+        SyncPermisosModulo::centralHaciaBienes($id, $despuesMap);
 
         if (View::isAjax()) {
             $this->json(['ok' => true, 'msg' => 'Permisos guardados correctamente.']);
@@ -345,6 +674,107 @@ class AdminController extends Controller {
 
         SessionHelper::flash('success', 'Permisos guardados correctamente.');
         $this->redirect('/admin/roles/' . $id . '/permisos');
+    }
+
+    // moduleMeta() se retiró: ver CatalogoModulos::todos() (tabla CORE_Modulos,
+    // Fase 0 del sistema central de permisos) — misma fuente que MenuController.
+
+    /**
+     * GET /admin/roles/matriz — resumen visual de qué rol tiene acceso a qué
+     * módulo y con qué nivel, sin tener que abrir cada rol uno por uno.
+     * Solo incluye módulos que realmente tienen nodos de menú construidos
+     * (hoy: Central/Portal APM, Talento Humano, Control de Bienes, Bitácoras
+     * — los demás id_modulo de moduleMeta() son slots organizacionales
+     * reservados sin contenido todavía).
+     */
+    public function permisosMatriz(): void {
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_ROLES, 1]);
+
+        $db = $this->db();
+
+        $roles = $db->fetchAll($db->query(
+            'SELECT r.id_rol, r.codigo, r.nombre, r.estado, d.nombre AS departamento
+             FROM CORE_Roles r LEFT JOIN CORE_Departamentos d ON d.id_departamento = r.id_departamento
+             ORDER BY r.estado DESC, r.nombre'
+        ));
+
+        // opcion>0 excluye el nodo raíz del módulo (solo contenedor visual,
+        // no un permiso navegable en sí) — se cuentan los ítems reales.
+        $nodos = $db->fetchAll($db->query(
+            'SELECT id_nodo, id_modulo, opcion, items, subitems, descripcion
+             FROM CORE_Menu_Nodos WHERE estado=1 AND opcion > 0
+             ORDER BY id_modulo, opcion, items, subitems'
+        ));
+        $nodosPorModulo = [];
+        foreach ($nodos as $n) {
+            $nodosPorModulo[(int)$n['id_modulo']][] = $n;
+        }
+
+        $permisos = $db->fetchAll($db->query(
+            'SELECT id_rol, id_modulo, opcion, items, subitems, nivel_crud
+             FROM CORE_Permisos_Nodo WHERE estado=1 AND opcion > 0'
+        ));
+        $permisosPorRolModulo = [];
+        foreach ($permisos as $p) {
+            $permisosPorRolModulo[(int)$p['id_rol']][(int)$p['id_modulo']][] = $p;
+        }
+
+        $modulosActivos = array_keys($nodosPorModulo);
+        sort($modulosActivos);
+
+        $usuariosPorRol = [];
+        foreach ($db->fetchAll($db->query(
+            'SELECT id_rol, COUNT(*) AS n FROM CORE_Usuarios_Roles WHERE estado=1 GROUP BY id_rol'
+        )) as $u) {
+            $usuariosPorRol[(int)$u['id_rol']] = (int)$u['n'];
+        }
+
+        $matriz = [];
+        foreach ($roles as $r) {
+            $idRol = (int)$r['id_rol'];
+            $celdas = [];
+            foreach ($modulosActivos as $idMod) {
+                $nodosDelModulo   = $nodosPorModulo[$idMod] ?? [];
+                $permisosRolMod   = $permisosPorRolModulo[$idRol][$idMod] ?? [];
+                $permisoPorNodo   = [];
+                $nivelMax         = 0;
+                foreach ($permisosRolMod as $p) {
+                    $permisoPorNodo["{$p['opcion']}-{$p['items']}-{$p['subitems']}"] = (int)$p['nivel_crud'];
+                    $nivelMax = max($nivelMax, (int)$p['nivel_crud']);
+                }
+                $detalle = [];
+                $conAcceso = 0;
+                foreach ($nodosDelModulo as $n) {
+                    $key   = "{$n['opcion']}-{$n['items']}-{$n['subitems']}";
+                    $nivel = $permisoPorNodo[$key] ?? 0;
+                    if ($nivel > 0) $conAcceso++;
+                    $detalle[] = ['nombre' => $n['descripcion'], 'nivel' => $nivel];
+                }
+                $celdas[$idMod] = [
+                    'con_acceso' => $conAcceso,
+                    'total'      => count($nodosDelModulo),
+                    'nivel_max'  => $nivelMax,
+                    'detalle'    => $detalle,
+                ];
+            }
+            $matriz[] = ['rol' => $r, 'usuarios' => $usuariosPorRol[$idRol] ?? 0, 'celdas' => $celdas];
+        }
+
+        $sinPermisos = array_values(array_filter($matriz, function ($fila) {
+            foreach ($fila['celdas'] as $c) { if ($c['con_acceso'] > 0) return false; }
+            return true;
+        }));
+
+        $this->render('Central/admin/roles_matriz', [
+            'pageTitle'    => 'Matriz de Permisos',
+            'matriz'       => $matriz,
+            'modulos'      => $modulosActivos,
+            'moduleMeta'   => CatalogoModulos::todos(),
+            'nivelLabels'  => [1 => 'Ver', 2 => 'Crear', 3 => 'Editar', 4 => 'Total'],
+            'sinPermisos'  => count($sinPermisos),
+            'totalRoles'   => count($roles),
+        ]);
     }
 
     // ─── Auditoría ────────────────────────────────────────────────────────────
@@ -548,6 +978,14 @@ class AdminController extends Controller {
         ));
     }
 
+    /** Catálogo de cargos reales de Talento Humano — fuente del nombre de un rol nuevo. */
+    private function puestosTh(): array {
+        $db = $this->db();
+        return $db->fetchAll($db->query(
+            'SELECT nombre_puesto FROM Talento_Humano.dbo.th_puestos WHERE activo = 1 ORDER BY nombre_puesto'
+        ));
+    }
+
     // ─── Export de Usuarios (todos + individual) ──────────────────────────────
 
     /** Datos completos de usuario(s) con departamento y roles concatenados. */
@@ -711,7 +1149,7 @@ class AdminController extends Controller {
         $offset = ($page - 1) * self::TH_POR_PAGINA;
 
         $where  = $buscar !== ''
-            ? "AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.cedula LIKE ?)"
+            ? "AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.identificacion LIKE ?)"
             : '';
         $likeParams = $buscar !== ''
             ? (function () use ($buscar) { $l = '%' . $buscar . '%'; return [[$l, SQLSRV_PARAM_IN], [$l, SQLSRV_PARAM_IN], [$l, SQLSRV_PARAM_IN]]; })()
@@ -729,7 +1167,7 @@ class AdminController extends Controller {
         ))['n'] ?? 0);
 
         $stmt = $db->query(
-            "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
+            "SELECT e.empleado_id, e.identificacion AS cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
                     e.correo_institucional, u.codigo_uorg, u.nombre_unidad
              FROM Talento_Humano.dbo.th_empleados e
              LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
@@ -757,10 +1195,14 @@ class AdminController extends Controller {
         $this->requireLevel(3, [...self::NODO_USUARIOS, 2]);
 
         $emp = $this->db()->fetch($this->db()->query(
-            "SELECT e.empleado_id, e.cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
-                    e.correo_institucional, u.codigo_uorg, u.nombre_unidad
+            "SELECT e.empleado_id, e.identificacion AS cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
+                    e.correo_institucional, u.codigo_uorg, u.nombre_unidad,
+                    p.nombre_puesto AS cargo,
+                    e.telefono_movil, e.telefono_convencional, e.fecha_ingreso,
+                    e.tipo_contrato, e.jornada, e.estado, e.ruta_foto
              FROM Talento_Humano.dbo.th_empleados e
              LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+             LEFT JOIN Talento_Humano.dbo.th_puestos p ON p.puesto_id = e.puesto_id
              WHERE e.empleado_id = ?",
             [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
         ));
@@ -777,9 +1219,17 @@ class AdminController extends Controller {
             [[$emp['codigo_uorg'] ?? '', SQLSRV_PARAM_IN]]
         ));
 
+        // Foto real del empleado (la sirve apps/talento_humano/) — si quedó
+        // en el default genérico o vacía, no hay foto real que mostrar.
+        $rutaFoto = trim((string)($emp['ruta_foto'] ?? ''));
+        $fotoUrl  = ($rutaFoto !== '' && $rutaFoto !== 'public/img/default_avatar.png')
+            ? APP_URL . '/apps/talento_humano/' . ltrim($rutaFoto, '/')
+            : null;
+
         $this->render('Central/admin/usuario_desde_empleado', [
             'pageTitle'  => 'Nueva cuenta — ' . $emp['nombre_completo'],
             'empleado'   => $emp,
+            'fotoUrl'    => $fotoUrl,
             'sugerido'   => $mapa ?: null,
             'deptos'     => $this->deptos(),
             'todosRoles' => $this->db()->fetchAll($this->db()->query('SELECT id_rol, nombre FROM CORE_Roles WHERE estado=1 ORDER BY nombre')),
@@ -809,7 +1259,7 @@ class AdminController extends Controller {
 
         $idEmpleadoTh = (int)$_POST['id_empleado_th'];
         $emp = $this->db()->fetch($this->db()->query(
-            "SELECT e.cedula, e.correo_institucional
+            "SELECT e.identificacion AS cedula, e.correo_institucional
              FROM Talento_Humano.dbo.th_empleados e WHERE e.empleado_id = ?",
             [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
         ));
@@ -829,16 +1279,23 @@ class AdminController extends Controller {
 
         $hash = SecurityHelper::hashPassword($_POST['contrasena']);
         $db   = $this->db();
+        $db->beginTransaction();
 
         // nombre_completo/cedula locales quedan como respaldo (por si el
         // vínculo se rompe); vw_Usuarios_Identidad prioriza el dato en vivo.
         // nombre_usuario = cédula: el login es únicamente por cédula, no se
         // maneja un "usuario" separado (columna se mantiene por compatibilidad
         // con sp_Login y el contrato SSO de TH/Bienes, pero es transparente).
-        $db->query(
+        // OUTPUT INSERTED en vez de SCOPE_IDENTITY() aparte: con sqlsrv_prepare()
+        // el driver ODBC ejecuta el INSERT como sp_execute, un scope anidado que
+        // SCOPE_IDENTITY() pierde de vista en cuanto termina esa llamada — una
+        // consulta SEPARADA después siempre devuelve NULL. OUTPUT INSERTED lee el
+        // id en la MISMA sentencia, sin depender de ningún scope posterior.
+        $stmt = $db->query(
             'INSERT INTO CORE_Usuarios
                 (nombre_usuario, nombre_completo, correo, cedula, hash_contrasena,
                  nivel_jerarquia, id_departamento, id_empleado_th, estado)
+             OUTPUT INSERTED.id_usuario
              VALUES (?,?,?,?,?,?,?,?,1)',
             [
                 [$emp['cedula'], SQLSRV_PARAM_IN],
@@ -852,7 +1309,7 @@ class AdminController extends Controller {
             ]
         );
 
-        $idUsuario = (int)$db->fetch($db->query('SELECT SCOPE_IDENTITY() AS id'))['id'];
+        $idUsuario = (int)$db->fetch($stmt)['id_usuario'];
         $db->query(
             'INSERT INTO CORE_Usuarios_Roles (id_usuario, id_rol, asignado_por) VALUES (?,?,?)',
             [
@@ -861,6 +1318,13 @@ class AdminController extends Controller {
                 [(int)($_SESSION['user_id'] ?? 0), SQLSRV_PARAM_IN],
             ]
         );
+        $db->commit();
+
+        ModuleSecurity::audit('CORE', 'CREAR', 'CORE_Usuarios', (string)$idUsuario, null, [
+            'cedula' => $emp['cedula'], 'nombre_completo' => $this->empleadoNombreCompleto($idEmpleadoTh),
+            'nivel_jerarquia' => (int)$_POST['nivel_jerarquia'], 'id_departamento' => (int)$_POST['id_departamento'],
+            'id_rol' => (int)$_POST['id_rol'], 'id_empleado_th' => $idEmpleadoTh,
+        ], 'EXITO', 'Cuenta creada desde empleado de Talento Humano');
 
         SessionHelper::flash('success', 'Cuenta creada y vinculada al empleado de Talento Humano.');
         $this->redirect('/admin/usuarios');
@@ -872,5 +1336,190 @@ class AdminController extends Controller {
             [[$idEmpleadoTh, SQLSRV_PARAM_IN]]
         ));
         return $r['n'] ?? '';
+    }
+
+    // ─── Inactividad de sesión ─────────────────────────────────────────────
+    // Solo Administrador general (nivel_jerarquia 4) — requireLevel(4) sin
+    // nodo MOIS es a propósito: es un ajuste global de seguridad, no una
+    // opción de menú de negocio como Usuarios/Roles.
+
+    private const MODULOS_INACTIVIDAD = [
+        'CENTRAL'         => 'Portal APM (Central)',
+        'TALENTO_HUMANO'  => 'Talento Humano',
+        'CONTROL_BIENES'  => 'Control de Bienes',
+        'BITACORAS'       => 'Bitácoras',
+    ];
+
+    private function upsertConfig(Database $db, string $modulo, string $clave, string $valor): void {
+        $r = $db->query(
+            'UPDATE CORE_Config SET valor=?, fecha_mod=GETDATE() WHERE modulo=? AND clave=?',
+            [[$valor, SQLSRV_PARAM_IN], [$modulo, SQLSRV_PARAM_IN], [$clave, SQLSRV_PARAM_IN]]
+        );
+        if ($db->rowsAffected($r) === 0) {
+            $db->query(
+                'INSERT INTO CORE_Config (modulo,clave,valor,tipo,fecha_mod,estado) VALUES (?,?,?,?,GETDATE(),1)',
+                [[$modulo, SQLSRV_PARAM_IN], [$clave, SQLSRV_PARAM_IN], [$valor, SQLSRV_PARAM_IN], ['int', SQLSRV_PARAM_IN]]
+            );
+        }
+    }
+
+    /** GET /admin/inactividad */
+    public function inactividad(): void {
+        $this->requireAuth();
+        $this->requireLevel(4);
+
+        $db = $this->db();
+        $global = $db->fetch($db->query(
+            "SELECT (SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='INACTIVIDAD_SEGUNDOS') AS segundos,
+                    (SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='INACTIVIDAD_AVISO_SEGUNDOS') AS aviso"
+        ));
+
+        $porModulo = [];
+        foreach (self::MODULOS_INACTIVIDAD as $code => $label) {
+            $row = $db->fetch($db->query(
+                "SELECT (SELECT valor FROM CORE_Config WHERE modulo=? AND clave='INACTIVIDAD_SEGUNDOS') AS segundos,
+                        (SELECT valor FROM CORE_Config WHERE modulo=? AND clave='INACTIVIDAD_AVISO_SEGUNDOS') AS aviso",
+                [[$code, SQLSRV_PARAM_IN], [$code, SQLSRV_PARAM_IN]]
+            ));
+            $porModulo[$code] = ['label' => $label, 'segundos' => $row['segundos'] ?? null, 'aviso' => $row['aviso'] ?? null];
+        }
+
+        // Tabla completa (no solo los que ya tienen ajuste) — se puede fijar
+        // un override desde cualquier fila, y de un vistazo se ve quién ya
+        // tiene uno propio vs quién hereda módulo/global.
+        $usuarios = $db->fetchAll($db->query(
+            "SELECT u.id_usuario, u.nombre_completo, u.cedula, u.nivel_jerarquia, u.estado,
+                    d.nombre AS departamento,
+                    u.inactividad_segundos_override, u.inactividad_aviso_segundos_override
+             FROM CORE_Usuarios u
+             LEFT JOIN CORE_Departamentos d ON d.id_departamento = u.id_departamento
+             ORDER BY u.estado DESC, u.nombre_completo"
+        ));
+
+        $this->render('Central/admin/inactividad', [
+            'pageTitle'  => 'Tiempo de Inactividad',
+            'global'     => $global ?: ['segundos' => 1800, 'aviso' => 60],
+            'porModulo'  => $porModulo,
+            'usuarios'   => $usuarios,
+            'csrf'       => $this->csrfToken(),
+        ]);
+    }
+
+    /** POST /admin/inactividad/global */
+    public function actualizarInactividadGlobal(): void {
+        $this->requireAuth();
+        $this->requireLevel(4);
+        $this->verifyCsrf();
+
+        $segundos = max(30, (int)($_POST['segundos'] ?? 1800));
+        $aviso    = max(5, min($segundos - 5, (int)($_POST['aviso'] ?? 60)));
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query(
+            "SELECT (SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='INACTIVIDAD_SEGUNDOS') AS s,
+                    (SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='INACTIVIDAD_AVISO_SEGUNDOS') AS a"
+        ));
+
+        $this->upsertConfig($db, 'CORE', 'INACTIVIDAD_SEGUNDOS', (string)$segundos);
+        $this->upsertConfig($db, 'CORE', 'INACTIVIDAD_AVISO_SEGUNDOS', (string)$aviso);
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Config', 'CORE',
+            $antes ? ['segundos' => $antes['s'], 'aviso' => $antes['a']] : null,
+            ['segundos' => $segundos, 'aviso' => $aviso],
+            'EXITO', 'Tiempo de inactividad global'
+        );
+
+        $this->invalidarCacheInactividad();
+        SessionHelper::flash('success', 'Tiempo global de inactividad actualizado.');
+        $this->redirect('/admin/inactividad');
+    }
+
+    /** POST /admin/inactividad/modulo/{modulo} */
+    public function actualizarInactividadModulo(string $modulo): void {
+        $this->requireAuth();
+        $this->requireLevel(4);
+        $this->verifyCsrf();
+
+        if (!isset(self::MODULOS_INACTIVIDAD[$modulo])) { http_response_code(404); exit; }
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query(
+            "SELECT (SELECT valor FROM CORE_Config WHERE modulo=? AND clave='INACTIVIDAD_SEGUNDOS') AS s,
+                    (SELECT valor FROM CORE_Config WHERE modulo=? AND clave='INACTIVIDAD_AVISO_SEGUNDOS') AS a",
+            [[$modulo, SQLSRV_PARAM_IN], [$modulo, SQLSRV_PARAM_IN]]
+        ));
+
+        if (!empty($_POST['usar_global'])) {
+            $db->query(
+                "DELETE FROM CORE_Config WHERE modulo=? AND clave IN ('INACTIVIDAD_SEGUNDOS','INACTIVIDAD_AVISO_SEGUNDOS')",
+                [[$modulo, SQLSRV_PARAM_IN]]
+            );
+            $despues = null;
+        } else {
+            $segundos = max(30, (int)($_POST['segundos'] ?? 1800));
+            $aviso    = max(5, min($segundos - 5, (int)($_POST['aviso'] ?? 60)));
+            $this->upsertConfig($db, $modulo, 'INACTIVIDAD_SEGUNDOS', (string)$segundos);
+            $this->upsertConfig($db, $modulo, 'INACTIVIDAD_AVISO_SEGUNDOS', (string)$aviso);
+            $despues = ['segundos' => $segundos, 'aviso' => $aviso];
+        }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Config', $modulo,
+            $antes ? ['segundos' => $antes['s'], 'aviso' => $antes['a']] : null,
+            $despues, 'EXITO', 'Tiempo de inactividad — módulo ' . self::MODULOS_INACTIVIDAD[$modulo]
+        );
+
+        $this->invalidarCacheInactividad();
+        SessionHelper::flash('success', 'Configuración de ' . self::MODULOS_INACTIVIDAD[$modulo] . ' actualizada.');
+        $this->redirect('/admin/inactividad');
+    }
+
+    /** POST /admin/inactividad/usuario/{id} */
+    public function actualizarInactividadUsuario(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(4);
+        $this->verifyCsrf();
+
+        $db    = $this->db();
+        $antes = $db->fetch($db->query(
+            'SELECT nombre_completo, inactividad_segundos_override, inactividad_aviso_segundos_override FROM CORE_Usuarios WHERE id_usuario=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+        if (!$antes) { $this->json(['error' => 'Usuario no encontrado'], 404); }
+
+        if (!empty($_POST['quitar_override'])) {
+            $segundos = null; $aviso = null;
+        } else {
+            $segundos = max(30, (int)($_POST['segundos'] ?? 1800));
+            $aviso    = max(5, min($segundos - 5, (int)($_POST['aviso'] ?? 60)));
+        }
+
+        $db->query(
+            'UPDATE CORE_Usuarios SET inactividad_segundos_override=?, inactividad_aviso_segundos_override=? WHERE id_usuario=?',
+            [[$segundos, SQLSRV_PARAM_IN], [$aviso, SQLSRV_PARAM_IN], [$id, SQLSRV_PARAM_IN]]
+        );
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Usuarios', (string)$id,
+            ['segundos' => $antes['inactividad_segundos_override'], 'aviso' => $antes['inactividad_aviso_segundos_override']],
+            ['segundos' => $segundos, 'aviso' => $aviso],
+            'EXITO', 'Override individual de inactividad — ' . $antes['nombre_completo']
+        );
+
+        // Si el admin se está editando a sí mismo, que su propia sesión lo
+        // note de inmediato — si es otro usuario, no hay forma de tocar la
+        // sesión de otra persona desde acá; a esa le llega en máximo 5 min
+        // (o en su próximo login) por el cache normal de resolveInactividad().
+        if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+            $this->invalidarCacheInactividad();
+        }
+
+        if ($this->isAjax()) { $this->json(['ok' => true]); }
+        SessionHelper::flash('success', 'Override de inactividad de ' . $antes['nombre_completo'] . ' actualizado.');
+        $this->redirect('/admin/inactividad');
+    }
+
+    /** Fuerza a que la sesión ACTUAL vuelva a resolver su tiempo de inactividad
+     *  en el próximo request, en vez de servir el valor cacheado hasta 5 min. */
+    private function invalidarCacheInactividad(): void {
+        unset($_SESSION['_inactividad_segundos'], $_SESSION['_inactividad_aviso'], $_SESSION['_inactividad_resuelto_en']);
     }
 }

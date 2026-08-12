@@ -57,6 +57,12 @@ if (!$baseUrl) {
 }
 define('BASE_URL', rtrim($baseUrl, '/') . '/');
 
+// Raíz del PORTAL (no de esta app) — para /login, /logout, /api/keepalive
+// y para reusar assets vendorizados ahí (ej. SweetAlert2). Mismo cálculo
+// que BASE_URL arriba, recortando el sufijo "/apps/control_bienes".
+$__portalBase = preg_replace('#/apps/control_bienes(/.*)?$#', '', rtrim($baseUrl, '/'));
+define('PORTAL_ROOT_URL', $__portalBase);
+
 // Ruta de Logs y Almacenamiento
 define('APP_LOGS_PATH', ROOT_PATH . 'logs/');
 define('STORAGE_PATH',  ROOT_PATH . 'storage/');

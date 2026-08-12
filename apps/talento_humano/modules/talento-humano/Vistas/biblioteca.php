@@ -12,13 +12,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biblioteca de Formularios | Talento Humano APM</title>
     <meta name="description" content="Biblioteca centralizada de formularios del módulo Talento Humano — Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Biblioteca — Enterprise v4 ───────────────────────────────── */
 
@@ -298,23 +292,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         <?php require_once ROOT . '/shared/menu.php'; ?>
 
         <section class="content">
-            <header class="topbar">
-                <div class="topbar-left">
-                    <div class="brand">
-                        <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                        <div>
-                            <h1>Autoridad Portuaria de Manta</h1>
-                            <p>Módulo Talento Humano</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="topbar-actions">
-                    <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                    <a href="<?= BASE_URL ?>/talento-humano/inicio" class="btn btn-ghost">
-                        <i class="bi bi-house-door"></i> Inicio
-                    </a>
-                </div>
-            </header>
+            <?php $topbarShowSearch=true;require ROOT.'/shared/topbar.php'; ?>
 
             <main class="main">
                 <div class="content-shell">
@@ -367,9 +345,9 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                 <button class="btn-lib btn-lib--ghost" onclick="abrirRegistros('registros-expediente')">
                                     <i class="bi bi-folder2-open"></i> Ver registros
                                 </button>
-                                <button class="btn-lib btn-lib--doc" onclick="abrirPreview('preview-registro')" title="Ver y descargar el formato en blanco">
+                                <a class="btn-lib btn-lib--doc" target="_blank" rel="noopener" href="<?= BASE_URL ?>/talento-humano/empleado/formato-principal-blanco" title="Abrir el formato oficial en PDF">
                                     <i class="bi bi-file-earmark-arrow-down"></i> Descargar Formato
-                                </button>
+                                </a>
                             </div>
                         </div>
 
@@ -400,9 +378,9 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                 <button class="btn-lib btn-lib--ghost" onclick="abrirRegistros('registros-accion')">
                                     <i class="bi bi-folder2-open"></i> Ver registros
                                 </button>
-                                <button class="btn-lib btn-lib--doc" onclick="abrirPreview('preview-accion')" title="Ver y descargar el formato en blanco">
+                                <a class="btn-lib btn-lib--doc" target="_blank" href="<?= BASE_URL ?>/talento-humano/accion-personal/formato-blanco" title="Descargar el formato oficial en blanco">
                                     <i class="bi bi-file-earmark-arrow-down"></i> Descargar Formato
-                                </button>
+                                </a>
                             </div>
                         </div>
 
@@ -446,9 +424,9 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                 <button class="btn-lib btn-lib--ghost" onclick="abrirRegistros('registros-seguridad')">
                                     <i class="bi bi-folder2-open"></i> Ver registros
                                 </button>
-                                <button class="btn-lib btn-lib--doc" onclick="abrirPreview('preview-seguridad')" title="Ver y descargar el formato en blanco">
+                                <a class="btn-lib btn-lib--doc" target="_blank" href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?blank=1" title="Descargar el formato oficial en blanco">
                                     <i class="bi bi-file-earmark-arrow-down"></i> Descargar Formato
-                                </button>
+                                </a>
                             </div>
                         </div>
 
@@ -460,7 +438,6 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         </section>
     </div>
 
-    <div id="toastContainer" class="toast-container"></div>
 
     <!-- ══ MODALES DE REGISTROS GUARDADOS ═════════════════════════════════ -->
 
@@ -560,7 +537,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <input type="text" placeholder="Buscar por cédula o nombre..." id="busq-accion"
                            oninput="filtrarTabla('tabla-accion','busq-accion')"
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
-                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($empleados ?? []) ?> acción(es) registrada(s)</span>
+                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($acciones ?? []) ?> acción(es) registrada(s)</span>
                 </div>
                 <div style="overflow-x:auto;">
                     <table id="tabla-accion" style="width:100%;border-collapse:collapse;font-size:.88rem;">
@@ -576,23 +553,34 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                         </thead>
                         <tbody>
                             <!-- Registros de acciones de personal -->
-                            <?php if (!empty($empleados)): foreach ($empleados as $i => $emp):
-                                $nombre = trim(($emp['nombres'] ?? '') . ' ' . ($emp['apellidos'] ?? ''));
-                                $empId  = (int)($emp['id'] ?? 0);
-                                $cedula = $emp['cedula'] ?? '';
-                                $nro    = 'APM-TH-' . date('Y') . '-' . str_pad($empId, 3, '0', STR_PAD_LEFT);
+                            <?php if (!empty($acciones)): foreach ($acciones as $i => $accion):
+                                $nombre = trim(($accion['nombres'] ?? '') . ' ' . ($accion['apellidos'] ?? ''));
+                                $cedula = $accion['identificacion'] ?? '';
+                                $nro = $accion['numero_accion'] ?? '';
+                                $accionId = (int)($accion['accion_id'] ?? 0);
                             ?>
                             <tr style="border-bottom:1px solid var(--line);<?= $i%2===0?'background:#fff;':'background:#f0fdfb;' ?>" data-search="<?= strtolower(htmlspecialchars($cedula.' '.$nombre)) ?>">
                                 <td style="padding:10px 14px;font-family:monospace;font-size:.82rem;"><?= htmlspecialchars($nro) ?></td>
                                 <td style="padding:10px 14px;font-weight:500;"><?= htmlspecialchars($nombre) ?></td>
-                                <td style="padding:10px 14px;"><span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:.8rem;">Traslado</span></td>
-                                <td style="padding:10px 14px;color:var(--text-muted);"><?= date('d/m/Y') ?></td>
-                                <td style="padding:10px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;">Generado</span></td>
+                                <td style="padding:10px 14px;"><span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:.8rem;"><?= htmlspecialchars($accion['tipo_accion'] ?? '') ?></span></td>
+                                <td style="padding:10px 14px;color:var(--text-muted);"><?= !empty($accion['fecha_elaboracion']) ? date('d/m/Y',strtotime($accion['fecha_elaboracion'])) : '' ?></td>
+                                <?php $estadoAccion=strtoupper((string)($accion['estado_documento'] ?? 'BORRADOR')); ?>
+                                <td style="padding:10px 14px;text-align:center;"><span style="background:<?= $estadoAccion==='APROBADO'?'#dcfce7':($estadoAccion==='ANULADO'?'#fee2e2':'#fef3c7') ?>;color:<?= $estadoAccion==='APROBADO'?'#166534':($estadoAccion==='ANULADO'?'#991b1b':'#92400e') ?>;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;"><?= htmlspecialchars($estadoAccion) ?></span></td>
                                 <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
-                                    <a href="<?= BASE_URL ?>/talento-humano/accion-personal?id=<?= $empId ?>&cedula=<?= urlencode($cedula) ?>"
+                                    <a target="_blank" href="<?= BASE_URL ?>/talento-humano/accion-personal/imprimir-accion?id=<?= $accionId ?>"
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#eff6ff;color:#1d4ed8;border:1px solid rgba(29,78,216,.2);font-size:.8rem;text-decoration:none;">
-                                        <i class="bi bi-eye"></i> Ver
+                                        <i class="bi bi-file-earmark-pdf"></i> PDF
                                     </a>
+                                    <?php if (in_array($estadoAccion,['BORRADOR','PENDIENTE'],true) && Auth::can('acciones','editar')): ?>
+                                    <form method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/aprobar" style="display:inline" onsubmit="return confirm('¿Aprobar y aplicar esta acción al historial laboral?');">
+                                        <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="accion_id" value="<?= $accionId ?>">
+                                        <button class="btn-lib btn-lib--primary" style="padding:5px 9px" type="submit" title="Aprobar"><i class="bi bi-check-circle"></i></button>
+                                    </form>
+                                    <form method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/anular" style="display:inline" onsubmit="const m=prompt('Motivo de anulación:');if(!m)return false;this.motivo.value=m;return true;">
+                                        <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="accion_id" value="<?= $accionId ?>"><input type="hidden" name="motivo" value="">
+                                        <button class="btn-lib btn-lib--doc" style="padding:5px 9px" type="submit" title="Anular"><i class="bi bi-x-circle"></i></button>
+                                    </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; else: ?>
@@ -624,7 +612,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <input type="text" placeholder="Buscar por cédula o nombre..." id="busq-seguridad"
                            oninput="filtrarTabla('tabla-seguridad','busq-seguridad')"
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
-                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($empleados ?? []) ?> estudio(s) registrado(s)</span>
+                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($estudios ?? []) ?> estudio(s) registrado(s)</span>
                 </div>
                 <div style="overflow-x:auto;">
                     <table id="tabla-seguridad" style="width:100%;border-collapse:collapse;font-size:.88rem;">
@@ -639,23 +627,26 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Ejemplo de documento registrado (datos de ejemplo) -->
-                            <?php if (!empty($empleados)): foreach ($empleados as $i => $emp):
-                                $nombre = trim(($emp['nombres'] ?? '') . ' ' . ($emp['apellidos'] ?? ''));
-                                $empId  = (int)($emp['id'] ?? 0);
-                                $cedula = $emp['cedula'] ?? '';
-                                $cod    = 'APM-BASC-' . date('Y') . '-' . str_pad($empId, 3, '0', STR_PAD_LEFT);
+                            <?php if (!empty($estudios)): foreach ($estudios as $i => $estudio):
+                                $nombre = trim(($estudio['nombres_empleado'] ?? '') . ' ' . ($estudio['apellidos_empleado'] ?? ''));
+                                $estudioId  = (int)($estudio['estudio_id'] ?? 0);
+                                $cedula = $estudio['identificacion'] ?? '';
+                                $cod = $estudio['codigo_formato'] ?? 'APM-BASC-TH-FO-002';
                             ?>
                             <tr style="border-bottom:1px solid var(--line);<?= $i%2===0?'background:#fff;':'background:#f5f3ff;' ?>" data-search="<?= strtolower(htmlspecialchars($cedula.' '.$nombre)) ?>">
                                 <td style="padding:10px 14px;font-family:monospace;font-size:.82rem;"><?= htmlspecialchars($cod) ?></td>
                                 <td style="padding:10px 14px;font-weight:500;"><?= htmlspecialchars($nombre) ?></td>
                                 <td style="padding:10px 14px;color:var(--text-muted);"><?= htmlspecialchars($cedula) ?></td>
-                                <td style="padding:10px 14px;color:var(--text-muted);"><?= date('d/m/Y') ?></td>
-                                <td style="padding:10px 14px;text-align:center;"><span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;">Pendiente</span></td>
+                                <td style="padding:10px 14px;color:var(--text-muted);"><?= !empty($estudio['fecha_creacion']) ? date('d/m/Y',strtotime($estudio['fecha_creacion'])) : '' ?></td>
+                                <td style="padding:10px 14px;text-align:center;"><span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;"><?= !empty($estudio['estado']) ? 'Registrado' : 'Inactivo' ?></span></td>
                                 <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
-                                    <a href="<?= BASE_URL ?>/talento-humano/estudio-seguridad"
+                                    <a href="<?= BASE_URL ?>/talento-humano/estudio-seguridad?estudio_id=<?= $estudioId ?>"
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#f5f3ff;color:#5b21b6;border:1px solid rgba(91,33,182,.2);font-size:.8rem;text-decoration:none;">
-                                        <i class="bi bi-pencil-square"></i> Completar
+                                        <i class="bi bi-pencil-square"></i> Editar
+                                    </a>
+                                    <a target="_blank" href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= $estudioId ?>"
+                                       style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#fff1f2;color:#be123c;border:1px solid rgba(190,18,60,.2);font-size:.8rem;text-decoration:none;margin-left:4px;">
+                                        <i class="bi bi-file-earmark-pdf"></i> PDF
                                     </a>
                                 </td>
                             </tr>
@@ -693,7 +684,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:13pt;">
@@ -777,7 +768,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:13pt;">
@@ -871,7 +862,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <table class="doc-header-table">
                         <tr>
                             <td class="doc-logo-cell" rowspan="2">
-                                <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
+                                <img src="<?= IMG_URL ?>/logoapm.png" alt="Logo APM" style="width:55px;">
                                 <div style="font-size:7pt;font-weight:bold;margin-top:4px;">MANTA</div>
                             </td>
                             <td class="doc-title-cell" rowspan="2" style="font-size:12pt;">
@@ -939,7 +930,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <div style="border-top:2px dashed #bbb;margin:20px 0;padding-top:12px;">
                         <table class="doc-header-table">
                             <tr>
-                                <td class="doc-logo-cell"><img src="<?= LOGO_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
+                                <td class="doc-logo-cell"><img src="<?= IMG_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
                                 <td class="doc-title-cell">FORMATO ESTUDIO DE SEGURIDAD - SOCIO ECONÓMICO</td>
                                 <td class="doc-code-cell"><strong>Código:</strong> APM-BASC-TH-FO-002<br><strong>Fecha:</strong> 01/04/2019<br><strong>Página 2 de 4</strong></td>
                             </tr>
@@ -1001,7 +992,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <div style="border-top:2px dashed #bbb;margin:20px 0;padding-top:12px;">
                         <table class="doc-header-table">
                             <tr>
-                                <td class="doc-logo-cell"><img src="<?= LOGO_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
+                                <td class="doc-logo-cell"><img src="<?= IMG_URL ?>/logoapm.png" alt="" style="width:55px;"></td>
                                 <td class="doc-title-cell">FORMATO ESTUDIO DE SEGURIDAD - SOCIO ECONÓMICO</td>
                                 <td class="doc-code-cell"><strong>Código:</strong> APM-BASC-TH-FO-002<br><strong>Fecha:</strong> 01/04/2019<br><strong>Página 3 de 4</strong></td>
                             </tr>
@@ -1073,9 +1064,6 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         </div>
     </div><!-- /preview-seguridad -->
 
-    <script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
     <script>
         /* Fecha actual */
         document.getElementById('currentDate').textContent =

@@ -20,6 +20,8 @@
     <link rel="stylesheet" href="<?= htmlspecialchars($url_variables_css); ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($url_layout_css); ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($url_componentes_css); ?>">
+    <!-- SweetAlert2 CSS (aviso de inactividad) — APP_URL absoluto: el <base href> de acá arriba apunta a esta app, no al portal -->
+    <link rel="stylesheet" href="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
     <?php if (!empty($extraCss)): ?>
         <?php foreach ((array)$extraCss as $css): ?>
             <link rel="stylesheet" href="<?= htmlspecialchars($css) ?>">
@@ -46,5 +48,22 @@
         <script src="<?= htmlspecialchars($jsFile) ?>"></script>
     <?php endforeach; ?>
 <?php endif; ?>
+
+<!-- Aviso de inactividad — APP_URL acá ya apunta a la raíz del portal, ver config/app.php -->
+<script>
+    // window.X explícito: un const de nivel superior no queda accesible como
+    // window.APP_INACTIVIDAD en un navegador real (js/inactivity-warning.js
+    // lee justo esa propiedad) — con const el aviso nunca se disparaba.
+    window.APP_INACTIVIDAD = {
+        timeoutSegundos: <?= (int)($_SESSION['_inactividad_segundos'] ?? 1800) ?>,
+        avisoSegundos:   <?= (int)($_SESSION['_inactividad_aviso'] ?? 60) ?>,
+        keepaliveUrl:    '<?= APP_URL ?>/api/keepalive',
+        logoutUrl:       '<?= APP_URL ?>/logout'
+    };
+</script>
+<script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+<!-- ?v=time(): cache-busting real — evita que el navegador siga usando una
+     copia vieja de este archivo cacheada de una visita anterior. -->
+<script src="<?= APP_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>
 </body>
 </html>

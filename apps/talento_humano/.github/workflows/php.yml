@@ -1,0 +1,41 @@
+name: PHP quality
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  lint-and-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: PHP syntax
+        run: find . -name '*.php' -not -path './libs/*' -print0 | xargs -0 -n1 php -l
+      - name: Static security regression
+        run: php tests/security_static.php
+      - name: MFA, session and audit regression
+        run: php tests/security_audit_static.php
+      - name: Compact administration UI
+        run: php tests/admin_ui_render.php
+      - name: Topbar theme and notifications UI
+        run: php tests/topbar_ui_render.php
+      - name: Route integrity
+        run: php tests/routes_static.php
+      - name: Operational regressions
+        run: php tests/operational_static.php
+      - name: Socioeconomic workflow
+        run: php tests/socioeconomico_static.php
+      - name: Dashboard and profile render
+        run: php tests/dashboard_profile_render.php
+      - name: Quick catalogs render
+        run: |
+          php tests/catalogo_form_render.php allow
+          php tests/catalogo_form_render.php deny
+      - name: Directory modes
+        run: |
+          php tests/directorio_modes_render.php normal
+          php tests/directorio_modes_render.php movimiento
+      - name: JavaScript syntax
+        run: node tests/javascript_static.js

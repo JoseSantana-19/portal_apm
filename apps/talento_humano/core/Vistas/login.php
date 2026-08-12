@@ -1,0 +1,12 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acceso seguro | Portal Portuario APM</title><?php require ROOT.'/shared/head_assets.php'; ?><link rel="stylesheet" href="<?= BASE_URL ?>/public/css/login.css"></head>
+<body class="login-body"><main class="login-shell"><section class="login-card" aria-labelledby="loginTitle">
+<header class="login-brand"><div class="login-logo-box"><img src="<?= IMG_URL ?>/logoapm.png" alt="Autoridad Portuaria de Manta"></div><h1 id="loginTitle">Portal Portuario APM</h1><p>Gestión institucional de Talento Humano<br>Ingrese con su usuario y contraseña.</p></header>
+<?php if(!empty($error)): ?><div class="login-error" role="alert"><i class="bi bi-exclamation-triangle-fill"></i><span><?= htmlspecialchars($error) ?></span></div><?php endif; ?>
+<?php if(($_GET['expired']??'')==='1'): ?><div class="login-error" role="alert"><i class="bi bi-clock-history"></i><span>La sesión se cerró por inactividad. Ingrese nuevamente.</span></div><?php endif; ?>
+<form method="post" action="<?= BASE_URL ?>/login/autenticar" autocomplete="on" data-login-form><input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
+<div class="login-field"><label for="usuario">USUARIO</label><div class="login-input-wrap"><i class="bi bi-person-fill"></i><input id="usuario" name="usuario" required maxlength="50" autocomplete="username" autofocus placeholder="Usuario institucional"></div></div>
+<div class="login-field"><label for="clave">CONTRASEÑA</label><div class="login-input-wrap"><i class="bi bi-lock-fill"></i><input id="clave" name="clave" type="password" required autocomplete="current-password" placeholder="Contraseña de acceso"><button class="password-toggle" type="button" data-password-toggle aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button></div></div>
+<button class="login-submit" type="submit"><i class="bi bi-box-arrow-in-right"></i> Acceder al sistema</button></form>
+<p class="login-security"><i class="bi bi-shield-lock-fill"></i> Conexión segura · Sesión cifrada · Acceso auditado</p>
+</section></main><script src="<?= BASE_URL ?>/public/js/login.js"></script></body></html>

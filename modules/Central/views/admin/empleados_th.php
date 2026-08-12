@@ -9,7 +9,11 @@ $initialsOf = function (string $n): string {
     return mb_strtoupper(implode('', array_map(fn($w) => mb_substr($w, 0, 1), $words)));
 };
 $avatarColors = ['#0056b3','#28a745','#17a2b8','#6f42c1','#dc3545','#fd7e14','#20c997'];
+$success = SessionHelper::getFlash('success');
 ?>
+<?php if ($success): ?>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
+<?php endif; ?>
 <style>
 .nu-wrap {
     --g-bg: var(--surface-app); --g-bg-soft: var(--accent-app); --g-bd: var(--border-app);

@@ -5,6 +5,7 @@
 $router->get('/login',              'AuthController@showLogin');
 $router->post('/login',             'AuthController@login');
 $router->get('/logout',             'AuthController@logout');
+$router->post('/api/keepalive',     'AuthController@keepalive');
 $router->post('/set-theme',         'AuthController@setTheme');
 
 /* ── Home (public landing) ──────────────────────── */
@@ -53,12 +54,25 @@ $router->post('/admin/usuarios/desde-th',              'AdminController@crearUsu
 $router->get('/admin/usuarios/{id}/editar',     'AdminController@editarUsuario');
 $router->post('/admin/usuarios/{id}',           'AdminController@actualizarUsuario');
 $router->post('/admin/usuarios/{id}/eliminar',  'AdminController@eliminarUsuario');
+$router->post('/admin/usuarios/{id}/activar',   'AdminController@activarUsuario');
+$router->post('/admin/usuarios/{id}/permisos',  'AdminController@guardarPermisosUsuario');
+$router->get('/admin/departamentos',                'AdminController@departamentos');
+$router->get('/admin/departamentos/{id}/editar',    'AdminController@editarDepartamento');
+$router->post('/admin/departamentos/{id}',          'AdminController@actualizarDepartamento');
 $router->get('/admin/roles',                        'AdminController@roles');
+$router->get('/admin/roles/matriz',                 'AdminController@permisosMatriz');
+
+/* ── Inactividad de sesión (solo Administrador general) ── */
+$router->get('/admin/inactividad',                       'AdminController@inactividad');
+$router->post('/admin/inactividad/global',                'AdminController@actualizarInactividadGlobal');
+$router->post('/admin/inactividad/modulo/{modulo}',       'AdminController@actualizarInactividadModulo');
+$router->post('/admin/inactividad/usuario/{id}',           'AdminController@actualizarInactividadUsuario');
 $router->get('/admin/roles/nuevo',                  'AdminController@nuevoRol');
 $router->post('/admin/roles',                       'AdminController@crearRol');
 $router->get('/admin/roles/{id}/editar',            'AdminController@editarRol');
 $router->post('/admin/roles/{id}',                  'AdminController@actualizarRol');
 $router->post('/admin/roles/{id}/eliminar',         'AdminController@eliminarRol');
+$router->post('/admin/roles/{id}/activar',          'AdminController@activarRol');
 $router->get('/admin/roles/{id}/permisos',          'AdminController@rolPermisos');
 $router->post('/admin/roles/{id}/permisos',         'AdminController@guardarPermisos');
 $router->get('/admin/auditoria',                    'AdminController@auditoria');
@@ -75,6 +89,14 @@ $router->post('/admin/menu/{id}/toggle',     'MenuController@toggle');
 $router->post('/admin/menu/{id}/eliminar',   'MenuController@eliminar');
 $router->post('/admin/menu/guardar-lote',    'MenuController@guardarLote');
 $router->get('/admin/menu/sidebar-fragmento','MenuController@sidebarFragmento');
+
+/* ── Admin Módulos (nivel_jerarquia >= 3) — registro de módulos del portal ── */
+$router->get('/admin/modulos',                  'ModuloController@index');
+$router->get('/admin/modulos/nuevo',            'ModuloController@nuevo');
+$router->post('/admin/modulos',                 'ModuloController@crear');
+$router->get('/admin/modulos/{id}/editar',      'ModuloController@editar');
+$router->post('/admin/modulos/{id}',            'ModuloController@actualizar');
+$router->post('/admin/modulos/{id}/toggle',     'ModuloController@toggle');
 
 /* ── Admin: Contenido del Portal (carrusel de fondos + ticker de noticias) ── */
 $router->get('/admin/landing',                        'LandingController@index');

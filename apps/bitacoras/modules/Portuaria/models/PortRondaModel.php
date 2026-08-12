@@ -524,4 +524,30 @@ class PortRondaModel extends PortBaseModel
 
         return $row ? self::enriquecerFilaHora($row, $fechaOp) : null;
     }
+
+    /**
+     * Fila de detalle para la pantalla de consulta individual (reemplaza
+     * bit_consulta.php del origen) -- enlazada desde el feed del panel
+     * jefe y desde Bitácora de rondas.
+     */
+    public function obtenerDetalleParaConsulta(int $idDetalle): ?array
+    {
+        if ($idDetalle <= 0) {
+            return null;
+        }
+
+        $row = $this->fetchOne(
+            'SELECT d.id_detalle, d.actividad, d.hora_registro, d.id_alerta, '
+            . 'a.descripcion AS alerta_desc, a.color_hex, '
+            . 'c.fecha, c.turno, c.id_ronda, u.nombres AS guardia '
+            . 'FROM dbo.bit_rondas_detalles d '
+            . 'INNER JOIN dbo.bit_rondas_cabecera c ON c.id_ronda = d.id_ronda '
+            . 'INNER JOIN dbo.bit_usuarios_apm u ON u.id_usuario = c.id_usuario '
+            . 'INNER JOIN dbo.bit_niveles_alerta a ON a.id_alerta = d.id_alerta '
+            . 'WHERE d.id_detalle = ?',
+            [$idDetalle]
+        );
+
+        return $row ?: null;
+    }
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * PermisoController.php - Controlador de Gestión de Permisos por Usuario
+ * PermisoController.php - Controlador de Gestión de Permisos (por Rol y por Usuario)
  */
 
 require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
@@ -19,6 +19,8 @@ class PermisoController extends Controller {
                 'inventario'   => ['label' => 'Inventario General',      'icon' => 'fa-ship'],
                 'items'        => ['label' => 'Catálogo de Ítems',       'icon' => 'fa-box'],
                 'inv_items_sistema'=> ['label' => 'Ítems del Sistema',       'icon' => 'fa-cubes'],
+                'ingresos'     => ['label' => 'Ingresos de Bodega',      'icon' => 'fa-truck-ramp-box'],
+                'egresos'      => ['label' => 'Egresos de Bodega',       'icon' => 'fa-truck-arrow-right'],
             ]
         ],
         'datos' => [
@@ -27,7 +29,7 @@ class PermisoController extends Controller {
                 'inv_maestros'     => ['label' => 'Maestros',                 'icon' => 'fa-layer-group'],
                 'cabeceras'    => ['label' => 'Tablas de Cabecera',       'icon' => 'fa-table-columns'],
                 'inv_periodos'     => ['label' => 'Períodos e IVA',           'icon' => 'fa-calendar-days'],
-                'talento'      => ['label' => 'Talento Humano',           'icon' => 'fa-users-gear'],
+                'talento_directorio' => ['label' => 'Talento Humano',     'icon' => 'fa-users-gear'],
                 'inv_secuenciales' => ['label' => 'Secuenciales de Índice',   'icon' => 'fa-list-ol'],
             ]
         ],
@@ -35,6 +37,7 @@ class PermisoController extends Controller {
             'titulo' => 'Sistema y Logs',
             'items' => [
                 'inv_bitacora'     => ['label' => 'Bitácora del Sistema',     'icon' => 'fa-clock-rotate-left'],
+                'reportes'     => ['label' => 'Reportes Varios',          'icon' => 'fa-chart-pie'],
                 'usuarios'     => ['label' => 'Gestión de Usuarios',      'icon' => 'fa-user-shield'],
                 'inv_permisos'     => ['label' => 'Gestión de Permisos',      'icon' => 'fa-key'],
             ]
@@ -49,7 +52,7 @@ class PermisoController extends Controller {
     }
 
     /**
-     * Vista principal
+     * Vista principal (pestañas: Permisos por Rol / Permisos por Usuario)
      */
     public function index() {
         $this->verificarAdmin();
@@ -57,21 +60,29 @@ class PermisoController extends Controller {
 
         $usuarios  = $this->usuarioModel->obtenerTodos();
         $rutas     = self::$rutasDisponibles;
+        $roles     = $this->permisoModel->listarRoles();
 
-        $permisosPorUsuario = [];
+        $nivelesPorUsuario = [];
         foreach ($usuarios as $usr) {
-            $permisosPorUsuario[$usr['id']] = $this->permisoModel->obtenerPermisosUsuario($usr['id']);
+            $nivelesPorUsuario[$usr['id']] = $this->permisoModel->obtenerNivelesUsuario($usr['id']);
+        }
+
+        $nivelesPorRol = [];
+        foreach ($roles as $rol) {
+            $nivelesPorRol[$rol['id']] = $this->permisoModel->nivelesPorRol($rol['id']);
         }
 
         $this->render('credenciales/permisos', [
             'usuarios'           => $usuarios,
             'rutas'              => $rutas,
-            'permisosPorUsuario' => $permisosPorUsuario,
+            'roles'              => $roles,
+            'nivelesPorUsuario'  => $nivelesPorUsuario,
+            'nivelesPorRol'      => $nivelesPorRol,
         ], 'Gestión de Permisos - Sistema Portuario');
     }
 
     /**
-     * AJAX: Obtiene los permisos actuales de un usuario
+     * AJAX: Obtiene los niveles actuales de un usuario
      */
     public function obtenerPermisos() {
         $this->verificarAdmin();
@@ -79,12 +90,12 @@ class PermisoController extends Controller {
         if (!$usuarioId) {
             $this->jsonResponse(['error' => 'Usuario no especificado'], 400);
         }
-        $permisos = $this->permisoModel->obtenerPermisosUsuario($usuarioId);
-        $this->jsonResponse(['inv_permisos' => $permisos]);
+        $niveles = $this->permisoModel->obtenerNivelesUsuario($usuarioId);
+        $this->jsonResponse(['niveles' => $niveles]);
     }
 
     /**
-     * Guarda/actualiza los permisos de un usuario (POST)
+     * Guarda/actualiza los permisos individuales de un usuario nativo (POST)
      */
     public function guardar() {
         $this->verificarAdmin();
@@ -93,18 +104,18 @@ class PermisoController extends Controller {
             $this->jsonResponse(['error' => 'Método no permitido'], 405);
         }
 
-        $usuarioId      = isset($_POST['usuario_id']) ? (int)$_POST['usuario_id'] : 0;
-        $permisosNuevos = isset($_POST['inv_permisos']) && is_array($_POST['inv_permisos']) ? $_POST['inv_permisos'] : [];
+        $usuarioId = isset($_POST['usuario_id']) ? (int)$_POST['usuario_id'] : 0;
+        $niveles   = isset($_POST['niveles']) && is_array($_POST['niveles']) ? $_POST['niveles'] : [];
 
         if (!$usuarioId) {
             $this->jsonResponse(['error' => 'Usuario no especificado'], 400);
         }
 
         try {
-            $this->permisoModel->actualizarPermisos($usuarioId, $permisosNuevos);
+            $this->permisoModel->actualizarPermisos($usuarioId, $niveles);
             $usuario = $this->usuarioModel->buscarPorId($usuarioId);
             $nombreUsr = $usuario ? $usuario['nombre'] : "ID {$usuarioId}";
-            $this->registrarAuditoria('ACTUALIZAR', 'inv_permisos', "Permisos actualizados para usuario: {$nombreUsr} — Rutas: " . implode(', ', $permisosNuevos));
+            $this->registrarAuditoria('ACTUALIZAR', 'inv_permisos', "Permisos individuales actualizados para: {$nombreUsr}");
 
             if (isset($_POST['is_ajax'])) {
                 $this->jsonResponse(['success' => true, 'mensaje' => 'Permisos actualizados correctamente']);
@@ -116,6 +127,40 @@ class PermisoController extends Controller {
                 $this->jsonResponse(['success' => false, 'mensaje' => $e->getMessage()], 500);
             }
             $this->redirect('inv_permisos', 'Error al guardar permisos: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Guarda/actualiza los permisos por rol nativo (POST) — sincroniza al central.
+     */
+    public function guardarRol() {
+        $this->verificarAdmin();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->jsonResponse(['error' => 'Método no permitido'], 405);
+        }
+
+        $rolId   = isset($_POST['rol_id']) ? (int)$_POST['rol_id'] : 0;
+        $niveles = isset($_POST['niveles']) && is_array($_POST['niveles']) ? $_POST['niveles'] : [];
+
+        if (!$rolId) {
+            $this->jsonResponse(['error' => 'Rol no especificado'], 400);
+        }
+
+        try {
+            $this->permisoModel->guardarPermisosRol($rolId, $niveles);
+            $this->registrarAuditoria('ACTUALIZAR', 'inv_permisos', "Permisos de rol actualizados para rol_id={$rolId}");
+
+            if (isset($_POST['is_ajax'])) {
+                $this->jsonResponse(['success' => true, 'mensaje' => 'Permisos de rol actualizados correctamente']);
+            }
+            $this->redirect('inv_permisos', 'Permisos de rol actualizados exitosamente', 'success');
+        } catch (Exception $e) {
+            $this->logger->inv_error('Error al guardar permisos de rol', $e, 'guardarRol');
+            if (isset($_POST['is_ajax'])) {
+                $this->jsonResponse(['success' => false, 'mensaje' => $e->getMessage()], 500);
+            }
+            $this->redirect('inv_permisos', 'Error al guardar permisos de rol: ' . $e->getMessage(), 'error');
         }
     }
 

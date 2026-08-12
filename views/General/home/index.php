@@ -1598,8 +1598,11 @@ $tieneConsejos = !empty($consejos);
             <div class="fm-subtitle">Selecciona el departamento al cual deseas ingresar. La autenticación compartida (SSO) te permitirá navegar entre módulos autorizados de forma fluida.</div>
             
             <div class="folders-grid">
-                <!-- 1. Talento Humano Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/talento_humano/' ?>" class="folder-card" style="--folder-color: #8B5CF6;">
+                <!-- 1. Talento Humano Card — tiene login propio (th_usuarios_sistema,
+                     con MFA): igual que Control de Bienes, siempre entra directo al
+                     módulo, sea con sesión del portal (puente de identidad) o sin
+                     ella (su propio /login se muestra solo). -->
+                <a href="<?= APP_URL . '/apps/talento_humano/' ?>" class="folder-card" style="--folder-color: #8B5CF6;">
                     <div class="fc-glow" style="background:#8B5CF6"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#8B5CF6"></div>
                     <div class="fc-icon" style="background:#8B5CF618;border:1px solid #8B5CF630"><i class="fa-solid fa-users" style="color:#8B5CF6"></i></div>
@@ -1617,8 +1620,10 @@ $tieneConsejos = !empty($consejos);
                     <div class="fc-url"><i class="fa-solid fa-lock"></i>portal.apm.gob.ec/talento-humano/login</div>
                 </a>
 
-                <!-- 2. Control de Bienes Card -->
-                <a href="<?= !$isLoggedIn ? APP_URL . '/login' : APP_URL . '/apps/control_bienes/' ?>" class="folder-card" style="--folder-color: #10B981;">
+                <!-- 2. Control de Bienes Card — tiene login propio (inv_usuarios): siempre
+                     entra directo al módulo, sea con sesión del portal (puente SSO) o sin
+                     ella (su propio index.php?route=inv_login se muestra solo). -->
+                <a href="<?= APP_URL . '/apps/control_bienes/' ?>" class="folder-card" style="--folder-color: #10B981;">
                     <div class="fc-glow" style="background:#10B981"></div>
                     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#10B981"></div>
                     <div class="fc-icon" style="background:#10B98118;border:1px solid #10B98130"><i class="fa-solid fa-boxes-stacked" style="color:#10B981"></i></div>

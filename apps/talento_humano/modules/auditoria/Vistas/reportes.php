@@ -6,13 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reportes Generales | Auditoría – APM</title>
     <meta name="description" content="Motor de exportación y reportes jerárquicos del personal por procesos gobernantes, sustantivos y adjetivos.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         .grupo-section { margin-bottom:28px; }
         .grupo-header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-radius:var(--radius-md) var(--radius-md) 0 0; color:#fff; }
@@ -56,21 +50,7 @@
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Auditoría y Control</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                <div class="user-pill"><span><?= htmlspecialchars($usuarioNombre ?? 'Administrador') ?></span><small>APM</small></div>
-            </div>
-        </header>
+        <?php $topbarSubtitle='Auditoría y Control';$topbarShowSearch=true;require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -91,6 +71,7 @@
                             <button class="btn btn-ghost" id="btn-imprimir" onclick="window.print()">
                                 <i class="bi bi-printer"></i> Imprimir
                             </button>
+                            <?php if(Auth::can('auditoria','visualizar')): ?><a class="btn btn-ghost" href="<?= BASE_URL ?>/auditoria/reportes"><i class="bi bi-shield-check"></i> Auditoría por usuario</a><?php endif; ?>
                         </div>
                     </div>
                     <div class="metrics" style="grid-template-columns:repeat(2,1fr);">
@@ -177,21 +158,21 @@
                     <h3 style="margin:0 0 4px; color:var(--navy-900);"><i class="bi bi-box-arrow-up"></i> Opciones de exportación</h3>
                     <p style="margin:0; color:var(--ink-600); font-size:.85rem;">Seleccione el formato en que desea exportar el reporte jerárquico completo.</p>
                     <div class="export-opts">
-                        <div class="export-card pdf" onclick="exportar('PDF')">
+                        <a class="export-card pdf" href="<?= BASE_URL ?>/reportes/exportar-pdf">
                             <i class="bi bi-file-earmark-pdf-fill"></i>
                             <strong>Reporte PDF</strong>
                             <small style="color:var(--ink-600);">Formato imprimible, con encabezado institucional y firmas</small>
-                        </div>
-                        <div class="export-card excel" onclick="exportar('Excel')">
+                        </a>
+                        <a class="export-card excel" href="<?= BASE_URL ?>/talento-humano/empleado/exportar">
                             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
-                            <strong>Excel (.xlsx)</strong>
-                            <small style="color:var(--ink-600);">Datos tabulares con totales y fórmulas para análisis</small>
-                        </div>
-                        <div class="export-card csv" onclick="exportar('CSV')">
+                            <strong>Directorio CSV</strong>
+                            <small style="color:var(--ink-600);">Directorio completo para análisis institucional</small>
+                        </a>
+                        <a class="export-card csv" href="<?= BASE_URL ?>/reportes/exportar-csv">
                             <i class="bi bi-filetype-csv"></i>
                             <strong>CSV plano</strong>
                             <small style="color:var(--ink-600);">Formato universal para sistemas externos</small>
-                        </div>
+                        </a>
                     </div>
                     <div style="margin-top:12px; padding:10px 14px; background:#f0f7ff; border-radius:10px; font-size:.82rem; color:var(--ocean-700);">
                         <i class="bi bi-info-circle"></i>
@@ -204,23 +185,11 @@
     </section>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('currentDate');
     if (el) el.textContent = new Date().toLocaleDateString('es-EC', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 });
-function exportar(formato) {
-    const msgs = {
-        'PDF':   'Generando reporte PDF jerárquico con encabezado APM...',
-        'Excel': 'Generando hoja de cálculo Excel con subtotales...',
-        'CSV':   'Exportando datos en formato CSV...'
-    };
-    showToast(msgs[formato] || 'Exportando...', 'info');
-    setTimeout(() => showToast(`Reporte ${formato} generado exitosamente. Descargando...`, 'success'), 2000);
-}
 </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>

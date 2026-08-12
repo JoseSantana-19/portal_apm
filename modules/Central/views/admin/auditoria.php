@@ -11,6 +11,14 @@ $fecha = function ($v) {
     if (is_string($v) && $v !== '') return date('d/m/Y H:i:s', strtotime($v));
     return '—';
 };
+// ::1 / 127.0.0.1 son la máquina local (dev) — se etiquetan para que no
+// parezcan datos rotos; en producción, detrás de un dominio real, acá
+// aparecerá la IP real del cliente.
+$ipLabel = function (?string $ip) {
+    if (!$ip) return ['—', null];
+    if ($ip === '::1' || $ip === '127.0.0.1') return ['Local', $ip];
+    return [$ip, null];
+};
 ?>
 <div style="animation:pageFadeIn .35s ease-out;">
 
@@ -103,16 +111,37 @@ $fecha = function ($v) {
                     </td></tr>
                 <?php else: foreach ($registros as $r):
                     $esErr = ($r['resultado'] ?? '') !== 'EXITO';
+                    [$ipTxt, $ipFull] = $ipLabel($r['ip_address'] ?? null);
+                    $tieneCambios = !empty($r['datos_antes']) || !empty($r['datos_despues']);
                 ?>
                     <tr>
                         <td style="white-space:nowrap;font-size:.75rem;color:var(--text-muted);"><?= $e($fecha($r['fecha_registro'] ?? null)) ?></td>
                         <td style="font-size:.83rem;font-weight:600;"><?= $e($r['nombre_usuario'] ?? 'Sistema') ?></td>
                         <td><code style="font-family:var(--font-code);font-size:.72rem;background:var(--accent-app);padding:2px 6px;border-radius:4px;"><?= $e($r['modulo'] ?? '') ?></code></td>
-                        <td style="font-size:.8rem;"><?= $e($r['operacion'] ?? '') ?></td>
+                        <td style="font-size:.8rem;"><?= $e($r['operacion'] ?? '') ?><?php if (!empty($r['tabla_afectada']) && !empty($r['id_registro'])): ?><br><span style="font-size:.68rem;color:var(--text-muted);">#<?= $e($r['id_registro']) ?></span><?php endif; ?></td>
                         <td style="font-size:.78rem;color:var(--text-muted);"><?= $e($r['tabla_afectada'] ?: '—') ?></td>
-                        <td style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;"><?= $e($r['ip_address'] ?: '—') ?></td>
+                        <td style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;" <?= $ipFull ? 'title="'.$e($ipFull).'"' : '' ?>><?= $e($ipTxt) ?><?= $ipFull ? ' <i class="fa-solid fa-house" style="opacity:.5;font-size:9px;" title="Loopback / desarrollo local"></i>' : '' ?></td>
                         <td><span class="badge <?= $esErr ? 'badge-danger' : 'badge-success' ?>"><i class="fa-solid fa-<?= $esErr?'xmark':'check' ?>" style="font-size:8px;"></i> <?= $e($r['resultado'] ?? '') ?></span></td>
-                        <td style="font-size:.78rem;color:var(--text-muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= $e($r['detalle'] ?? '') ?>"><?= $e($r['detalle'] ?: '—') ?></td>
+                        <td style="font-size:.78rem;color:var(--text-muted);">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= $e($r['detalle'] ?? '') ?>"><?= $e($r['detalle'] ?: ($tieneCambios ? '—' : '—')) ?></span>
+                                <?php if ($tieneCambios): ?>
+                                <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;flex-shrink:0;"
+                                        title="Ver qué cambió"
+                                        onclick='verDetalleAuditoria(<?= json_encode([
+                                            'operacion' => $r['operacion'] ?? '',
+                                            'tabla'     => $r['tabla_afectada'] ?? '',
+                                            'idReg'     => $r['id_registro'] ?? '',
+                                            'usuario'   => $r['nombre_usuario'] ?? 'Sistema',
+                                            'fecha'     => $fecha($r['fecha_registro'] ?? null),
+                                            'antes'     => $r['datos_antes'] ?? null,
+                                            'despues'   => $r['datos_despues'] ?? null,
+                                        ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; endif; ?>
                 </tbody>
@@ -129,3 +158,58 @@ $fecha = function ($v) {
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+// datos_antes/datos_despues llegan como JSON string (o null) desde CORE_Auditoria.
+// Construye una tabla campo-por-campo resaltando lo que realmente cambió.
+function verDetalleAuditoria(info) {
+    let antes = {}, despues = {};
+    try { antes   = info.antes   ? JSON.parse(info.antes)   : {}; } catch (e) {}
+    try { despues = info.despues ? JSON.parse(info.despues) : {}; } catch (e) {}
+
+    const claves = Array.from(new Set([...Object.keys(antes), ...Object.keys(despues)])).sort();
+    const fmt = (v) => {
+        if (v === null || v === undefined || v === '') return '<span style="opacity:.4;">—</span>';
+        if (typeof v === 'object') return portalAlertEscape(JSON.stringify(v));
+        return portalAlertEscape(String(v));
+    };
+
+    let filas = '';
+    if (claves.length === 0) {
+        filas = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">Sin datos de campos para esta operación.</td></tr>';
+    } else {
+        for (const k of claves) {
+            const cambio = JSON.stringify(antes[k] ?? null) !== JSON.stringify(despues[k] ?? null);
+            filas += `<tr>
+                <td style="padding:6px 10px;font-weight:600;white-space:nowrap;">${portalAlertEscape(k)}</td>
+                <td style="padding:6px 10px;${cambio ? 'text-decoration:line-through;opacity:.6;' : ''}">${fmt(antes[k])}</td>
+                <td style="padding:6px 10px;${cambio ? 'font-weight:700;color:var(--color-primary,#0056b3);' : ''}">${fmt(despues[k])}</td>
+            </tr>`;
+        }
+    }
+
+    const idLinea = info.idReg ? ` #${portalAlertEscape(String(info.idReg))}` : '';
+    Swal.fire({
+        title: `${portalAlertEscape(info.operacion)} — ${portalAlertEscape(info.tabla || '')}${idLinea}`,
+        html: `
+            <div style="text-align:left;font-size:.8rem;color:var(--text-muted,#666);margin-bottom:10px;">
+                ${portalAlertEscape(info.usuario)} · ${portalAlertEscape(info.fecha)}
+            </div>
+            <div style="max-height:360px;overflow:auto;border:1px solid rgba(128,128,128,.25);border-radius:8px;">
+                <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+                    <thead>
+                        <tr style="background:rgba(128,128,128,.08);">
+                            <th style="padding:6px 10px;text-align:left;">Campo</th>
+                            <th style="padding:6px 10px;text-align:left;">Antes</th>
+                            <th style="padding:6px 10px;text-align:left;">Después</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>
+        `,
+        width: 560,
+        confirmButtonText: 'Cerrar',
+    });
+}
+</script>

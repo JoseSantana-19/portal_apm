@@ -6,13 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logs de Actividad | Auditoría – APM</title>
     <meta name="description" content="Registro de auditoría del sistema. Solo lectura para administradores. Trazabilidad de cada acción realizada.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         .log-row-info    { border-left: 3px solid var(--teal-500); }
         .log-row-success { border-left: 3px solid #10b981; }
@@ -51,21 +45,7 @@
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Auditoría y Control</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                <div class="user-pill"><span><?= htmlspecialchars($usuarioNombre ?? 'Administrador') ?></span><small>APM</small></div>
-            </div>
-        </header>
+        <?php $topbarSubtitle='Auditoría y Control';$topbarShowSearch=true;require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -77,9 +57,10 @@
                         <h2>Logs de Actividad</h2>
                         <p>Registro inmutable de todas las acciones del sistema. Solo lectura, exclusivo para administradores. Garantiza la trazabilidad ante cualquier cambio anómalo.</p>
                         <div class="hero-actions">
-                            <button class="btn btn-primary" id="btn-exportar-logs" onclick="exportarLogs()">
+                            <a class="btn btn-primary" id="btn-exportar-logs" href="<?= BASE_URL ?>/auditoria/logs/exportar">
                                 <i class="bi bi-download"></i> Exportar logs
-                            </button>
+                            </a>
+                            <a class="btn btn-outline" href="<?= BASE_URL ?>/auditoria/reportes"><i class="bi bi-person-lines-fill"></i> Reportes por usuario</a>
                             <button class="btn btn-ghost" id="btn-actualizar-logs" onclick="actualizarLogs()">
                                 <i class="bi bi-arrow-clockwise"></i> Actualizar
                             </button>
@@ -123,12 +104,12 @@
                             <h3><i class="bi bi-journal-text"></i> Registro de actividad del sistema</h3>
                             <p>Cada fila representa una acción: quién, qué hizo, cuándo y desde qué IP.</p>
                         </div>
-                        <span class="chip"><i class="bi bi-list-ul"></i> <?= count($registros) ?> registros</span>
+                        <span class="chip"><i class="bi bi-list-ul"></i> <?= (int)($paginacion['total'] ?? count($registros)) ?> registros</span>
                     </div>
-                    <div class="toolbar">
+                    <form class="toolbar" method="get" action="<?= BASE_URL ?>/auditoria/logs">
                         <div class="input search-input">
                             <i class="bi bi-search"></i>
-                            <input type="text" id="logSearch" oninput="filtrarLogs()" placeholder="Buscar por usuario, acción, módulo...">
+                            <input type="search" id="logSearch" name="q" value="<?= htmlspecialchars($filtros['q'] ?? '') ?>" oninput="filtrarLogs()" placeholder="Buscar por usuario, acción, detalle o IP...">
                         </div>
                         <div class="filter-group">
                             <select id="nivelFilter" onchange="filtrarLogs()">
@@ -138,16 +119,16 @@
                                 <option value="success">✓ Éxitos</option>
                                 <option value="info">ℹ Información</option>
                             </select>
-                            <select id="moduloFilter" onchange="filtrarLogs()">
+                            <select id="moduloFilter" name="modulo">
                                 <option value="">Todos los módulos</option>
-                                <option>Empleados</option>
-                                <option>Sistema</option>
-                                <option>Vacaciones</option>
-                                <option>Reportes</option>
-                                <option>Admin</option>
+                                <?php foreach(($modulos ?? []) as $nombreModulo): ?><option value="<?= htmlspecialchars($nombreModulo) ?>" <?= ($filtros['modulo']??'')===$nombreModulo?'selected':'' ?>><?= htmlspecialchars($nombreModulo) ?></option><?php endforeach; ?>
                             </select>
+                            <input type="date" name="desde" value="<?= htmlspecialchars($filtros['desde'] ?? '') ?>" aria-label="Fecha desde">
+                            <input type="date" name="hasta" value="<?= htmlspecialchars($filtros['hasta'] ?? '') ?>" aria-label="Fecha hasta">
+                            <button class="btn btn-primary" type="submit">Aplicar</button>
+                            <a class="btn btn-outline" href="<?= BASE_URL ?>/auditoria/logs">Limpiar</a>
                         </div>
-                    </div>
+                    </form>
                     <div class="table-wrap">
                         <table id="tablaLogs">
                             <thead>
@@ -202,6 +183,15 @@
                             <p>Ajuste los filtros de búsqueda.</p>
                         </div>
                     </div>
+                    <?php if(($paginacion['paginas'] ?? 1)>1): $pagina=(int)$paginacion['pagina'];$paginas=(int)$paginacion['paginas']; ?>
+                    <nav class="table-pagination" aria-label="Paginación de auditoría" style="padding:14px 18px">
+                        <span>Página <?= $pagina ?> de <?= $paginas ?></span>
+                        <div class="pagination-actions">
+                            <?php if($pagina>1): ?><a class="btn btn-outline" href="?<?= http_build_query(array_merge($filtros,['pagina'=>$pagina-1])) ?>">Anterior</a><?php endif; ?>
+                            <?php if($pagina<$paginas): ?><a class="btn btn-outline" href="?<?= http_build_query(array_merge($filtros,['pagina'=>$pagina+1])) ?>">Siguiente</a><?php endif; ?>
+                        </div>
+                    </nav>
+                    <?php endif; ?>
                 </section>
 
             </div>
@@ -209,9 +199,6 @@
     </section>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('currentDate');
@@ -232,13 +219,8 @@ function filtrarLogs() {
     });
     document.getElementById('logNoData').classList.toggle('hidden', visible > 0);
 }
-function exportarLogs() {
-    showToast('Exportando logs de actividad del sistema...', 'info');
-    setTimeout(() => showToast('Archivo de logs generado exitosamente.', 'success'), 2000);
-}
 function actualizarLogs() {
-    showToast('Actualizando registros de auditoría...', 'info');
-    setTimeout(() => showToast('Logs actualizados. Sin nuevos eventos.', 'success'), 1200);
+    window.location.reload();
 }
 </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>

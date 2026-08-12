@@ -2,6 +2,11 @@
 # cada dev), nunca se sube. Ver config/connections.example.php.
 config/connections.php
 
+# Secretos/estado privado de Talento Humano (token de auth, sesiones) —
+# vive en apps/ (fuera de apps/talento_humano/, su propio .gitignore no
+# lo alcanza).
+apps/.portal-portuario-private/
+
 # Logs
 logs/
 *.log

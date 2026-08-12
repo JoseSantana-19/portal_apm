@@ -142,16 +142,26 @@ class ModuleSecurity {
 
     /**
      * Write an audit record via sp_RegistrarAuditoria.
+     * $datosAntes/$datosDespues se guardan como JSON (before/after de los
+     * campos relevantes) — se usan en /admin/auditoria para el detalle real
+     * de qué cambió, no solo login/logout.
+     *
+     * Nota: la firma anterior de este método pasaba sus parámetros
+     * posicionalmente en un orden que ya NO calzaba con sp_RegistrarAuditoria
+     * (11 parámetros: modulo, id_usuario, nombre_usuario, operacion, tabla,
+     * id_registro, datos_antes, datos_despues, ip_address, resultado,
+     * detalle) — el user-agent terminaba escribiéndose en la columna
+     * @resultado. Nunca se detectó porque nada llamaba a este método todavía.
      */
     public static function audit(
         string  $modulo,
-        string  $tipoAuditoria,
-        int     $userId,
-        string  $evento,
-        ?string $tablaDetalles = null,
-        ?int    $registroId    = null,
-        ?string $datosAnt      = null,
-        ?string $datosNue      = null
+        string  $operacion,
+        ?string $tabla        = null,
+        ?string $idRegistro   = null,
+        ?array  $datosAntes   = null,
+        ?array  $datosDespues = null,
+        string  $resultado    = 'EXITO',
+        ?string $detalle      = null
     ): bool {
         try {
             $model = new class extends Model {
@@ -161,13 +171,18 @@ class ModuleSecurity {
                 }
             };
 
-            $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'CLI';
-
-            $model->callSP('{CALL dbo.sp_RegistrarAuditoria(?,?,?,?,?,?,?,?,?,?)}', [
-                $modulo, $tipoAuditoria, $userId, $evento,
-                $tablaDetalles, $registroId, $datosAnt, $datosNue,
-                $ip, $ua,
+            $model->callSP('{CALL dbo.sp_RegistrarAuditoria(?,?,?,?,?,?,?,?,?,?,?)}', [
+                [$modulo,                                  SQLSRV_PARAM_IN],
+                [$_SESSION['user_id'] ?? null,              SQLSRV_PARAM_IN],
+                [$_SESSION['nombre_completo'] ?? null,       SQLSRV_PARAM_IN],
+                [$operacion,                                SQLSRV_PARAM_IN],
+                [$tabla,                                    SQLSRV_PARAM_IN],
+                [$idRegistro,                               SQLSRV_PARAM_IN],
+                [$datosAntes   !== null ? json_encode($datosAntes,   JSON_UNESCAPED_UNICODE) : null, SQLSRV_PARAM_IN],
+                [$datosDespues !== null ? json_encode($datosDespues, JSON_UNESCAPED_UNICODE) : null, SQLSRV_PARAM_IN],
+                [SecurityHelper::getClientIp(),             SQLSRV_PARAM_IN],
+                [$resultado,                                SQLSRV_PARAM_IN],
+                [$detalle,                                  SQLSRV_PARAM_IN],
             ]);
             return true;
         } catch (Exception $e) {

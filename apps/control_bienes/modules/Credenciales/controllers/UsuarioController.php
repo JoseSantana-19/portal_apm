@@ -27,7 +27,8 @@ class UsuarioController extends Controller {
         $this->registrarAuditoria('ACCESO', 'acc', 'Acceso al listado de usuarios');
         
         $usuarios = $this->usuarioModel->obtenerTodos();
-        $tiempoInactividad = $this->paramModel->obtener('tiempo_inactividad', '600');
+        $idUsuarioActual = (int)($_SESSION['usuario']['id'] ?? $_SESSION['id_usuario'] ?? 0);
+        $tiempoInactividad = $this->paramModel->obtenerInactividadSegundos($idUsuarioActual);
 
         $this->render('credenciales/usuarios', [
             'usuarios' => $usuarios,

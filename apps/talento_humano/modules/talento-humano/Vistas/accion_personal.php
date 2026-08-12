@@ -16,13 +16,7 @@ $preselCedula = $preselCedula ?? '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acción de Personal | Talento Humano APM</title>
     <meta name="description" content="Formulario de Acción de Personal — Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Estilos exclusivos de este formulario ─────────────────────────── */
         .accion-header {
@@ -62,6 +56,22 @@ $preselCedula = $preselCedula ?? '';
             margin-bottom: 22px;
         }
         .buscador-banner span { font-size: .84rem; }
+        .personal-autocomplete { position: relative; flex: 1; }
+        .personal-results {
+            position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
+            display: none; max-height: 300px; overflow-y: auto; background: #fff;
+            border: 1px solid rgba(14,116,144,.3); border-radius: 12px;
+            box-shadow: 0 18px 45px rgba(15,23,42,.18);
+        }
+        .personal-results.open { display: block; }
+        .personal-result {
+            width: 100%; border: 0; border-bottom: 1px solid #e5edf3; background: #fff;
+            padding: 10px 12px; text-align: left; cursor: pointer; color: #0f2740;
+        }
+        .personal-result:last-child { border-bottom: 0; }
+        .personal-result:hover, .personal-result:focus { background: #ecfeff; outline: none; }
+        .personal-result strong { display: block; font-size: .82rem; }
+        .personal-result small { display: block; color: #587086; margin-top: 2px; }
         /* Secciones */
         .section-sep {
             display: flex;
@@ -203,24 +213,12 @@ $preselCedula = $preselCedula ?? '';
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <!-- TOPBAR -->
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Módulo Talento Humano</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                <a href="<?= BASE_URL ?>/talento-humano/directorio" class="btn btn-ghost">
-                    <i class="bi bi-arrow-left"></i> Volver al Directorio
-                </a>
-            </div>
-        </header>
+        <?php
+        $topbarShowSearch=false;
+        $topbarBackUrl=BASE_URL.'/talento-humano/directorio';
+        $topbarBackLabel='Volver al Directorio';
+        require ROOT.'/shared/topbar.php';
+        ?>
 
         <main class="main">
             <div class="content-shell">
@@ -237,33 +235,35 @@ $preselCedula = $preselCedula ?? '';
                 <div class="buscador-banner">
                     <span>
                         <i class="bi bi-person-badge" style="color:#0e7490;"></i>
-                        <strong>Buscar funcionario por cédula:</strong>
-                        Ingrese el número de cédula y pulse Buscar para autocompletar la Situación Actual.
+                        <strong>Buscar funcionario:</strong>
+                        Escriba la cédula, nombres o apellidos. Los resultados aparecen mientras escribe.
                     </span>
                     <div style="display:flex; flex-direction:column; gap:6px; min-width:340px;">
                         <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                   id="inputBuscarCedula"
-                                   placeholder="Ej: 1300000000"
-                                   maxlength="13"
+                            <div class="personal-autocomplete">
+                            <input type="search" id="inputBuscarCedula"
+                                   placeholder="Cédula, nombres o apellidos..."
+                                   maxlength="100" autocomplete="off"
                                    style="padding:9px 14px; border:1.5px solid rgba(14,116,144,.4); border-radius:10px;
-                                          font-size:.83rem; font-weight:600; background:#ecfeff; flex:1;
+                                          font-size:.83rem; font-weight:600; background:#ecfeff; width:100%;
                                           outline:none; transition:border-color .2s; letter-spacing:.05em;"
                                    onfocus="this.style.borderColor='#0e7490'"
                                    onblur="this.style.borderColor='rgba(14,116,144,.4)'"
-                                   onkeydown="if(event.key==='Enter'){event.preventDefault();buscarPorCedula();}">
-                            <button type="button" onclick="buscarPorCedula()"
+                                   aria-autocomplete="list" aria-controls="resultadosPersonalAccion">
+                            <div id="resultadosPersonalAccion" class="personal-results" role="listbox"></div>
+                            </div>
+                            <button type="button" onclick="buscarPersonaAccion()"
                                     id="btnBuscarServidor"
                                     style="padding:9px 16px; background:#0e7490; color:#fff; border:none;
                                            border-radius:10px; font-size:.83rem; font-weight:700; cursor:pointer;
                                            transition:background .2s; white-space:nowrap;"
                                     onmouseover="this.style.background='#0891b2'"
                                     onmouseout="this.style.background='#0e7490'">
-                                <i class="bi bi-search"></i> Autocompletar
+                                <i class="bi bi-search"></i> Seleccionar
                             </button>
                         </div>
                         <span id="estadoBusqueda" style="font-size:.73rem; color:#155e75; opacity:.8;">
-                            <i class="bi bi-info-circle"></i> Ingrese la cédula y pulse Autocompletar o presione Enter.
+                            <i class="bi bi-info-circle"></i> Puede buscar por cualquier parte del nombre o de la cédula.
                         </span>
                     </div>
                 </div>
@@ -272,6 +272,7 @@ $preselCedula = $preselCedula ?? '';
                 <section class="card form-card">
                     <form method="POST" action="<?= BASE_URL ?>/talento-humano/accion-personal/guardar"
                           id="formAccionPersonal">
+                        <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
 
                         <!-- Campos ocultos: identificación y claves de situación actual -->
                         <input type="hidden" name="numero_accion"              id="nroAccionInput"        value="<?= htmlspecialchars($nro) ?>">
@@ -279,9 +280,9 @@ $preselCedula = $preselCedula ?? '';
                         <input type="hidden" name="actual_unidad_id"           id="hidUnidadId"           value="0">
                         <input type="hidden" name="actual_puesto_id"           id="hidPuestoId"           value="0">
                         <!-- Campos hidden que AJAX llena al buscar la cédula (viajan al guardar()) -->
-                        <input type="hidden" name="actual_unidad_id_hidden"    id="hidActualUnidadId"     value="0">
-                        <input type="hidden" name="actual_puesto_id_hidden"    id="hidActualPuestoId"     value="0">
-                        <input type="hidden" name="actual_remuneracion_hidden" id="hidActualRemuneracion" value="0">
+                        <input type="hidden" name="actual_unidad_id_hidden" id="hidActualUnidadId" value="<?= (int)($emp['unidad_id'] ?? 0) ?>">
+                        <input type="hidden" name="actual_puesto_id_hidden" id="hidActualPuestoId" value="<?= (int)($emp['puesto_id'] ?? 0) ?>">
+                        <input type="hidden" name="actual_remuneracion_hidden" id="hidActualRemuneracion" value="<?= htmlspecialchars($emp['sueldo_rmu'] ?? $emp['remuneracion_mensual'] ?? 0) ?>">
 
                         <!-- ══ SECCIÓN 1: DATOS DEL SERVIDOR ═══════════════════════════════ -->
                         <div class="section-sep"><span><i class="bi bi-person-badge"></i> 1 · Datos del Servidor Público</span></div>
@@ -320,27 +321,16 @@ $preselCedula = $preselCedula ?? '';
                         <div class="section-sep"><span><i class="bi bi-list-check"></i> 2 · Motivo de la Acción (Art. 21 LOSEP)</span></div>
                         <input type="hidden" name="tipo_accion" id="hidTipoAccion" required>
                         <div class="tipo-accion-grid" id="tipoAccionGrid">
-                            <div class="tipo-chip" data-value="INGRESO"  onclick="seleccionarTipo(this)">
-                                <i class="bi bi-person-check-fill"></i> Ingreso
+                            <?php foreach([
+                                'INGRESO','REINGRESO','RESTITUCIÓN','REINTEGRO','ASCENSO','TRASLADO','SANCIONES',
+                                'TRASPASO','CAMBIO ADMINISTRATIVO','INTERCAMBIO VOLUNTARIO','LICENCIA','COMISIÓN DE SERVICIOS',
+                                'INCREMENTO RMU','SUBROGACIÓN','ENCARGO','CESACIÓN DE FUNCIONES','DESTITUCIÓN','VACACIONES',
+                                'REVISIÓN CLASIFICACIÓN PUESTO','OTRO (DETALLAR)'
+                            ] as $tipoOficial): ?>
+                            <div class="tipo-chip" data-value="<?= htmlspecialchars($tipoOficial) ?>" onclick="seleccionarTipo(this)">
+                                <i class="bi bi-check2-square"></i> <?= htmlspecialchars(ucwords(mb_strtolower($tipoOficial,'UTF-8'))) ?>
                             </div>
-                            <div class="tipo-chip" data-value="ASCENSO"  onclick="seleccionarTipo(this)">
-                                <i class="bi bi-graph-up-arrow"></i> Ascenso / Incremento RMU
-                            </div>
-                            <div class="tipo-chip" data-value="TRASLADO" onclick="seleccionarTipo(this)">
-                                <i class="bi bi-arrow-left-right"></i> Traslado / Cambio Admin.
-                            </div>
-                            <div class="tipo-chip" data-value="COMISION" onclick="seleccionarTipo(this)">
-                                <i class="bi bi-briefcase-fill"></i> Comisión de Servicios
-                            </div>
-                            <div class="tipo-chip" data-value="VACACIONES" onclick="seleccionarTipo(this)">
-                                <i class="bi bi-umbrella"></i> Vacaciones
-                            </div>
-                            <div class="tipo-chip" data-value="CESACION" onclick="seleccionarTipo(this)">
-                                <i class="bi bi-door-open"></i> Cesación de Funciones
-                            </div>
-                            <div class="tipo-chip" data-value="OTRO"     onclick="seleccionarTipo(this)">
-                                <i class="bi bi-three-dots"></i> Otro (Detallar)
-                            </div>
+                            <?php endforeach; ?>
                         </div>
                         <!-- Campo detalle para "Otro" -->
                         <div id="bloqueOtro" style="display:none; margin-top:12px;">
@@ -368,6 +358,7 @@ $preselCedula = $preselCedula ?? '';
                                     <input type="text" id="inpProcesoActual" name="actual_proceso" readonly
                                            value="<?= htmlspecialchars($hist['proceso_institucional'] ?? '') ?>">
                                 </div>
+                                <div class="accion-field"><label>Nivel de Gestión</label><input type="text" name="actual_nivel_gestion" value="<?= htmlspecialchars($hist['nivel_gestion'] ?? '') ?>"></div>
                                 <div class="accion-field">
                                     <label>Unidad Administrativa (Área)</label>
                                     <input type="text" id="inpUnidadActual" name="actual_unidad" readonly
@@ -378,6 +369,10 @@ $preselCedula = $preselCedula ?? '';
                                     <input type="text" id="inpPuestoActual" name="actual_puesto" readonly
                                            value="<?= htmlspecialchars($hist['denominacion_puesto'] ?? '') ?>">
                                 </div>
+                                <div class="accion-field"><label>Lugar de Trabajo</label><input type="text" name="actual_lugar_trabajo" value="<?= htmlspecialchars($hist['lugar_trabajo'] ?? 'Manta') ?>"></div>
+                                <div class="accion-field"><label>Grupo Ocupacional</label><input type="text" name="actual_grupo_ocupacional" value="<?= htmlspecialchars($hist['grupo_ocupacional'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Grado</label><input type="text" name="actual_grado" value="<?= htmlspecialchars($hist['grado'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Partida Individual</label><input type="text" name="actual_partida_presupuestaria" value="<?= htmlspecialchars($hist['partida_presupuestaria'] ?? '') ?>"></div>
                                 <div class="accion-field">
                                     <label>Remuneración Mensual Unificada ($)</label>
                                     <input type="text" id="inpSueldoActual" name="actual_remuneracion" readonly
@@ -411,9 +406,10 @@ $preselCedula = $preselCedula ?? '';
                                         <option value="Procesos Adjetivos">Procesos Adjetivos</option>
                                     </select>
                                 </div>
+                                <div class="accion-field"><label>Nivel de Gestión Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_nivel_gestion"></div>
                                 <div class="accion-field">
-                                    <label>Nueva Unidad Administrativa <span class="req">*</span></label>
-                                    <select class="inputs-propuesta" name="propuesta_unidad" id="propUnidad">
+                                    <div class="label-with-action"><label for="propUnidad">Nueva Unidad Administrativa <span class="req">*</span></label><?php if(Auth::can('maestros','crear')): ?><button class="quick-add-button" type="button" onclick="abrirCatalogoRapido('unidad')" title="Crear unidad" aria-label="Crear unidad administrativa"><i class="bi bi-plus-lg"></i></button><?php endif; ?></div>
+                                    <select class="inputs-propuesta" name="propuesta_unidad_id" id="propUnidad">
                                         <option value="">Seleccione el área...</option>
                                         <?php foreach (($areas ?? []) as $area): ?>
                                         <option value="<?= (int)$area['unidad_id'] ?>">
@@ -421,11 +417,10 @@ $preselCedula = $preselCedula ?? '';
                                         </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <input type="hidden" name="propuesta_unidad_id" id="hidPropUnidadId" value="0">
                                 </div>
                                 <div class="accion-field">
-                                    <label>Nueva Denominación del Puesto <span class="req">*</span></label>
-                                    <select class="inputs-propuesta" name="propuesta_puesto" id="propPuesto">
+                                    <div class="label-with-action"><label for="propPuesto">Nueva Denominación del Puesto <span class="req">*</span></label><?php if(Auth::can('maestros','crear')): ?><button class="quick-add-button" type="button" onclick="abrirCatalogoRapido('puesto')" title="Crear cargo" aria-label="Crear cargo o puesto"><i class="bi bi-plus-lg"></i></button><?php endif; ?></div>
+                                    <select class="inputs-propuesta" name="propuesta_puesto_id" id="propPuesto">
                                         <option value="">Seleccione el cargo...</option>
                                         <?php foreach (($cargos ?? []) as $cargo): ?>
                                         <option value="<?= (int)$cargo['puesto_id'] ?>">
@@ -433,7 +428,6 @@ $preselCedula = $preselCedula ?? '';
                                         </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <input type="hidden" name="propuesta_puesto_id" id="hidPropPuestoId" value="0">
                                 </div>
                                 <div class="accion-field">
                                     <label>Nueva Remuneración Mensual ($) <span class="req">*</span></label>
@@ -442,6 +436,10 @@ $preselCedula = $preselCedula ?? '';
                                            id="propSueldo" placeholder="0.00"
                                            style="text-align:right; font-weight:700;">
                                 </div>
+                                <div class="accion-field"><label>Lugar de Trabajo Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_lugar_trabajo" value="Manta"></div>
+                                <div class="accion-field"><label>Grupo Ocupacional Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_grupo_ocupacional"></div>
+                                <div class="accion-field"><label>Grado Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_grado"></div>
+                                <div class="accion-field"><label>Partida Individual Propuesta</label><input class="inputs-propuesta" type="text" name="propuesta_partida_presupuestaria"></div>
                                 <div class="accion-field">
                                     <label>Tipo de Contrato Propuesto</label>
                                     <select class="inputs-propuesta" name="propuesta_contrato" id="propContrato">
@@ -481,6 +479,15 @@ $preselCedula = $preselCedula ?? '';
                                        placeholder="correo@apm.gob.ec" disabled
                                        style="margin-top:8px;">
                             </div>
+                            <div class="accion-field"><label>Fecha y hora de notificación</label><input type="datetime-local" name="fecha_notificacion"></div>
+                            <div class="accion-field"><label>Medio de notificación</label><input type="text" name="medio_notificacion" placeholder="Correo, Quipux, entrega física..."></div>
+                            <div class="accion-field"><label>Número de documento/notificación</label><input type="text" name="documento_notificacion"></div>
+                            <div class="accion-field"><label>Responsable Talento Humano</label><input type="text" name="responsable_th_nombre"><input type="text" name="responsable_th_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Autoridad nominadora/delegado</label><input type="text" name="autoridad_nombre"><input type="text" name="autoridad_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Responsable de elaboración</label><input type="text" name="elaborador_nombre"><input type="text" name="elaborador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Responsable de revisión</label><input type="text" name="revisor_nombre"><input type="text" name="revisor_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Responsable de registro y control</label><input type="text" name="registrador_nombre"><input type="text" name="registrador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Responsable que notificó</label><input type="text" name="notificador_nombre"><input type="text" name="notificador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
                         </div>
 
                         <!-- ══ ACCIONES ══════════════════════════════════════════════════ -->
@@ -489,9 +496,9 @@ $preselCedula = $preselCedula ?? '';
                                id="btn-cancelar-accion">
                                 <i class="bi bi-x-circle"></i> Cancelar
                             </a>
-                            <button type="button" class="btn btn-ghost" onclick="abrirModalVistaPrevia()"
+                            <button type="button" class="btn btn-ghost" onclick="showToast('Genere el documento y ábralo desde Biblioteca para imprimir el PDF oficial de 2 páginas.','info')"
                                     id="btn-imprimir-accion">
-                                <i class="bi bi-eye-fill"></i> Vista Previa / Imprimir
+                                <i class="bi bi-eye-fill"></i> Vista previa PDF oficial
                             </button>
                             <button type="submit" class="btn btn-primary" id="btn-generar-accion"
                                     onclick="return validarFormulario()">
@@ -529,7 +536,16 @@ $preselCedula = $preselCedula ?? '';
     </div>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
+<?php if (Auth::can('maestros', 'crear')):
+    $catalogoRapidoConfig = [
+        'areas' => $areas ?? [],
+        'unidadSelectId' => 'propUnidad',
+        'puestoSelectId' => 'propPuesto',
+        'rmuTargetId' => 'propSueldo',
+    ];
+    require ROOT . '/shared/catalogo_rapido.php';
+endif; ?>
+
 
 <?php if (!empty($_GET['msg'])): ?>
 <script>
@@ -540,9 +556,6 @@ $preselCedula = $preselCedula ?? '';
 </script>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-<script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
    accion_personal.js – Lógica interactiva exclusiva de este formulario
@@ -550,6 +563,67 @@ $preselCedula = $preselCedula ?? '';
 
 /* BASE_URL inyectado desde PHP para que fetch() funcione en cualquier entorno */
 const BASE_URL = '<?= BASE_URL ?>';
+const PERSONAL_ACCION = <?= json_encode($selectorPersonal ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const normalizarBusquedaPersonal = valor => String(valor ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+const escaparResultadoPersonal = valor => String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+})[caracter]);
+PERSONAL_ACCION.forEach(persona => {
+    persona.indice = normalizarBusquedaPersonal(`${persona.cedula} ${persona.apellidos} ${persona.nombres} ${persona.cargo} ${persona.area}`);
+});
+
+function coincidenciasPersonalAccion() {
+    const tokens = normalizarBusquedaPersonal(document.getElementById('inputBuscarCedula').value).split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [];
+    return PERSONAL_ACCION.filter(persona => tokens.every(token => persona.indice.includes(token))).slice(0, 10);
+}
+
+function mostrarResultadosPersonalAccion() {
+    const contenedor = document.getElementById('resultadosPersonalAccion');
+    const resultados = coincidenciasPersonalAccion();
+    if (!document.getElementById('inputBuscarCedula').value.trim()) {
+        contenedor.classList.remove('open');
+        contenedor.innerHTML = '';
+        return;
+    }
+    contenedor.innerHTML = resultados.length ? resultados.map(persona => `
+        <button type="button" class="personal-result" role="option" data-persona-id="${Number(persona.id)}">
+            <strong>${escaparResultadoPersonal(persona.apellidos)} ${escaparResultadoPersonal(persona.nombres)}</strong>
+            <small>C.I. ${escaparResultadoPersonal(persona.cedula)} · ${escaparResultadoPersonal(persona.cargo || persona.area)}</small>
+        </button>`).join('') : '<div class="personal-result"><strong>Sin coincidencias</strong><small>Revise la cédula o el nombre ingresado.</small></div>';
+    contenedor.classList.add('open');
+}
+
+async function cargarServidorPorId(id) {
+    const estado = document.getElementById('estadoBusqueda');
+    try {
+        const respuesta = await fetch(`${BASE_URL}/talento-humano/accion-personal/buscar-servidor?id=${Number(id)}`);
+        const json = await respuesta.json();
+        if (!respuesta.ok || !json.success || !json.data) throw new Error(json.message || 'Funcionario no encontrado.');
+        document.getElementById('inputBuscarCedula').value = json.data.cedula ?? '';
+        llenarFormularioConEmpleado(json.data);
+        estado.innerHTML = `<i class="bi bi-check-circle-fill" style="color:#059669"></i> Expediente cargado: ${escaparResultadoPersonal(json.data.apellidos)} ${escaparResultadoPersonal(json.data.nombres)}`;
+        estado.style.color = '#059669';
+        document.getElementById('resultadosPersonalAccion').classList.remove('open');
+    } catch (error) {
+        estado.innerHTML = `<i class="bi bi-x-circle-fill" style="color:#dc2626"></i> ${escaparResultadoPersonal(error.message)}`;
+        estado.style.color = '#dc2626';
+    }
+}
+
+function seleccionarPersonalAccion(id) {
+    return cargarServidorPorId(id);
+}
+
+function buscarPersonaAccion() {
+    const primera = coincidenciasPersonalAccion()[0];
+    if (primera) return seleccionarPersonalAccion(primera.id);
+    const soloDigitos = document.getElementById('inputBuscarCedula').value.replace(/\D/g, '');
+    if (soloDigitos.length >= 5) return buscarPorCedula();
+    showToast?.('No se encontraron coincidencias para la búsqueda.', 'error');
+}
 
 /* ── 1. Inicialización al cargar la página ───────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -562,24 +636,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const cedUrl  = params.get('cedula');
     const idUrl   = params.get('id');
 
+    const buscador = document.getElementById('inputBuscarCedula');
+    buscador.addEventListener('input', mostrarResultadosPersonalAccion);
+    buscador.addEventListener('focus', mostrarResultadosPersonalAccion);
+    buscador.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); buscarPersonaAccion(); }
+        if (event.key === 'Escape') document.getElementById('resultadosPersonalAccion').classList.remove('open');
+    });
+    document.getElementById('resultadosPersonalAccion').addEventListener('click', event => {
+        const opcion = event.target.closest('[data-persona-id]');
+        if (opcion) seleccionarPersonalAccion(Number(opcion.dataset.personaId));
+    });
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.personal-autocomplete')) document.getElementById('resultadosPersonalAccion').classList.remove('open');
+    });
+
     if (cedUrl) {
         // Modo cédula: el link del directorio puede traer la cédula directamente
         document.getElementById('inputBuscarCedula').value = cedUrl;
         buscarPorCedula();
     } else if (idUrl && parseInt(idUrl) > 0) {
         // Modo ID: buscar por ID interno y mostrar la cédula al completar
-        fetch(`${BASE_URL}/talento-humano/accion-personal/buscar-servidor?id=${parseInt(idUrl)}`)
-            .then(r => r.json())
-            .then(json => {
-                if (json.success && json.data) {
-                    document.getElementById('inputBuscarCedula').value = json.data.cedula ?? '';
-                    llenarFormularioConEmpleado(json.data);
-                    document.getElementById('estadoBusqueda').innerHTML =
-                        `<i class="bi bi-check-circle-fill" style="color:#059669"></i> Expediente cargado: ${json.data.nombres} ${json.data.apellidos}`;
-                    document.getElementById('estadoBusqueda').style.color = '#059669';
-                }
-            })
-            .catch(() => {});
+        cargarServidorPorId(parseInt(idUrl));
     }
 });
 
@@ -626,7 +704,7 @@ async function buscarPorCedula() {
         showToast?.('Error de conexión al buscar el funcionario.', 'error');
     } finally {
         btnBuscar.disabled  = false;
-        btnBuscar.innerHTML = '<i class="bi bi-search"></i> Autocompletar';
+        btnBuscar.innerHTML = '<i class="bi bi-search"></i> Seleccionar';
     }
 }
 
@@ -636,7 +714,7 @@ function llenarFormularioConEmpleado(emp) {
     document.getElementById('inpCedula').value      = emp.cedula        ?? '';
     document.getElementById('inpNombres').value     = `${emp.apellidos ?? ''} ${emp.nombres ?? ''}`.trim();
     document.getElementById('hidEmpleadoId').value  = emp.id            ?? 0;
-    document.getElementById('hidUnidadId').value    = emp.id            ?? 0;
+    document.getElementById('hidUnidadId').value    = emp.unidad_id     ?? 0;
 
     // Situación actual (bloque izquierdo — readonly, datos directos de la BD)
     document.getElementById('inpProcesoActual').value  = emp.tipo_contrato  ?? '';
@@ -662,14 +740,14 @@ function seleccionarTipo(chip) {
     document.getElementById('hidTipoAccion').value = valor;
 
     // Mostrar/ocultar campo "otro"
-    document.getElementById('bloqueOtro').style.display = valor === 'OTRO' ? 'block' : 'none';
+    document.getElementById('bloqueOtro').style.display = valor.startsWith('OTRO') ? 'block' : 'none';
 
     // Reglas de negocio: bloquear propuesta en acciones que no cambian posición
     aplicarReglasNegocio(valor);
 }
 
 function aplicarReglasNegocio(accion) {
-    const bloquear = ['VACACIONES', 'CESACION'].includes(accion);
+    const bloquear = ['VACACIONES','CESACIÓN DE FUNCIONES','DESTITUCIÓN','SANCIONES'].includes(accion);
     document.querySelectorAll('.inputs-propuesta').forEach(el => {
         el.disabled = bloquear;
         el.style.opacity = bloquear ? '.45' : '1';
@@ -759,7 +837,7 @@ function abrirModalVistaPrevia() {
     const declaracion  = getT('presento_declaracion') || 'No aplica';
 
     /* ── URL del logo usando constante PHP ── */
-    const logoUrl  = '<?= LOGO_URL ?>/logoapm.png';
+    const logoUrl  = '<?= IMG_URL ?>/logoapm.png';
     const fechaHoy = new Date().toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
     const nroDoc   = `APM-TH-${new Date().getFullYear()}-${String(empId).padStart(3,'0')}`;
 
@@ -932,6 +1010,7 @@ document.addEventListener('keydown', e => {
 function imprimirVista() {
     abrirModalVistaPrevia();
 }
+
 </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>

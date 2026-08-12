@@ -1,6 +1,6 @@
 USE [master]
 GO
-/****** Objeto: Database [Talento_Humano] Fecha de script: 3/8/2026 22:29:37 ******/
+/****** Objeto: Database [Talento_Humano] Fecha de script: 5/8/2026 09:52:36 ******/
 CREATE DATABASE [Talento_Humano]
  CONTAINMENT = NONE
  ON  PRIMARY 
@@ -82,15 +82,15 @@ ALTER DATABASE [Talento_Humano] SET QUERY_STORE (OPERATION_MODE = READ_WRITE, CL
 GO
 USE [Talento_Humano]
 GO
-/****** Objeto: User [portal_app] Fecha de script: 3/8/2026 22:29:37 ******/
+/****** Objeto: User [portal_app] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE USER [portal_app] WITHOUT LOGIN WITH DEFAULT_SCHEMA=[dbo]
 GO
-/****** Objeto: DatabaseRole [portal_app_role] Fecha de script: 3/8/2026 22:29:37 ******/
+/****** Objeto: DatabaseRole [portal_app_role] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE ROLE [portal_app_role]
 GO
 ALTER ROLE [portal_app_role] ADD MEMBER [portal_app]
 GO
-/****** Objeto: Table [dbo].[th_empleados] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_empleados] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -153,7 +153,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[view_th_empleados] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[view_th_empleados] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -170,7 +170,7 @@ SELECT
     estado
 FROM th_empleados;
 GO
-/****** Objeto: View [dbo].[view_th_idempleados] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[view_th_idempleados] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -187,7 +187,7 @@ SELECT
     estado
 FROM th_empleados;
 GO
-/****** Objeto: View [dbo].[view_th_cedempleados] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[view_th_cedempleados] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -204,7 +204,7 @@ SELECT
     estado
 FROM th_empleados;
 GO
-/****** Objeto: Table [dbo].[th_puestos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_puestos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -225,7 +225,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_unidades_organizacionales] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_unidades_organizacionales] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -247,7 +247,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[vw_th_directorio_empleados] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_directorio_empleados] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -272,7 +272,7 @@ LEFT JOIN dbo.th_puestos p ON p.puesto_id=e.puesto_id
 LEFT JOIN dbo.th_unidades_organizacionales u ON u.unidad_id=e.unidad_id;
 
 GO
-/****** Objeto: View [dbo].[view_th_iddatosempledo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[view_th_iddatosempledo] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -280,7 +280,7 @@ GO
 CREATE   VIEW [dbo].[view_th_iddatosempledo] AS SELECT * FROM dbo.vw_th_directorio_empleados;
 
 GO
-/****** Objeto: Table [dbo].[th_estudios_socioeconomicos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_estudios_socioeconomicos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -369,7 +369,7 @@ CREATE TABLE [dbo].[th_estudios_socioeconomicos](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[vw_th_estudios_socioeconomicos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_estudios_socioeconomicos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -385,7 +385,7 @@ FROM dbo.th_estudios_socioeconomicos s
 JOIN dbo.th_empleados e ON e.empleado_id=s.empleado_id;
 
 GO
-/****** Objeto: View [dbo].[view_th_ceddatosempledo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[view_th_ceddatosempledo] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -406,7 +406,7 @@ FROM th_empleados e
 LEFT JOIN th_puestos p ON e.puesto_id = p.puesto_id
 LEFT JOIN th_unidades_organizacionales u ON e.unidad_id = u.unidad_id;
 GO
-/****** Objeto: Table [dbo].[th_historial_laboral] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_historial_laboral] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -427,7 +427,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[vw_th_reporte_historial_jerarquico] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_reporte_historial_jerarquico] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -465,7 +465,7 @@ LEFT JOIN [dbo].[th_unidades_organizacionales] u_padre ON u.unidad_padre_id = u_
 LEFT JOIN [dbo].[th_unidades_organizacionales] u_nueva ON u.sucedido_por_id = u_nueva.unidad_id;
 
 GO
-/****** Objeto: Table [dbo].[th_acciones_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_acciones_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -532,7 +532,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[vw_th_acciones_resumen] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_acciones_resumen] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -563,7 +563,7 @@ LEFT JOIN [dbo].[th_puestos] p_act   ON ap.actual_puesto_id   = p_act.puesto_id
 LEFT JOIN [dbo].[th_puestos] p_prop  ON ap.propuesta_puesto_id = p_prop.puesto_id;
 
 GO
-/****** Objeto: View [dbo].[vw_th_maestros_organizacionales] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_maestros_organizacionales] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -584,7 +584,7 @@ FROM dbo.th_unidades_organizacionales u
 LEFT JOIN dbo.th_unidades_organizacionales padre ON padre.unidad_id = u.unidad_padre_id;
 
 GO
-/****** Objeto: Table [dbo].[th_movimientos_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_movimientos_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -608,7 +608,7 @@ CREATE TABLE [dbo].[th_movimientos_personal](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: View [dbo].[vw_th_movimientos_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: View [dbo].[vw_th_movimientos_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -638,7 +638,7 @@ JOIN dbo.th_unidades_organizacionales ud ON ud.unidad_id = m.unidad_destino_id
 JOIN dbo.th_puestos pd ON pd.puesto_id = m.puesto_destino_id;
 
 GO
-/****** Objeto: Table [dbo].[th_acciones_personal_old] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_acciones_personal_old] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -659,7 +659,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_empleado_nacionalidades] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_empleado_nacionalidades] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -678,7 +678,7 @@ CREATE TABLE [dbo].[th_empleado_nacionalidades](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_estudio_capacitaciones] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_estudio_capacitaciones] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -704,7 +704,7 @@ CREATE TABLE [dbo].[th_estudio_capacitaciones](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_estudio_experiencias] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_estudio_experiencias] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -735,7 +735,7 @@ CREATE TABLE [dbo].[th_estudio_experiencias](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_estudio_hijos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_estudio_hijos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -762,7 +762,7 @@ CREATE TABLE [dbo].[th_estudio_hijos](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_logs_auditoria] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_logs_auditoria] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -781,7 +781,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_modulos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_modulos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -801,7 +801,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_movimientos_lote] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_movimientos_lote] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -823,7 +823,7 @@ CREATE TABLE [dbo].[th_movimientos_lote](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_nacionalidades] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_nacionalidades] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -846,7 +846,7 @@ CREATE TABLE [dbo].[th_nacionalidades](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_parametros] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_parametros] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -864,7 +864,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_permisos_rol] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_permisos_rol] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -883,7 +883,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_politicas_documentos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_politicas_documentos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -908,7 +908,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_respaldo_empleados_calidad_20260729] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_respaldo_empleados_calidad_20260729] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -959,7 +959,7 @@ CREATE TABLE [dbo].[th_respaldo_empleados_calidad_20260729](
 	[num_iess] [varchar](30) NULL
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_respaldo_estado_empleados_2026] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_respaldo_estado_empleados_2026] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -974,7 +974,7 @@ CREATE TABLE [dbo].[th_respaldo_estado_empleados_2026](
 	[fecha_respaldo] [datetime2](7) NOT NULL
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_respaldo_normalizacion_20260729] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_respaldo_normalizacion_20260729] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -992,7 +992,7 @@ CREATE TABLE [dbo].[th_respaldo_normalizacion_20260729](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_respaldo_unidades_calidad_20260729] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_respaldo_unidades_calidad_20260729] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1009,7 +1009,7 @@ CREATE TABLE [dbo].[th_respaldo_unidades_calidad_20260729](
 	[fecha_inicio] [date] NULL
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_roles] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_roles] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1028,7 +1028,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_titulos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_titulos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1047,7 +1047,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Objeto: Table [dbo].[th_usuarios_sistema] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Table [dbo].[th_usuarios_sistema] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1079,7 +1079,7 @@ UNIQUE NONCLUSTERED
 GO
 SET ANSI_PADDING ON
 GO
-/****** Objeto: Index [UX_th_acciones_numero] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [UX_th_acciones_numero] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE UNIQUE NONCLUSTERED INDEX [UX_th_acciones_numero] ON [dbo].[th_acciones_personal]
 (
 	[numero_accion] ASC
@@ -1087,40 +1087,40 @@ CREATE UNIQUE NONCLUSTERED INDEX [UX_th_acciones_numero] ON [dbo].[th_acciones_p
 GO
 SET ANSI_PADDING ON
 GO
-/****** Objeto: Index [IX_th_empleados_identificacion_busqueda] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_th_empleados_identificacion_busqueda] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_th_empleados_identificacion_busqueda] ON [dbo].[th_empleados]
 (
 	[identificacion] ASC
 )
 INCLUDE([apellidos],[nombres],[unidad_id],[puesto_id],[estado],[tipo_contrato]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_th_estudio_empleado_fecha] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_th_estudio_empleado_fecha] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_th_estudio_empleado_fecha] ON [dbo].[th_estudios_socioeconomicos]
 (
 	[empleado_id] ASC,
 	[fecha_creacion] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_Historial_Empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Historial_Empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Historial_Empleado] ON [dbo].[th_historial_laboral]
 (
 	[empleado_id] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_Historial_Fechas] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Historial_Fechas] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Historial_Fechas] ON [dbo].[th_historial_laboral]
 (
 	[fecha_desde] ASC,
 	[fecha_hasta] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_Historial_Unidad] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Historial_Unidad] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Historial_Unidad] ON [dbo].[th_historial_laboral]
 (
 	[unidad_id] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_Logs_FechaHora] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Logs_FechaHora] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Logs_FechaHora] ON [dbo].[th_logs_auditoria]
 (
 	[fecha_hora] DESC
@@ -1128,7 +1128,7 @@ CREATE NONCLUSTERED INDEX [IX_Logs_FechaHora] ON [dbo].[th_logs_auditoria]
 GO
 SET ANSI_PADDING ON
 GO
-/****** Objeto: Index [IX_Logs_Modulo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Logs_Modulo] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Logs_Modulo] ON [dbo].[th_logs_auditoria]
 (
 	[modulo] ASC,
@@ -1137,7 +1137,7 @@ CREATE NONCLUSTERED INDEX [IX_Logs_Modulo] ON [dbo].[th_logs_auditoria]
 GO
 SET ANSI_PADDING ON
 GO
-/****** Objeto: Index [IX_Logs_Usuario] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_Logs_Usuario] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_Logs_Usuario] ON [dbo].[th_logs_auditoria]
 (
 	[usuario] ASC
@@ -1145,13 +1145,13 @@ CREATE NONCLUSTERED INDEX [IX_Logs_Usuario] ON [dbo].[th_logs_auditoria]
 GO
 SET ANSI_PADDING ON
 GO
-/****** Objeto: Index [IX_th_modulos_codigo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_th_modulos_codigo] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_th_modulos_codigo] ON [dbo].[th_modulos]
 (
 	[codigo_modulo] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [IX_th_mov_empleado_fecha] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [IX_th_mov_empleado_fecha] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE NONCLUSTERED INDEX [IX_th_mov_empleado_fecha] ON [dbo].[th_movimientos_personal]
 (
 	[empleado_id] ASC,
@@ -1159,7 +1159,7 @@ CREATE NONCLUSTERED INDEX [IX_th_mov_empleado_fecha] ON [dbo].[th_movimientos_pe
 	[movimiento_id] DESC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 GO
-/****** Objeto: Index [UX_th_permisos_rol_modulo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [UX_th_permisos_rol_modulo] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE UNIQUE NONCLUSTERED INDEX [UX_th_permisos_rol_modulo] ON [dbo].[th_permisos_rol]
 (
 	[rol_id] ASC,
@@ -1174,7 +1174,7 @@ SET ANSI_PADDING ON
 SET ANSI_WARNINGS ON
 SET NUMERIC_ROUNDABORT OFF
 GO
-/****** Objeto: Index [UX_th_unidades_nombre_activo] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: Index [UX_th_unidades_nombre_activo] Fecha de script: 5/8/2026 09:52:37 ******/
 CREATE UNIQUE NONCLUSTERED INDEX [UX_th_unidades_nombre_activo] ON [dbo].[th_unidades_organizacionales]
 (
 	[nombre_busqueda] ASC
@@ -1451,7 +1451,7 @@ ALTER TABLE [dbo].[th_politicas_documentos]  WITH CHECK ADD  CONSTRAINT [CK_th_p
 GO
 ALTER TABLE [dbo].[th_politicas_documentos] CHECK CONSTRAINT [CK_th_politicas_tamano]
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_anular_accion_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_anular_accion_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1482,7 +1482,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_aprobar_accion_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_aprobar_accion_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1543,7 +1543,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_auditar_lectura] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_auditar_lectura] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1560,7 +1560,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_buscar_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_buscar_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1600,7 +1600,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_cambiar_estado_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_cambiar_estado_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1671,7 +1671,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_acciones] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_acciones] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1691,7 +1691,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_directorio] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_directorio] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1715,7 +1715,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_estudios_socioeconomicos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_estudios_socioeconomicos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -1734,7 +1734,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_historial] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_historial] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1760,7 +1760,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_nacionalidades] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_nacionalidades] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1777,7 +1777,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_puestos] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_puestos] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1795,7 +1795,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_unidades] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_consultar_unidades] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1814,7 +1814,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_eliminar_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_eliminar_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1836,7 +1836,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1901,7 +1901,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_puesto] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_puesto] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -1963,7 +1963,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_unidad] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_guardar_unidad] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2041,7 +2041,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_modificar_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_modificar_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2101,7 +2101,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_mover_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_mover_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2172,7 +2172,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_mover_empleados_lote] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_mover_empleados_lote] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2229,7 +2229,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_obtener_expediente_impresion] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_obtener_expediente_impresion] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2255,7 +2255,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_obtener_siguiente_id] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_obtener_siguiente_id] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2278,7 +2278,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_reconciliar_empleado_rolmaes] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_reconciliar_empleado_rolmaes] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2318,7 +2318,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_registrar_accion_personal] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_registrar_accion_personal] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -2413,7 +2413,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_registrar_auditoria] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_registrar_auditoria] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2440,7 +2440,7 @@ BEGIN
 END;
 
 GO
-/****** Objeto: StoredProcedure [dbo].[sp_th_sincronizar_nacionalidades_empleado] Fecha de script: 3/8/2026 22:29:38 ******/
+/****** Objeto: StoredProcedure [dbo].[sp_th_sincronizar_nacionalidades_empleado] Fecha de script: 5/8/2026 09:52:37 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON

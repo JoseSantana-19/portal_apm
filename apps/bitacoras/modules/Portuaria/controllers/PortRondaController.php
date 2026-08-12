@@ -338,4 +338,44 @@ class PortRondaController extends PortController
 
         $this->json(['ok' => false, 'message' => 'Método no permitido.']);
     }
+
+    /**
+     * GET /bitacoras/ronda/detalle — detalle de un registro de bitácora de
+     * rondas (modal o página completa), enlazado desde el panel jefe y desde
+     * el feed de actividad reciente. Cierra un hueco real: dashboard_jefe.js
+     * linkeaba a bit_consulta.php, que nunca existió en este puerto (Patrón B).
+     */
+    public function detalle(): void
+    {
+        Auth::guard();
+        if (!Auth::canAccederDashboardJefe() && !Auth::canAccederBitacoraRondas()) {
+            $this->redirect('dashboard?msg=acceso_denegado');
+            return;
+        }
+
+        /** @var PortRondaModel $model */
+        $model = $this->model('PortRondaModel');
+
+        $idDetalle = isset($_GET['id_detalle']) ? (int) $_GET['id_detalle'] : 0;
+        $action = isset($_GET['action']) ? trim((string) $_GET['action']) : '';
+        $desdeDashboard = isset($_GET['from']) && $_GET['from'] === 'dashboard';
+        $modalOnly = isset($_GET['modal_only']) && $_GET['modal_only'] === '1';
+
+        $row = $model->obtenerDetalleParaConsulta($idDetalle);
+        $abrirModal = ($action === 'view' && $row !== null);
+
+        $data = [
+            'pageTitle' => 'Consulta bitácora | Autoridad Portuaria de Manta',
+            'row' => $row,
+            'desdeDashboard' => $desdeDashboard,
+            'abrirModal' => $abrirModal,
+        ];
+
+        if ($modalOnly) {
+            $this->view('rondas/detalleModal', $data, false);
+            return;
+        }
+
+        $this->view('rondas/detalle', $data);
+    }
 }

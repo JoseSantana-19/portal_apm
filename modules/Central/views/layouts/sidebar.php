@@ -197,8 +197,52 @@ if (!function_exists('normalizeFaIcon')) {
                     }
                 }
                 if (!empty($sidebarFocus)) $isModActive = true; // modo módulo: siempre expandido
+
+                // Un módulo con un único ítem navegable (sin hijos) se
+                // muestra como link directo en vez de acordeón de un solo
+                // elemento -- caso típico hoy para módulos embebidos recién
+                // migrados a MOIS (TH/Bienes/Bitácoras), donde por defecto
+                // solo el nodo "Inicio"/"Dashboard" tiene permiso otorgado
+                // hasta que un admin reparta más nivel_crud por pantalla
+                // desde /admin/roles. Con más de un ítem, o con hijos, se
+                // mantiene el acordeón de siempre. Se desactiva en modo
+                // "módulo activo" (sidebarFocus), donde siempre se quiere
+                // ver el árbol expandido aunque tenga un solo ítem.
+                $soloItem = null;
+                $totalItems = 0;
+                foreach ($mod['areas'] as $area) {
+                    $totalItems += count($area['items']);
+                    if ($totalItems > 1) break;
+                    foreach ($area['items'] as $opt) {
+                        if (empty($opt['children']) && !empty($opt['url'])) {
+                            $soloItem = $opt;
+                        }
+                    }
+                }
+                $esLinkDirecto = empty($sidebarFocus) && $totalItems === 1 && $soloItem !== null;
                 ?>
                 <div class="sm-section" style="--mod-color: <?= $modColor ?>; --mod-color-alpha: <?= $modColor ?>20;">
+                    <?php if ($esLinkDirecto):
+                        $modUrl = APP_URL . '/' . ltrim($soloItem['url'], '/');
+                        $modActiveDirecta = ($currentPath === '/' . ltrim($soloItem['url'], '/'));
+                    ?>
+                    <!-- Level 1: Módulo con un solo destino -- link directo, sin acordeón -->
+                    <a class="sm-header <?= $modActiveDirecta ? 'active' : '' ?>" id="smhdr-<?= $modId ?>" href="<?= $modUrl ?>" <?= !empty($soloItem['spa']) ? 'data-spa' : 'data-no-spa' ?>
+                       data-flyout-type="modulo"
+                       data-id="<?= htmlspecialchars((string)($mod['id'] ?? '')) ?>"
+                       data-title="<?= htmlspecialchars($mod['label'] ?? '') ?>"
+                       data-icon="<?= normalizeFaIcon($mod['icon'] ?? '') ?>"
+                       data-color="<?= $modColor ?>">
+                        <div class="sm-icon" style="background: <?= $modColor ?> !important; box-shadow: 0 2px 8px <?= $modColor ?>40;">
+                            <i class="<?= normalizeFaIcon($mod['icon'] ?? '') ?>" style="font-size:13px; color:#fff;"></i>
+                        </div>
+                        <span class="sm-name"><?= htmlspecialchars($mod['label'] ?? '') ?></span>
+                        <?php if (isset($moduleBadges[(int)$modId])): $mb = $moduleBadges[(int)$modId]; ?>
+                            <span title="<?= htmlspecialchars($mb['title'], ENT_QUOTES, 'UTF-8') ?>"
+                                  style="margin-left:auto;margin-right:4px;flex:none;font-size:.62rem;font-weight:800;padding:1px 7px;border-radius:20px;background:color-mix(in srgb,<?= $modColor ?> 18%,transparent);color:<?= $modColor ?>;border:1px solid color-mix(in srgb,<?= $modColor ?> 35%,transparent);"><?= (int)$mb['n'] ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <?php else: ?>
                     <!-- Level 1: Module/Direction -->
                     <button class="sm-header <?= $isModActive ? 'active open' : '' ?>" id="smhdr-<?= $modId ?>" onclick="toggleSidebarModule('<?= $modId ?>')"
                             data-flyout-type="modulo"
@@ -216,7 +260,7 @@ if (!function_exists('normalizeFaIcon')) {
                         <?php endif; ?>
                         <i class="fa-solid fa-chevron-right sm-chevron"></i>
                     </button>
-                    
+
                     <div class="sm-tree <?= $isModActive ? 'open' : '' ?>" id="smtree-<?= $modId ?>">
                         <div class="sb-area" style="padding: 4px 6px;">
                             <?php $singleArea = count($mod['areas']) === 1; ?>
@@ -237,8 +281,37 @@ if (!function_exists('normalizeFaIcon')) {
                                     }
                                 }
                                 if (!empty($sidebarFocus)) $isAreaActive = true; // modo módulo: áreas abiertas
+
+                                // Área con una sola pantalla real (sin hijos) y sin
+                                // hermanas: mostrarla como link directo en vez de
+                                // acordeón de un solo elemento -- evita el doble click
+                                // (expandir → click) para llegar a algo que es una sola
+                                // pantalla, y evita repetir su nombre como encabezado Y
+                                // como único hijo. Caso típico: la mayoría de pantallas
+                                // de TH/Bienes/Bitácoras son áreas planas de 1 ítem.
+                                $areaItems = $area['items'];
+                                $areaSoloItem = (count($areaItems) === 1 && empty(reset($areaItems)['children']) && !empty(reset($areaItems)['url']))
+                                    ? reset($areaItems) : null;
+                                $areaEsLinkDirecto = !$singleArea && $areaSoloItem !== null;
                                 ?>
                                 <div style="margin-bottom: <?= $singleArea ? '2px' : '6px' ?>;">
+                                    <?php if ($areaEsLinkDirecto):
+                                        $areaUrl = APP_URL . '/' . ltrim($areaSoloItem['url'], '/');
+                                        $areaActivaDirecta = ($currentPath === '/' . ltrim($areaSoloItem['url'], '/'));
+                                    ?>
+                                    <a class="sb-area-btn sb-area-link <?= $areaActivaDirecta ? 'open' : '' ?>" href="<?= $areaUrl ?>" <?= !empty($areaSoloItem['spa']) ? 'data-spa' : 'data-no-spa' ?>
+                                       title="<?= htmlspecialchars($area['label'] ?? '') ?>"
+                                       data-flyout-type="area"
+                                       data-id="<?= htmlspecialchars((string)($area['id'] ?? '')) ?>"
+                                       data-title="<?= htmlspecialchars($area['label'] ?? '') ?>"
+                                       data-icon="<?= normalizeFaIcon($area['icon'] ?? 'circle') ?>"
+                                       data-color="<?= $modColor ?>"
+                                       data-parent="<?= htmlspecialchars($mod['label'] ?? '') ?>">
+                                        <i class="<?= normalizeFaIcon($area['icon'] ?? 'circle') ?> sab-icon" style="font-size:11px;"></i>
+                                        <span class="sab-label"><?= htmlspecialchars($area['label'] ?? '') ?></span>
+                                    </a>
+                                    </div>
+                                    <?php continue; endif; ?>
                                     <?php if (!$singleArea): ?>
                                     <button class="sb-area-btn <?= $isAreaActive ? 'open' : '' ?>" id="sba-<?= $areaId ?>" onclick="toggleSidebarArea('<?= $areaId ?>')" title="<?= htmlspecialchars($area['label'] ?? '') ?>"
                                             data-flyout-type="area"
@@ -316,11 +389,12 @@ if (!function_exists('normalizeFaIcon')) {
                             <?php endforeach; ?>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
-    
+
     <!--
       Menú lateral 100% controlado por CORE_Menu_Nodos + permisos por rol.
       Administración (módulo 2) y Control de Bienes / Inventario (módulo 12)
@@ -422,6 +496,10 @@ if (!function_exists('normalizeFaIcon')) {
     }
     .sb-area-btn:hover::after { height: 10px; }
     .sb-area-btn.open::after  { height: 18px; }
+
+    /* Área aplanada a link directo (1 sola pantalla, sin hermanas) --
+       misma caja visual que el acordeón, pero <a> navegable y sin chevron. */
+    .sb-area-link { text-decoration: none; cursor: pointer; }
 
     .sb-area-btn:hover {
         background: color-mix(in srgb, var(--mod-color, var(--primary-hover)) 7%, var(--accent-app));

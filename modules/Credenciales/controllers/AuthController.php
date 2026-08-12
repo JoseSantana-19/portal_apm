@@ -46,6 +46,17 @@ class AuthController extends Controller {
         $this->redirect('/dashboard');
     }
 
+    /**
+     * POST /api/keepalive — llamado por el aviso de inactividad (botón
+     * "Seguir conectado"). Refresca last_activity sin recargar la página y
+     * devuelve el tiempo restante recalculado.
+     */
+    public function keepalive(): void {
+        $this->requireAuth(); // ya refresca last_activity; si expiró, corta acá con 401 JSON (isAjax).
+        [$timeout, $aviso] = $this->resolveInactividad();
+        $this->json(['ok' => true, 'timeoutSegundos' => $timeout, 'avisoSegundos' => $aviso]);
+    }
+
     public function logout(): void {
         if (!empty($_SESSION['session_token'])) {
             $this->model->revokeSession($_SESSION['session_token']);

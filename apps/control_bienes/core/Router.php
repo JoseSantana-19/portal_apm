@@ -105,10 +105,18 @@ class Router {
             exit;
         }
 
-        // Validar tiempo de inactividad
+        // Validar tiempo de inactividad — centralizado en PORTAL_APM (cascada
+        // usuario > módulo > global, ver /admin/inactividad del portal).
+        // Cacheado en sesión 5 min para no consultar la BD en cada request.
         require_once ROOT_PATH . 'modules/Central/models/ConfigModel.php';
         $configModel = new ConfigModel();
-        $tiempoPermitido = (int)$configModel->obtener('tiempo_inactividad', 600); // 10 minutos por defecto
+        $idUsuarioActual = (int)($_SESSION['usuario']['id'] ?? $_SESSION['id_usuario'] ?? 0);
+        if (!isset($_SESSION['_inactividad_segundos']) || (time() - ($_SESSION['_inactividad_resuelto_en'] ?? 0)) >= 300) {
+            $_SESSION['_inactividad_segundos']    = $configModel->obtenerInactividadSegundos($idUsuarioActual);
+            $_SESSION['_inactividad_aviso']       = $configModel->obtenerInactividadAvisoSegundos($idUsuarioActual);
+            $_SESSION['_inactividad_resuelto_en'] = time();
+        }
+        $tiempoPermitido = (int)$_SESSION['_inactividad_segundos'];
 
         if (isset($_SESSION['ultimo_acceso'])) {
             $tiempoInactivo = time() - $_SESSION['ultimo_acceso'];
@@ -140,24 +148,95 @@ class Router {
     }
 
     /**
-     * Middleware de Permisos por Rol
+     * Tabla de políticas (route, action) -> (opción MOIS bajo id_modulo=12,
+     * nivel_crud mínimo). Las acciones no listadas para una route caen al
+     * 'default' de esa route (típicamente 1 = solo Ver). Sin entrada para
+     * la route completa -> no gateada aquí (ver $rutasPublicas en dispatch()).
+     */
+    private const POLITICAS = [
+        'dashboard'          => ['opcion' => 1,  'default' => 1, 'acciones' => []],
+        'inventario'         => ['opcion' => 2,  'default' => 1, 'acciones' => ['guardar' => 'crud', 'eliminar' => 4]],
+        'items'              => ['opcion' => 3,  'default' => 1, 'acciones' => ['guardar' => 'crud', 'eliminar' => 4]],
+        'inv_items_sistema'  => ['opcion' => 4,  'default' => 1, 'acciones' => ['guardar' => 'crud']],
+        'cabeceras'          => ['opcion' => 5,  'default' => 1, 'acciones' => ['guardar' => 'crud', 'eliminar' => 4]],
+        'inv_maestros'       => ['opcion' => 6,  'default' => 1, 'acciones' => ['guardar' => 'crud', 'eliminar' => 4]],
+        'ingresos'           => ['opcion' => 7,  'default' => 1, 'acciones' => ['guardar' => 2]],
+        'egresos'            => ['opcion' => 8,  'default' => 1, 'acciones' => ['guardar' => 2]],
+        'talento'            => ['opcion' => 9,  'default' => 1, 'acciones' => []],
+        'talento_directorio' => ['opcion' => 9,  'default' => 1, 'acciones' => []],
+        'talento_crear'      => ['opcion' => 9,  'default' => 2, 'acciones' => []],
+        'talento_guardar'    => ['opcion' => 9,  'default' => 1, 'acciones' => ['guardar' => 'crud']],
+        'talento_editar'     => ['opcion' => 9,  'default' => 3, 'acciones' => []],
+        'talento_borrar'     => ['opcion' => 9,  'default' => 4, 'acciones' => []],
+        'talento_eliminar'   => ['opcion' => 9,  'default' => 4, 'acciones' => []],
+        'talento_imprimir_ficha' => ['opcion' => 9, 'default' => 1, 'acciones' => []],
+        'inv_bitacora'       => ['opcion' => 10, 'default' => 1, 'acciones' => []],
+        'reportes'           => ['opcion' => 11, 'default' => 1, 'acciones' => []],
+        'inv_periodos'       => ['opcion' => 12, 'default' => 1, 'acciones' => ['guardar' => 2, 'ejecutarCorte' => 3]],
+        'inv_secuenciales'   => ['opcion' => 13, 'default' => 1, 'acciones' => ['test' => 3, 'reiniciar' => 3]],
+        'usuarios'           => ['opcion' => 14, 'default' => 1, 'acciones' => ['guardar' => 'crud', 'eliminar' => 4, 'guardarParametro' => 4]],
+        'inv_permisos'       => ['opcion' => 15, 'default' => 1, 'acciones' => ['guardar' => 3, 'obtenerPermisos' => 1]],
+        'inv_permisos_rol'   => ['opcion' => 15, 'default' => 3, 'acciones' => []],
+    ];
+
+    /**
+     * Middleware de Permisos: rama dual segun el tipo de cuenta.
+     * - Puenteada desde el portal (tiene user_id del portal en sesion):
+     *   fn_TienePermisoNodo cross-DB, ya resuelve rol + override de usuario.
+     * - Nativa de Bienes (inv_usuarios, sin cedula real en el portal):
+     *   cascada local usuario > rol contra inv_permisos / inv_permisos_rol.
      */
     private function checkPermisos(string $route) {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
-        $usuarioId = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 0;
-        $rol       = isset($_SESSION['rol'])        ? $_SESSION['rol']              : '';
-
-        // Administrador tiene acceso total a todo
-        if (strtolower($rol) === 'administrador' || $usuarioId === 0) {
+        $rol = isset($_SESSION['rol']) ? $_SESSION['rol'] : '';
+        if (strtolower($rol) === 'administrador') {
             return;
         }
 
-        require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
-        $permisoModel = new PermisoModel();
-        if (!$permisoModel->tienePermiso($usuarioId, $route, $rol)) {
+        $politica = self::POLITICAS[$route] ?? null;
+        if ($politica === null) {
+            // Route sin politica declarada (ej. inv_lookup): sin gating adicional.
+            return;
+        }
+
+        $action = isset($_GET['action']) ? $_GET['action'] : '';
+        $nivelMin = $politica['default'];
+        if ($action !== '' && array_key_exists($action, $politica['acciones'])) {
+            $spec = $politica['acciones'][$action];
+            if ($spec === 'crud') {
+                $tieneId = !empty($_POST['id']) || !empty($_GET['id']);
+                $nivelMin = $tieneId ? 3 : 2;
+            } else {
+                $nivelMin = (int)$spec;
+            }
+        }
+
+        $puenteada = !empty($_SESSION['user_id']);
+        $ok = false;
+
+        if ($puenteada) {
+            require_once ROOT_PATH . 'core/Controller.php';
+            require_once ROOT_PATH . 'core/Model.php';
+            $probe = new class extends Controller {
+                public function check(int $idUsuario, int $opcion, int $nivelMin): bool {
+                    return $this->tienePermisoPortal($idUsuario, $opcion, $nivelMin);
+                }
+            };
+            $ok = $probe->check((int)$_SESSION['user_id'], $politica['opcion'], $nivelMin);
+        } else {
+            $usuarioId = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 0;
+            $rolId = isset($_SESSION['usuario']['rol_id']) ? (int)$_SESSION['usuario']['rol_id'] : 0;
+            if ($usuarioId > 0) {
+                require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
+                $permisoModel = new PermisoModel();
+                $ok = $permisoModel->tieneNivelNativo($usuarioId, $rolId, $rol, $route, $nivelMin);
+            }
+        }
+
+        if (!$ok) {
             $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
                       || isset($_GET['is_ajax'])
                       || isset($_POST['is_ajax'])
@@ -165,12 +244,13 @@ class Router {
 
             if ($isAjax) {
                 header('Content-Type: application/json');
+                http_response_code(403);
                 echo json_encode(['error' => 'Acceso denegado', 'route' => $route]);
                 exit;
             }
 
             $_SESSION['toast'] = [
-                'mensaje' => 'No tienes permiso para acceder a esta sección. Contacta al Administrador.',
+                'mensaje' => 'No tienes permiso para realizar esta acción. Contacta al Administrador.',
                 'tipo'    => 'error'
             ];
             header('Location: index.php?route=inventario');

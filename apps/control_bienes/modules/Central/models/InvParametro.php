@@ -57,6 +57,37 @@ class ParametroModel extends Model {
         $stmt = $this->db->query("SELECT * FROM inv_parametros ORDER BY clave ASC");
         return $stmt->fetchAll();
     }
+
+    /**
+     * Tiempo de inactividad centralizado — consulta PORTAL_APM (cascada
+     * usuario > módulo 'CONTROL_BIENES' > global, configurable desde
+     * /admin/inactividad del portal). Antes esta app solo miraba su propia
+     * tabla `inv_parametros`, desconectada de cualquier otro módulo. Si la
+     * conexión cruzada falla (BD del portal no disponible), cae al parámetro
+     * local `tiempo_inactividad` para no dejar el sistema sin control.
+     */
+    public function obtenerInactividadSegundos(int $idUsuario, int $fallback = 600): int {
+        try {
+            $stmt = $this->db->prepare('SELECT PORTAL_APM.dbo.fn_InactividadSegundos(:id, :modulo) AS v');
+            $stmt->execute([':id' => $idUsuario, ':modulo' => 'CONTROL_BIENES']);
+            $row = $stmt->fetch();
+            if ($row && $row['v'] !== null) return (int)$row['v'];
+        } catch (\Throwable $e) {
+            // sin conexión al portal: se usa el respaldo local de abajo.
+        }
+        return (int)$this->obtener('tiempo_inactividad', $fallback);
+    }
+
+    public function obtenerInactividadAvisoSegundos(int $idUsuario, int $fallback = 60): int {
+        try {
+            $stmt = $this->db->prepare('SELECT PORTAL_APM.dbo.fn_InactividadAvisoSegundos(:id, :modulo) AS v');
+            $stmt->execute([':id' => $idUsuario, ':modulo' => 'CONTROL_BIENES']);
+            $row = $stmt->fetch();
+            if ($row && $row['v'] !== null) return (int)$row['v'];
+        } catch (\Throwable $e) {
+        }
+        return $fallback;
+    }
 }
 
 class InvParametro extends ParametroModel {}

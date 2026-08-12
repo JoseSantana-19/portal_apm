@@ -29,13 +29,13 @@ inventar una cuarta:
 | Patrón | Cuándo usarlo | Ejemplo |
 |---|---|---|
 | **A — Nativo** | Es genuinamente parte del portal (admin, auth, dashboards del hub) | `modules/Central`, `modules/Credenciales` |
-| **B — App embebida + SSO** | Es un módulo de negocio externo, con su propio proyecto y BD | `apps/talento_humano`, `apps/control_bienes` |
-| **C — Nativo con stack propio** | Corre dentro del router del portal pero mantiene su propio layout/BDs por una razón de dominio real | `modules/Portuaria` |
+| **B — App embebida + SSO** | Es un módulo de negocio externo, con su propio proyecto y BD | `apps/talento_humano`, `apps/control_bienes`, `apps/bitacoras` |
+| **C — retirado (2026-08-04)** | Existió para Bitácoras (`modules/Portuaria`, nativo con stack propio) — se migró a Patrón B porque terminó desperdigado por 9 carpetas del árbol del portal. Ya no se usa para nada nuevo. | — |
 
-**Para un módulo nuevo, casi siempre es Patrón B.** No reescribas el módulo
+**Para un módulo nuevo, siempre es Patrón B.** No reescribas el módulo
 dentro de `modules/` del portal — eso ya se intentó con Talento Humano,
 Inventario, Control de Bienes y Bitácoras al principio del proyecto, y se
-dio de baja por completo cuando la integración real (Patrón B/C) quedó
+dio de baja por completo cuando la integración real (Patrón B) quedó
 lista. Reescribir duplica trabajo y crea dos fuentes de verdad para lo mismo.
 
 ---
@@ -137,10 +137,9 @@ $rolApp = $nivelPortal >= 3 ? 'Administrador' : ($nivelPortal === 2 ? 'Superviso
 ### 1.4 Registrar tu módulo en el menú del portal
 
 El menú vive en 2 tablas de `PORTAL_APM`: `CORE_Menu_Nodos` (qué aparece) y
-`CORE_Permisos_Nodo` (quién lo ve). Elegí un `id_modulo` libre (mirá el
-máximo actual en `CORE_Menu_Nodos` antes de elegir) y agregá un nodo mínimo,
-mismo patrón que ya usan Talento Humano (11), Control de Bienes (12) y
-Portuaria (13):
+`CORE_Permisos_Nodo` (quién lo ve), resueltas por `fn_TienePermisoNodo`
+(misma función que usa Central). Para un módulo chico, un nodo mínimo
+(cabecera + 1 link al sistema completo) alcanza para arrancar:
 
 ```sql
 USE PORTAL_APM;
@@ -150,14 +149,14 @@ GO
 INSERT INTO CORE_Menu_Nodos (id_modulo, opcion, items, subitems, descripcion, url_ruta, icono, orden, requiere_mfa, target_spa, estado)
 VALUES (<TU_ID_MODULO>, 0, 0, 0, N'Tu Módulo', NULL, N'fa-window-restore', <siguiente_orden>, 0, 0, 1);
 
--- L3: el link real al sistema completo (target_spa=0 porque es una app externa, no una vista del portal)
+-- L2/opcion: cada pantalla real es un nodo plano (items=0, subitems=0) con su propia URL
 INSERT INTO CORE_Menu_Nodos (id_modulo, opcion, items, subitems, descripcion, url_ruta, icono, orden, requiere_mfa, target_spa, estado)
-VALUES (<TU_ID_MODULO>, 1, 1, 0, N'Tu Módulo', N'/apps/tu_modulo/', N'fa-window-restore', 1, 0, 0, 1);
+VALUES (<TU_ID_MODULO>, 1, 0, 0, N'Tu Módulo', N'/apps/tu_modulo/', N'fa-window-restore', 1, 0, 0, 1);
 GO
 
 -- Permisos: dale acceso total al rol ADMIN (id_rol=1) para empezar
 INSERT INTO CORE_Permisos_Nodo (id_rol, id_modulo, opcion, items, subitems, nivel_crud, acceso, estado, asignado_por)
-VALUES (1, <TU_ID_MODULO>, 1, 1, 0, 4, 1, 1, 1);
+VALUES (1, <TU_ID_MODULO>, 1, 0, 0, 4, 1, 1, 1);
 GO
 ```
 
@@ -165,6 +164,47 @@ Guardalo como `db/<tu_modulo>_menu_integration.sql`, **idempotente** (con
 `IF NOT EXISTS` antes de cada INSERT) — mismo patrón que el resto de scripts
 en `db/`. Correlo contra la BD real solo después de probarlo en una BD
 desechable (ver §2.7 — el mismo cuidado aplica acá).
+
+**Módulo con varias pantallas reales (patrón real usado en TH/Bienes/
+Bitácoras, 2026-08-11/12):** cada pantalla del sidebar de tu módulo debería
+ser SU PROPIA fila `(id_modulo, opcion, 0, 0)` — no agrupes 2+ pantallas
+distintas bajo un solo nodo "resumen", aunque sea más rápido de armar al
+principio. Si tu módulo tiene su propio sistema de roles/permisos nativo,
+mapealo a un rol del portal en `CORE_Roles_Modulo_Map` (`id_modulo,
+id_rol_portal, id_rol_externo`) — `core/SyncPermisosModulo.php` sincroniza
+en ambas direcciones (cambiar el permiso desde `/admin/roles` actualiza tu
+tabla nativa, y viceversa) para los roles mapeados. Un `id_modulo` sin
+mapeo funciona igual, simplemente no tiene sincronización nativa — el
+control de acceso vive solo del lado del portal.
+
+**Gotcha real (se repitió 3 veces migrando TH/Bienes/Bitácoras a este
+patrón, 2026-08-12):** si ya tenías un árbol de menú viejo/genérico con
+permisos otorgados, y escribís una migración que "preserva el acceso" al
+pasar al árbol nuevo, **tenés que re-otorgar el nivel preservado sobre
+CADA pantalla real nueva, no solo sobre el nodo de entrada/Dashboard**. Los
+3 módulos tuvieron el mismo bug: la migración solo re-otorgaba sobre
+`opcion=1` (la pantalla de entrada), así que roles que antes tenían acceso
+amplio terminaron viendo solo esa pantalla — regresión funcional real, no
+solo cosmética. Patrón de fix (ejemplo real,
+`db/bitacoras_restaurar_acceso_completo.sql`):
+
+```sql
+INSERT dbo.CORE_Permisos_Nodo (id_rol, id_modulo, opcion, items, subitems, nivel_crud, acceso, estado, fecha_asignacion)
+SELECT p.id_rol, <TU_ID_MODULO>, x.opcion, 0, 0, p.nivel_crud, 1, 1, SYSDATETIME()
+FROM dbo.CORE_Permisos_Nodo p
+CROSS JOIN (VALUES (2),(3),(4) /* ... el resto de opciones reales */) AS x(opcion)
+WHERE p.id_modulo = <TU_ID_MODULO> AND p.opcion = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM dbo.CORE_Permisos_Nodo q
+      WHERE q.id_rol=p.id_rol AND q.id_modulo=<TU_ID_MODULO> AND q.opcion=x.opcion AND q.items=0 AND q.subitems=0
+  );
+```
+
+Si el módulo viejo tenía acceso **granular real** (no "todo o nada" por
+booleano), no extiendas un nivel genérico a ciegas — buscá la fuente nativa
+real (tabla de permisos propia del módulo, si existe) y traé el nivel
+correcto por pantalla desde ahí, como se hizo con
+`Talento_Humano.dbo.th_permisos_rol` (ver `db/th_menu_estructura_real.sql`).
 
 Si además querés un panel nativo dentro del shell del portal (KPIs en vivo
 antes de abrir el sistema completo — como `/panel/talento-humano` o
@@ -483,6 +523,11 @@ Con todo probado en el clon:
 - **No** asumas que un `robocopy`/copia completa de carpeta es seguro para
   actualizar un módulo integrado — siempre borra integraciones si no se
   excluyen a mano primero.
+- **No** migres un árbol de menú/permisos viejo al nuevo re-otorgando el
+  nivel preservado solo sobre el nodo de entrada — pasó 3 veces seguidas
+  (TH, Bienes, Bitácoras, 2026-08-12) y cada vez fue una regresión
+  funcional real (roles que veían todo pasaron a ver solo el Dashboard).
+  Ver §1.4, gotcha nuevo.
 
 ---
 

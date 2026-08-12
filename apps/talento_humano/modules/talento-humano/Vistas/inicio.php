@@ -2,49 +2,35 @@
 /* inicio.php – Vista: Pantalla principal de Inicio (Dashboard de RRHH)
    Muestra métricas generales + tabla de Próximos Cumpleaños con alertas de color. */
 
-// ── Datos simulados (Mock Data) para probar la interfaz ─────────────────────
-// Fecha base: hoy (30 mayo 2026)
-$proximos_cumpleanos = [
-    [
-        'nombre'           => 'ZAMBRANO DELGADO HECTOR',
-        'departamento'     => 'Tecnologías de la Información',
-        'cargo'            => 'Jefe de Sistemas',
-        'fecha_nacimiento' => '30 de Mayo',
-        'alerta'           => 'HOY',
-        'color_alerta'     => 'danger',   // Rojo
-        'icono'            => 'bi-cake2',
-        'initials'         => 'ZH',
-    ],
-    [
-        'nombre'           => 'PEREZ MORALES JUAN CARLOS',
-        'departamento'     => 'Financiero',
-        'cargo'            => 'Economista',
-        'fecha_nacimiento' => '31 de Mayo',
-        'alerta'           => 'MAÑANA',
-        'color_alerta'     => 'warning',  // Naranja
-        'icono'            => 'bi-bell',
-        'initials'         => 'PJ',
-    ],
-    [
-        'nombre'           => 'TORRES VEGA ANA MARIA',
-        'departamento'     => 'Talento Humano',
-        'cargo'            => 'Analista de RRHH',
-        'fecha_nacimiento' => '14 de Junio',
-        'alerta'           => 'EN 15 DÍAS',
-        'color_alerta'     => 'info',     // Celeste
-        'icono'            => 'bi-calendar-event',
-        'initials'         => 'TA',
-    ],
-    [
-        'nombre'           => 'PALMA TEJENA MICHAEL',
-        'departamento'     => 'Operaciones Portuarias',
-        'cargo'            => 'Supervisor',
-        'fecha_nacimiento' => '29 de Junio',
-        'alerta'           => 'EN 30 DÍAS',
-        'color_alerta'     => 'primary',  // Índigo
-        'icono'            => 'bi-calendar-range',
-        'initials'         => 'PM',
-    ],
+$proximos_cumpleanos = [];
+$hoy = new DateTimeImmutable('today');
+foreach (($empleados ?? []) as $fila) {
+    if ((int)($fila['estado'] ?? 0) !== 1 || empty($fila['fecha_nacimiento'])) continue;
+    try {
+        $nacimiento = new DateTimeImmutable((string)$fila['fecha_nacimiento']);
+        $cumple = $nacimiento->setDate((int)$hoy->format('Y'),(int)$nacimiento->format('m'),(int)$nacimiento->format('d'));
+        if ($cumple < $hoy) $cumple=$cumple->modify('+1 year');
+        $dias=(int)$hoy->diff($cumple)->format('%a');
+        $alerta=$dias===0?'HOY':($dias===1?'MAÑANA':"EN {$dias} DÍAS");
+        $proximos_cumpleanos[]=[
+            'nombre'=>trim(($fila['apellidos'] ?? '').' '.($fila['nombres'] ?? '')),
+            'departamento'=>$fila['direccion_area'] ?: 'Sin asignación',
+            'cargo'=>$fila['cargo'] ?: 'Sin denominación',
+            'fecha_nacimiento'=>$cumple->format('d/m'),'alerta'=>$alerta,'dias'=>$dias,
+            'color_alerta'=>$dias===0?'danger':($dias===1?'warning':($dias<=15?'info':'primary')),
+            'icono'=>$dias===0?'bi-cake2':'bi-calendar-event',
+            'initials'=>strtoupper(substr((string)($fila['apellidos']??'U'),0,1).substr((string)($fila['nombres']??'A'),0,1)),
+            'cedula'=>$fila['cedula'] ?? '', 'correo'=>$fila['correo_institucional'] ?? '',
+        ];
+    } catch (Throwable) {}
+}
+usort($proximos_cumpleanos,fn($a,$b)=>$a['dias']<=>$b['dias']);
+$proximos_cumpleanos=array_values(array_filter($proximos_cumpleanos,fn($c)=>(int)$c['dias']<=30));
+$conteoCumpleanos = [
+    'hoy' => count(array_filter($proximos_cumpleanos, fn($c) => (int)$c['dias'] === 0)),
+    'manana' => count(array_filter($proximos_cumpleanos, fn($c) => (int)$c['dias'] === 1)),
+    '15' => count(array_filter($proximos_cumpleanos, fn($c) => (int)$c['dias'] <= 15)),
+    '30' => count($proximos_cumpleanos),
 ];
 
 // ── Métricas calculadas desde los funcionarios reales ────────────────────────────────────
@@ -63,7 +49,7 @@ $inactivos = count(array_filter($empleados ?? [], function($e) {
     $est = $e['estado'] ?? $e['estado_funcionario'] ?? null;
     return $est === 0 || $est === '0' || $est === 'Inactivo';
 }));
-$hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] === 'HOY'));
+$hoy_bday  = $conteoCumpleanos['hoy'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -72,13 +58,7 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inicio | Talento Humano – APM</title>
     <meta name="description" content="Panel de inicio de Talento Humano: métricas de personal y alertas de cumpleaños próximos.">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
 </head>
 <body>
 
@@ -92,38 +72,7 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <!-- ── TOPBAR ── -->
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Módulo Talento Humano</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="search">
-                    <i class="bi bi-search"></i>
-                    <input type="search" id="globalSearch" placeholder="Buscar en toda la plataforma...">
-                </div>
-                <div class="icon-chip">
-                    <i class="bi bi-calendar-event"></i>
-                    <span id="currentDate">--</span>
-                </div>
-                <button class="icon-btn notify" id="btnNotify" title="Notificaciones">
-                    <i class="bi bi-bell"></i>
-                    <?php if ($hoy_bday > 0): ?>
-                    <span class="notify-dot"></span>
-                    <?php endif; ?>
-                </button>
-                <div class="user-pill">
-                    <span><?= htmlspecialchars($usuarioNombre ?? 'Usuario TH') ?></span>
-                    <small>APM</small>
-                </div>
-            </div>
-        </header>
+        <?php $topbarShowSearch=true; require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -159,19 +108,21 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
                             <div class="metric-value"><?= $total ?></div>
                             <div class="metric-foot">Directorio APM</div>
                         </div>
-                        <div class="metric-card metric-card--activos">
+                        <a class="metric-card metric-card--activos metric-card--link"
+                           href="<?= BASE_URL ?>/talento-humano/directorio?estado=Activo"
+                           aria-label="Ver empleados activos">
                             <div class="metric-label">
                                 <i class="bi bi-person-check"></i> Activos
                             </div>
                             <div class="metric-value"><?= $activos ?></div>
                             <div class="metric-foot">En funciones hoy</div>
-                        </div>
+                        </a>
                         <div class="metric-card metric-card--permisos">
                             <div class="metric-label">
-                                <i class="bi bi-calendar-x"></i> Permisos
+                                <i class="bi bi-person-x"></i> Inactivos
                             </div>
-                            <div class="metric-value"><?= $permisos ?></div>
-                            <div class="metric-foot">Con permisos vigentes</div>
+                            <div class="metric-value"><?= $inactivos ?></div>
+                            <div class="metric-foot">Histórico institucional</div>
                         </div>
                         <div class="metric-card metric-card--cumples">
                             <div class="metric-label">
@@ -185,34 +136,42 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
 
                 <!-- BOTONES DE ACCESO RÁPIDO -->
                 <div class="action-grid" id="accesos-rapidos">
-                    <div class="action-card" onclick="location.href='<?= BASE_URL ?>/talento-humano/empleado/crear'" id="ac-nuevo">
+                    <?php if (Auth::can('empleados', 'crear')): ?>
+                    <a class="action-card" href="<?= BASE_URL ?>/talento-humano/empleado/crear" id="ac-nuevo">
                         <i class="bi bi-person-plus-fill"></i>
                         <div>
                             <h4>Nuevo Expediente</h4>
                             <p>Registrar funcionario</p>
                         </div>
-                    </div>
-                    <div class="action-card" onclick="location.href='<?= BASE_URL ?>/talento-humano/directorio'" id="ac-directorio">
+                    </a>
+                    <?php endif; ?>
+                    <?php if (Auth::can('directorio', 'visualizar')): ?>
+                    <a class="action-card" href="<?= BASE_URL ?>/talento-humano/directorio" id="ac-directorio">
                         <i class="bi bi-card-list"></i>
                         <div>
                             <h4>Directorio</h4>
                             <p>Ver listado de personal</p>
                         </div>
-                    </div>
-                    <div class="action-card" id="ac-reportes">
+                    </a>
+                    <?php endif; ?>
+                    <?php if (Auth::can('reportes', 'visualizar')): ?>
+                    <a class="action-card" href="<?= BASE_URL ?>/reportes" id="ac-reportes">
                         <i class="bi bi-graph-up-arrow"></i>
                         <div>
                             <h4>Reportes</h4>
                             <p>Exportar y analizar datos</p>
                         </div>
-                    </div>
-                    <div class="action-card" id="ac-auditoria">
+                    </a>
+                    <?php endif; ?>
+                    <?php if (Auth::can('auditoria', 'visualizar')): ?>
+                    <a class="action-card" href="<?= BASE_URL ?>/auditoria/logs" id="ac-auditoria">
                         <i class="bi bi-journal-text"></i>
                         <div>
                             <h4>Auditoría</h4>
                             <p>Logs de actividad del sistema</p>
                         </div>
-                    </div>
+                    </a>
+                    <?php endif; ?>
                 </div>
 
                 <!-- ════════════════════════════════════════════
@@ -227,7 +186,7 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
                         <div class="bday-header-right">
                             <span class="chip">
                                 <i class="bi bi-calendar-heart"></i>
-                                <?= count($proximos_cumpleanos) ?> próximos
+                                <span id="bdayVisibleCount"><?= count($proximos_cumpleanos) ?></span> próximos
                             </span>
                             <?php if ($hoy_bday > 0): ?>
                             <span class="bday-alert-chip">
@@ -238,7 +197,22 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
                         </div>
                     </div>
 
-                    <div class="table-wrap">
+                    <div class="bday-filters" aria-label="Filtrar cumpleaños por rango">
+                        <button type="button" class="bday-filter-button bday-filter-button--danger" data-bday-filter="hoy">
+                            <span>Hoy</span><strong><?= $conteoCumpleanos['hoy'] ?></strong>
+                        </button>
+                        <button type="button" class="bday-filter-button bday-filter-button--warning" data-bday-filter="manana">
+                            <span>Mañana</span><strong><?= $conteoCumpleanos['manana'] ?></strong>
+                        </button>
+                        <button type="button" class="bday-filter-button bday-filter-button--info" data-bday-filter="15">
+                            <span>Próximos 15 días</span><strong><?= $conteoCumpleanos['15'] ?></strong>
+                        </button>
+                        <button type="button" class="bday-filter-button bday-filter-button--primary is-active" data-bday-filter="30" aria-pressed="true">
+                            <span>Próximos 30 días</span><strong><?= $conteoCumpleanos['30'] ?></strong>
+                        </button>
+                    </div>
+
+                    <div class="table-wrap bday-table-wrap">
                         <table id="tablaCumpleanos" aria-label="Tabla de próximos cumpleaños">
                             <thead>
                                 <tr>
@@ -250,24 +224,9 @@ $hoy_bday  = count(array_filter($proximos_cumpleanos, fn($c) => $c['alerta'] ===
                                 </tr>
                             </thead>
                             <tbody>
-                            <?php
-// Cédulas simuladas para los botones Ver Perfil (modo prototipo)
-$cedulas_mock = [
-    'ZAMBRANO DELGADO HECTOR' => '1308126646',
-    'PEREZ MORALES JUAN CARLOS' => '1311567890',
-    'TORRES VEGA ANA MARIA' => '0923456781',
-    'PALMA TEJENA MICHAEL' => '1309876543',
-];
-?>
-<?php foreach ($proximos_cumpleanos as $i => $f):
-    $nombreKey = $f['nombre'];
-    $cedula_perfil = '';
-    foreach ($cedulas_mock as $k => $v) {
-        if (str_contains($nombreKey, explode(' ', $k)[0])) { $cedula_perfil = $v; break; }
-    }
-?>
+                            <?php foreach ($proximos_cumpleanos as $i => $f): ?>
                                 <tr class="table-row bday-row bday-row--<?= $f['color_alerta'] ?>"
-                                    style="animation-delay:<?= $i * 0.08 ?>s">
+                                    data-bday-days="<?= (int)$f['dias'] ?>">
                                     <!-- FUNCIONARIO -->
                                     <td>
                                         <div class="name-cell">
@@ -286,8 +245,10 @@ $cedulas_mock = [
                                     </td>
                                     <!-- FECHA -->
                                     <td class="bday-fecha-cell">
-                                        <i class="bi bi-calendar3 bday-cal-icon"></i>
-                                        <?= htmlspecialchars($f['fecha_nacimiento']) ?>
+                                        <span class="bday-date">
+                                            <i class="bi bi-calendar3 bday-cal-icon"></i>
+                                            <?= htmlspecialchars($f['fecha_nacimiento']) ?>
+                                        </span>
                                     </td>
                                     <!-- ALERTA -->
                                     <td>
@@ -297,33 +258,32 @@ $cedulas_mock = [
                                         </span>
                                     </td>
                                     <!-- ACCIONES -->
-                                    <td class="action-cell">
-                                        <a href="<?= BASE_URL ?>/talento-humano/empleado/perfil/<?= htmlspecialchars($cedula_perfil ?: '1308126646') ?>"
+                                    <td class="bday-actions-cell">
+                                        <a href="<?= BASE_URL ?>/talento-humano/empleado/perfil/<?= htmlspecialchars($f['cedula']) ?>"
                                            class="btn btn-outline bday-btn-perfil"
                                            title="Ver expediente de <?= htmlspecialchars($f['nombre']) ?>"
                                            id="btn-perfil-<?= $i ?>">
                                             <i class="bi bi-person-lines-fill"></i> Ver Perfil
                                         </a>
-                                        <?php if ($f['alerta'] === 'HOY'): ?>
-                                        <button class="btn bday-btn-felicitar"
-                                                title="Enviar felicitación"
-                                                id="btn-felicitar-<?= $i ?>">
+                                        <?php if ($f['alerta'] === 'HOY' && !empty($f['correo'])): ?>
+                                        <a class="btn bday-btn-felicitar" href="mailto:<?= htmlspecialchars($f['correo']) ?>?subject=Feliz%20cumpleaños"
+                                                title="Redactar felicitación" id="btn-felicitar-<?= $i ?>">
                                             <i class="bi bi-envelope-heart"></i>
-                                        </button>
+                                        </a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                                <tr id="bdayEmpty" class="bday-empty" hidden>
+                                    <td colspan="5"><i class="bi bi-calendar2-check"></i> No hay cumpleaños en el rango seleccionado.</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <!-- Leyenda de colores -->
-                    <div class="bday-leyenda">
-                        <span class="bday-badge bday-badge--danger"><i class="bi bi-circle-fill"></i> HOY</span>
-                        <span class="bday-badge bday-badge--warning"><i class="bi bi-circle-fill"></i> MAÑANA</span>
-                        <span class="bday-badge bday-badge--info"><i class="bi bi-circle-fill"></i> EN 15 DÍAS</span>
-                        <span class="bday-badge bday-badge--primary"><i class="bi bi-circle-fill"></i> EN 30 DÍAS</span>
+                    <div class="bday-summary">
+                        <i class="bi bi-info-circle"></i>
+                        La lista incluye a todos los funcionarios activos con cumpleaños dentro de los próximos 30 días.
                     </div>
                 </section>
 
@@ -332,7 +292,6 @@ $cedulas_mock = [
     </section>
 </div><!-- /app -->
 
-<div id="toastContainer" class="toast-container"></div>
 
 <?php if (!empty($_GET['msg'])): ?>
 <script>
@@ -342,9 +301,6 @@ $cedulas_mock = [
 </script>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-<script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
 <script>
 /* ── Fecha en topbar ── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -355,11 +311,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* Botones de felicitar (simulado) */
-    document.querySelectorAll('.bday-btn-felicitar').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (typeof showToast === 'function') showToast('¡Felicitación enviada por correo! 🎉', 'success');
+    const filterButtons = [...document.querySelectorAll('[data-bday-filter]')];
+    const birthdayRows = [...document.querySelectorAll('#tablaCumpleanos tbody tr[data-bday-days]')];
+    const visibleCount = document.getElementById('bdayVisibleCount');
+    const emptyRow = document.getElementById('bdayEmpty');
+
+    const applyBirthdayFilter = (filter) => {
+        let shown = 0;
+        birthdayRows.forEach((row) => {
+            const days = Number(row.dataset.bdayDays);
+            const visible = filter === 'hoy' ? days === 0
+                : filter === 'manana' ? days === 1
+                : days <= Number(filter);
+            row.hidden = !visible;
+            if (visible) shown++;
         });
+        filterButtons.forEach((button) => {
+            const active = button.dataset.bdayFilter === filter;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        if (visibleCount) visibleCount.textContent = String(shown);
+        if (emptyRow) emptyRow.hidden = shown !== 0;
+    };
+
+    filterButtons.forEach((button) => {
+        button.addEventListener('click', () => applyBirthdayFilter(button.dataset.bdayFilter || '30'));
     });
 });
 
@@ -369,6 +346,7 @@ function exportarTablaCSV(tablaID, filename = 'reporte.csv') {
     const rows = document.querySelectorAll('table#' + tablaID + ' tr');
 
     for (let i = 0; i < rows.length; i++) {
+        if (rows[i].hidden || rows[i].id === 'bdayEmpty') continue;
         const row = [];
         const cols = rows[i].querySelectorAll('td, th');
         // Ignorar la última columna (Acciones) para el export

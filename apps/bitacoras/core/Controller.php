@@ -47,8 +47,10 @@ abstract class Controller {
             $this->redirect('/login');
         }
 
-        // Session timeout
-        $timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 1800;
+        // Session timeout — resuelto vía fn_InactividadSegundos (cascada
+        // usuario > módulo > global, configurable en /admin/inactividad del
+        // portal). DB_NAME de esta app ya apunta a PORTAL_APM directamente.
+        [$timeout,] = $this->resolveInactividad();
         if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeout) {
             $this->destroySession();
             if ($this->isAjax()) {
@@ -57,6 +59,37 @@ abstract class Controller {
             $this->redirect('/login?timeout=1');
         }
         $_SESSION['last_activity'] = time();
+    }
+
+    protected function resolveInactividad(): array {
+        $now = time();
+        if (isset($_SESSION['_inactividad_segundos']) && ($now - ($_SESSION['_inactividad_resuelto_en'] ?? 0)) < 300) {
+            return [(int)$_SESSION['_inactividad_segundos'], (int)($_SESSION['_inactividad_aviso'] ?? 60)];
+        }
+        $timeout = 1800;
+        $aviso   = 60;
+        try {
+            $db        = Database::getInstance();
+            $idUsuario = (int)($_SESSION['user_id'] ?? 0);
+            $stmt = sqlsrv_query($db->getConn(),
+                'SELECT dbo.fn_InactividadSegundos(?, ?) AS s, dbo.fn_InactividadAvisoSegundos(?, ?) AS a',
+                [
+                    [$idUsuario, SQLSRV_PARAM_IN], ['BITACORAS', SQLSRV_PARAM_IN],
+                    [$idUsuario, SQLSRV_PARAM_IN], ['BITACORAS', SQLSRV_PARAM_IN],
+                ]
+            );
+            if ($stmt !== false) {
+                $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+                sqlsrv_free_stmt($stmt);
+                if ($row) { $timeout = (int)$row['s']; $aviso = (int)$row['a']; }
+            }
+        } catch (Exception $e) {
+            // BD no disponible: se mantiene el valor por defecto (1800/60).
+        }
+        $_SESSION['_inactividad_segundos']    = $timeout;
+        $_SESSION['_inactividad_aviso']       = $aviso;
+        $_SESSION['_inactividad_resuelto_en'] = $now;
+        return [$timeout, $aviso];
     }
 
     /**

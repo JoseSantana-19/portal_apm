@@ -19,6 +19,40 @@ class UsuarioModel extends Model {
         return $input;
     }
 
+    /** Cuánto falta para que expire el bloqueo actual, en texto legible. */
+    private function mensajeBloqueo($conn, string $nombreUsuario): string {
+        $stmt = sqlsrv_query($conn,
+            'SELECT fecha_bloqueo, minutos_bloqueo FROM CORE_Usuarios WHERE nombre_usuario=?',
+            [[$nombreUsuario, SQLSRV_PARAM_IN]]
+        );
+        $row = $stmt ? sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC) : null;
+        if (!$row || !$row['fecha_bloqueo']) {
+            return 'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente más tarde.';
+        }
+
+        // fecha_bloqueo llega como string (Database usa ReturnDatesAsStrings=true
+        // a nivel de conexión) o, si algún día cambia esa opción, como DateTime.
+        $fechaBloqueo = $row['fecha_bloqueo'] instanceof \DateTimeInterface
+            ? $row['fecha_bloqueo']
+            : new \DateTime((string)$row['fecha_bloqueo']);
+        $finBloqueo  = (clone $fechaBloqueo)->modify('+' . (int)$row['minutos_bloqueo'] . ' minutes');
+        $restanteSeg = $finBloqueo->getTimestamp() - time();
+        if ($restanteSeg <= 0) {
+            return 'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intente de nuevo.';
+        }
+
+        $restanteMin = (int)ceil($restanteSeg / 60);
+        if ($restanteMin >= 60) {
+            $horas = intdiv($restanteMin, 60);
+            $mins  = $restanteMin % 60;
+            $tiempo = $horas . ' hora' . ($horas === 1 ? '' : 's') . ($mins > 0 ? ' y ' . $mins . ' min' : '');
+        } else {
+            $tiempo = $restanteMin . ' minuto' . ($restanteMin === 1 ? '' : 's');
+        }
+
+        return "Cuenta bloqueada por demasiados intentos fallidos. Intenta de nuevo en {$tiempo}.";
+    }
+
     /**
      * Authenticate user. Returns user data array on success, error string on failure.
      * Uses sp_Login to get hash, then PHP bcrypt verification.
@@ -61,10 +95,12 @@ class UsuarioModel extends Model {
         sqlsrv_free_stmt($stmt);
 
         if ($resultado !== 'OK') {
+            if ($resultado === 'BLOQUEADO') {
+                return ['error' => $this->mensajeBloqueo($conn, $username)];
+            }
             $messages = [
                 'NO_ENCONTRADO' => 'Usuario o contraseña incorrectos.',
                 'INACTIVO'      => 'Usuario inactivo. Contacte al Administrador.',
-                'BLOQUEADO'     => 'Cuenta bloqueada temporalmente. Intente más tarde.',
             ];
             return ['error' => $messages[$resultado] ?? 'Error de autenticación.'];
         }
@@ -95,8 +131,10 @@ class UsuarioModel extends Model {
                 [$horas,     SQLSRV_PARAM_IN],
             ]
         );
-        // Reset fail counter
-        sqlsrv_query($conn, 'UPDATE CORE_Usuarios SET intentos_fallidos=0,fecha_bloqueo=NULL WHERE id_usuario=?', [[$idUsuario, SQLSRV_PARAM_IN]]);
+        // Reset fail counter — veces_bloqueado también: un login exitoso es
+        // lo único que "perdona" la escalada de bloqueos, no que el
+        // bloqueo simplemente expire solo (ver sp_RegistrarFalloLogin).
+        sqlsrv_query($conn, 'UPDATE CORE_Usuarios SET intentos_fallidos=0,fecha_bloqueo=NULL,veces_bloqueado=0 WHERE id_usuario=?', [[$idUsuario, SQLSRV_PARAM_IN]]);
         // Audit
         sqlsrv_query($conn,
             "INSERT INTO CORE_Auditoria(id_usuario,modulo,operacion,ip_address,resultado) VALUES(?,?,?,?,?)",

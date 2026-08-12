@@ -42,15 +42,10 @@ class PortDashboardController extends PortController
             return;
         }
 
-        /** @var DashboardModel $dashboard */
-        $dashboard = $this->model('PortDashboardModel');
-        $kpis = $dashboard->kpisJefe();
-
-        $this->view('dashboard/jefe', [
-            'pageTitle' => 'Panel Jefatura | Autoridad Portuaria de Manta',
-            'kpis'      => $kpis,
-            'extraJs'   => [$this->rutas['url_chart_js'] ?? '', 'public/js/portuaria/dashboard_jefe.js'],
-        ]);
+        // La versión completa (gráficos + feed de movimientos en vivo, polling)
+        // vive como página propia en la raíz de la app — bit_dashboard_jefe.php.
+        header('Location: bit_dashboard_jefe.php');
+        exit;
     }
 
     /**

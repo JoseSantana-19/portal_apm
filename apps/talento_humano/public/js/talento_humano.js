@@ -1,6 +1,6 @@
 /* talento_humano.js – Lógica interactiva del módulo Talento Humano
    Incluye: tabs del formulario, discapacidad condicional, filtros de tabla,
-   cálculo de tercera edad e inicialización de eventos demo. */
+   cálculo de tercera edad e inicialización de eventos de interfaz. */
 
 /* ── PESTAÑAS ────────────────────────────────────────────────────────── */
 const TAB_IDS = ['personal', 'laboral', 'contacto', 'formacion', 'obs'];
@@ -13,7 +13,8 @@ function switchTab(tabId) {
         const active = id === tabId;
         panel.classList.toggle('active', active);
         btn.classList.toggle('active', active);
-        btn.setAttribute('aria-selected', active);
+        btn.setAttribute('aria-selected', String(active));
+        btn.setAttribute('tabindex', active ? '0' : '-1');
     });
 }
 
@@ -95,5 +96,40 @@ window.addEventListener('DOMContentLoaded', () => {
     // Botones con data-toast
     document.querySelectorAll('[data-toast]').forEach(el => {
         el.addEventListener('click', () => showToast?.(el.dataset.toast, 'info'));
+    });
+
+    // Navegación accesible entre pestañas con flechas, Inicio y Fin.
+    const tabButtons = [...document.querySelectorAll('.form-tabs-nav [role="tab"]')];
+    tabButtons.forEach((button, index) => {
+        button.addEventListener('keydown', event => {
+            let targetIndex = null;
+            if (event.key === 'ArrowRight') targetIndex = (index + 1) % tabButtons.length;
+            if (event.key === 'ArrowLeft') targetIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+            if (event.key === 'Home') targetIndex = 0;
+            if (event.key === 'End') targetIndex = tabButtons.length - 1;
+            if (targetIndex === null) return;
+
+            event.preventDefault();
+            const target = tabButtons[targetIndex];
+            switchTab(target.id.replace(/^tab-/, ''));
+            target.focus();
+        });
+    });
+
+    const employeeForm = document.getElementById('empleadoForm');
+    employeeForm?.addEventListener('invalid', event => {
+        const panel = event.target.closest('.form-tab-panel');
+        if (!panel || panel.classList.contains('active')) return;
+        switchTab(panel.id.replace(/^panel-/, ''));
+        requestAnimationFrame(() => event.target.focus());
+    }, true);
+
+    const positionSelect = document.getElementById('puesto_id');
+    const salaryInput = document.getElementById('sueldo');
+    positionSelect?.addEventListener('change', () => {
+        const referenceSalary = Number(positionSelect.selectedOptions[0]?.dataset.rmu || 0);
+        if (salaryInput && Number(salaryInput.value || 0) === 0 && referenceSalary > 0) {
+            salaryInput.value = referenceSalary.toFixed(2);
+        }
     });
 });

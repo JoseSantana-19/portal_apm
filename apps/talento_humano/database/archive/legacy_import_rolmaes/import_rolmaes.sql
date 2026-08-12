@@ -1,0 +1,159 @@
+-- =============================================================================
+-- IMPORTACION FINAL v3: rolmaes.DBF.csv → th_empleados
+-- BULK INSERT sin columna IDENTITY en staging (soluciona error col 91)
+-- Deduplicacion con ROW_NUMBER en CTE posterior
+-- =============================================================================
+USE [Talento_Humano];
+GO
+
+-- Limpiar staging anterior
+IF OBJECT_ID('dbo.staging_rolmaes_temp','U') IS NOT NULL
+    DROP TABLE [dbo].[staging_rolmaes_temp];
+GO
+
+-- Tabla staging SIN IDENTITY (exactamente 90 columnas = CSV)
+CREATE TABLE [dbo].[staging_rolmaes_temp] (
+    EMPRESA VARCHAR(5), COD_EMPLEA VARCHAR(20), NOMBRE VARCHAR(200),
+    CARGO VARCHAR(150), SUELDO VARCHAR(20), REM_UNIF VARCHAR(20),
+    NUM_IESS VARCHAR(30), NUM_CEDULA VARCHAR(20), FEC_NACIMI VARCHAR(20),
+    FEC_INGRES VARCHAR(20), FEC_SALIDA VARCHAR(20), FEC_VACACI VARCHAR(20),
+    MES_VACACI VARCHAR(5), QUI_VACACI VARCHAR(5), ANO_OTRAS VARCHAR(5),
+    MES_OTRAS VARCHAR(5), EST_CIVIL VARCHAR(5), SEXO VARCHAR(2),
+    LUG_NACIMI VARCHAR(100), DEPARTAMEN VARCHAR(150), SECCION VARCHAR(10),
+    CTA_BANCO VARCHAR(30), ASO_SINDIC VARCHAR(5), TIT_PROFES VARCHAR(100),
+    BON_RESPON VARCHAR(5), COD_SUBROG VARCHAR(20), DIA_SUBROG VARCHAR(10),
+    LIC_MEDICA VARCHAR(5), TRAN_BANCO VARCHAR(20), ESTADO VARCHAR(5),
+    PARTIDA VARCHAR(20), COD_OLD VARCHAR(20), NIVEL_ERES VARCHAR(5),
+    SUELDO_OLD VARCHAR(20), COD_OCUPA VARCHAR(20), HORA VARCHAR(10),
+    FECHA_EN VARCHAR(20), IDEMPLE VARCHAR(20), STATUS VARCHAR(5),
+    SUELDO_ANT VARCHAR(20), IESS_ANT VARCHAR(20), IESS VARCHAR(20),
+    IESS_PORC VARCHAR(10), AP_PATR VARCHAR(20), IDENTRADA VARCHAR(5),
+    DIRECCION VARCHAR(200), NUM_CASA VARCHAR(20), CIUDAD VARCHAR(100),
+    TELEFONO VARCHAR(30), BONO_PROF VARCHAR(20), GASTO_REP VARCHAR(20),
+    BONO_ECO VARCHAR(20), DEC_COMP VARCHAR(20), SUB_ANT VARCHAR(20),
+    BONO_PEC VARCHAR(20), BONO_COMI VARCHAR(20), BONO_RESP VARCHAR(20),
+    BAN_SPI VARCHAR(20), CTA_SPI VARCHAR(30), TIP_SPI VARCHAR(5),
+    PART_SPI VARCHAR(20), CTAP_SPI VARCHAR(30), TOT_OTR_EM VARCHAR(20),
+    TOT_DEDUC VARCHAR(20), TOT_DISC VARCHAR(20), ENTIDAD VARCHAR(20),
+    UNI_EJEC VARCHAR(30), UNI_DESC VARCHAR(30), RUC_PATRON VARCHAR(30),
+    PREST_IESS VARCHAR(20), IESS_HIP VARCHAR(20), ANTICIPO_A VARCHAR(20),
+    COD_UNI VARCHAR(20), FON_RES VARCHAR(20), FRM_IESS VARCHAR(5),
+    ANTICIPO_B VARCHAR(20), ANTI_BANT VARCHAR(20), INICIO_B VARCHAR(20),
+    DEBE_B VARCHAR(20), HABER_B VARCHAR(20), SALDO_B VARCHAR(20),
+    CONTRATO_T VARCHAR(5), CARGAS VARCHAR(5), CARGAS_EDU VARCHAR(5),
+    ANO_A_PUBL VARCHAR(20), ANO_A_IESS VARCHAR(20), DIR_AREA VARCHAR(200),
+    T_CONTRATO VARCHAR(200), CORREO VARCHAR(150), EMPLEA_ANT VARCHAR(20)
+);
+GO
+
+-- BULK INSERT (90 columnas del CSV, sin columna extra)
+BULK INSERT [dbo].[staging_rolmaes_temp]
+FROM 'C:\Users\palmi\AppData\Local\Temp\rolmaes.csv'
+WITH (
+    FIELDTERMINATOR = ';',
+    ROWTERMINATOR   = '\n',
+    FIRSTROW        = 2,
+    CODEPAGE        = '1252',
+    TABLOCK,
+    MAXERRORS       = 50
+);
+GO
+
+DECLARE @cnt INT; SELECT @cnt = COUNT(*) FROM dbo.staging_rolmaes_temp;
+PRINT 'Staging OK: ' + CAST(@cnt AS VARCHAR) + ' filas';
+GO
+
+-- Agregar columna de orden DESPUÉS del BULK INSERT
+ALTER TABLE [dbo].[staging_rolmaes_temp] ADD row_order INT IDENTITY(1,1);
+GO
+
+-- INSERT deduplicado con CTE
+;WITH deduped AS (
+    SELECT *,
+        ROW_NUMBER() OVER(
+            PARTITION BY LTRIM(RTRIM(NUM_CEDULA))
+            ORDER BY
+                CASE WHEN LTRIM(RTRIM(ISNULL(FEC_SALIDA,'')))='' THEN 0 ELSE 1 END ASC,
+                row_order DESC
+        ) AS rn
+    FROM [dbo].[staging_rolmaes_temp]
+    WHERE
+        LTRIM(RTRIM(ISNULL(NUM_CEDULA,''))) <> ''
+        AND LEN(LTRIM(RTRIM(NUM_CEDULA))) BETWEEN 8 AND 13
+        AND LTRIM(RTRIM(NUM_CEDULA)) NOT LIKE '%[^0-9]%'
+        AND LTRIM(RTRIM(ISNULL(NOMBRE,''))) <> ''
+)
+INSERT INTO [dbo].[th_empleados] (
+    identificacion, apellidos, nombres, fecha_nacimiento,
+    sexo, estado_civil, unidad_id, puesto_id,
+    fecha_ingreso, fecha_salida, sueldo_rmu,
+    correo_institucional, correo_personal, telefono_movil,
+    ciudad_residencia, direccion_domiciliaria,
+    codigo_iess, num_iess, cod_emplea,
+    tipo_contrato, condicion_especial, nivel_estudio, titulo,
+    cargas_familiares, estado, ruta_foto, fecha_creacion
+)
+SELECT
+    LTRIM(RTRIM(NUM_CEDULA)),
+    CASE
+        WHEN CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))+1)>0
+        THEN SUBSTRING(LTRIM(RTRIM(NOMBRE)),1,CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))+1)-1)
+        WHEN CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))>0
+        THEN SUBSTRING(LTRIM(RTRIM(NOMBRE)),1,CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))-1)
+        ELSE LTRIM(RTRIM(NOMBRE))
+    END,
+    CASE
+        WHEN CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))+1)>0
+        THEN LTRIM(SUBSTRING(LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))+1)+1,LEN(LTRIM(RTRIM(NOMBRE)))))
+        WHEN CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))>0
+        THEN LTRIM(SUBSTRING(LTRIM(RTRIM(NOMBRE)),CHARINDEX(' ',LTRIM(RTRIM(NOMBRE)))+1,LEN(LTRIM(RTRIM(NOMBRE)))))
+        ELSE ''
+    END,
+    TRY_CONVERT(DATE,CASE WHEN FEC_NACIMI LIKE '__/__/____' THEN SUBSTRING(FEC_NACIMI,7,4)+'-'+SUBSTRING(FEC_NACIMI,4,2)+'-'+SUBSTRING(FEC_NACIMI,1,2) ELSE NULL END,23),
+    CASE UPPER(LTRIM(RTRIM(SEXO))) WHEN 'M' THEN 'M' WHEN 'F' THEN 'F' ELSE NULL END,
+    CASE EST_CIVIL WHEN '1' THEN 'Soltero/a' WHEN '2' THEN 'Casado/a' WHEN '3' THEN 'Divorciado/a' WHEN '4' THEN 'Viudo/a' WHEN '5' THEN 'Union de hecho' ELSE 'No especificado' END,
+    NULL, NULL,
+    TRY_CONVERT(DATE,CASE WHEN FEC_INGRES LIKE '__/__/____' THEN SUBSTRING(FEC_INGRES,7,4)+'-'+SUBSTRING(FEC_INGRES,4,2)+'-'+SUBSTRING(FEC_INGRES,1,2) ELSE NULL END,23),
+    TRY_CONVERT(DATE,CASE WHEN FEC_SALIDA LIKE '__/__/____' THEN SUBSTRING(FEC_SALIDA,7,4)+'-'+SUBSTRING(FEC_SALIDA,4,2)+'-'+SUBSTRING(FEC_SALIDA,1,2) ELSE NULL END,23),
+    TRY_CAST(REPLACE(LTRIM(RTRIM(ISNULL(SUELDO,'0'))),',','.') AS DECIMAL(10,2)),
+    CASE WHEN LEN(LTRIM(RTRIM(ISNULL(CORREO,''))))>3 AND CORREO LIKE '%@%' THEN LTRIM(RTRIM(CORREO)) ELSE '' END,
+    '', LTRIM(RTRIM(ISNULL(TELEFONO,''))), LTRIM(RTRIM(ISNULL(CIUDAD,'MANTA'))), LTRIM(RTRIM(ISNULL(DIRECCION,''))),
+    LTRIM(RTRIM(ISNULL(NUM_IESS,''))), LTRIM(RTRIM(ISNULL(NUM_IESS,''))), LTRIM(RTRIM(COD_EMPLEA)),
+    CASE WHEN T_CONTRATO IS NOT NULL AND LEN(LTRIM(RTRIM(T_CONTRATO)))>0 THEN LTRIM(RTRIM(T_CONTRATO)) ELSE 'No especificado' END,
+    'Ninguna', LTRIM(RTRIM(ISNULL(TIT_PROFES,''))), LTRIM(RTRIM(ISNULL(TIT_PROFES,''))),
+    TRY_CAST(LTRIM(RTRIM(ISNULL(CARGAS,'0'))) AS INT),
+    CASE WHEN LTRIM(RTRIM(ISNULL(FEC_SALIDA,'')))='' THEN 1 ELSE 0 END,
+    'public/img/default_avatar.png', GETDATE()
+FROM deduped
+WHERE rn=1
+  AND NOT EXISTS (
+      SELECT 1 FROM [dbo].[th_empleados] e
+      WHERE e.identificacion = LTRIM(RTRIM(deduped.NUM_CEDULA))
+  );
+GO
+
+PRINT 'Insertados: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
+-- Estadisticas finales
+SELECT
+    COUNT(*)                                   AS total_empleados,
+    COUNT(CASE WHEN estado=1 THEN 1 END)       AS activos,
+    COUNT(CASE WHEN estado=0 THEN 1 END)       AS inactivos,
+    MIN(fecha_ingreso)                         AS primer_ingreso,
+    MAX(fecha_ingreso)                         AS ultimo_ingreso
+FROM [dbo].[th_empleados];
+GO
+
+-- Omitidos por cédula inválida
+SELECT COUNT(*) AS filas_omitidas_cedula_invalida
+FROM [dbo].[staging_rolmaes_temp]
+WHERE LTRIM(RTRIM(ISNULL(NUM_CEDULA,'')))=''
+   OR LEN(LTRIM(RTRIM(NUM_CEDULA))) NOT BETWEEN 8 AND 13
+   OR LTRIM(RTRIM(NUM_CEDULA)) LIKE '%[^0-9]%'
+   OR LTRIM(RTRIM(ISNULL(NOMBRE,'')))='';
+GO
+
+DROP TABLE IF EXISTS [dbo].[staging_rolmaes_temp];
+PRINT 'Importacion completada.';
+GO

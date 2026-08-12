@@ -105,6 +105,14 @@ class PortCatalogoController extends PortController
             $action = trim((string)($_POST['action'] ?? ''));
             if ($action === '') $this->json(array('ok' => false, 'message' => 'Parámetro action requerido'));
 
+            // Hueco real cerrado (permisos_centrales Fase 3, 2026-08-11):
+            // hasta acá cualquier usuario autenticado del portal podía
+            // crear/editar/desactivar cualquier catálogo, sin chequeo alguno.
+            $nivelMinAccion = ($action === 'deactivate') ? 3 : 2; // desactivar = editar; crear/actualizar = crear
+            if (!Auth::canGestionarCatalogosEscritura($nivelMinAccion)) {
+                $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403);
+            }
+
             if ($action === 'create' || $action === 'update') {
                 $id = (int)($_POST['id'] ?? 0);
                 if ($action === 'update' && $id <= 0) $this->json(array('ok' => false, 'message' => 'Id no válido'));
@@ -199,6 +207,13 @@ class PortCatalogoController extends PortController
         }
 
         if ($method === 'POST') {
+            // Hueco real cerrado (permisos_centrales Fase 3, 2026-08-11):
+            // hasta acá cualquier usuario autenticado del portal podía
+            // registrar una persona nueva, sin chequeo alguno.
+            if (!Auth::canGestionarPersonasEscritura()) {
+                $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403);
+            }
+
             require_once ROOT_PATH . '/includes/bit_validaciones_ecuador.php';
             $nid = trim($_POST['nidentificacion'] ?? ($_POST['cedula'] ?? ''));
             $nom = trim($_POST['nombres'] ?? ($_POST['nombre'] ?? ''));
@@ -241,6 +256,7 @@ class PortCatalogoController extends PortController
     public function importarFuncionarios()
     {
         Auth::guard();
+        if (!Auth::canImportarFuncionarios()) { $this->redirect('visitas?msg=permiso_denegado'); return; }
 
         $mensaje = '';
         $errores = array();

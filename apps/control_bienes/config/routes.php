@@ -153,5 +153,10 @@ return [
         'module'     => 'Credenciales',
         'controller' => 'PermisoController',
         'action'     => 'index'
+    ],
+    'inv_permisos_rol' => [
+        'module'     => 'Credenciales',
+        'controller' => 'PermisoController',
+        'action'     => 'guardarRol'
     ]
 ];

@@ -1,21 +1,10 @@
 <?php
 class MenuController extends Controller {
 
-    private const MODULES = [
-        1  => ['label' => 'Dirección de Planificación Estratégica', 'icon' => 'fa-chart-gantt',       'color' => '#6f42c1'],
-        2  => ['label' => 'Gestión de Tecnología de la Información','icon' => 'fa-server',            'color' => '#0056b3'],
-        3  => ['label' => 'Dirección de Asesoría Jurídica',         'icon' => 'fa-scale-balanced',    'color' => '#dc3545'],
-        4  => ['label' => 'Dirección de Infraestructura Portuaria', 'icon' => 'fa-hard-hat',          'color' => '#fd7e14'],
-        5  => ['label' => 'Garita de Acceso / Control de Acceso',   'icon' => 'fa-door-open',         'color' => '#20c997'],
-        6  => ['label' => 'Dirección de Operaciones',               'icon' => 'fa-ship',              'color' => '#17a2b8'],
-        7  => ['label' => 'Gerencia General',                       'icon' => 'fa-building',          'color' => '#343a40'],
-        8  => ['label' => 'Delegación de Servicios Portuarios',     'icon' => 'fa-landmark',          'color' => '#6f42c1'],
-        9  => ['label' => 'Dirección Administrativa',               'icon' => 'fa-briefcase',         'color' => '#0056b3'],
-        10 => ['label' => 'Dirección Financiera',                   'icon' => 'fa-wallet',            'color' => '#28a745'],
-        11 => ['label' => 'Dirección de Talento Humano',            'icon' => 'fa-users',             'color' => '#e83e8c'],
-        12 => ['label' => 'Control de Bienes (Inventario)',         'icon' => 'fa-boxes-stacked',     'color' => '#fd7e14'],
-        13 => ['label' => 'Bitácoras Portuarias (CCTV/Visitas)',    'icon' => 'fa-anchor',            'color' => '#0891b2'],
-    ];
+    // Lista de módulos: ver CatalogoModulos (tabla CORE_Modulos, Fase 0 del
+    // sistema central de permisos). Antes era un array hardcodeado acá y
+    // duplicado en AdminController::moduleMeta() -- un módulo nuevo ya no
+    // requiere tocar PHP, se da de alta desde /admin/modulos.
 
     // Nodo MOIS de "Estructura del Menú" (Central > Administración).
     // nivel_crud: 1=Ver, 2=Crear, 3=Editar, 4=Total.
@@ -46,7 +35,7 @@ class MenuController extends Controller {
             if ($n['estado']) $activos++;
 
             if (!isset($tree[$mod])) {
-                $tree[$mod] = ['meta' => self::MODULES[$mod] ?? ['label' => "Módulo $mod", 'icon' => 'fa-folder', 'color' => '#6c757d'], 'raiz' => null, 'areas' => []];
+                $tree[$mod] = ['meta' => CatalogoModulos::meta($mod), 'raiz' => null, 'areas' => []];
             }
             if ($op === 0) {
                 $tree[$mod]['raiz'] = $n;
@@ -71,7 +60,7 @@ class MenuController extends Controller {
             'tree'      => $tree,
             'total'     => $total,
             'activos'   => $activos,
-            'modules'   => self::MODULES,
+            'modules'   => CatalogoModulos::todos(),
             'error'     => $error,
             'success'   => SessionHelper::getFlash('success'),
             'csrf'      => $this->csrfToken(),
@@ -100,7 +89,7 @@ class MenuController extends Controller {
             'pageTitle' => 'Nuevo Nodo de Menú',
             'nodo'      => null,
             'nodos'     => $nodos,
-            'modules'   => self::MODULES,
+            'modules'   => CatalogoModulos::todos(),
             'errors'    => $errors,
             'oldInput'  => $oldInput,
             'csrf'      => $this->csrfToken(),
@@ -176,7 +165,7 @@ class MenuController extends Controller {
             'pageTitle' => 'Editar Nodo',
             'nodo'      => $nodo,
             'nodos'     => [],
-            'modules'   => self::MODULES,
+            'modules'   => CatalogoModulos::todos(),
             'errors'    => $errors,
             'oldInput'  => $oldInput,
             'csrf'      => $this->csrfToken(),

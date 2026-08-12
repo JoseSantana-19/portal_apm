@@ -15,13 +15,7 @@ $modoImpresion  = $modoImpresion ?? false;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estudio de Seguridad Socioeconómico | Talento Humano APM</title>
     <meta name="description" content="Formato Estudio de Seguridad Socioeconómico — Autoridad Portuaria de Manta. Código APM-BASC-TH-FO-002.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Estilos exclusivos Estudio Seguridad ──────────────────────────── */
 
@@ -78,6 +72,31 @@ $modoImpresion  = $modoImpresion ?? false;
             color: #c7d2fe; padding: 6px 18px; border-radius: 999px;
             font-size: .8rem; font-weight: 700; letter-spacing: .06em;
         }
+        .seg-person-selector {
+            margin: 18px 24px 14px; padding: 16px 18px; border-radius: 14px;
+            border: 1px solid rgba(99,102,241,.28);
+            background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(14,165,233,.05));
+        }
+        .seg-person-selector label { display:block; color:#312e81; font-size:.82rem; font-weight:800; margin-bottom:7px; }
+        .seg-person-search { position:relative; }
+        .seg-person-search input {
+            width:100%; border:1.5px solid rgba(99,102,241,.35); border-radius:11px;
+            padding:11px 42px 11px 14px; background:#fff; font-size:.88rem; outline:none;
+        }
+        .seg-person-search input:focus { border-color:#4f46e5; box-shadow:0 0 0 3px rgba(99,102,241,.14); }
+        .seg-person-search > i { position:absolute; right:14px; top:12px; color:#6366f1; pointer-events:none; }
+        .seg-person-results {
+            display:none; position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:45;
+            max-height:310px; overflow-y:auto; background:#fff; border:1px solid rgba(99,102,241,.28);
+            border-radius:12px; box-shadow:0 20px 50px rgba(30,41,59,.2);
+        }
+        .seg-person-results.open { display:block; }
+        .seg-person-option { width:100%; border:0; border-bottom:1px solid #e8eaf4; background:#fff; padding:10px 12px; text-align:left; cursor:pointer; }
+        .seg-person-option:last-child { border-bottom:0; }
+        .seg-person-option:hover, .seg-person-option:focus { background:#eef2ff; outline:none; }
+        .seg-person-option strong { display:block; color:#1e1b4b; font-size:.83rem; }
+        .seg-person-option small { display:block; color:#64748b; margin-top:2px; }
+        .seg-person-status { display:block; margin-top:7px; color:#475569; font-size:.75rem; }
 
         /* Sección de aviso de confidencialidad */
         .seg-aviso {
@@ -130,6 +149,12 @@ $modoImpresion  = $modoImpresion ?? false;
             border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); background: #fff;
         }
         .seg-field textarea { resize: vertical; min-height: 70px; }
+        #formEstudioSeguridad input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+        #formEstudioSeguridad input[type="number"]::-webkit-inner-spin-button,
+        #formEstudioSeguridad input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .seg-field-help { color:#64748b; font-size:.7rem; line-height:1.35; }
+        .seg-form-error { margin:16px 24px 0; padding:12px 15px; border:1px solid #fecaca; border-radius:11px; background:#fef2f2; color:#991b1b; font-size:.82rem; }
+        .btn-seg[disabled] { cursor:wait; opacity:.7; }
 
         /* Sub-sección dentro de una sección */
         .seg-subsection-title {
@@ -280,23 +305,7 @@ $modoImpresion  = $modoImpresion ?? false;
         <?php require_once ROOT . '/shared/menu.php'; ?>
 
         <section class="content">
-            <header class="topbar">
-                <div class="topbar-left">
-                    <div class="brand">
-                        <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                        <div>
-                            <h1>Autoridad Portuaria de Manta</h1>
-                            <p>Módulo Talento Humano</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="topbar-actions">
-                    <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                    <a href="<?= BASE_URL ?>/talento-humano/biblioteca" class="btn btn-ghost">
-                        <i class="bi bi-arrow-left"></i> Volver a Biblioteca
-                    </a>
-                </div>
-            </header>
+            <?php $topbarShowSearch=false;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
 
             <main class="main">
                 <div class="content-shell">
@@ -339,13 +348,45 @@ $modoImpresion  = $modoImpresion ?? false;
                                 <h3><i class="bi bi-shield-shaded"></i> Estudio de Seguridad Socioeconómico</h3>
                                 <p>Complete los datos en las 3 partes del formulario. Información confidencial APM.</p>
                             </div>
-                            <button type="button" class="btn-seg btn-seg--ghost" onclick="abrirPreview()" style="font-size:.8rem;">
-                                <i class="bi bi-eye"></i> Vista previa PDF
+                            <?php if (!empty($e['estudio_id'])): ?>
+                            <a class="btn-seg btn-seg--ghost" style="font-size:.8rem;" target="_blank"
+                               href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>">
+                                <i class="bi bi-eye"></i> Vista previa PDF oficial
+                            </a>
+                            <?php else: ?>
+                            <button type="button" class="btn-seg btn-seg--ghost" onclick="showToast('Guarde el formulario para generar las 4 páginas oficiales.','info')" style="font-size:.8rem;">
+                                <i class="bi bi-eye"></i> Vista previa PDF oficial
                             </button>
+                            <?php endif; ?>
                         </div>
 
                         <form method="POST" action="<?= BASE_URL ?>/talento-humano/estudio-seguridad/guardar" id="formEstudioSeguridad">
-                            <input type="hidden" name="empleado_id" value="<?= (int)($e['id'] ?? 0) ?>">
+                            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
+                            <input type="hidden" name="estudio_id" value="<?= (int)($e['estudio_id'] ?? 0) ?>">
+                            <input type="hidden" name="empleado_id" value="<?= (int)($e['empleado_id'] ?? $e['id'] ?? 0) ?>">
+
+                            <?php if (!empty($errorFormulario)): ?>
+                            <div class="seg-form-error" role="alert"><i class="bi bi-exclamation-triangle-fill"></i> <?= htmlspecialchars($errorFormulario) ?></div>
+                            <?php endif; ?>
+
+                            <div class="seg-person-selector">
+                                <label for="busquedaPersonalSocio"><i class="bi bi-person-search"></i> Seleccionar servidor público</label>
+                                <div class="seg-person-search">
+                                    <input type="search" id="busquedaPersonalSocio" autocomplete="off"
+                                           placeholder="Escriba cédula, nombres o apellidos..."
+                                           value="<?= !empty($e['id']) ? htmlspecialchars(trim(($e['cedula'] ?? '').' · '.($e['apellidos'] ?? '').' '.($e['nombres'] ?? ''))) : '' ?>"
+                                           aria-autocomplete="list" aria-controls="resultadosPersonalSocio">
+                                    <i class="bi bi-search"></i>
+                                    <div id="resultadosPersonalSocio" class="seg-person-results" role="listbox"></div>
+                                </div>
+                                <span class="seg-person-status" id="estadoPersonalSocio">
+                                    <?php if (!empty($e['id'])): ?>
+                                        <i class="bi bi-check-circle-fill" style="color:#059669"></i> Expediente seleccionado y campos institucionales precargados.
+                                    <?php else: ?>
+                                        <i class="bi bi-info-circle"></i> Seleccione primero a la persona registrada en el directorio.
+                                    <?php endif; ?>
+                                </span>
+                            </div>
 
                             <!-- Aviso de confidencialidad -->
                             <div class="seg-aviso">
@@ -357,15 +398,15 @@ $modoImpresion  = $modoImpresion ?? false;
                             <div class="seg-intro-grid">
                                 <div class="seg-intro-field">
                                     <label for="fecha_vinculacion">Fecha de Vinculación</label>
-                                    <input type="date" id="fecha_vinculacion" name="fecha_vinculacion" value="<?= htmlspecialchars($e['fecha_ingreso'] ?? '') ?>">
+                                    <input type="date" id="fecha_vinculacion" name="fecha_vinculacion" value="<?= htmlspecialchars($e['fecha_vinculacion'] ?? $e['fecha_ingreso'] ?? '') ?>">
                                 </div>
                                 <div class="seg-intro-field">
                                     <label for="cargo_cabecera">Cargo</label>
-                                    <input type="text" id="cargo_cabecera" name="cargo_cabecera" placeholder="Cargo del funcionario" value="<?= htmlspecialchars($e['cargo'] ?? '') ?>">
+                                    <input type="text" id="cargo_cabecera" name="cargo_cabecera" placeholder="Cargo del funcionario" value="<?= htmlspecialchars($e['cargo_cabecera'] ?? $e['cargo'] ?? '') ?>">
                                 </div>
                                 <div class="seg-intro-field">
                                     <label for="nombre_cabecera">Nombre Completo</label>
-                                    <input type="text" id="nombre_cabecera" name="nombre_cabecera" placeholder="Nombres y Apellidos" value="<?= htmlspecialchars($e['nombres'] ?? '') ?>">
+                                    <input type="text" id="nombre_cabecera" name="nombre_cabecera" placeholder="Nombres y Apellidos" value="<?= htmlspecialchars($e['nombre_cabecera'] ?? trim(($e['nombres'] ?? '').' '.($e['apellidos'] ?? ''))) ?>">
                                 </div>
                             </div>
 
@@ -583,6 +624,7 @@ $modoImpresion  = $modoImpresion ?? false;
                                             <div class="seg-field seg-span-2">
                                                 <label for="contacto_nombre">Nombres y Apellidos</label>
                                                 <input type="text" id="contacto_nombre" name="contacto_nombre" placeholder="Nombre del contacto">
+                                                <small class="seg-field-help">Se precarga desde el expediente; puede cambiarlo solo para este estudio.</small>
                                             </div>
                                             <div class="seg-field seg-span-2">
                                                 <label for="contacto_parentesco">Parentesco con el Servidor</label>
@@ -683,6 +725,10 @@ $modoImpresion  = $modoImpresion ?? false;
                                                     <option value="CEDULA">Cédula</option>
                                                     <option value="PASAPORTE">Pasaporte</option>
                                                 </select>
+                                            </div>
+                                            <div class="seg-field">
+                                                <label for="conyuge_nro_doc">Nº de Documento</label>
+                                                <input type="text" id="conyuge_nro_doc" name="conyuge_nro_doc" placeholder="-">
                                             </div>
                                             <div class="seg-field">
                                                 <label for="conyuge_fecha_nac">Fecha de Nacimiento</label>
@@ -924,6 +970,35 @@ $modoImpresion  = $modoImpresion ?? false;
                                                 <input type="date" id="cap2_fecha_inicio" name="cap2_fecha_inicio">
                                             </div>
                                         </div>
+                                        <div class="seg-subsection-title"><i class="bi bi-award"></i> Capacitación 3</div>
+                                        <div class="seg-grid">
+                                            <div class="seg-field seg-span-4">
+                                                <label for="cap3_evento">Evento 3</label>
+                                                <input type="text" id="cap3_evento" name="cap3_evento" placeholder="Nombre del evento o capacitación">
+                                            </div>
+                                            <div class="seg-field">
+                                                <label for="cap3_tipo">Tipo de Evento/Capacit.</label>
+                                                <select id="cap3_tipo" name="cap3_tipo">
+                                                    <option value="">-</option><option value="VIRTUAL">Virtual</option><option value="PRESENCIAL">Presencial</option><option value="SEMIPRESENCIAL">Semipresencial</option>
+                                                </select>
+                                            </div>
+                                            <div class="seg-field seg-span-2">
+                                                <label for="cap3_auspiciante">Auspiciante</label>
+                                                <input type="text" id="cap3_auspiciante" name="cap3_auspiciante">
+                                            </div>
+                                            <div class="seg-field">
+                                                <label for="cap3_tipo_cert">Tipo de Certificado</label>
+                                                <select id="cap3_tipo_cert" name="cap3_tipo_cert"><option value="">-</option><option value="DIGITAL">Digital</option><option value="FISICO">Físico</option></select>
+                                            </div>
+                                            <div class="seg-field seg-span-3">
+                                                <label for="cap3_certificado_por">Certificado Por</label>
+                                                <input type="text" id="cap3_certificado_por" name="cap3_certificado_por">
+                                            </div>
+                                            <div class="seg-field">
+                                                <label for="cap3_fecha_inicio">Fecha de Inicio</label>
+                                                <input type="date" id="cap3_fecha_inicio" name="cap3_fecha_inicio">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -952,7 +1027,7 @@ $modoImpresion  = $modoImpresion ?? false;
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <?php for ($i = 1; $i <= 4; $i++): ?>
+                                                    <?php for ($i = 1; $i <= 3; $i++): ?>
                                                     <tr>
                                                         <td><input type="text" name="exp_institucion_<?= $i ?>" placeholder="-"></td>
                                                         <td>
@@ -1043,10 +1118,18 @@ $modoImpresion  = $modoImpresion ?? false;
                                         <button type="button" class="btn-seg btn-seg--ghost" onclick="switchParte(2)">
                                             <i class="bi bi-arrow-left"></i> Parte 2
                                         </button>
-                                        <button type="button" class="btn-seg btn-seg--ghost" onclick="abrirPreview()">
-                                            <i class="bi bi-eye"></i> Vista previa
+                                        <?php if (empty($e['estudio_id'])): ?>
+                                        <button type="button" class="btn-seg btn-seg--ghost" onclick="showToast('Guarde el formulario para generar las 4 páginas oficiales.','info')">
+                                            <i class="bi bi-eye"></i> Vista previa oficial
                                         </button>
-                                        <button type="submit" class="btn-seg btn-seg--primary">
+                                        <?php endif; ?>
+                                        <?php if (!empty($e['estudio_id'])): ?>
+                                        <a class="btn-seg btn-seg--outline-red" target="_blank"
+                                           href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF oficial (4 páginas)
+                                        </a>
+                                        <?php endif; ?>
+                                        <button type="submit" class="btn-seg btn-seg--primary" id="btnGuardarEstudio">
                                             <i class="bi bi-save"></i> Guardar formulario
                                         </button>
                                     </div>
@@ -1061,7 +1144,6 @@ $modoImpresion  = $modoImpresion ?? false;
         </section>
     </div>
 
-    <div id="toastContainer" class="toast-container"></div>
 
     <!-- ══ MODAL DE VISTA PREVIA ═══════════════════════════════════════════ -->
     <div class="preview-overlay" id="preview-seg-modal" role="dialog" aria-modal="true">
@@ -1086,10 +1168,68 @@ $modoImpresion  = $modoImpresion ?? false;
         </div>
     </div>
 
-    <script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
     <script>
+        const PERSONAL_SOCIO = <?= json_encode($selectorPersonal ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const SOCIO_BASE_URL = '<?= BASE_URL ?>';
+        const normalizarPersonalSocio = valor => String(valor ?? '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+            .replace(/[^a-z0-9]+/g, ' ').trim();
+        const escaparPersonalSocio = valor => String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+        })[caracter]);
+        PERSONAL_SOCIO.forEach(persona => {
+            persona.indice = normalizarPersonalSocio(`${persona.cedula} ${persona.apellidos} ${persona.nombres} ${persona.cargo} ${persona.area}`);
+        });
+
+        function coincidenciasPersonalSocio() {
+            const valor = document.getElementById('busquedaPersonalSocio').value;
+            const tokens = normalizarPersonalSocio(valor).split(/\s+/).filter(Boolean);
+            if (!tokens.length) return [];
+            return PERSONAL_SOCIO.filter(persona => tokens.every(token => persona.indice.includes(token))).slice(0, 10);
+        }
+
+        function mostrarPersonalSocio() {
+            const contenedor = document.getElementById('resultadosPersonalSocio');
+            const resultados = coincidenciasPersonalSocio();
+            if (!document.getElementById('busquedaPersonalSocio').value.trim()) {
+                contenedor.innerHTML = '';
+                contenedor.classList.remove('open');
+                return;
+            }
+            contenedor.innerHTML = resultados.length ? resultados.map(persona => `
+                <button type="button" class="seg-person-option" role="option" data-persona-id="${Number(persona.id)}">
+                    <strong>${escaparPersonalSocio(persona.apellidos)} ${escaparPersonalSocio(persona.nombres)}</strong>
+                    <small>C.I. ${escaparPersonalSocio(persona.cedula)} · ${escaparPersonalSocio(persona.cargo || persona.area)}</small>
+                </button>`).join('') : '<div class="seg-person-option"><strong>Sin coincidencias</strong><small>Busque por otra parte de la cédula o del nombre.</small></div>';
+            contenedor.classList.add('open');
+        }
+
+        function seleccionarPersonalSocio(id) {
+            const persona = PERSONAL_SOCIO.find(fila => Number(fila.id) === Number(id));
+            if (!persona) return;
+            document.getElementById('estadoPersonalSocio').innerHTML = '<i class="bi bi-hourglass-split"></i> Cargando expediente institucional...';
+            window.location.assign(`${SOCIO_BASE_URL}/talento-humano/estudio-seguridad?id=${Number(persona.id)}`);
+        }
+
+        const buscadorPersonalSocio = document.getElementById('busquedaPersonalSocio');
+        buscadorPersonalSocio.addEventListener('input', mostrarPersonalSocio);
+        buscadorPersonalSocio.addEventListener('focus', mostrarPersonalSocio);
+        buscadorPersonalSocio.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const primera = coincidenciasPersonalSocio()[0];
+                if (primera) seleccionarPersonalSocio(primera.id);
+            }
+            if (event.key === 'Escape') document.getElementById('resultadosPersonalSocio').classList.remove('open');
+        });
+        document.getElementById('resultadosPersonalSocio').addEventListener('click', event => {
+            const opcion = event.target.closest('[data-persona-id]');
+            if (opcion) seleccionarPersonalSocio(opcion.dataset.personaId);
+        });
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.seg-person-search')) document.getElementById('resultadosPersonalSocio').classList.remove('open');
+        });
+
         /* Fecha actual */
         document.getElementById('currentDate').textContent =
             new Date().toLocaleDateString('es-EC', { day:'2-digit', month:'long', year:'numeric' });
@@ -1125,7 +1265,7 @@ $modoImpresion  = $modoImpresion ?? false;
         function abrirPreview() {
             // Leer valores actuales del formulario para la vista previa
             const getV = id => { const el = document.getElementById(id); return el ? el.value : ''; };
-            const logoUrl = '<?= LOGO_URL ?>/logoapm.png';
+            const logoUrl = '<?= IMG_URL ?>/logoapm.png';
 
             const html = `
             <div class="doc-a4" style="font-family:'Times New Roman',serif;font-size:10pt;color:#111;">
@@ -1279,6 +1419,32 @@ $modoImpresion  = $modoImpresion ?? false;
             w.focus();
             setTimeout(() => { w.print(); w.close(); }, 500);
         }
+        const datosGuardados = <?= json_encode($estudio ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        Object.entries(datosGuardados).forEach(([nombre, valor]) => {
+            document.querySelectorAll(`[name="${CSS.escape(nombre)}"]`).forEach(campo => {
+                if (campo.type === 'radio' || campo.type === 'checkbox') {
+                    campo.checked = String(campo.value).toUpperCase() === String(valor ?? '').toUpperCase();
+                } else if (valor !== null && valor !== undefined && typeof valor !== 'object') {
+                    campo.value = valor;
+                }
+            });
+        });
+
+        document.getElementById('formEstudioSeguridad').addEventListener('submit', event => {
+            const empleadoId = Number(event.currentTarget.elements.empleado_id?.value || 0);
+            if (empleadoId <= 0) {
+                event.preventDefault();
+                switchParte(1);
+                document.getElementById('busquedaPersonalSocio').focus();
+                showToast('Seleccione un servidor público antes de guardar.','error');
+                return;
+            }
+            const boton=document.getElementById('btnGuardarEstudio');
+            if (boton) {
+                boton.disabled=true;
+                boton.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...';
+            }
+        });
     </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>

@@ -116,9 +116,9 @@ if (!function_exists('normalizeFaIcon')) {
         
         <?php if (!empty($userMenu)): ?>
             <?php foreach ($userMenu as $modId => $mod): ?>
-                <?php 
-                $modColor = $mod['color'] ?? '#1A3A5C'; 
-                
+                <?php
+                $modColor = $mod['color'] ?? '#1A3A5C';
+
                 // Determine if this module/direction has any active child
                 $isModActive = false;
                 foreach ($mod['areas'] as $area) {
@@ -135,8 +135,46 @@ if (!function_exists('normalizeFaIcon')) {
                         }
                     }
                 }
+
+                // Un módulo con un único ítem navegable (sin hijos) se
+                // muestra como link directo en vez de acordeón de un solo
+                // elemento -- caso típico hoy para módulos embebidos recién
+                // migrados a MOIS (TH/Bienes/Bitácoras), donde por defecto
+                // solo el nodo "Inicio"/"Dashboard" tiene permiso otorgado
+                // hasta que un admin reparta más nivel_crud por pantalla
+                // desde /admin/roles. Con más de un ítem, o con hijos, se
+                // mantiene el acordeón de siempre.
+                $soloItem = null;
+                $totalItems = 0;
+                foreach ($mod['areas'] as $area) {
+                    $totalItems += count($area['items']);
+                    if ($totalItems > 1) break;
+                    foreach ($area['items'] as $opt) {
+                        if (empty($opt['children']) && !empty($opt['url'])) {
+                            $soloItem = $opt;
+                        }
+                    }
+                }
+                $esLinkDirecto = ($totalItems === 1 && $soloItem !== null);
                 ?>
                 <div class="sm-section" style="--mod-color: <?= $modColor ?>; --mod-color-alpha: <?= $modColor ?>20;">
+                    <?php if ($esLinkDirecto):
+                        $modUrl = $baseUrl . '/' . ltrim($soloItem['url'], '/');
+                        $modActiveDirecta = ($currentPath === '/' . ltrim($soloItem['url'], '/'));
+                    ?>
+                    <!-- Level 1: Módulo con un solo destino -- link directo, sin acordeón -->
+                    <a class="sm-header <?= $modActiveDirecta ? 'active' : '' ?>" id="smhdr-<?= $modId ?>" href="<?= $modUrl ?>" data-spa
+                       data-flyout-type="modulo"
+                       data-id="<?= htmlspecialchars($mod['code'] ?? '') ?>"
+                       data-title="<?= htmlspecialchars($mod['name']) ?>"
+                       data-icon="<?= normalizeFaIcon($mod['icon'] ?? '') ?>"
+                       data-color="<?= $modColor ?>">
+                        <div class="sm-icon" style="background: <?= $modColor ?> !important; box-shadow: 0 2px 8px <?= $modColor ?>40;">
+                            <i class="<?= normalizeFaIcon($mod['icon'] ?? '') ?>" style="font-size:13px; color:#fff;"></i>
+                        </div>
+                        <span class="sm-name" style="font-family: 'Outfit', sans-serif; font-size: 13.5px; font-weight: 600;"><?= htmlspecialchars($mod['name']) ?></span>
+                    </a>
+                    <?php else: ?>
                     <!-- Level 1: Module/Direction -->
                     <button class="sm-header <?= $isModActive ? 'active open' : '' ?>" id="smhdr-<?= $modId ?>" onclick="toggleSidebarModule(<?= $modId ?>)"
                             data-flyout-type="modulo"
@@ -150,7 +188,7 @@ if (!function_exists('normalizeFaIcon')) {
                         <span class="sm-name" style="font-family: 'Outfit', sans-serif; font-size: 13.5px; font-weight: 600;"><?= htmlspecialchars($mod['name']) ?></span>
                         <i class="fa-solid fa-chevron-right sm-chevron"></i>
                     </button>
-                    
+
                     <div class="sm-tree <?= $isModActive ? 'open' : '' ?>" id="smtree-<?= $modId ?>">
                         <div class="sb-area" style="padding: 4px 6px;">
                             <!-- Level 2: Sub-area/Area -->
@@ -246,6 +284,7 @@ if (!function_exists('normalizeFaIcon')) {
                             <?php endforeach; ?>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>

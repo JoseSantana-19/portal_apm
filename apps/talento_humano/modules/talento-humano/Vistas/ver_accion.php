@@ -19,13 +19,7 @@ $fmtFecha = function(?string $ts): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acción de Personal <?= htmlspecialchars($nro) ?> | Talento Humano APM</title>
     <meta name="description" content="Documento de Acción de Personal <?= htmlspecialchars($nro) ?> — Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Vista del documento guardado ───────────────────────────── */
         .doc-header {
@@ -110,23 +104,7 @@ $fmtFecha = function(?string $ts): string {
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Modulo Talento Humano</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                <a href="<?= BASE_URL ?>/talento-humano/directorio" class="btn btn-ghost">
-                    <i class="bi bi-arrow-left"></i> Volver al directorio
-                </a>
-            </div>
-        </header>
+        <?php $topbarShowSearch=false;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">

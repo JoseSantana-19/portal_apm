@@ -64,6 +64,7 @@ class AccionPersonalController extends Controller
             'preselCedula'  => $cedula,
             'areas'         => $areas,
             'cargos'        => $cargos,
+            'selectorPersonal' => $this->modeloEmp->listarSelectorPersonal(),
         ];
 
         $this->cargarVista('talento-humano', 'accion_personal', $datos);
@@ -140,6 +141,8 @@ class AccionPersonalController extends Controller
             exit;
         }
 
+        Auth::requireCsrf($_POST['_csrf'] ?? null);
+
         // ── Saneamiento del payload ───────────────────────────────────────
         $payload = [
             // Cabecera del documento
@@ -151,46 +154,152 @@ class AccionPersonalController extends Controller
                                             ? $_POST['rige_hasta'] : null,
 
             // Motivación: si es tipo "OTRO" añade el detalle extra
-            'explicacion_legal'        => trim($_POST['motivacion_texto']   ?? '')
-                                          . (!empty($_POST['explicacion_otro'])
-                                              ? ' — ' . trim($_POST['explicacion_otro'])
-                                              : ''),
+            'explicacion_legal'        => trim($_POST['motivacion_texto'] ?? ''),
+            'detalle_otro'             => trim($_POST['explicacion_otro'] ?? ''),
+            'presento_declaracion'     => trim($_POST['presento_declaracion'] ?? 'NO APLICA'),
 
             // Situación Actual — leídos desde los campos hidden llenados por AJAX
             'actual_unidad_id'         => (int)($_POST['actual_unidad_id_hidden']  ?? $_POST['actual_unidad_id']  ?? 0),
             'actual_puesto_id'         => (int)($_POST['actual_puesto_id_hidden']  ?? $_POST['actual_puesto_id']  ?? 0),
-            'actual_lugar_trabajo'     => 'Manta - Instalaciones APM',
+            'actual_lugar_trabajo'     => trim($_POST['actual_lugar_trabajo'] ?? 'Manta'),
             'actual_remuneracion'      => number_format(
                                             (float)($_POST['actual_remuneracion_hidden'] ?? $_POST['actual_remuneracion'] ?? 0),
                                             2, '.', ''),
+            'actual_proceso'           => trim($_POST['actual_proceso'] ?? ''),
+            'actual_nivel_gestion'     => trim($_POST['actual_nivel_gestion'] ?? ''),
+            'actual_grupo_ocupacional' => trim($_POST['actual_grupo_ocupacional'] ?? ''),
+            'actual_grado'             => trim($_POST['actual_grado'] ?? ''),
+            'actual_partida_presupuestaria' => trim($_POST['actual_partida_presupuestaria'] ?? ''),
 
             // Situación Propuesta — elegida por el analista en los <select>
             'propuesta_unidad_id'      => (int)($_POST['propuesta_unidad_id'] ?? 0),
             'propuesta_puesto_id'      => (int)($_POST['propuesta_puesto_id'] ?? 0),
-            'propuesta_lugar_trabajo'  => 'Manta - Instalaciones APM',
+            'propuesta_lugar_trabajo'  => trim($_POST['propuesta_lugar_trabajo'] ?? 'Manta'),
             'propuesta_remuneracion'   => number_format(
                                             (float)($_POST['propuesta_remuneracion'] ?? 0), 2, '.', ''),
+            'propuesta_proceso'        => trim($_POST['propuesta_proceso'] ?? ''),
+            'propuesta_nivel_gestion'  => trim($_POST['propuesta_nivel_gestion'] ?? ''),
+            'propuesta_grupo_ocupacional' => trim($_POST['propuesta_grupo_ocupacional'] ?? ''),
+            'propuesta_grado'          => trim($_POST['propuesta_grado'] ?? ''),
+            'propuesta_partida_presupuestaria' => trim($_POST['propuesta_partida_presupuestaria'] ?? ''),
+
+            'notificacion_electronica' => isset($_POST['notificacion_electronica']) ? 1 : 0,
+            'correo_notificacion'      => trim($_POST['correo_notificacion'] ?? ''),
+            'medio_notificacion'       => trim($_POST['medio_notificacion'] ?? ''),
+            'documento_notificacion'   => trim($_POST['documento_notificacion'] ?? ''),
+            'fecha_notificacion'       => !empty($_POST['fecha_notificacion']) ? str_replace('T',' ',$_POST['fecha_notificacion']) : null,
+            'responsable_th_nombre'    => trim($_POST['responsable_th_nombre'] ?? ''),
+            'responsable_th_puesto'    => trim($_POST['responsable_th_puesto'] ?? ''),
+            'autoridad_nombre'         => trim($_POST['autoridad_nombre'] ?? ''),
+            'autoridad_puesto'         => trim($_POST['autoridad_puesto'] ?? ''),
+            'elaborador_nombre'        => trim($_POST['elaborador_nombre'] ?? ''),
+            'elaborador_puesto'        => trim($_POST['elaborador_puesto'] ?? ''),
+            'revisor_nombre'           => trim($_POST['revisor_nombre'] ?? ''),
+            'revisor_puesto'           => trim($_POST['revisor_puesto'] ?? ''),
+            'registrador_nombre'       => trim($_POST['registrador_nombre'] ?? ''),
+            'registrador_puesto'       => trim($_POST['registrador_puesto'] ?? ''),
+            'notificador_nombre'       => trim($_POST['notificador_nombre'] ?? ''),
+            'notificador_puesto'       => trim($_POST['notificador_puesto'] ?? ''),
 
             // Auditoría — reemplazar con sesión real cuando esté disponible
-            'usuario_crea'             => 'TH_SISTEMA',
+            'usuario_crea'             => Auth::username(),
+            'direccion_ip'             => Auth::clientIp(),
         ];
 
+        $tiposOficiales = [
+            'INGRESO','REINGRESO','RESTITUCIÓN','REINTEGRO','ASCENSO','TRASLADO','SANCIONES','TRASPASO',
+            'CAMBIO ADMINISTRATIVO','INTERCAMBIO VOLUNTARIO','LICENCIA','COMISIÓN DE SERVICIOS','INCREMENTO RMU',
+            'SUBROGACIÓN','ENCARGO','CESACIÓN DE FUNCIONES','DESTITUCIÓN','VACACIONES','REVISIÓN CLASIFICACIÓN PUESTO','OTRO (DETALLAR)'
+        ];
+        $empleadoActual = $this->modeloEmp->obtenerDetalleCompleto($payload['empleado_id']);
+        if ($empleadoActual) {
+            $payload['actual_unidad_id'] = (int)($empleadoActual['unidad_id'] ?? 0);
+            $payload['actual_puesto_id'] = (int)($empleadoActual['puesto_id'] ?? 0);
+            $payload['actual_remuneracion'] = number_format((float)($empleadoActual['remuneracion_mensual'] ?? 0),2,'.','');
+        }
+
         // ── Validación mínima antes de persistir ──────────────────────────
-        if ($payload['empleado_id'] === 0 || empty($payload['tipo_accion']) || empty($payload['explicacion_legal'])) {
+        $fechaDesde = DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_desde']);
+        $fechaHasta = $payload['fecha_rige_hasta'] ? DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_hasta']) : null;
+        if (!$empleadoActual || !in_array($payload['tipo_accion'],$tiposOficiales,true) || empty($payload['explicacion_legal'])
+            || !$fechaDesde || ($fechaHasta && $fechaHasta<$fechaDesde)
+            || (str_starts_with($payload['tipo_accion'],'OTRO') && empty($payload['detalle_otro']))) {
             $msg = 'Datos incompletos: verifique el empleado, tipo de acción y la motivación legal.';
             header('Location: ' . BASE_URL . '/talento-humano/accion-personal?msg=' . urlencode($msg) . '&ok=0');
             exit;
         }
 
         // ── Persistencia en BD ────────────────────────────────────────────
-        $exito = $this->modelo->registrarAccion($payload);
-        $nro   = $payload['numero_accion'];
+        $nroAsignado = $this->modelo->registrarAccion($payload);
+        $exito = $nroAsignado !== null;
+        $nro   = $nroAsignado ?? '';
 
         $msg = $exito
-            ? "Acción de Personal {$nro} generada y registrada correctamente."
+            ? "Acción de Personal {$nro} guardada como borrador para revisión."
             : 'Error al guardar la Acción de Personal. La incidencia fue registrada en el log del sistema.';
 
         header('Location: ' . BASE_URL . '/talento-humano/directorio?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
+        exit;
+    }
+
+    public function aprobar(): void
+    {
+        $this->resolverAccion('aprobar');
+    }
+
+    public function crearUnidadRapida(): void
+    {
+        $this->crearCatalogoRapido('unidad');
+    }
+
+    public function crearPuestoRapido(): void
+    {
+        $this->crearCatalogoRapido('puesto');
+    }
+
+    private function crearCatalogoRapido(string $tipo): void
+    {
+        Auth::requirePermission('maestros', 'crear');
+        header('Content-Type: application/json; charset=utf-8');
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);echo json_encode(['success'=>false,'message'=>'Metodo no permitido.']);exit;}
+        Auth::requireCsrf($_POST['_csrf']??null);
+        $nombre=trim((string)($_POST['nombre']??''));
+        if(mb_strlen($nombre)<3||mb_strlen($nombre)>150){http_response_code(422);echo json_encode(['success'=>false,'message'=>'Ingrese una denominacion entre 3 y 150 caracteres.']);exit;}
+        require_once ROOT.'/modules/admin/Modelos/MaestroModel.php';
+        $maestro=new MaestroModel();
+        if($tipo==='unidad'){
+            $procesosPermitidos=Catalogos::TIPOS_PROCESO;
+            $proceso=trim((string)($_POST['tipo_proceso']??'Apoyo'));
+            if(!in_array($proceso,$procesosPermitidos,true)){http_response_code(422);echo json_encode(['success'=>false,'message'=>'Seleccione un tipo de proceso valido.']);exit;}
+            $result=$maestro->guardarUnidad(['nombre_unidad'=>$nombre,'tipo_proceso'=>$proceso,'unidad_padre_id'=>(int)($_POST['unidad_padre_id']??0),'activo'=>1]);
+        }else{
+            $rmu=(float)($_POST['remuneracion_unificada']??0);
+            if($rmu<0||$rmu>9999999.99){http_response_code(422);echo json_encode(['success'=>false,'message'=>'La RMU debe estar entre 0 y 9.999.999,99.']);exit;}
+            $result=$maestro->guardarPuesto(['nombre_puesto'=>$nombre,'remuneracion_unificada'=>$rmu,'activo'=>1]);
+        }
+        $ok=(int)($result['exito']??0)===1;if(!$ok)http_response_code(422);
+        echo json_encode(['success'=>$ok,'id'=>(int)($result['id']??0),'nombre'=>mb_strtoupper($nombre,'UTF-8'),'rmu'=>$tipo==='puesto'?($rmu??0):null,'message'=>(string)($result['mensaje']??'Operacion finalizada.')],JSON_UNESCAPED_UNICODE);exit;
+    }
+
+    public function anular(): void
+    {
+        $this->resolverAccion('anular');
+    }
+
+    private function resolverAccion(string $accion): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            exit('Metodo no permitido.');
+        }
+        Auth::requireCsrf($_POST['_csrf'] ?? null);
+        $id = (int)($_POST['accion_id'] ?? 0);
+        $resultado = $accion === 'aprobar'
+            ? $this->modelo->aprobar($id)
+            : $this->modelo->anular($id, trim((string)($_POST['motivo'] ?? '')));
+        $ok = (int)($resultado['exito'] ?? 0) === 1;
+        $msg = (string)($resultado['mensaje'] ?? 'No fue posible procesar la accion.');
+        header('Location: '.BASE_URL.'/talento-humano/biblioteca?ok='.($ok?'1':'0').'&msg='.urlencode($msg));
         exit;
     }
 
@@ -245,8 +354,15 @@ class AccionPersonalController extends Controller
             die('Error: El documento de Acción de Personal no existe o fue eliminado.');
         }
 
+        $this->modelo->auditarImpresion($id);
         require_once ROOT . '/libs/fpdf/fpdf.php';
         $this->generarPdfAccionOficial($datos);
+    }
+
+    public function formatoBlanco(): void
+    {
+        require_once ROOT . '/libs/fpdf/fpdf.php';
+        $this->generarPdfAccionOficial(['_blank'=>true]);
     }
 
 
@@ -258,7 +374,7 @@ class AccionPersonalController extends Controller
      *
      * @param array $d  Fila cruzada devuelta por obtenerAccionCruzada()
      */
-    private function generarPdfAccionOficial(array $d): void
+    private function generarPdfAccionOficial(array $d, string $destino='I', ?string $archivo=null): void
     {
         // ── Helpers ────────────────────────────────────────────────────────
         $utf = fn($s) => utf8_decode((string)($s ?? ''));
@@ -278,7 +394,8 @@ class AccionPersonalController extends Controller
         $fmtDMY = fn(?string $ts) => empty($ts) ? '' : date('d-m-Y', strtotime($ts));
 
         // ── Datos ──────────────────────────────────────────────────────────
-        $logoPath  = ROOT . '/../../imgs/logoapm.png';
+        $logoPath  = ROOT . '/public/img/logoapm.png';
+        $vacio = !empty($d['_blank']);
         $nroAccion = $d['numero_accion']  ?? '';
         $cedula    = $d['identificacion'] ?? '';
         $apellidos = $utf(strtoupper($d['apellidos'] ?? ''));
@@ -286,11 +403,11 @@ class AccionPersonalController extends Controller
         $servidor  = $utf(strtoupper(($d['apellidos'] ?? '') . ' ' . ($d['nombres'] ?? '')));
         $tipoRaw   = strtoupper(trim($d['tipo_accion'] ?? ''));
 
-        $fechaElab  = $fmtFecha($d['fecha_elaboracion'] ?? null) ?: $fmtFecha(date('Y-m-d'));
+        $fechaElab  = $fmtFecha($d['fecha_elaboracion'] ?? null);
         $fechaDesde = $fmtDMY($d['fecha_rige_desde']    ?? null);
         $fechaHasta = !empty($d['fecha_rige_hasta'])
             ? $fmtDMY($d['fecha_rige_hasta'])
-            : 'PERMANENTE';
+            : ($vacio ? '' : 'PERMANENTE');
 
         // Helper checkbox: dibuja una celda con borde y 'X' si corresponde al tipo
         $chk = function(FPDF $p, string $etiqueta) use ($tipoRaw, $utf): void {
@@ -359,7 +476,7 @@ class AccionPersonalController extends Controller
         $pdf->Cell(95, 6, $nombres,   1, 1, 'C');
 
         // Sub-fila doc + nro + RIGE (etiquetas)
-        $pdf->SetFont('Arial', 'B', 7);
+        $pdf->SetFont('Arial', 'B', 5);
         $pdf->Cell(47.5, 5, $utf('DOCUMENTO DE IDENTIFICACIÓN'), 1, 0, 'C');
         $pdf->Cell(47.5, 5, $utf('NRO. DE IDENTIFICACIÓN'),      1, 0, 'C');
         $pdf->Cell(47.5, 5, 'DESDE (dd-mm-aaaa)',                 1, 0, 'C');
@@ -374,7 +491,7 @@ class AccionPersonalController extends Controller
 
         // ── GRID CHECKBOXES 21 tipos de acción ──────────────────────────────
         $pdf->SetXY(10, 65);
-        $pdf->SetFont('Arial', 'B', 7);
+        $pdf->SetFont('Arial', 'B', 5);
         $pdf->Cell(190, 5,
             $utf('Escoja una opción (según lo estipulado en el artículo 21 del Reglamento General a la Ley Orgánica del Servicio Público)'),
             'LTR', 1, 'L');
@@ -415,7 +532,7 @@ class AccionPersonalController extends Controller
         // ── FILA DECLARACIÓN JURADA ──────────────────────────────────────────
         $yDJ = $startChk + $gridH;
         $pdf->SetXY(10, $yDJ);
-        $pdf->SetFont('Arial', 'B', 7);
+        $pdf->SetFont('Arial', 'B', 5);
         $pdf->Cell(80, 5,
             $utf('EN CASO DE REQUERIR ESPECIFICACIÓN: ') . $utf($d['tipo_accion'] ?? ''),
             'LTB', 0, 'L');
@@ -423,9 +540,10 @@ class AccionPersonalController extends Controller
             $utf('* PRESENTÓ LA DECLARACIÓN JURADA (número 2 del art. 3 RLOSEP)'),
             'LTB', 0, 'L');
         $pdf->Cell(8,  5, 'SI',       'LTB', 0, 'C');
-        $pdf->Cell(5,  5, '',         1, 0, 'C');  // checkbox SI
+        $declaracion = strtoupper((string)($d['presento_declaracion'] ?? ''));
+        $pdf->Cell(5,  5, $declaracion === 'SI' ? 'X' : '', 1, 0, 'C');
         $pdf->Cell(15, 5, 'NO APLICA','TB', 0, 'C');
-        $pdf->Cell(5,  5, 'X',        1, 0, 'C');  // checkbox NO APLICA marcado
+        $pdf->Cell(5,  5, $declaracion === 'NO APLICA' ? 'X' : '', 1, 0, 'C');
         $pdf->Cell(2,  5, '',         'RTB', 1);
 
         // ── MOTIVACIÓN ───────────────────────────────────────────────────────
@@ -454,12 +572,10 @@ class AccionPersonalController extends Controller
 
         $filas = [
             ['lab' => 'PROCESO INSTITUCIONAL:',
-             'act'  => '',
-             'prop' => ''],
-            ['lab' => 'ADJETIVO:',
-             'act'  => '', 'prop' => ''],
+             'act'  => $utf($d['actual_proceso'] ?? ''),
+             'prop' => $utf($d['propuesta_proceso'] ?? '')],
             ['lab' => 'NIVEL DE GESTION:',
-             'act'  => '', 'prop' => ''],
+             'act'  => $utf($d['actual_nivel_gestion'] ?? ''), 'prop' => $utf($d['propuesta_nivel_gestion'] ?? '')],
             ['lab' => 'UNIDAD ADMINISTRATIVA:',
              'act'  => $utf($d['actual_area'] ?? ''),
              'prop' => $utf($d['propuesta_area'] ?? '')],
@@ -470,22 +586,22 @@ class AccionPersonalController extends Controller
              'act'  => $utf($d['actual_cargo'] ?? ''),
              'prop' => $utf($d['propuesta_cargo'] ?? '')],
             ['lab' => 'GRUPO OCUPACIONAL:',
-             'act'  => '', 'prop' => ''],
+             'act'  => $utf($d['actual_grupo_ocupacional'] ?? ''), 'prop' => $utf($d['propuesta_grupo_ocupacional'] ?? '')],
             ['lab' => 'GRADO:',
-             'act'  => '', 'prop' => ''],
+             'act'  => $utf($d['actual_grado'] ?? ''), 'prop' => $utf($d['propuesta_grado'] ?? '')],
             ['lab' => 'REMUNERACION MENSUAL:',
              'act'  => '$ ' . number_format((float)($d['actual_remuneracion']    ?? 0), 2),
              'prop' => '$ ' . number_format((float)($d['propuesta_remuneracion'] ?? 0), 2)],
             ['lab' => 'PARTIDA INDIVIDUAL:',
-             'act'  => '', 'prop' => ''],
+             'act'  => $utf($d['actual_partida_presupuestaria'] ?? ''), 'prop' => $utf($d['propuesta_partida_presupuestaria'] ?? '')],
         ];
 
         // Columna Izquierda — flujo normal (ln=1)
         foreach ($filas as $f) {
-            $pdf->SetFont('Arial', 'B', 7);
-            $pdf->Cell(95, 4, $f['lab'], 'LR', 1, 'L');
-            $pdf->SetFont('Arial', '', 7);
-            $pdf->Cell(95, 5, $f['act'],  'LR', 1, 'L');
+            $pdf->SetFont('Arial', 'B', 5.8);
+            $pdf->Cell(95, 2.8, $f['lab'], 'LR', 1, 'L');
+            $pdf->SetFont('Arial', '', 5.8);
+            $pdf->Cell(95, 3.5, $f['act'],  'LR', 1, 'L');
         }
         $pdf->SetXY($lX, $pdf->GetY());
         $pdf->Cell(95, 0, '', 'T', 0);
@@ -494,11 +610,11 @@ class AccionPersonalController extends Controller
         // Columna Derecha — SetXY + ln=2 para avanzar solo el cursor vertical
         $pdf->SetXY($rX, $dataY);
         foreach ($filas as $f) {
-            $pdf->SetFont('Arial', 'B', 7);
-            $pdf->Cell(95, 4, $f['lab'],  'LR', 2, 'L');
+            $pdf->SetFont('Arial', 'B', 5.8);
+            $pdf->Cell(95, 2.8, $f['lab'],  'LR', 2, 'L');
             $pdf->SetX($rX);
-            $pdf->SetFont('Arial', '', 7);
-            $pdf->Cell(95, 5, $f['prop'], 'LR', 2, 'L');
+            $pdf->SetFont('Arial', '', 5.8);
+            $pdf->Cell(95, 3.5, $f['prop'], 'LR', 2, 'L');
             $pdf->SetX($rX);
         }
         $pdf->SetXY($rX, $pdf->GetY());
@@ -510,20 +626,23 @@ class AccionPersonalController extends Controller
         // ── POSESIÓN DEL PUESTO ──────────────────────────────────────────────
         $pdf->SetFont('Arial', 'B', 8);
         $pdf->Cell(190, 5, $utf('POSESIÓN DEL PUESTO'), 1, 1, 'C');
+        $yPosInicio = $pdf->GetY();
         $pdf->Cell(190, 25, '', 1, 0);
-        $yPosBox = $pdf->GetY() - 24;
+        $yPosBox = $yPosInicio + 1;
         $pdf->SetXY(12, $yPosBox);
-        $pdf->SetFont('Arial', '', 8);
-        $pdf->Cell(130, 5, 'YO, ' . $servidor . ', JURO LEALTAD AL ESTADO ECUATORIANO.', 0, 2);
+        $pdf->SetFont('Arial', '', 7);
+        $pdf->Cell(125, 5, 'YO, ' . $servidor, 0, 2);
         $pdf->SetX(12);
-        $pdf->Cell(70, 5, $utf('LUGAR: MANTA          FECHA: ') . $fechaDesde, 0, 2);
+        $pdf->Cell(125, 5, 'JURO LEALTAD AL ESTADO ECUATORIANO.', 0, 2);
+        $pdf->SetX(12);
+        $pdf->Cell(125, 5, $utf('LUGAR: MANTA          FECHA: ') . $fechaDesde, 0, 2);
         $pdf->SetXY(140, $yPosBox);
         $pdf->Cell(60, 5, 'CON NRO. DOC.: ' . $cedula, 0, 1);
 
-        $pdf->SetXY(10, $pdf->GetY());
+        $pdf->SetXY(10, $yPosInicio + 25);
         $pdf->SetFont('Arial', '', 7);
         $pdf->Cell(95, 5, 'NRO. ACTA FINAL', 1, 0, 'C');
-        $pdf->Cell(95, 5, 'FIRMA SERVIDOR PÚBLICO', 1, 1, 'C');
+        $pdf->Cell(95, 5, $utf('FIRMA SERVIDOR PÚBLICO'), 1, 1, 'C');
         $pdf->Cell(95, 5, '', 1, 0, 'C');
         $pdf->Cell(95, 5, 'FECHA', 1, 1, 'C');
 
@@ -537,14 +656,14 @@ class AccionPersonalController extends Controller
         $pdf->SetFont('Arial', '', 7);
         $pdf->Cell(95, 4, 'FIRMA: _____________________________', 1, 0, 'L');
         $pdf->Cell(95, 4, 'FIRMA: _____________________________', 1, 1, 'L');
-        $pdf->Cell(95, 4, 'NOMBRE: ING. ALEXANDER MEDRANDA ALCIVAR', 1, 0, 'L');
-        $pdf->Cell(95, 4, 'NOMBRE: _____________________________', 1, 1, 'L');
-        $pdf->Cell(95, 4, $utf('PUESTO: DIRECTOR ADMIN. TALENTO HUMANO (E)'), 1, 0, 'L');
-        $pdf->Cell(95, 4, 'PUESTO: GERENTE', 1, 1, 'L');
+        $pdf->Cell(95, 4, $utf('NOMBRE: '.($d['responsable_th_nombre'] ?? '')), 1, 0, 'L');
+        $pdf->Cell(95, 4, $utf('NOMBRE: '.($d['autoridad_nombre'] ?? '')), 1, 1, 'L');
+        $pdf->Cell(95, 4, $utf('PUESTO: '.($d['responsable_th_puesto'] ?? '')), 1, 0, 'L');
+        $pdf->Cell(95, 4, $utf('PUESTO: '.($d['autoridad_puesto'] ?? '')), 1, 1, 'L');
 
         // Pie página 1
         $pdf->SetFont('Arial', 'I', 6);
-        $pdf->SetXY(10, 285);
+        $pdf->SetXY(10, 282);
         $pdf->Cell(95,  4, 'Elaborado por el Ministerio del Trabajo', 0, 0, 'L');
         $pdf->Cell(95,  4, $utf('Fecha actualizacion: 2024-08-23  /  Versión 01.1  /  Página 1 de 2'), 0, 1, 'R');
 
@@ -585,13 +704,15 @@ class AccionPersonalController extends Controller
         $pdf->Cell(73, 4, '',        1, 1);
 
         $pdf->SetFont('Arial', 'B', 7);
-        $pdf->Cell(10, 4, 'HORA:',   1, 0, 'L'); $pdf->SetFont('Arial','',7);
-        $pdf->Cell(97, 4, '',        1, 0);
+        $pdf->Cell(10, 8, 'HORA:',   1, 0, 'L'); $pdf->SetFont('Arial','',7);
+        $pdf->Cell(97, 8, '',        1, 0);
         $pdf->SetFont('Arial', 'B', 7);
-        $pdf->Cell(12, 4, $utf('RAZÓN:'), 1, 0, 'L'); $pdf->SetFont('Arial','',6);
-        $pdf->Cell(71, 4,
-            $utf('En presencia del testigo se deja constancia de que la o el servidor tiene la negativa de recibir la comunicación.'),
-            1, 1, 'L');
+        $pdf->Cell(12, 8, $utf('RAZÓN:'), 1, 0, 'L');
+        $xRazon=$pdf->GetX();$yRazon=$pdf->GetY();
+        $pdf->Cell(71,8,'',1,1);
+        $pdf->SetXY($xRazon+1,$yRazon+.8);$pdf->SetFont('Arial','',4.4);
+        $pdf->MultiCell(69,2.1,$utf('En presencia del testigo se deja constancia de que la o el servidor público tiene la negativa de recibir la comunicación de registro de esta acción de personal.'),0,'C');
+        $pdf->SetY($yRazon+8);
 
         // ── ELABORACIÓN / REVISIÓN / CONTROL ─────────────────────────────────
         $colF = 190 / 3;
@@ -604,9 +725,9 @@ class AccionPersonalController extends Controller
         $pdf->Cell($colF, 25, '', 1, 1);
 
         $resp3 = [
-            ['nb' => 'SYLVIA CANDIDO GILCES',     'pu' => 'ANALISTA DE RRHH 3 (E)'],
-            ['nb' => 'ALEXANDER MEDRANDA ALCIVAR', 'pu' => 'DIRECTOR ADMIN. TH (E)'],
-            ['nb' => 'SYLVIA CANDIDO GILCES',     'pu' => 'ANALISTA DE RRHH 3 (E)'],
+            ['nb' => $d['elaborador_nombre'] ?? '', 'pu' => $d['elaborador_puesto'] ?? ''],
+            ['nb' => $d['revisor_nombre'] ?? '', 'pu' => $d['revisor_puesto'] ?? ''],
+            ['nb' => $d['registrador_nombre'] ?? '', 'pu' => $d['registrador_puesto'] ?? ''],
         ];
         // Fila FIRMA
         $pdf->SetFont('Arial', 'B', 7);
@@ -657,17 +778,19 @@ class AccionPersonalController extends Controller
 
         $pdf->SetFont('Arial', '', 7);
         $pdf->Cell(35, 5, $utf('COMUNICACIÓN ELECTRÓNICA:'), 1, 0, 'L');
-        $pdf->Cell(5,  5, '', 1, 0, 'C');  // checkbox
-        $pdf->Cell(150,5, '', 1, 1);
+        $pdf->Cell(5,  5, !empty($d['notificacion_electronica']) ? 'X' : '', 1, 0, 'C');
+        $pdf->Cell(150,5, $utf($d['correo_notificacion'] ?? ''), 1, 1);
 
         $pdf->SetFont('Arial','B',7); $pdf->Cell(15, 5, 'FECHA:', 1, 0, 'L');
-        $pdf->SetFont('Arial','',7);  $pdf->Cell(75, 5, $utf($fechaElab), 1, 0, 'C');
+        $fechaNotif = $fmtDMY($d['fecha_notificacion'] ?? null);
+        $horaNotif = !empty($d['fecha_notificacion']) ? date('H:i',strtotime($d['fecha_notificacion'])) : '';
+        $pdf->SetFont('Arial','',7);  $pdf->Cell(75, 5, $utf($fechaNotif), 1, 0, 'C');
         $pdf->SetFont('Arial','B',7); $pdf->Cell(15, 5, 'HORA:', 1, 0, 'L');
-        $pdf->SetFont('Arial','',7);  $pdf->Cell(85, 5, '', 1, 1);
+        $pdf->SetFont('Arial','',7);  $pdf->Cell(85, 5, $horaNotif, 1, 1);
 
         $pdf->SetFont('Arial','B',7); $pdf->Cell(20, 5, '** MEDIO:', 1, 0, 'L');
-        $pdf->SetFont('Arial','',7);  $pdf->Cell(75, 5, 'QUIPUX', 1, 0, 'C');
-        $pdf->Cell(95, 5, '', 1, 1);
+        $pdf->SetFont('Arial','',7);  $pdf->Cell(75, 5, $utf($d['medio_notificacion'] ?? ''), 1, 0, 'C');
+        $pdf->Cell(95, 5, $utf($d['documento_notificacion'] ?? ''), 1, 1);
 
         $pdf->Cell(190, 5,  '', 1, 1);
         $pdf->Cell(190, 5,  '', 1, 1);
@@ -677,10 +800,10 @@ class AccionPersonalController extends Controller
         $pdf->Cell(190, 5, $utf('FIRMA DEL RESPONSABLE QUE NOTIFICÓ'), 1, 1, 'C');
         $pdf->Cell(15,  4, 'NOMBRE:', 1, 0, 'L');
         $pdf->SetFont('Arial','',7);
-        $pdf->Cell(175, 4, 'ALEXANDER MEDRANDA ALCIVAR', 1, 1, 'C');
+        $pdf->Cell(175, 4, $utf($d['notificador_nombre'] ?? ''), 1, 1, 'C');
         $pdf->SetFont('Arial','B',7); $pdf->Cell(15, 4, '', 1, 0);
         $pdf->SetFont('Arial','',7);
-        $pdf->Cell(175, 4, $utf('DIRECTOR DE ADMINISTRACIÓN DEL TALENTO HUMANO (E)'), 1, 1, 'C');
+        $pdf->Cell(175, 4, $utf($d['notificador_puesto'] ?? ''), 1, 1, 'C');
         $pdf->SetFont('Arial','B',7); $pdf->Cell(15, 4, 'PUESTO:', 1, 0, 'L');
         $pdf->Cell(175, 4, '', 1, 1);
 
@@ -691,15 +814,12 @@ class AccionPersonalController extends Controller
 
         // Pie página 2
         $pdf->SetFont('Arial','I',6);
-        $pdf->SetXY(10, 285);
+        $pdf->SetXY(10, 282);
         $pdf->Cell(95,  4, 'Elaborado por el Ministerio del Trabajo', 0, 0, 'L');
         $pdf->Cell(95,  4, $utf('Fecha actualizacion: 2024-08-23  /  Versión 01.1  /  Página 2 de 2'), 0, 1, 'R');
 
         // ── Salida ───────────────────────────────────────────────────────────
-        $nombreArchivo = 'Accion_Personal_' . ($nroAccion ?: ($d['accion_id'] ?? 'APM')) . '.pdf';
-        $pdf->Output('I', $nombreArchivo);
-        exit;
+        $nombreArchivo = $archivo ?: 'Accion_Personal_' . ($nroAccion ?: ($d['accion_id'] ?? 'Formato')) . '.pdf';
+        $pdf->Output($destino, $nombreArchivo);
     }
 }
-
-

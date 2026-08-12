@@ -1,212 +1,199 @@
 <?php
-// modules/talento-humano/Modelos/AccionPersonalModel.php
-// Módulo: Talento Humano – Fase 2: Acción de Personal
-// Hereda de Model (accede a $this->db mediante Conexion::conectar())
 
 class AccionPersonalModel extends Model
 {
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Genera el siguiente número de acción correlativo del año en curso.
-     * Formato: APM-TH-YYYY-NNN  (ej: APM-TH-2026-001)
-     *
-     * Consulta el registro más reciente del año para obtener el número más
-     * alto y sumar 1. Si no existe ninguno, arranca desde 001.
-     *
-     * @return string  Secuencial formateado y listo para mostrar al usuario
-     */
     public function generarSiguienteSecuencial(): string
     {
-        $anio    = date('Y');
+        $anio = date('Y');
         $prefijo = "APM-TH-{$anio}-";
-
         try {
-            // TOP 1 ordenado por accion_id DESC garantiza el número más reciente,
-            // independientemente de brechas o eliminaciones en el historial.
-            $sql = "SELECT TOP 1 numero_accion
-                    FROM th_acciones_personal
-                    WHERE numero_accion LIKE :prefijo
-                    ORDER BY accion_id DESC";
-
-            $stmt = $this->db->prepare($sql);
-            $like = $prefijo . '%';
-            $stmt->bindParam(':prefijo', $like, PDO::PARAM_STR);
-            $stmt->execute();
-
-            $fila = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($fila) {
-                // Extrae el segmento numérico final (después del último guion)
-                $partes        = explode('-', $fila['numero_accion']);
-                $ultimoNumero  = (int) end($partes);
-                $siguienteNum  = $ultimoNumero + 1;
-            } else {
-                // Primera acción del año
-                $siguienteNum = 1;
-            }
-
-            return $prefijo . str_pad($siguienteNum, 3, '0', STR_PAD_LEFT);
-
+            $this->auditarLectura('Accion de Personal', 'Consulta del siguiente secuencial documental.');
+            $stmt = $this->db->prepare(
+                'SELECT TOP 1 numero_accion FROM dbo.th_acciones_personal
+                 WHERE numero_accion LIKE :prefijo ORDER BY accion_id DESC'
+            );
+            $stmt->execute([':prefijo' => $prefijo . '%']);
+            $actual = $stmt->fetchColumn();
+            $numero = $actual ? ((int)substr((string)$actual, strrpos((string)$actual, '-') + 1) + 1) : 1;
+            return $prefijo . str_pad((string)$numero, 3, '0', STR_PAD_LEFT);
         } catch (PDOException $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
-            // Fallback seguro: no detiene la carga del formulario
             return $prefijo . '001';
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Inserta una Acción de Personal formal en th_acciones_personal.
-     * Todos los parámetros se vinculan con bindParam() para prevenir SQLi.
-     *
-     * @param  array $d  Payload saneado proveniente del controlador
-     * @return bool       true si el INSERT fue exitoso, false en caso de error
-     */
-    public function registrarAccion(array $d): bool
-    {
-        try {
-            $sql = "INSERT INTO th_acciones_personal (
-                        numero_accion,
-                        fecha_elaboracion,
-                        empleado_id,
-                        tipo_accion,
-                        fecha_rige_desde,
-                        fecha_rige_hasta,
-                        explicacion_legal,
-                        actual_unidad_id,
-                        actual_puesto_id,
-                        actual_lugar_trabajo,
-                        actual_remuneracion,
-                        propuesta_unidad_id,
-                        propuesta_puesto_id,
-                        propuesta_lugar_trabajo,
-                        propuesta_remuneracion,
-                        estado_documento,
-                        usuario_crea
-                    ) VALUES (
-                        :numero_accion,
-                        GETDATE(),
-                        :empleado_id,
-                        :tipo_accion,
-                        :fecha_rige_desde,
-                        :fecha_rige_hasta,
-                        :explicacion_legal,
-                        :actual_unidad_id,
-                        :actual_puesto_id,
-                        :actual_lugar_trabajo,
-                        :actual_remuneracion,
-                        :propuesta_unidad_id,
-                        :propuesta_puesto_id,
-                        :propuesta_lugar_trabajo,
-                        :propuesta_remuneracion,
-                        'Aprobado',
-                        :usuario_crea
-                    )";
-
-            $stmt = $this->db->prepare($sql);
-
-            // ── Cabecera del documento ────────────────────────────────────
-            $stmt->bindParam(':numero_accion',   $d['numero_accion'],   PDO::PARAM_STR);
-            $stmt->bindParam(':empleado_id',     $d['empleado_id'],     PDO::PARAM_INT);
-            $stmt->bindParam(':tipo_accion',     $d['tipo_accion'],     PDO::PARAM_STR);
-            $stmt->bindParam(':fecha_rige_desde',$d['fecha_rige_desde'],PDO::PARAM_STR);
-
-            // fecha_rige_hasta es opcional (NULL = permanente)
-            $rigeHasta = !empty($d['fecha_rige_hasta']) ? $d['fecha_rige_hasta'] : null;
-            $stmt->bindParam(':fecha_rige_hasta', $rigeHasta,
-                             $rigeHasta ? PDO::PARAM_STR : PDO::PARAM_NULL);
-
-            $stmt->bindParam(':explicacion_legal',     $d['explicacion_legal'],     PDO::PARAM_STR);
-
-            // ── Situación Actual ──────────────────────────────────────────
-            $stmt->bindParam(':actual_unidad_id',      $d['actual_unidad_id'],      PDO::PARAM_INT);
-            $stmt->bindParam(':actual_puesto_id',      $d['actual_puesto_id'],      PDO::PARAM_INT);
-            $stmt->bindParam(':actual_lugar_trabajo',  $d['actual_lugar_trabajo'],  PDO::PARAM_STR);
-            $stmt->bindParam(':actual_remuneracion',   $d['actual_remuneracion'],   PDO::PARAM_STR);
-
-            // ── Situación Propuesta ───────────────────────────────────────
-            $stmt->bindParam(':propuesta_unidad_id',   $d['propuesta_unidad_id'],   PDO::PARAM_INT);
-            $stmt->bindParam(':propuesta_puesto_id',   $d['propuesta_puesto_id'],   PDO::PARAM_INT);
-            $stmt->bindParam(':propuesta_lugar_trabajo',$d['propuesta_lugar_trabajo'],PDO::PARAM_STR);
-            $stmt->bindParam(':propuesta_remuneracion',$d['propuesta_remuneracion'], PDO::PARAM_STR);
-
-            // ── Auditoría ─────────────────────────────────────────────────
-            $stmt->bindParam(':usuario_crea', $d['usuario_crea'], PDO::PARAM_STR);
-
-            return $stmt->execute();
-
-        } catch (PDOException $e) {
-            Conexion::registrarErrorLog($e, 'talento-humano', false);
-            return false;
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Recupera una Acción de Personal por su ID para la vista "ver".
-     *
-     * @param  int        $id  accion_id
-     * @return array|null      Fila completa o null si no existe
-     */
-    public function obtenerPorId(int $id): ?array
+    public function registrarAccion(array $d): ?string
     {
         try {
             $stmt = $this->db->prepare(
-                "SELECT * FROM th_acciones_personal WHERE accion_id = :id"
+                'EXEC dbo.sp_th_registrar_accion_personal
+                 @numero_accion=:numero,@empleado_id=:empleado,@tipo_accion=:tipo,
+                 @fecha_rige_desde=:desde,@fecha_rige_hasta=:hasta,@explicacion_legal=:explicacion,
+                 @detalle_otro=:detalle_otro,@presento_declaracion=:declaracion,
+                 @actual_unidad_id=:unidad_actual,@actual_puesto_id=:puesto_actual,
+                 @actual_lugar_trabajo=:lugar_actual,@actual_remuneracion=:rmu_actual,
+                 @actual_proceso=:proceso_actual,@actual_nivel_gestion=:nivel_actual,
+                 @actual_grupo_ocupacional=:grupo_actual,@actual_grado=:grado_actual,
+                 @actual_partida_presupuestaria=:partida_actual,
+                 @propuesta_unidad_id=:unidad_propuesta,@propuesta_puesto_id=:puesto_propuesto,
+                 @propuesta_lugar_trabajo=:lugar_propuesto,@propuesta_remuneracion=:rmu_propuesta,
+                 @propuesta_proceso=:proceso_propuesto,@propuesta_nivel_gestion=:nivel_propuesto,
+                 @propuesta_grupo_ocupacional=:grupo_propuesto,@propuesta_grado=:grado_propuesto,
+                 @propuesta_partida_presupuestaria=:partida_propuesta,
+                 @notificacion_electronica=:notificacion,@correo_notificacion=:correo,
+                 @medio_notificacion=:medio,@documento_notificacion=:documento,@fecha_notificacion=:fecha_notificacion,
+                 @responsable_th_nombre=:responsable_th_nombre,@responsable_th_puesto=:responsable_th_puesto,
+                 @autoridad_nombre=:autoridad_nombre,@autoridad_puesto=:autoridad_puesto,
+                 @elaborador_nombre=:elaborador_nombre,@elaborador_puesto=:elaborador_puesto,
+                 @revisor_nombre=:revisor_nombre,@revisor_puesto=:revisor_puesto,
+                 @registrador_nombre=:registrador_nombre,@registrador_puesto=:registrador_puesto,
+                 @notificador_nombre=:notificador_nombre,@notificador_puesto=:notificador_puesto,
+                 @usuario=:usuario,@ip=:ip'
             );
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            $res = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $res ?: null;
+            $stmt->execute([
+                ':numero' => $d['numero_accion'],
+                ':empleado' => $d['empleado_id'],
+                ':tipo' => $d['tipo_accion'],
+                ':desde' => $d['fecha_rige_desde'],
+                ':hasta' => $d['fecha_rige_hasta'] ?: null,
+                ':explicacion' => $d['explicacion_legal'],
+                ':detalle_otro' => $d['detalle_otro'] ?: null,
+                ':declaracion' => $d['presento_declaracion'] ?: null,
+                ':unidad_actual' => $d['actual_unidad_id'] ?: null,
+                ':puesto_actual' => $d['actual_puesto_id'] ?: null,
+                ':lugar_actual' => $d['actual_lugar_trabajo'],
+                ':rmu_actual' => $d['actual_remuneracion'],
+                ':proceso_actual' => $d['actual_proceso'] ?: null,
+                ':nivel_actual' => $d['actual_nivel_gestion'] ?: null,
+                ':grupo_actual' => $d['actual_grupo_ocupacional'] ?: null,
+                ':grado_actual' => $d['actual_grado'] ?: null,
+                ':partida_actual' => $d['actual_partida_presupuestaria'] ?: null,
+                ':unidad_propuesta' => $d['propuesta_unidad_id'] ?: null,
+                ':puesto_propuesto' => $d['propuesta_puesto_id'] ?: null,
+                ':lugar_propuesto' => $d['propuesta_lugar_trabajo'],
+                ':rmu_propuesta' => $d['propuesta_remuneracion'],
+                ':proceso_propuesto' => $d['propuesta_proceso'] ?: null,
+                ':nivel_propuesto' => $d['propuesta_nivel_gestion'] ?: null,
+                ':grupo_propuesto' => $d['propuesta_grupo_ocupacional'] ?: null,
+                ':grado_propuesto' => $d['propuesta_grado'] ?: null,
+                ':partida_propuesta' => $d['propuesta_partida_presupuestaria'] ?: null,
+                ':notificacion' => $d['notificacion_electronica'],
+                ':correo' => $d['correo_notificacion'] ?: null,
+                ':medio' => $d['medio_notificacion'] ?: null,
+                ':documento' => $d['documento_notificacion'] ?: null,
+                ':fecha_notificacion' => $d['fecha_notificacion'] ?: null,
+                ':responsable_th_nombre' => $d['responsable_th_nombre'] ?: null,
+                ':responsable_th_puesto' => $d['responsable_th_puesto'] ?: null,
+                ':autoridad_nombre' => $d['autoridad_nombre'] ?: null,
+                ':autoridad_puesto' => $d['autoridad_puesto'] ?: null,
+                ':elaborador_nombre' => $d['elaborador_nombre'] ?: null,
+                ':elaborador_puesto' => $d['elaborador_puesto'] ?: null,
+                ':revisor_nombre' => $d['revisor_nombre'] ?: null,
+                ':revisor_puesto' => $d['revisor_puesto'] ?: null,
+                ':registrador_nombre' => $d['registrador_nombre'] ?: null,
+                ':registrador_puesto' => $d['registrador_puesto'] ?: null,
+                ':notificador_nombre' => $d['notificador_nombre'] ?: null,
+                ':notificador_puesto' => $d['notificador_puesto'] ?: null,
+                ':usuario' => $d['usuario_crea'],
+                ':ip' => $d['direccion_ip'],
+            ]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($result['exito'] ?? 0) === 1
+                ? (string)($result['numero_accion'] ?? '')
+                : null;
         } catch (PDOException $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
             return null;
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Obtiene una Acción de Personal cruzando todas las tablas de catálogo.
-     * Devuelve los textos reales de área y cargo (actual y propuesta) junto
-     * con los datos del empleado, listos para renderizar en el PDF oficial.
-     *
-     * @param  int        $accionId  accion_id de th_acciones_personal
-     * @return array|null            Fila cruzada o null si no existe / error
-     */
-    public function obtenerAccionCruzada(int $accionId): ?array
+    public function obtenerPorId(int $id): ?array
     {
         try {
-            $sql = "SELECT
-                        a.*,
-                        e.cedula          AS identificacion,
-                        e.nombres         AS nombres,
-                        e.apellidos       AS apellidos,
-                        u_act.nombre_unidad  AS actual_area,
-                        p_act.nombre_puesto  AS actual_cargo,
-                        u_prop.nombre_unidad AS propuesta_area,
-                        p_prop.nombre_puesto AS propuesta_cargo
-                    FROM th_acciones_personal a
-                    INNER JOIN th_empleados e
-                        ON a.empleado_id = e.empleado_id
-                    LEFT JOIN th_unidades_organizacionales u_act
-                        ON a.actual_unidad_id = u_act.unidad_id
-                    LEFT JOIN th_puestos p_act
-                        ON a.actual_puesto_id = p_act.puesto_id
-                    LEFT JOIN th_unidades_organizacionales u_prop
-                        ON a.propuesta_unidad_id = u_prop.unidad_id
-                    LEFT JOIN th_puestos p_prop
-                        ON a.propuesta_puesto_id = p_prop.puesto_id
-                    WHERE a.accion_id = :id";
-
-            $stmt = $this->db->prepare($sql);
-            $stmt->bindParam(':id', $accionId, PDO::PARAM_INT);
-            $stmt->execute();
-
-            $res = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $res ?: null;
+            $this->auditarLectura('Accion de Personal', "Consulta de accion #{$id}.");
+            $stmt = $this->db->prepare('SELECT * FROM dbo.th_acciones_personal WHERE accion_id=:id');
+            $stmt->execute([':id' => $id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
         } catch (PDOException $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
             return null;
+        }
+    }
+
+    public function obtenerAccionCruzada(int $accionId): ?array
+    {
+        try {
+            $this->auditarLectura('Accion de Personal', "Consulta de documento cruzado #{$accionId}.");
+            $sql = "SELECT a.*,e.identificacion,e.nombres,e.apellidos,
+                           u_act.nombre_unidad actual_area,p_act.nombre_puesto actual_cargo,
+                           u_prop.nombre_unidad propuesta_area,p_prop.nombre_puesto propuesta_cargo
+                    FROM dbo.th_acciones_personal a
+                    JOIN dbo.th_empleados e ON e.empleado_id=a.empleado_id
+                    LEFT JOIN dbo.th_unidades_organizacionales u_act ON u_act.unidad_id=a.actual_unidad_id
+                    LEFT JOIN dbo.th_puestos p_act ON p_act.puesto_id=a.actual_puesto_id
+                    LEFT JOIN dbo.th_unidades_organizacionales u_prop ON u_prop.unidad_id=a.propuesta_unidad_id
+                    LEFT JOIN dbo.th_puestos p_prop ON p_prop.puesto_id=a.propuesta_puesto_id
+                    WHERE a.accion_id=:id";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':id' => $accionId]);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'talento-humano', false);
+            return null;
+        }
+    }
+
+    public function listar(): array
+    {
+        try {
+            $audit=$this->db->prepare("EXEC dbo.sp_th_registrar_auditoria :usuario,'Accion de Personal','CONSULTAR_VISTA','Consulta de acciones desde Biblioteca',:ip");
+            $audit->execute([':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);
+            while($audit->nextRowset()){}
+            $stmt=$this->db->query("SELECT a.accion_id,a.numero_accion,a.fecha_elaboracion,a.tipo_accion,a.estado_documento,e.identificacion,e.nombres,e.apellidos FROM dbo.th_acciones_personal a JOIN dbo.th_empleados e ON e.empleado_id=a.empleado_id ORDER BY a.fecha_creacion DESC");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch(PDOException $e) {
+            Conexion::registrarErrorLog($e,'talento-humano',false);
+            return [];
+        }
+    }
+
+    public function auditarImpresion(int $id): void
+    {
+        try {
+            $stmt=$this->db->prepare("EXEC dbo.sp_th_registrar_auditoria :usuario,'Accion de Personal','IMPRIMIR',:detalle,:ip");
+            $stmt->execute([':usuario'=>Auth::username(),':detalle'=>"Impresión de Acción de Personal #{$id}.",':ip'=>Auth::clientIp()]);
+            while($stmt->nextRowset()){}
+        } catch(PDOException $e) {
+            Conexion::registrarErrorLog($e,'talento-humano',false);
+        }
+    }
+
+    public function aprobar(int $id): array
+    {
+        return $this->resolver('sp_th_aprobar_accion_personal', $id, null);
+    }
+
+    public function anular(int $id, string $motivo): array
+    {
+        return $this->resolver('sp_th_anular_accion_personal', $id, $motivo);
+    }
+
+    private function resolver(string $procedure, int $id, ?string $motivo): array
+    {
+        try {
+            $sql = $motivo === null
+                ? "EXEC dbo.{$procedure} :id,:usuario,:ip"
+                : "EXEC dbo.{$procedure} :id,:motivo,:usuario,:ip";
+            $params = [':id'=>$id,':usuario'=>Auth::username(),':ip'=>Auth::clientIp()];
+            if ($motivo !== null) {
+                $params[':motivo'] = $motivo;
+            }
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: ['exito'=>0,'mensaje'=>'Sin respuesta del servidor.'];
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e,'talento-humano',false);
+            return ['exito'=>0,'mensaje'=>'No fue posible resolver la accion.'];
         }
     }
 }

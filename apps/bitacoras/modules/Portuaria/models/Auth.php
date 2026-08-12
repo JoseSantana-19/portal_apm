@@ -243,22 +243,28 @@ class Auth
         }
     }
 
-    // ============ PERMISOS (semántica del origen sobre datos del portal) ============
+    // ============ PERMISOS (respaldados por fn_TienePermisoNodo real, id_modulo=13) ============
 
+    /**
+     * NO se retira pese a la migración a MOIS: PortRondaController::api()
+     * la usa como filtro de datos (¿ve todas las rondas o solo las
+     * propias?), no solo como gate de acceso — es lógica de negocio, no
+     * autorización, así que se queda con su implementación original.
+     */
     private static function areaKey(): string
     {
         $t = preg_replace('/\s+/', ' ', trim(self::departamento()));
         return mb_strtoupper($t, 'UTF-8');
     }
 
-    public static function isTecnologiaInformacion(): bool
+    private static function isTecnologiaInformacion(): bool
     {
         $k = self::areaKey();
         return $k === 'TECNOLOGIA DE LA INFORMACION'
             || str_contains($k, 'TECNOLOG');
     }
 
-    public static function isEdificioAdministrativo(): bool
+    private static function isEdificioAdministrativo(): bool
     {
         return str_contains(self::areaKey(), 'ADMINISTRATIV');
     }
@@ -270,77 +276,113 @@ class Auth
             || self::isEdificioAdministrativo();
     }
 
-    public static function isSeguridadOperativa(): bool
+    /**
+     * Consulta fn_TienePermisoNodo — id_modulo=13 fijo (Bitácoras Portuarias). Same-DB.
+     * require defensivo: las páginas legacy standalone (bit_dashboard_jefe.php
+     * y similares, fuera del router/autoloader de index.php) llegan hasta acá
+     * vía apm_can_*() sin haber cargado nunca core/Database.php -- a
+     * diferencia de hydrateFromPortal(), que solo corre en el camino MVC.
+     */
+    public static function tienePermisoNodo(int $opcion, int $items, int $subitems, int $nivelMin): bool
     {
-        return str_contains(self::areaKey(), 'SEGURIDAD');
+        $idUsuario = (int)($_SESSION['apm_auth']['id_usuario_portal'] ?? $_SESSION['user_id'] ?? 0);
+        if ($idUsuario <= 0) return false;
+        if (!class_exists('Database', false)) {
+            require_once dirname(__DIR__, 3) . '/core/Database.php';
+        }
+        try {
+            $db   = Database::getInstance();
+            $stmt = $db->query(
+                'SELECT dbo.fn_TienePermisoNodo(?,13,?,?,?,?,1) AS ok',
+                [$idUsuario, $opcion, $items, $subitems, $nivelMin]
+            );
+            $row = $db->fetch($stmt);
+            $db->free($stmt);
+            return (bool)($row['ok'] ?? false);
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
-    public static function isJefeArea(): bool
-    {
-        return self::nivel() >= 3 || self::isTecnologiaInformacion();
-    }
-
-    public static function isGerencia(): bool
-    {
-        if (self::nivel() >= 4) return true;
-        if (self::departamentoId() === (int)ID_DEPARTAMENTO_GERENCIA) return true;
-        return self::areaKey() === 'GERENCIA';
-    }
-
-    // --- Permisos funcionales (misma matriz del origen) ---
+    // --- Permisos funcionales (respaldados por fn_TienePermisoNodo real, id_modulo=13) ---
 
     public static function canAccederDashboardJefe(): bool
     {
-        $id = self::departamentoId();
-        if ($id === (int)ID_DEPARTAMENTO_ADMIN || $id === (int)ID_DEPARTAMENTO_GERENCIA) {
-            return true;
-        }
-        return self::isAdminArea() || self::isGerencia();
+        return self::tienePermisoNodo(2, 0, 0, 1);
     }
 
     public static function canRegistrarIngreso(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa() || self::nivel() >= 2;
+        return self::tienePermisoNodo(3, 0, 0, 2);
     }
 
     public static function canVerListadoAdmin(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa() || self::nivel() >= 2;
+        return self::tienePermisoNodo(4, 0, 0, 1);
     }
 
     public static function canRegistrarSalida(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa() || self::nivel() >= 2;
+        return self::tienePermisoNodo(4, 0, 0, 3);
     }
 
     public static function canEditarVisita(): bool
     {
-        return self::isAdminArea();
+        return self::tienePermisoNodo(4, 0, 0, 3);
     }
 
     public static function canGestionarMaestrosAcceso(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa();
+        return self::tienePermisoNodo(5, 0, 0, 1);
     }
 
     public static function canEditarVisitaDesdeListado(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa();
+        return self::tienePermisoNodo(4, 0, 0, 3);
     }
 
     public static function canAsignarCedulaGuest(): bool
     {
-        return self::isAdminArea();
+        return self::tienePermisoNodo(13, 0, 0, 1);
     }
 
     public static function canAccederBitacoraRondas(): bool
     {
-        return self::isAdminArea() || self::isSeguridadOperativa() || self::nivel() >= 2;
+        return self::tienePermisoNodo(6, 0, 0, 1);
+    }
+
+    public static function canAccederCctv(): bool
+    {
+        return self::tienePermisoNodo(7, 0, 0, 1);
     }
 
     public static function canConfigurarDiasBitacora(): bool
     {
-        return self::isAdminArea() || self::isJefeArea();
+        return self::tienePermisoNodo(10, 0, 0, 1);
+    }
+
+    /** Cierra hueco real: hoy PortCatalogoController::api() (POST) no chequea nada. */
+    public static function canGestionarCatalogosEscritura(int $nivelMin = 2): bool
+    {
+        return self::tienePermisoNodo(11, 0, 0, $nivelMin);
+    }
+
+    /** Cierra hueco real: hoy PortCatalogoController::apiPersonas() (POST) no chequea nada. */
+    public static function canGestionarPersonasEscritura(): bool
+    {
+        return self::tienePermisoNodo(12, 0, 0, 2);
+    }
+
+    /** Cierra hueco real: hoy bit_reporte_diario_supervisor.php no chequea nada. */
+    public static function canAccederReporteSupervisor(): bool
+    {
+        return self::tienePermisoNodo(8, 0, 0, 1);
+    }
+
+    /** Cierra hueco real: hoy PortCatalogoController::importarFuncionarios() no chequea nada. */
+    public static function canImportarFuncionarios(): bool
+    {
+        return self::tienePermisoNodo(9, 0, 0, 1);
     }
 
     // ============ UTILIDADES ============

@@ -50,8 +50,8 @@ class Router
             }
 
             // Servir archivos estáticos reales (css, js, img, etc.)
-            if (is_file(ROOT . $uri)) {
-                return false; // php -S lo sirve automáticamente cuando retornamos false
+            if (is_file(ROOT . $uri) && str_starts_with(ltrim($uri,'/'),'public/')) {
+                return false; // php -S sirve únicamente recursos del directorio público
             }
 
             $url = trim($uri, '/');

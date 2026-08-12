@@ -88,9 +88,16 @@ $nivelDescs  = [
                         </div>
 
                         <div class="form-group" style="grid-column:1/-1;">
-                            <label class="form-label">Nombre del Rol *</label>
+                            <label class="form-label">Nombre del Rol * <span style="color:var(--color-text-muted);font-weight:normal;">(cargo real de Talento Humano)</span></label>
                             <input type="text" name="nombre" class="form-control" required maxlength="100"
-                                   value="<?= $v('nombre') ?>" placeholder="Ej: Administrador de Talento Humano">
+                                   list="puestos-th" autocomplete="off"
+                                   value="<?= $v('nombre') ?>" placeholder="Empezá a escribir para buscar un cargo…">
+                            <datalist id="puestos-th">
+                                <?php foreach ($puestos as $p): ?>
+                                <option value="<?= htmlspecialchars($p['nombre_puesto'], ENT_QUOTES, 'UTF-8') ?>">
+                                <?php endforeach; ?>
+                            </datalist>
+                            <span class="form-help">El nombre se toma del catálogo de cargos de Talento Humano — no se admite texto libre.</span>
                         </div>
 
                         <div class="form-group" style="grid-column:1/-1;margin-bottom:0;">

@@ -3,6 +3,8 @@ $e = $empleado ?? [];  // alias corto
 $modo = $modoEdicion ? 'EDICION' : 'CREACION';
 $tituloForm = $modoEdicion ? 'Modificar expediente' : 'Registrar nuevo funcionario';
 $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
+$nacSeleccionadas = $nacionalidadesEmpleado ?? [];
+$catalogoNacionalidades = $nacionalidades ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -11,13 +13,7 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $modoEdicion ? 'Editar funcionario' : 'Nuevo funcionario' ?> | Talento Humano APM</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
 </head>
 
 <body>
@@ -31,80 +27,53 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
         <?php require_once ROOT . '/shared/menu.php'; ?>
 
         <section class="content">
-            <header class="topbar">
-                <div class="topbar-left">
-                    <div class="brand">
-                        <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                        <div>
-                            <h1>Autoridad Portuaria de Manta</h1>
-                            <p>Modulo Talento Humano</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="topbar-actions">
-                    <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                    <a href="<?= BASE_URL ?>/talento-humano" class="btn btn-ghost">
-                        <i class="bi bi-arrow-left"></i> Volver al directorio
-                    </a>
-                </div>
-            </header>
+            <?php
+            $topbarShowSearch=false;
+            $topbarBackUrl=BASE_URL.'/talento-humano/directorio';
+            $topbarBackLabel='Volver al directorio';
+            require ROOT.'/shared/topbar.php';
+            ?>
 
             <main class="main">
                 <div class="content-shell">
                     <section class="card form-card">
                         <!-- BARRA DE PESTAÑAS -->
-                        <div class="form-tabs-nav" role="tablist">
-                            <button class="tab-btn active" id="tab-personal" onclick="switchTab('personal')" role="tab"
-                                aria-selected="true">
-                                <i class="bi bi-person-vcard"></i> Personal <span class="tab-badge">1</span>
-                            </button>
-                            <button class="tab-btn" id="tab-laboral" onclick="switchTab('laboral')" role="tab"
-                                aria-selected="false">
-                                <i class="bi bi-briefcase"></i> Laboral <span class="tab-badge">2</span>
-                            </button>
-                            <button class="tab-btn" id="tab-contacto" onclick="switchTab('contacto')" role="tab"
-                                aria-selected="false">
-                                <i class="bi bi-geo-alt"></i> Contacto <span class="tab-badge">3</span>
-                            </button>
-                            <button class="tab-btn" id="tab-formacion" onclick="switchTab('formacion')" role="tab"
-                                aria-selected="false">
-                                <i class="bi bi-mortarboard"></i> Formaci&oacute;n <span class="tab-badge">4</span>
-                            </button>
-                            <button class="tab-btn" id="tab-obs" onclick="switchTab('obs')" role="tab"
-                                aria-selected="false">
-                                <i class="bi bi-chat-left-text"></i> Notas <span class="tab-badge">5</span>
-                            </button>
-                        </div>
-
                         <div class="card-header form-header">
                             <div>
+                                <span class="form-header-kicker">Expediente institucional</span>
                                 <h3><i class="bi <?= $iconoForm ?>"></i> <?= $tituloForm ?></h3>
-                                <p>Complete, edite y valide el expediente del servidor publico.</p>
+                                <p>Complete, edite y valide la información del servidor público.</p>
                             </div>
                             <span class="badge <?= $modoEdicion ? 'badge-edit' : 'badge-create' ?>">MODO:
                                 <?= $modo ?></span>
                         </div>
 
-                        <!-- 🛠️ BANNER MODO SIMULACIÓN -->
-                        <?php if (!$modoEdicion): ?>
-                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
-                                    background:linear-gradient(135deg,rgba(16,180,199,.1),rgba(99,102,241,.08));
-                                    border:1px solid rgba(16,180,199,.3); border-radius:12px;
-                                    padding:14px 18px; margin:0 20px 0;">
-                            <div style="font-size:.85rem; color:var(--navy-900);">
-                                <i class="bi bi-info-circle-fill" style="color:var(--teal-500);"></i>
-                                <strong>Modo Prototipo:</strong> Complete el formulario o utilice datos simulados para probar la validación y los campos dinámicos.
-                            </div>
-                            <button type="button" class="btn btn-outline" id="btn-autocompletar-form"
-                                    onclick="simularFormularioPrincipal()"
-                                    style="font-size:.82rem; padding:8px 16px;">
-                                <i class="bi bi-magic"></i> Autocompletar Formulario
+                        <div class="form-tabs-nav" role="tablist" aria-label="Secciones del expediente">
+                            <button type="button" class="tab-btn active" id="tab-personal" onclick="switchTab('personal')" role="tab"
+                                aria-selected="true" aria-controls="panel-personal" tabindex="0">
+                                <i class="bi bi-person-vcard"></i> Personal <span class="tab-badge">1</span>
+                            </button>
+                            <button type="button" class="tab-btn" id="tab-laboral" onclick="switchTab('laboral')" role="tab"
+                                aria-selected="false" aria-controls="panel-laboral" tabindex="-1">
+                                <i class="bi bi-briefcase"></i> Laboral <span class="tab-badge">2</span>
+                            </button>
+                            <button type="button" class="tab-btn" id="tab-contacto" onclick="switchTab('contacto')" role="tab"
+                                aria-selected="false" aria-controls="panel-contacto" tabindex="-1">
+                                <i class="bi bi-geo-alt"></i> Contacto <span class="tab-badge">3</span>
+                            </button>
+                            <button type="button" class="tab-btn" id="tab-formacion" onclick="switchTab('formacion')" role="tab"
+                                aria-selected="false" aria-controls="panel-formacion" tabindex="-1">
+                                <i class="bi bi-mortarboard"></i> Formaci&oacute;n <span class="tab-badge">4</span>
+                            </button>
+                            <button type="button" class="tab-btn" id="tab-obs" onclick="switchTab('obs')" role="tab"
+                                aria-selected="false" aria-controls="panel-obs" tabindex="-1">
+                                <i class="bi bi-chat-left-text"></i> Notas <span class="tab-badge">5</span>
                             </button>
                         </div>
-                        <?php endif; ?>
 
-                        <form method="POST" action="<?= BASE_URL ?>/talento-humano/empleado/guardar" enctype="multipart/form-data">
-                            <input type="hidden" name="empId" value="<?= htmlspecialchars($e['id'] ?? '') ?>">
+                        <form id="empleadoForm" method="POST" action="<?= BASE_URL ?>/talento-humano/empleado/guardar" enctype="multipart/form-data">
+                            <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
+                            <input type="hidden" name="empId" value="<?= htmlspecialchars($e['empleado_id'] ?? $e['id'] ?? '') ?>">
 
                             <!-- ── TAB 1: PERSONAL ── -->
                             <div class="form-tab-panel active" id="panel-personal" role="tabpanel">
@@ -153,17 +122,22 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                                 value="<?= htmlspecialchars($e['cedula'] ?? '') ?>"
                                                 placeholder="Ej: 1308126646">
                                         </div>
-                                        <div class="field span-4">
-                                            <label for="nombres">Apellidos y nombres completos <span
-                                                    class="required">*</span></label>
+                                        <div class="field span-2">
+                                            <label for="apellidos">Apellidos <span class="required">*</span></label>
+                                            <input type="text" id="apellidos" name="apellidos" required
+                                                value="<?= htmlspecialchars($e['apellidos'] ?? '') ?>"
+                                                placeholder="Ej: PEREZ ZAMBRANO" autocomplete="family-name">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="nombres">Nombres <span class="required">*</span></label>
                                             <input type="text" id="nombres" name="nombres" required
                                                 value="<?= htmlspecialchars($e['nombres'] ?? '') ?>"
-                                                placeholder="Ej: PEREZ ZAMBRANO JUAN CARLOS">
+                                                placeholder="Ej: JUAN CARLOS" autocomplete="given-name">
                                         </div>
                                         <div class="field span-2">
                                             <label for="fecha_nac">Fecha de nacimiento</label>
                                             <input type="date" id="fecha_nac" name="fecha_nac"
-                                                value="<?= htmlspecialchars($e['fecha_nac'] ?? '') ?>"
+                                                value="<?= htmlspecialchars($e['fecha_nacimiento'] ?? $e['fecha_nac'] ?? '') ?>"
                                                 onchange="evaluarDiscapacidad()">
                                         </div>
                                         <div class="field span-2">
@@ -216,22 +190,27 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                             </select>
                                         </div>
                                         <div class="field span-2">
-                                            <label for="nacionalidad">Nacionalidad</label>
+                                            <label style="display:flex;align-items:center;gap:7px">Nacionalidad
+                                                <button type="button" onclick="agregarNacionalidad()" title="Agregar nacionalidad adicional" aria-label="Agregar nacionalidad adicional" style="width:25px;height:25px;border-radius:50%;border:1px solid var(--teal-500);background:#fff;color:var(--teal-500);display:grid;place-items:center;cursor:pointer"><i class="bi bi-plus-lg"></i></button>
+                                            </label>
+                                            <input type="hidden" id="nacionalidadPrincipal" name="nacionalidad" value="<?= htmlspecialchars($e['nacionalidad'] ?? '') ?>">
+                                            <datalist id="listaNacionalidades">
+                                                <?php foreach($catalogoNacionalidades as $n): ?>
+                                                    <option value="<?= htmlspecialchars($n['nombre']) ?>" data-id="<?= (int)$n['nacionalidad_id'] ?>"><?= htmlspecialchars($n['pais']) ?></option>
+                                                    <?php if(($n['codigo_iso']??'')==='EC'): ?><option value="Ecuatoriano" data-id="<?= (int)$n['nacionalidad_id'] ?>">Ecuador - Ecuatoriana</option><?php endif; ?>
+                                                <?php endforeach; ?>
+                                            </datalist>
                                             <div id="contenedorNacionalidades">
-                                                <div class="input-group-nac" style="display:flex; gap:8px; margin-bottom:6px;">
-                                                    <input type="text" id="nacionalidad" name="nacionalidad"
-                                                           value="<?= htmlspecialchars($e['nacionalidad'] ?? '') ?>"
-                                                           class="inputs-nacionalidad"
-                                                           placeholder="Ej: Ecuatoriana" style="flex:1;">
+                                                <?php $filasNac=$nacSeleccionadas ?: [['nacionalidad_id'=>'','nombre'=>$e['nacionalidad']??'']]; foreach($filasNac as $idx=>$nac): ?>
+                                                <div class="input-group-nac" style="display:flex;gap:6px;margin-bottom:6px">
+                                                    <input type="text" list="listaNacionalidades" class="inputs-nacionalidad" value="<?= htmlspecialchars($nac['nombre']??'') ?>" placeholder="Escriba o despliegue nacionalidades" autocomplete="off" style="flex:1" oninput="sincronizarNacionalidad(this)">
+                                                    <input type="hidden" name="nacionalidad_ids[]" value="<?= (int)($nac['nacionalidad_id']??0) ?>">
+                                                    <button type="button" onclick="abrirNacionalidades(this)" title="Ver nacionalidades" style="width:38px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer"><i class="bi bi-chevron-down"></i></button>
+                                                    <?php if($idx>0): ?><button type="button" onclick="this.parentElement.remove()" title="Eliminar" style="width:38px;border:1px solid #ef4444;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer"><i class="bi bi-trash"></i></button><?php endif; ?>
                                                 </div>
+                                                <?php endforeach; ?>
                                             </div>
-                                            <button type="button" onclick="agregarNacionalidad()"
-                                                    style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px;
-                                                           background:none; border:1px dashed var(--teal-500); color:var(--teal-500);
-                                                           border-radius:8px; font-size:.78rem; font-weight:600; cursor:pointer;
-                                                           margin-top:4px;">
-                                                <i class="bi bi-plus-circle"></i> Agregar nacionalidad
-                                            </button>
+                                            <small>Puede buscar por país o gentilicio, con texto completo o parcial.</small>
                                         </div>
                                         <div class="field span-2">
                                             <label for="sangre">Tipo de sangre</label>
@@ -253,24 +232,31 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                     </legend>
                                     <div class="form-grid">
                                         <div class="field span-3">
-                                            <label for="unidad_id">Departamento / Dirección <span
-                                                    class="required">*</span></label>
+                                            <div class="label-with-action">
+                                                <label for="unidad_id">Departamento / Dirección <span class="required">*</span></label>
+                                                <?php if(Auth::can('maestros','crear')): ?><button type="button" class="quick-add-button" onclick="abrirCatalogoRapido('unidad')" title="Crear dirección o departamento" aria-label="Crear dirección o departamento"><i class="bi bi-plus-lg"></i></button><?php endif; ?>
+                                            </div>
                                             <select id="unidad_id" name="unidad_id" required>
                                                 <option value="">Seleccione dirección...</option>
                                                 <?php
                                                 $areasDisp = $areas ?? [];
                                                 foreach ($areasDisp as $area):
                                                     $selArea = ((string)($e['unidad_id'] ?? '') === (string)$area['unidad_id']) ? 'selected' : '';
+                                                    $areaNombre = trim((string)($area['nombre_unidad'] ?? ''));
+                                                    $areaPadre = trim((string)($area['direccion_padre'] ?? ''));
+                                                    $areaEtiqueta = $areaPadre !== '' ? $areaPadre.' / '.$areaNombre : $areaNombre;
                                                 ?>
                                                     <option value="<?= htmlspecialchars($area['unidad_id']) ?>" <?= $selArea ?>>
-                                                        <?= htmlspecialchars($area['nombre_unidad']) ?>
+                                                        <?= htmlspecialchars($areaEtiqueta) ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
                                         </div>
                                         <div class="field span-3">
-                                            <label for="puesto_id">Cargo / Puesto <span
-                                                    class="required">*</span></label>
+                                            <div class="label-with-action">
+                                                <label for="puesto_id">Cargo / Puesto <span class="required">*</span></label>
+                                                <?php if(Auth::can('maestros','crear')): ?><button type="button" class="quick-add-button" onclick="abrirCatalogoRapido('puesto')" title="Crear cargo o puesto" aria-label="Crear cargo o puesto"><i class="bi bi-plus-lg"></i></button><?php endif; ?>
+                                            </div>
                                             <select id="puesto_id" name="puesto_id" required>
                                                 <option value="">Seleccione cargo...</option>
                                                 <?php
@@ -278,7 +264,7 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                                 foreach ($cargosDisp as $puesto):
                                                     $selPuesto = ((string)($e['puesto_id'] ?? '') === (string)$puesto['puesto_id']) ? 'selected' : '';
                                                 ?>
-                                                    <option value="<?= htmlspecialchars($puesto['puesto_id']) ?>" <?= $selPuesto ?>>
+                                                    <option value="<?= htmlspecialchars($puesto['puesto_id']) ?>" data-rmu="<?= htmlspecialchars((string)($puesto['remuneracion_unificada'] ?? 0)) ?>" <?= $selPuesto ?>>
                                                         <?= htmlspecialchars($puesto['nombre_puesto']) ?>
                                                     </option>
                                                 <?php endforeach; ?>
@@ -303,21 +289,12 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                                 value="<?= htmlspecialchars($e['sueldo'] ?? '') ?>" placeholder="0.00">
                                         </div>
                                         <div class="field span-3">
-                                            <label for="ciudad_residencia">Ciudad de Residencia <span
-                                                    class="required">*</span></label>
-                                            <input type="text" id="ciudad_residencia" name="ciudad_residencia" required
-                                                value="<?= htmlspecialchars($e['ciudad_residencia'] ?? '') ?>"
-                                                placeholder="Ej: Manta">
+                                            <label for="estado_laboral_lectura">Estado del funcionario</label>
+                                            <input id="estado_laboral_lectura" type="text" readonly
+                                                value="<?= (int)($e['estado'] ?? 1) === 1 ? 'Activo / En funciones' : 'Inactivo / Desvinculado' ?>">
+                                            <small>El estado se modifica únicamente mediante alta, baja, reingreso o Acción de Personal.</small>
                                         </div>
-                                        <div class="field span-2">
-                                            <label for="estado">Estado del funcionario</label>
-                                            <select id="estado" name="estado">
-                                                <?php foreach (['Activo' => 'Activo / En funciones', 'Permiso' => 'Licencia / Vacaciones', 'Inactivo' => 'Inactivo / Desvinculado'] as $val => $label): ?>
-                                                    <option value="<?= $val ?>" <?= ($e['estado'] ?? 'Activo') === $val ? 'selected' : '' ?>><?= $label ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                        <div class="field span-2">
+                                        <div class="field span-3">
                                             <label for="jornada">Jornada</label>
                                             <select id="jornada" name="jornada">
                                                 <?php foreach (['Completa', 'Parcial', 'Rotativa'] as $j): ?>
@@ -335,13 +312,19 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
                                     <legend class="section-title"><i class="bi bi-geo-alt"></i> Contacto y emergencias
                                     </legend>
                                     <div class="form-grid">
-                                        <div class="field span-3">
+                                        <div class="field span-2">
+                                            <label for="ciudad_residencia">Ciudad de residencia <span class="required">*</span></label>
+                                            <input type="text" id="ciudad_residencia" name="ciudad_residencia" required
+                                                value="<?= htmlspecialchars($e['ciudad_residencia'] ?? '') ?>"
+                                                placeholder="Ej: Manta">
+                                        </div>
+                                        <div class="field span-2">
                                             <label for="correo">Correo institucional</label>
                                             <input type="email" id="correo" name="correo"
                                                 value="<?= htmlspecialchars($e['correo'] ?? '') ?>"
                                                 placeholder="usuario@puertodemanta.gob.ec">
                                         </div>
-                                        <div class="field span-3">
+                                        <div class="field span-2">
                                             <label for="telefono">Telefono movil</label>
                                             <input type="tel" id="telefono" name="telefono"
                                                 value="<?= htmlspecialchars($e['telefono'] ?? '') ?>"
@@ -467,11 +450,16 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
         </section>
     </div>
 
-    <div id="toastContainer" class="toast-container"></div>
+    <?php if (Auth::can('maestros', 'crear')):
+        $catalogoRapidoConfig = [
+            'areas' => $areas ?? [],
+            'unidadSelectId' => 'unidad_id',
+            'puestoSelectId' => 'puesto_id',
+            'rmuTargetId' => 'sueldo',
+        ];
+        require ROOT.'/shared/catalogo_rapido.php';
+    endif; ?>
 
-    <script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-    <script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
     <script>
         /* Inicializar estado del bloque discapacidad al cargar en modo edición */
         window.addEventListener('DOMContentLoaded', () => {
@@ -507,80 +495,43 @@ $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
             showToast?.('Imagen lista. Guarde el formulario para confirmar.', 'info');
         }
 
-        /* ── MOCK DATA SIMULATION ─────────────────────────────────────────── */
-        const mockDataFuncionario = {
-            cedula:           '1308126646',
-            nombres:          'PEREZ ZAMBRANO JUAN CARLOS',
-            fecha_nac:        '1985-10-15',
-            condicion_especial: 'Ninguna',
-            genero:           'Masculino',
-            estado_civil:     'Casado/a',
-            sangre:           'O+',
-            nacionalidades:   ['Ecuatoriana', 'Española']  // Doble nacionalidad
-        };
-
-        function simularFormularioPrincipal() {
-            // Ir a la pestaña Personal primero
-            switchTab('personal');
-
-            // Campos de texto
-            const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-            set('cedula',  mockDataFuncionario.cedula);
-            set('nombres', mockDataFuncionario.nombres);
-            set('fecha_nac', mockDataFuncionario.fecha_nac);
-
-            // Dropdowns
-            set('condicion_especial', mockDataFuncionario.condicion_especial);
-            set('genero',             mockDataFuncionario.genero);
-            set('estado_civil',       mockDataFuncionario.estado_civil);
-            set('sangre',             mockDataFuncionario.sangre);
-
-            // Disparar cálculo de condición especial
-            evaluarDiscapacidad?.();
-
-            // Lógica dinámica para múltiple nacionalidad
-            const contenedor = document.getElementById('contenedorNacionalidades');
-            if (contenedor) {
-                // Limpiar dejando solo el primer input
-                contenedor.innerHTML = `
-                    <div class="input-group-nac" style="display:flex; gap:8px; margin-bottom:6px;">
-                        <input type="text" name="nacionalidad" class="inputs-nacionalidad"
-                               placeholder="Ej: Ecuatoriana" style="flex:1;">
-                    </div>`;
-
-                mockDataFuncionario.nacionalidades.forEach((nac, i) => {
-                    if (i === 0) {
-                        contenedor.querySelector('.inputs-nacionalidad').value = nac;
-                    } else {
-                        agregarNacionalidad();
-                        const inputs = contenedor.querySelectorAll('.inputs-nacionalidad');
-                        inputs[inputs.length - 1].value = nac;
-                    }
-                });
-            } else {
-                // Fallback: campo simple
-                set('nacionalidad', mockDataFuncionario.nacionalidades[0]);
-            }
-
-            showToast?.('✅ Datos de prueba cargados. Verifique los campos de doble nacionalidad.', 'success');
-        }
-
         function agregarNacionalidad() {
             const contenedor = document.getElementById('contenedorNacionalidades');
             if (!contenedor) return;
             const div = document.createElement('div');
             div.className = 'input-group-nac';
-            div.style.cssText = 'display:flex; gap:8px; margin-bottom:6px;';
+            div.style.cssText = 'display:flex; gap:6px; margin-bottom:6px;';
             div.innerHTML = `
-                <input type="text" name="nacionalidad" class="inputs-nacionalidad"
-                       placeholder="Ej: Española, Italiana..." style="flex:1;">
-                <button type="button" onclick="this.parentElement.remove()" title="Eliminar"
-                        style="padding:6px 10px; background:none; border:1px solid #ef4444;
-                               color:#ef4444; border-radius:8px; cursor:pointer;">
+                <input type="text" list="listaNacionalidades" class="inputs-nacionalidad" placeholder="Escriba o despliegue nacionalidades" autocomplete="off" style="flex:1" oninput="sincronizarNacionalidad(this)">
+                <input type="hidden" name="nacionalidad_ids[]" value="0">
+                <button type="button" onclick="abrirNacionalidades(this)" title="Ver nacionalidades" style="width:38px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer"><i class="bi bi-chevron-down"></i></button>
+                <button type="button" onclick="this.parentElement.remove()" title="Eliminar" style="width:38px;background:#fff;border:1px solid #ef4444;color:#ef4444;border-radius:8px;cursor:pointer">
                     <i class="bi bi-trash"></i>
                 </button>`;
             contenedor.appendChild(div);
+            div.querySelector('input[list]').focus();
         }
+
+        function sincronizarNacionalidad(input) {
+            const normaliza=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').trim();
+            const option=[...document.querySelectorAll('#listaNacionalidades option')].find(o=>normaliza(o.value)===normaliza(input.value));
+            input.parentElement.querySelector('input[type="hidden"]').value=option?.dataset.id||'0';
+        }
+
+        function abrirNacionalidades(button) {
+            const input=button.parentElement.querySelector('input[list]');input.focus();
+            if(typeof input.showPicker==='function') input.showPicker();
+        }
+
+        document.getElementById('empleadoForm')?.addEventListener('submit',event=>{
+            const filas=[...document.querySelectorAll('#contenedorNacionalidades .input-group-nac')];
+            for(const fila of filas){
+                const texto=fila.querySelector('input[list]').value.trim();
+                const id=parseInt(fila.querySelector('input[type="hidden"]').value||'0',10);
+                if(texto!==''&&!id){event.preventDefault();showToast?.('Seleccione cada nacionalidad desde la lista desplegable.','error');return;}
+            }
+            document.getElementById('nacionalidadPrincipal').value=filas[0]?.querySelector('input[list]')?.value?.trim()||'';
+        });
     </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>

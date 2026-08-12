@@ -6,13 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial Laboral | Talento Humano APM</title>
     <meta name="description" content="Historial laboral cronológico del funcionario con trazabilidad de fusiones organizacionales — Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Línea de tiempo del historial ─────────────────────────────── */
         .historial-header {
@@ -195,32 +189,7 @@
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <!-- TOPBAR -->
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Modulo Talento Humano — Historial Laboral</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip">
-                    <i class="bi bi-calendar-event"></i>
-                    <span id="currentDate">--</span>
-                </div>
-                <button class="icon-btn notify" title="Notificaciones">
-                    <i class="bi bi-bell"></i>
-                    <span class="notify-dot"></span>
-                </button>
-                <div class="user-pill">
-                    <span>Usuario Talento Humano</span>
-                    <small>APM</small>
-                </div>
-            </div>
-        </header>
+        <?php $topbarSubtitle='Talento Humano — Historial Laboral';$topbarShowSearch=true;require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -245,7 +214,6 @@
                         <div>
                             <h3><i class="bi bi-clock-history"></i> Filtrar historial por cargo</h3>
                             <p style="margin:0;font-size:.83rem;color:var(--text-muted);">
-                                Ej: "DIRECTOR", "GERENTE", "ANALISTA" — búsqueda segura anti-SQLi
                             </p>
                         </div>
 
@@ -414,7 +382,6 @@
     </section>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
 
 <?php if (!empty($_GET['msg'])): ?>
 <script>
@@ -424,8 +391,6 @@
 </script>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script>
 /* Fecha en el topbar */
 document.addEventListener('DOMContentLoaded', () => {

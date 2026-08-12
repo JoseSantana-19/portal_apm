@@ -31,6 +31,9 @@ class EmpleadoController extends Controller
     /** GET /talento-humano/directorio – Vista de listado de funcionarios */
     public function directorio(): void
     {
+        if (($_GET['modo'] ?? '') === 'movimiento') {
+            Auth::requirePermission('movimientos', 'visualizar');
+        }
         $datos = [
             'empleados'   => $this->modelo->listarDirectorio(),
             'rbu_vigente' => $this->modelo->obtenerRbuVigente(),
@@ -48,6 +51,8 @@ class EmpleadoController extends Controller
             'modoEdicion'  => false,
             'areas'        => $this->modelo->listarAreas(),
             'cargos'       => $this->modelo->listarCargos(),
+            'nacionalidades' => $this->modelo->listarNacionalidades(),
+            'nacionalidadesEmpleado' => [],
         ];
         $this->cargarVista('talento-humano', 'formulario', $datos);
     }
@@ -70,6 +75,8 @@ class EmpleadoController extends Controller
             'modoEdicion'  => true,
             'areas'        => $this->modelo->listarAreas(),
             'cargos'       => $this->modelo->listarCargos(),
+            'nacionalidades' => $this->modelo->listarNacionalidades(),
+            'nacionalidadesEmpleado' => $this->modelo->obtenerNacionalidadesEmpleado($id),
         ];
         $this->cargarVista('talento-humano', 'formulario', $datos);
     }
@@ -82,13 +89,39 @@ class EmpleadoController extends Controller
             exit;
         }
 
-        // ── Procesar foto subida ──────────────────────────────────────────
-        $_POST['ruta_foto'] = $this->_procesarFoto($_POST['empId'] ?? null);
+        Auth::requireCsrf($_POST['_csrf'] ?? null);
+        if (!$this->normalizarNombres($_POST)) {
+            header('Location: ' . BASE_URL . '/talento-humano/empleado/crear?msg=' . urlencode('Ingrese nombres y apellidos completos.') . '&ok=0');
+            exit;
+        }
+        if (($errorValidacion=$this->validarEmpleado($_POST)) !== null) {
+            $destino=!empty($_POST['empId'])?'/talento-humano/empleado/editar?id='.(int)$_POST['empId']:'/talento-humano/empleado/crear';
+            $sep=str_contains($destino,'?')?'&':'?';
+            header('Location: '.BASE_URL.$destino.$sep.'msg='.urlencode($errorValidacion).'&ok=0');
+            exit;
+        }
 
+        // ── Procesar foto subida ──────────────────────────────────────────
         $id    = !empty($_POST['empId']) ? (int)$_POST['empId'] : null;
-        $exito = $id
-            ? $this->modelo->modificar($id, $_POST)
-            : $this->modelo->insertar($_POST);
+        $empleadoAnterior = $id ? $this->modelo->obtenerPorId($id) : null;
+        $rutaAnterior = (string)($empleadoAnterior['ruta_foto'] ?? 'public/img/default_avatar.png');
+        $_POST['ruta_foto'] = $this->_procesarFoto($id ? (string)$id : null);
+        $rutaNueva = (string)$_POST['ruta_foto'];
+
+        try {
+            $exito = $id
+                ? $this->modelo->modificar($id, $_POST)
+                : $this->modelo->insertar($_POST);
+        } catch (Throwable $e) {
+            error_log('[EmpleadoController::guardar] ' . $e->getMessage());
+            $exito = false;
+        }
+
+        if ($exito && $id && $rutaNueva !== $rutaAnterior) {
+            $this->eliminarFotoGestionada($rutaAnterior);
+        } elseif (!$exito && $rutaNueva !== $rutaAnterior) {
+            $this->eliminarFotoGestionada($rutaNueva);
+        }
 
         $msg = $exito
             ? ($id ? 'Expediente actualizado correctamente.' : 'Funcionario registrado con éxito.')
@@ -106,20 +139,66 @@ class EmpleadoController extends Controller
      * @param  string|null $empId  ID del empleado (vacío en creación)
      * @return string  Ruta relativa lista para guardar, o ruta por defecto
      */
+    private function normalizarNombres(array &$data): bool
+    {
+        $apellidos = trim((string)($data['apellidos'] ?? ''));
+        $nombres = trim((string)($data['nombres'] ?? ''));
+        if ($apellidos !== '' && $nombres !== '') {
+            $data['apellidos'] = preg_replace('/\s+/u', ' ', $apellidos);
+            $data['nombres'] = preg_replace('/\s+/u', ' ', $nombres);
+            return true;
+        }
+
+        $completo = trim((string)($data['nombre_completo'] ?? $nombres));
+        $partes = preg_split('/\s+/u', $completo, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (count($partes) < 2) {
+            return false;
+        }
+        $cantidadApellidos = count($partes) >= 3 ? 2 : 1;
+        $data['apellidos'] = implode(' ', array_slice($partes, 0, $cantidadApellidos));
+        $data['nombres'] = implode(' ', array_slice($partes, $cantidadApellidos));
+        return $data['nombres'] !== '';
+    }
+
+    private function validarEmpleado(array $data): ?string
+    {
+        $cedula=trim((string)($data['cedula']??''));
+        if(!preg_match('/^[0-9A-Za-z]{10,15}$/',$cedula))return 'La identificación debe contener entre 10 y 15 caracteres alfanuméricos.';
+        foreach(['apellidos'=>'apellidos','nombres'=>'nombres'] as $campo=>$etiqueta){
+            $valor=trim((string)($data[$campo]??''));
+            if(mb_strlen($valor)<2||!preg_match("/^[\\p{L} .'-]+$/u",$valor))return "Revise el campo {$etiqueta}.";
+        }
+        foreach(['fecha_nac'=>'fecha de nacimiento','fecha_ingreso'=>'fecha de ingreso'] as $campo=>$etiqueta){
+            if(empty($data[$campo]))continue;$fecha=DateTimeImmutable::createFromFormat('Y-m-d',(string)$data[$campo]);
+            if(!$fecha||$fecha->format('Y-m-d')!==$data[$campo]||$fecha>new DateTimeImmutable('today'))return "La {$etiqueta} no es válida.";
+        }
+        if(!empty($data['correo'])&&!filter_var($data['correo'],FILTER_VALIDATE_EMAIL))return 'El correo institucional no es válido.';
+        if((int)($data['unidad_id']??0)<=0||(int)($data['puesto_id']??0)<=0)return 'Debe seleccionar un área y un cargo vigentes.';
+        if(isset($data['sueldo'])&&(float)$data['sueldo']<0)return 'La remuneración no puede ser negativa.';
+        $porcentaje=(float)($data['porcentaje_discapacidad']??0);if($porcentaje<0||$porcentaje>100)return 'El porcentaje de discapacidad debe estar entre 0 y 100.';
+        if(!empty($_FILES['foto']['name'])){
+            if(($_FILES['foto']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)return 'No fue posible recibir la fotografía.';
+            if((int)($_FILES['foto']['size']??0)>2*1024*1024)return 'La fotografía supera el límite de 2 MB.';
+            $mime=mime_content_type((string)$_FILES['foto']['tmp_name']);if(!in_array($mime,['image/jpeg','image/png','image/webp'],true))return 'La fotografía debe ser JPG, PNG o WEBP.';
+        }
+        return null;
+    }
+
     private function _procesarFoto(?string $empId): string
     {
         $rutaDefault = 'public/img/default_avatar.png';
+        $rutaAnterior = $rutaDefault;
+
+        if (!empty($empId)) {
+            $actual = $this->modelo->obtenerPorId((int)$empId);
+            if ($actual && !empty($actual['ruta_foto'])) {
+                $rutaAnterior = (string)$actual['ruta_foto'];
+            }
+        }
 
         // Sin archivo subido
         if (empty($_FILES['foto']['tmp_name'])) {
-            // En edición: conservar la foto que ya tiene el empleado
-            if (!empty($empId)) {
-                $actual = $this->modelo->obtenerPorId((int)$empId);
-                if ($actual && !empty($actual['ruta_foto'])) {
-                    return $actual['ruta_foto'];
-                }
-            }
-            return $rutaDefault;
+            return $rutaAnterior;
         }
 
         $tmp   = $_FILES['foto']['tmp_name'];
@@ -127,15 +206,15 @@ class EmpleadoController extends Controller
         $size  = $_FILES['foto']['size'];
         $error = $_FILES['foto']['error'];
 
-        if ($error !== UPLOAD_ERR_OK) return $rutaDefault;
+        if ($error !== UPLOAD_ERR_OK) return $rutaAnterior;
 
         // Validar tamaño: máx 2 MB
-        if ($size > 2 * 1024 * 1024) return $rutaDefault;
+        if ($size > 2 * 1024 * 1024) return $rutaAnterior;
 
         // Validar tipo MIME real (no solo extensión)
         $mime = mime_content_type($tmp);
         $tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
-        if (!in_array($mime, $tiposPermitidos, true)) return $rutaDefault;
+        if (!in_array($mime, $tiposPermitidos, true)) return $rutaAnterior;
 
         // Determinar extensión segura
         $ext = match ($mime) {
@@ -155,19 +234,45 @@ class EmpleadoController extends Controller
         }
 
         if (!move_uploaded_file($tmp, $rutaDestino)) {
-            return $rutaDefault;
+            return $rutaAnterior;
         }
 
         return 'public/img/empleados/' . $nombreArchivo;
     }
 
+    /** Elimina únicamente fotografías administradas por el portal. */
+    private function eliminarFotoGestionada(string $rutaRelativa): void
+    {
+        $rutaNormalizada = str_replace('\\', '/', $rutaRelativa);
+        if (!str_starts_with($rutaNormalizada, 'public/img/empleados/')) {
+            return;
+        }
+
+        $directorio = realpath(ROOT . '/public/img/empleados');
+        $archivo = realpath(ROOT . '/' . ltrim($rutaRelativa, '/\\'));
+        if ($directorio === false || $archivo === false) {
+            return;
+        }
+
+        $directorioNormalizado = rtrim(str_replace('\\', '/', $directorio), '/') . '/';
+        $archivoNormalizado = str_replace('\\', '/', $archivo);
+        if (str_starts_with($archivoNormalizado, $directorioNormalizado) && is_file($archivo)) {
+            @unlink($archivo);
+        }
+    }
+
     /** POST /talento-humano/empleado/eliminar – Baja atómica vía SP */
     public function eliminar(): void
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            exit('Metodo no permitido.');
+        }
+        Auth::requireCsrf($_POST['_csrf'] ?? null);
         $id    = (int)($_POST['id'] ?? 0);
         $exito = $this->modelo->eliminar($id);
 
-        $msg = $exito ? 'Registro eliminado del sistema.' : 'No se pudo eliminar el registro.';
+        $msg = $exito ? 'Funcionario dado de baja; estado e historial laboral actualizados.' : 'No se pudo registrar la baja del funcionario.';
         header('Location: ' . BASE_URL . '/talento-humano?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
         exit;
     }
@@ -175,11 +280,10 @@ class EmpleadoController extends Controller
     /** GET (enlace directo) /talento-humano/empleado/borrar?id=X – Alias de eliminar via GET */
     public function borrar(): void
     {
-        $id    = (int)($_GET['id'] ?? 0);
-        $exito = $this->modelo->eliminar($id);
-
-        $msg = $exito ? 'Registro eliminado del sistema.' : 'No se pudo eliminar el registro.';
-        header('Location: ' . BASE_URL . '/talento-humano?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
+        http_response_code(405);
+        header('Allow: POST');
+        $msg = 'La baja de empleados requiere una solicitud POST segura.';
+        header('Location: ' . BASE_URL . '/talento-humano/directorio?msg=' . urlencode($msg) . '&ok=0');
         exit;
     }
 
@@ -228,6 +332,8 @@ class EmpleadoController extends Controller
             $datos = [
                 'cedula'   => $cedula,
                 'empleado' => $empleado,
+                'historial' => $this->modelo->obtenerReporteFiltrado(null, (int)$empleado['empleado_id']),
+                'nacionalidadesEmpleado' => $this->modelo->obtenerNacionalidadesEmpleado((int)$empleado['empleado_id']),
                 'noEncontrado' => false,
             ];
         }
@@ -244,6 +350,7 @@ class EmpleadoController extends Controller
     public function exportarCsv(): void
     {
         $empleados = $this->modelo->listarDirectorio();
+        $this->modelo->auditarExportacionDirectorio();
 
         // Headers HTTP para forzar descarga del archivo
         $filename = 'Directorio_Funcionarios_APM_' . date('Ymd_His') . '.csv';
@@ -259,7 +366,7 @@ class EmpleadoController extends Controller
 
         // Cabecera del CSV
         fputcsv($output, [
-            'ID',
+            'N.º',
             'Cédula',
             'Apellidos',
             'Nombres',
@@ -271,9 +378,9 @@ class EmpleadoController extends Controller
             'Correo Institucional',
         ], ';');
 
-        foreach ($empleados as $emp) {
+        foreach ($empleados as $indice => $emp) {
             fputcsv($output, [
-                $emp['empleado_id']          ?? '',
+                $indice + 1,
                 $emp['cedula']               ?? '',
                 $emp['apellidos']            ?? '',
                 $emp['nombres']              ?? '',
@@ -296,6 +403,76 @@ class EmpleadoController extends Controller
      * Valida el ID, consulta el modelo y dispara la generación del PDF.
      * Se abre en pestaña nueva (target="_blank") para no interrumpir la navegación.
      */
+    public function movimiento(): void
+    {
+        $id = (int)($_GET['id'] ?? 0);
+        $empleado = $this->modelo->obtenerDetalleCompleto($id);
+        if (!$empleado || (int)($empleado['estado'] ?? 0) !== 1) {
+            header('Location: ' . BASE_URL . '/talento-humano/directorio?modo=movimiento&msg=' . urlencode('El funcionario no está disponible para movimiento.') . '&ok=0');
+            exit;
+        }
+        $this->cargarVista('talento-humano', 'movimiento', [
+            'empleado' => $empleado,
+            'areas' => $this->modelo->listarAreas(),
+            'cargos' => $this->modelo->listarCargos(),
+        ]);
+    }
+
+    public function mover(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            exit('Metodo no permitido.');
+        }
+        Auth::requireCsrf($_POST['_csrf'] ?? null);
+        $resultado = $this->modelo->mover(
+            (int)($_POST['empleado_id'] ?? 0),
+            (int)($_POST['unidad_destino_id'] ?? 0),
+            (int)($_POST['puesto_destino_id'] ?? 0),
+            (string)($_POST['fecha_movimiento'] ?? date('Y-m-d')),
+            trim((string)($_POST['motivo'] ?? ''))
+        );
+        $ok = (int)($resultado['exito'] ?? 0) === 1;
+        $msg = (string)($resultado['mensaje'] ?? 'No se pudo registrar el movimiento.');
+        header('Location: ' . BASE_URL . '/talento-humano/directorio?modo=movimiento&msg=' . urlencode($msg) . '&ok=' . ($ok ? '1' : '0'));
+        exit;
+    }
+
+    public function buscarPersonal(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $termino=mb_substr(trim((string)($_GET['q']??'')),0,200);
+        $unidad=isset($_GET['unidad'])&&ctype_digit((string)$_GET['unidad'])?(int)$_GET['unidad']:null;
+        $contrato=trim((string)($_GET['contrato']??'')) ?: null;
+        $estadoRaw=(string)($_GET['estado']??'');
+        $estado=$estadoRaw===''?null:(in_array($estadoRaw,['0','1'],true)?(int)$estadoRaw:null);
+        $rows=$this->modelo->buscarPersonal($termino,$unidad,$contrato,$estado);
+        echo json_encode(['success'=>true,'ids'=>array_map(static fn($r)=>(int)$r['empleado_id'],$rows),'total'=>(int)($rows[0]['total_resultados']??0)],JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    public function movimientoGrupal(): void
+    {
+        $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',(string)($_GET['ids']??''))))));
+        if(count($ids)<2){header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode('Seleccione al menos dos empleados para el movimiento grupal.').'&ok=0');exit;}
+        $seleccion=array_values(array_filter($this->modelo->listarDirectorio(),static fn($e)=>
+            in_array((int)($e['empleado_id']??0),$ids,true) && (int)($e['estado']??0)===1));
+        if(count($seleccion)!==count($ids)){header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode('La selección contiene empleados no disponibles.').'&ok=0');exit;}
+        $this->cargarVista('talento-humano','movimiento_grupal',['seleccion'=>$seleccion,'areas'=>$this->modelo->listarAreas(),'cargos'=>$this->modelo->listarCargos()]);
+    }
+
+    public function moverLote(): void
+    {
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Metodo no permitido.');}
+        Auth::requireCsrf($_POST['_csrf']??null);
+        $ids=array_values(array_unique(array_filter(array_map('intval',(array)($_POST['empleados']??[])))));
+        $fecha=(string)($_POST['fecha_movimiento']??'');$valida=DateTimeImmutable::createFromFormat('Y-m-d',$fecha);
+        if(count($ids)<2||!$valida||$valida->format('Y-m-d')!==$fecha){header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode('Revise la selección y la fecha efectiva.').'&ok=0');exit;}
+        $resultado=$this->modelo->moverLote($ids,(int)($_POST['unidad_destino_id']??0),(int)($_POST['puesto_destino_id']??0),$fecha,trim((string)($_POST['motivo']??'')));
+        $ok=(int)($resultado['exito']??0)===1;$msg=(string)($resultado['mensaje']??'No se pudo registrar el movimiento grupal.');
+        header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode($msg).'&ok='.($ok?'1':'0'));exit;
+    }
+
     public function imprimirFicha(): void
     {
         // 1. Validar que llegue un ID numérico válido
@@ -306,19 +483,29 @@ class EmpleadoController extends Controller
 
         $empleadoId = (int)$_GET['id'];
 
-        // 2. Obtener datos completos desde la vista SQL mediante el Modelo
-        $datosEmpleado = $this->modelo->obtenerDetalleCompleto($empleadoId);
+        // El boton verde imprime el primer formulario completo de Biblioteca.
+        $datosEmpleado = $this->modelo->obtenerExpedienteImpresion($empleadoId);
 
         if (!$datosEmpleado) {
             http_response_code(404);
             die('<p style="font-family:sans-serif;color:#c00;">Error: El funcionario no existe o no está disponible en el sistema.</p>');
         }
 
-        // 3. Cargar la librería FPDF desde la carpeta de librerías del proyecto
-        require_once ROOT . '/libs/fpdf/fpdf.php';
+        require_once ROOT . '/modules/talento-humano/Servicios/PdfFormularioPrincipal.php';
+        (new PdfFormularioPrincipal())->generar($datosEmpleado);
+        exit;
+    }
 
-        // 4. Construir y enviar el PDF al navegador
-        $this->generarPdfFicha($datosEmpleado);
+    /** Entrega desde Biblioteca el mismo APM-TH-FO-001, sin datos. */
+    public function formatoPrincipalBlanco(): void
+    {
+        require_once ROOT . '/modules/talento-humano/Servicios/PdfFormularioPrincipal.php';
+        (new PdfFormularioPrincipal())->generar(
+            ['_blank'=>true],
+            'I',
+            'Formulario_Principal_APM-TH-FO-001.pdf'
+        );
+        exit;
     }
 
     /**
@@ -345,7 +532,7 @@ class EmpleadoController extends Controller
         // ======================================================================
         // ENCABEZADO / MEMBRETE INSTITUCIONAL
         // ======================================================================
-        $logoPath = ROOT . '/../../imgs/logoapm.png';
+        $logoPath = ROOT . '/public/img/logoapm.png';
         if (file_exists($logoPath)) {
             @$pdf->Image($logoPath, 15, 12, 25);
             $pdf->SetXY(43, 12);

@@ -84,60 +84,36 @@
     </div>
 </div>
 
-<!-- Configuración de Inactividad de Sesión (Parámetros) -->
+<!-- Configuración de Inactividad de Sesión -->
 <div class="panel animate-fade-in" style="margin-bottom: 24px;">
     <div class="panel-header">
         <h3 style="display:flex;align-items:center;gap:10px;">
             <i class="fa-solid fa-user-clock" style="color:var(--primary);"></i>
-            Seguridad y Expiración de Sesión (Parámetro Global)
+            Seguridad y Expiración de Sesión
         </h3>
     </div>
     <div style="padding: 24px; background: var(--panel-bg); border-radius: 0 0 16px 16px;">
-        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 40px; align-items: start;">
+        <div style="display:flex;align-items:flex-start;gap:16px;background:rgba(59,130,246,.06);border:1px dashed rgba(59,130,246,.25);border-radius:12px;padding:20px;">
+            <i class="fa-solid fa-circle-info" style="color:var(--primary);font-size:20px;margin-top:2px;"></i>
             <div>
-                <h4 style="color: var(--text-color); margin-bottom: 8px; font-size: 16px;">¿Cómo funciona el tiempo de inactividad?</h4>
-                <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-                    Cuando un operador permanece inactivo (sin realizar peticiones, búsquedas o registrar transacciones) por más tiempo del permitido, su sesión es destruida automáticamente por el sistema y se le redirige a la pantalla de bloqueo.
+                <p style="color: var(--text-color); font-size: 14px; line-height: 1.6; margin: 0 0 6px;">
+                    El tiempo de inactividad de este módulo ahora se administra de forma <strong>centralizada</strong>
+                    junto con el resto del sistema (Talento Humano, Bitácoras y el Portal), para que no haya dos
+                    valores distintos compitiendo entre sí.
                 </p>
-                <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
-                    <strong>Recomendación:</strong> Para terminales portuarias operativas con alto tráfico, se sugiere configurar entre <strong>300 y 600 segundos</strong> (5 a 10 minutos). Para pruebas rápidas del flujo de relogin, puedes establecerlo en <strong>30 segundos</strong>.
+                <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6; margin: 0 0 14px;">
+                    Valor actual efectivo para este módulo: <strong><?= (int)($tiempoInactividad ?? 600) ?> segundos</strong>.
                 </p>
-            </div>
-            
-            <div style="background: rgba(59, 130, 246, 0.04); border: 1px dashed rgba(59, 130, 246, 0.2); padding: 20px; border-radius: 12px;">
-                <form action="index.php?route=usuarios&action=guardarParametro" method="POST">
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label style="display:block; margin-bottom:8px; font-weight:600; font-size:13px; color:var(--text-color);">Tiempo de Inactividad Permitido</label>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <input type="number" name="tiempo_inactividad" value="<?= htmlspecialchars($tiempoInactividad) ?>" min="10" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-weight: 600; text-align: center;">
-                            <span style="font-weight: 600; color: var(--text-muted); font-size: 14px;">segundos</span>
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
-                        <button type="button" class="btn-outline" onclick="setTiempo(30)" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; cursor:pointer;">30s (Test)</button>
-                        <button type="button" class="btn-outline" onclick="setTiempo(60)" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; cursor:pointer;">1 min</button>
-                        <button type="button" class="btn-outline" onclick="setTiempo(300)" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; cursor:pointer;">5 min</button>
-                        <button type="button" class="btn-outline" onclick="setTiempo(600)" style="padding: 6px 10px; font-size: 11px; border-radius: 6px; cursor:pointer;">10 min</button>
-                    </div>
-
-                    <button type="submit" class="btn-primary" style="width: 100%; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; border-radius: 8px; cursor:pointer; border:none; color:white;">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Actualizar Parámetro
-                    </button>
-                </form>
+                <?php if (defined('PORTAL_ROOT_URL')): ?>
+                <a href="<?= PORTAL_ROOT_URL ?>/admin/inactividad" target="_blank" rel="noopener"
+                   style="display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:8px;background:var(--primary);color:#fff;font-weight:600;font-size:13px;text-decoration:none;">
+                    <i class="fa-solid fa-hourglass-half"></i> Configurar en el Portal APM
+                </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    function setTiempo(segundos) {
-        const input = document.querySelector('input[name="tiempo_inactividad"]');
-        if (input) {
-            input.value = segundos;
-        }
-    }
-</script>
 
 <!-- Modal: Registro / Edición de InvUsuario -->
 <div class="modal-overlay" id="usuario-modal">

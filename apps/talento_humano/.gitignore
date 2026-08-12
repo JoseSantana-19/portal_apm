@@ -1,0 +1,32 @@
+# Configuracion privada y secretos
+.portal-portuario-private/
+config/database.php
+.env
+.env.*
+!.env.example
+
+# Estado de ejecucion
+modules/*/log/
+modules/*/*/log/
+*.log
+sessions/
+
+# Archivos generados y temporales
+tmp/
+output/pdf/*.pdf
+public/img/empleados/
+backups/
+
+# Fuentes históricas con datos personales
+SQL/*.csv
+SQL/*.dbf
+SQL/*.DBF
+database/archive/**/*.csv
+database/archive/**/*.dbf
+database/archive/**/*.DBF
+
+# Herramientas locales
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

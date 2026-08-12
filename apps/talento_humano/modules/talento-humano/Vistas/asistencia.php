@@ -6,13 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asistencia y Turnos | Talento Humano – APM</title>
     <meta name="description" content="Registro y control de asistencia del personal de la Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Estilos propios del módulo Asistencia ── */
         .estado-pill {
@@ -55,27 +49,7 @@
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Módulo Talento Humano</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip">
-                    <i class="bi bi-calendar-event"></i>
-                    <span id="currentDate">--</span>
-                </div>
-                <div class="user-pill">
-                    <span><?= htmlspecialchars($usuarioNombre ?? 'Usuario TH') ?></span>
-                    <small>APM</small>
-                </div>
-            </div>
-        </header>
+        <?php $topbarSubtitle='Prototipo — Asistencia y Turnos';$topbarShowSearch=true;require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -301,9 +275,6 @@
     </section>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('currentDate');

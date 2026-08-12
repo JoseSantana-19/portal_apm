@@ -78,7 +78,11 @@ if ($esAdminActual) {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="public/css/inv_estilos.css?v=<?= time() ?>">
-    
+    <?php if (defined('PORTAL_ROOT_URL')): ?>
+    <!-- SweetAlert2 CSS (aviso de inactividad) -->
+    <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
+    <?php endif; ?>
+
     <!-- Assets de Talento Humano (Cargados de forma condicional) -->
     <?php if (strpos($routeActiva, 'talento') === 0): ?>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -258,26 +262,61 @@ if ($esAdminActual) {
         </div>
         
         <div class="sidebar-menu">
+            <?php
+            // Puente SSO activo (vino del portal) o login propio de una cédula
+            // que también existe en PORTAL_APM.CORE_Usuarios: sí puede volver.
+            // Cuenta exclusiva de este módulo (sin cédula real en el portal):
+            // no hay portal al que volver, se oculta.
+            $tieneAccesoPortal = !empty($_SESSION['user_id']) || !empty($_SESSION['tiene_acceso_portal']);
+            ?>
+            <?php if ($tieneAccesoPortal): ?>
             <a href="../../dashboard" class="menu-item" title="Volver al Portal APM" style="border:1px dashed rgba(148,163,184,.4);margin-bottom:8px;">
                 <i class="fa-solid fa-arrow-left"></i>
                 <span>Portal APM</span>
             </a>
+            <?php endif; ?>
             <?php
-            // Cargar inv_permisos del usuario actual para filtrar el menú
-            $permisosDelUsuario = [];
+            // Nivel efectivo por route (MOIS opcion via POLITICAS de Router, cascada dual)
+            $nivelesPorRoute = [];
             if (!$esAdminActual) {
-                $usuarioIdActual = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 0;
-                if ($usuarioIdActual > 0) {
-                    require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
-                    $_permisoModel = new InvPermiso();
-                    $permisosDelUsuario = $_permisoModel->obtenerPermisosUsuario($usuarioIdActual);
+                require_once ROOT_PATH . 'core/Controller.php';
+                require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
+                $rutaAOpcion = [
+                    'inventario' => 2, 'items' => 3, 'inv_items_sistema' => 4,
+                    'cabeceras' => 5, 'inv_maestros' => 6, 'ingresos' => 7, 'egresos' => 8,
+                    'talento_directorio' => 9, 'inv_bitacora' => 10, 'reportes' => 11,
+                    'inv_periodos' => 12, 'inv_secuenciales' => 13, 'usuarios' => 14, 'inv_permisos' => 15,
+                ];
+                $puenteada = !empty($_SESSION['user_id']);
+                if ($puenteada) {
+                    $probeLayout = new class extends Controller {
+                        public function nivel(int $idUsuario, int $opcion): int {
+                            for ($n = 4; $n >= 1; $n--) {
+                                if ($this->tienePermisoPortal($idUsuario, $opcion, $n)) return $n;
+                            }
+                            return 0;
+                        }
+                    };
+                    foreach ($rutaAOpcion as $rk => $op) {
+                        $nivelesPorRoute[$rk] = $probeLayout->nivel((int)$_SESSION['user_id'], $op);
+                    }
+                } else {
+                    $usuarioIdActual = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 0;
+                    $rolIdActual = isset($_SESSION['usuario']['rol_id']) ? (int)$_SESSION['usuario']['rol_id'] : 0;
+                    if ($usuarioIdActual > 0) {
+                        $_permisoModel = new PermisoModel();
+                        foreach ($rutaAOpcion as $rk => $op) {
+                            $nivelesPorRoute[$rk] = $_permisoModel->nivelEfectivoNativo($usuarioIdActual, $rolIdActual, $rk);
+                        }
+                    }
                 }
             }
             foreach ($menuItems as $seccion => $info):
-                // Filtrar los items de esta sección según inv_permisos
+                // Filtrar los items de esta sección según el nivel efectivo (>=1 = visible)
                 $itemsVisibles = [];
                 foreach ($info['items'] as $routeKey => $item) {
-                    if ($esAdminActual || in_array($routeKey, $permisosDelUsuario)) {
+                    $rutaReal = ($routeKey === 'busqueda_global') ? 'inv_maestros' : $routeKey;
+                    if ($esAdminActual || ($nivelesPorRoute[$rutaReal] ?? 0) >= 1) {
                         $itemsVisibles[$routeKey] = $item;
                     }
                 }
@@ -647,5 +686,29 @@ if ($esAdminActual) {
     </div>
 
     <script src="public/js/app_ajax.js"></script>
+
+    <?php if (defined('PORTAL_ROOT_URL')): ?>
+    <!-- Aviso de inactividad — vendorizado desde el portal (PORTAL_ROOT_URL, ver config/globals.php) -->
+    <script>
+        // window.X explícito: un const de nivel superior no queda accesible
+        // como window.APP_INACTIVIDAD en un navegador real (js/inactivity-
+        // warning.js lee justo esa propiedad) — con const el aviso nunca se
+        // disparaba.
+        // logoutUrl apunta al login PROPIO de Control de Bienes (no al del
+        // portal): es el único módulo con login independiente, y hay cuentas
+        // exclusivas de acá sin usuario en el portal — mandarlas al login del
+        // portal las dejaría sin forma de volver a entrar.
+        window.APP_INACTIVIDAD = {
+            timeoutSegundos: <?= (int)($_SESSION['_inactividad_segundos'] ?? 600) ?>,
+            avisoSegundos:   <?= (int)($_SESSION['_inactividad_aviso'] ?? 60) ?>,
+            keepaliveUrl:    '<?= PORTAL_ROOT_URL ?>/api/keepalive',
+            logoutUrl:       'index.php?route=logout'
+        };
+    </script>
+    <script src="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+    <!-- ?v=time(): cache-busting real — evita que el navegador siga usando
+         una copia vieja de este archivo cacheada de una visita anterior. -->
+    <script src="<?= PORTAL_ROOT_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>
+    <?php endif; ?>
 </body>
 </html>

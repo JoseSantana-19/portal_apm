@@ -1,283 +1,251 @@
 <?php
-/* perfil.php – Vista: Expediente Digital del Funcionario (Solo lectura)
-   Muestra los datos del empleado en un formato tipo currículum visual.
-   En producción, los datos se cargan desde la BD usando $cedula recibida del controlador. */
+/* Expediente digital completo del funcionario (solo lectura). */
+$empleado = is_array($empleado ?? null) ? $empleado : [];
+if (!$empleado) {
+    http_response_code(404);
+    exit('El funcionario solicitado no existe.');
+}
 
-$cedula   = $cedula   ?? '1308126646';
-$empleado = $empleado ?? [];
+$e = static fn(string $valor): string => htmlspecialchars($valor, ENT_QUOTES, 'UTF-8');
+$valor = static function (array $origen, array $campos, string $alternativa = 'No registrado'): string {
+    foreach ($campos as $campo) {
+        if (isset($origen[$campo]) && trim((string)$origen[$campo]) !== '') {
+            return trim((string)$origen[$campo]);
+        }
+    }
+    return $alternativa;
+};
+$fecha = static function ($dato): string {
+    if ($dato === null || trim((string)$dato) === '') return 'No registrada';
+    $marca = strtotime((string)$dato);
+    return $marca ? date('d/m/Y', $marca) : (string)$dato;
+};
 
-// Datos simulados por cédula (modo prototipo)
-$perfilesMock = [
-    '1308126646' => [
-        'cedula'       => '1308126646',
-        'nombres'      => 'ZAMBRANO DELGADO HECTOR FERNANDO',
-        'cargo'        => 'Jefe de Sistemas',
-        'direccion'    => 'Dirección de Planificación Estratégica',
-        'departamento' => 'Gestión de Tecnología de la Información',
-        'proceso'      => 'Procesos Adjetivos',
-        'contrato'     => 'Nombramiento Permanente',
-        'sueldo'       => '$1,500.00',
-        'inicio'       => '01/01/2009',
-        'email'        => 'h.zambrano@apm.gob.ec',
-        'telefono'     => '+593 99 888 7766',
-        'estado'       => 'Activo',
-        'initials'     => 'ZH',
-        'color'        => '#0f4c81',
-        'anios'        => 17,
-        'historial'    => [
-            ['periodo' => '2009 – 2024', 'direccion' => 'Dirección de Tecnología de la Información', 'cargo' => 'Jefe de Sistemas'],
-            ['periodo' => '2025 – hoy',  'direccion' => 'Dirección de Planificación Estratégica / GTI', 'cargo' => 'Jefe de Sistemas'],
-        ]
+$cedula = $valor($empleado, ['cedula', 'identificacion'], 'Sin identificación');
+$apellidos = $valor($empleado, ['apellidos'], '');
+$nombres = $valor($empleado, ['nombres'], '');
+$nombreCompleto = trim($apellidos.' '.$nombres) ?: 'Funcionario sin nombre registrado';
+$iniciales = strtoupper(substr($apellidos ?: 'U', 0, 1).substr($nombres ?: 'A', 0, 1));
+$fechaIngreso = !empty($empleado['fecha_ingreso']) ? new DateTimeImmutable((string)$empleado['fecha_ingreso']) : null;
+$fechaNacimiento = !empty($empleado['fecha_nacimiento']) ? new DateTimeImmutable((string)$empleado['fecha_nacimiento']) : null;
+$estadoActivo = (int)($empleado['estado'] ?? 0) === 1;
+$estadoTexto = $estadoActivo ? 'Activo' : 'Inactivo';
+$aniosInstitucion = $fechaIngreso ? $fechaIngreso->diff(new DateTimeImmutable('today'))->y : null;
+$edad = $fechaNacimiento ? $fechaNacimiento->diff(new DateTimeImmutable('today'))->y : null;
+
+$nacionalidades = [];
+foreach (($nacionalidadesEmpleado ?? []) as $nacionalidad) {
+    $nombre = trim((string)($nacionalidad['nombre'] ?? ''));
+    if ($nombre !== '') $nacionalidades[] = $nombre;
+}
+if (!$nacionalidades && trim((string)($empleado['nacionalidad'] ?? '')) !== '') {
+    $nacionalidades[] = trim((string)$empleado['nacionalidad']);
+}
+$nacionalidadTexto = $nacionalidades ? implode(', ', array_unique($nacionalidades)) : 'No registrada';
+
+$cuenta = $valor($empleado, ['numero_cuenta_bancaria', 'cuenta_bancaria'], '');
+$cuentaEnmascarada = $cuenta === '' ? 'No registrada' : str_repeat('•', max(4, strlen($cuenta) - 4)).substr($cuenta, -4);
+$remuneracion = (float)($empleado['remuneracion_mensual'] ?? $empleado['sueldo_rmu'] ?? 0);
+$remuneracionTexto = $remuneracion > 0 ? '$'.number_format($remuneracion, 2, '.', ',') : 'No registrada';
+$porcentajeDiscapacidad = trim((string)($empleado['porcentaje_discapacidad'] ?? ''));
+$discapacidadTexto = $valor($empleado, ['tipo_discapacidad'], 'No registrada');
+if ($porcentajeDiscapacidad !== '' && (float)$porcentajeDiscapacidad > 0) {
+    $discapacidadTexto .= ' ('.number_format((float)$porcentajeDiscapacidad, 2).'% )';
+}
+
+$fotoRuta = trim((string)($empleado['ruta_foto'] ?? ''));
+$fotoUrl = '';
+if ($fotoRuta !== '') {
+    $fotoUrl = preg_match('~^https?://~i', $fotoRuta)
+        ? $fotoRuta
+        : BASE_URL.'/'.ltrim(str_replace('\\', '/', $fotoRuta), '/');
+}
+
+$historialPerfil = [];
+foreach (($historial ?? []) as $fila) {
+    $historialPerfil[] = [
+        'periodo' => $fecha($fila['fecha_desde'] ?? null).' – '.(!empty($fila['fecha_hasta']) ? $fecha($fila['fecha_hasta']) : 'Actualidad'),
+        'direccion' => $valor($fila, ['direccion_actual_unificada', 'departamento_historico', 'nombre_unidad'], 'Sin asignación'),
+        'cargo' => $valor($fila, ['nombre_puesto', 'cargo'], 'Sin denominación'),
+    ];
+}
+if (!$historialPerfil) {
+    $historialPerfil[] = [
+        'periodo' => $fechaIngreso ? $fechaIngreso->format('d/m/Y').' – Actualidad' : 'Sin historial registrado',
+        'direccion' => $valor($empleado, ['direccion_area'], 'Sin asignación organizacional'),
+        'cargo' => $valor($empleado, ['cargo'], 'Sin denominación asignada'),
+    ];
+}
+
+$secciones = [
+    [
+        'titulo' => 'Información laboral e institucional', 'icono' => 'bi-building',
+        'campos' => [
+            ['Código de empleado', $valor($empleado, ['cod_emplea'], 'No registrado'), 'bi-hash'],
+            ['Dirección / Área', $valor($empleado, ['direccion_area'], 'Sin asignación'), 'bi-building'],
+            ['Proceso institucional', $valor($empleado, ['tipo_proceso'], 'No registrado'), 'bi-diagram-3'],
+            ['Cargo / Denominación', $valor($empleado, ['cargo'], 'Sin denominación'), 'bi-briefcase'],
+            ['Tipo de contrato', $valor($empleado, ['tipo_contrato'], 'No especificado'), 'bi-file-earmark-text'],
+            ['Jornada', $valor($empleado, ['jornada'], 'No registrada'), 'bi-clock'],
+            ['Fecha de ingreso', $fecha($empleado['fecha_ingreso'] ?? null), 'bi-calendar-check'],
+            ['Fecha de salida', $fecha($empleado['fecha_salida'] ?? null), 'bi-calendar-x'],
+            ['RMU mensual', $remuneracionTexto, 'bi-currency-dollar', 'info-card-value--money'],
+            ['Estado laboral', $estadoTexto, $estadoActivo ? 'bi-check-circle' : 'bi-x-circle', $estadoActivo ? 'info-card-value--success' : 'info-card-value--danger'],
+            ['Fecha efectiva del estado', $fecha($empleado['estado_fecha_efectiva'] ?? null), 'bi-calendar-event'],
+            ['Motivo / origen del estado', $valor($empleado, ['estado_motivo', 'estado_origen'], 'No registrado'), 'bi-info-circle', 'info-card--wide'],
+        ],
     ],
-    '1311567890' => [
-        'cedula'       => '1311567890',
-        'nombres'      => 'PEREZ MORALES JUAN CARLOS',
-        'cargo'        => 'Economista de Planta',
-        'direccion'    => 'Dirección Administrativa Financiera',
-        'departamento' => 'Contabilidad',
-        'proceso'      => 'Procesos Sustantivos',
-        'contrato'     => 'Contrato de Servicios',
-        'sueldo'       => '$1,200.00',
-        'inicio'       => '15/03/2019',
-        'email'        => 'j.perez@apm.gob.ec',
-        'telefono'     => '+593 98 765 4321',
-        'estado'       => 'Activo',
-        'initials'     => 'PJ',
-        'color'        => '#0e7490',
-        'anios'        => 7,
-        'historial'    => [
-            ['periodo' => '2019 – hoy', 'direccion' => 'Dirección Administrativa Financiera', 'cargo' => 'Economista de Planta'],
-        ]
+    [
+        'titulo' => 'Información personal', 'icono' => 'bi-person-vcard',
+        'campos' => [
+            ['Tipo de identificación', $valor($empleado, ['tipo_identificacion'], 'Cédula'), 'bi-card-text'],
+            ['Identificación', $cedula, 'bi-fingerprint'],
+            ['Apellidos', $apellidos ?: 'No registrados', 'bi-person'],
+            ['Nombres', $nombres ?: 'No registrados', 'bi-person'],
+            ['Fecha de nacimiento', $fecha($empleado['fecha_nacimiento'] ?? null), 'bi-cake2'],
+            ['Edad', $edad !== null ? $edad.' años' : 'No registrada', 'bi-calendar3'],
+            ['Nacionalidad', $nacionalidadTexto, 'bi-globe-americas'],
+            ['Sexo / Género', $valor($empleado, ['sexo'], 'No registrado'), 'bi-person-standing'],
+            ['Estado civil', $valor($empleado, ['estado_civil'], 'No registrado'), 'bi-people'],
+            ['Tipo de sangre', $valor($empleado, ['tipo_sangre'], 'No registrado'), 'bi-droplet'],
+            ['Cargas familiares', (string)($empleado['cargas_familiares'] ?? 0), 'bi-person-hearts'],
+            ['Condición especial', $valor($empleado, ['condicion_especial'], 'Ninguna registrada'), 'bi-universal-access'],
+        ],
+    ],
+    [
+        'titulo' => 'Contacto y domicilio', 'icono' => 'bi-telephone',
+        'campos' => [
+            ['Correo institucional', $valor($empleado, ['correo_institucional'], 'No registrado'), 'bi-envelope-at'],
+            ['Correo personal', $valor($empleado, ['correo_personal'], 'No registrado'), 'bi-envelope'],
+            ['Teléfono móvil', $valor($empleado, ['telefono_movil'], 'No registrado'), 'bi-phone'],
+            ['Teléfono convencional', $valor($empleado, ['telefono_convencional'], 'No registrado'), 'bi-telephone'],
+            ['Ciudad de residencia', $valor($empleado, ['ciudad_residencia'], 'No registrada'), 'bi-geo-alt'],
+            ['Dirección domiciliaria', $valor($empleado, ['direccion_domiciliaria'], 'No registrada'), 'bi-house-door', 'info-card--wide'],
+        ],
+    ],
+    [
+        'titulo' => 'Emergencia, formación y condición especial', 'icono' => 'bi-shield-plus',
+        'campos' => [
+            ['Contacto de emergencia', $valor($empleado, ['contacto_emergencia'], 'No registrado'), 'bi-person-exclamation'],
+            ['Parentesco', $valor($empleado, ['emergencia_relacion'], 'No registrado'), 'bi-people'],
+            ['Teléfono de emergencia', $valor($empleado, ['tel_emergencia'], 'No registrado'), 'bi-telephone-forward'],
+            ['Nivel de estudio', $valor($empleado, ['nivel_estudio'], 'No registrado'), 'bi-mortarboard'],
+            ['Título', $valor($empleado, ['titulo'], 'No registrado'), 'bi-award', 'info-card--wide'],
+            ['Discapacidad', $discapacidadTexto, 'bi-universal-access-circle'],
+        ],
+    ],
+    [
+        'titulo' => 'Información administrativa', 'icono' => 'bi-bank',
+        'campos' => [
+            ['Institución bancaria', $valor($empleado, ['institucion_bancaria'], 'No registrada'), 'bi-bank'],
+            ['Tipo de cuenta', $valor($empleado, ['tipo_cuenta_bancaria'], 'No registrado'), 'bi-wallet2'],
+            ['Número de cuenta', $cuentaEnmascarada, 'bi-credit-card-2-front'],
+            ['Código IESS', $valor($empleado, ['codigo_iess', 'num_iess'], 'No registrado'), 'bi-person-badge'],
+        ],
     ],
 ];
-
-$emp = $perfilesMock[$cedula] ?? $perfilesMock['1308126646'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expediente · <?= htmlspecialchars($emp['nombres']) ?> | APM</title>
-    <meta name="description" content="Expediente digital de <?= htmlspecialchars($emp['nombres']) ?> — Autoridad Portuaria de Manta.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
-    <style>
-        /* ── Expediente hero ──────────────────────────────────────────────── */
-        .perfil-hero {
-            background: linear-gradient(135deg, var(--navy-800, #1e3a5f) 0%, #0e4d72 60%, #0891b2 100%);
-            border-radius: 20px;
-            padding: 32px 28px;
-            display: flex;
-            gap: 24px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-            position: relative;
-            overflow: hidden;
-        }
-        .perfil-hero::before {
-            content: '';
-            position: absolute;
-            right: -60px; top: -60px;
-            width: 260px; height: 260px;
-            background: rgba(255,255,255,.05);
-            border-radius: 50%;
-        }
-        .perfil-hero::after {
-            content: '';
-            position: absolute;
-            right: 60px; bottom: -80px;
-            width: 180px; height: 180px;
-            background: rgba(255,255,255,.04);
-            border-radius: 50%;
-        }
-        .perfil-avatar {
-            width: 100px; height: 100px;
-            border-radius: 24px;
-            display: grid; place-items: center;
-            font-size: 2.2rem; font-weight: 800; color: #fff;
-            border: 3px solid rgba(255,255,255,.35);
-            flex-shrink: 0;
-            position: relative; z-index: 1;
-        }
-        .perfil-hero-data { flex: 1; min-width: 220px; position: relative; z-index: 1; }
-        .perfil-hero-data h2 { color: #fff; font-size: 1.4rem; margin: 0 0 4px; }
-        .perfil-hero-data p  { color: rgba(255,255,255,.75); font-size: .9rem; margin: 0 0 14px; }
-        .perfil-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-        .perfil-chip {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 5px 12px; border-radius: 999px; font-size: .78rem; font-weight: 600;
-            background: rgba(255,255,255,.14); color: rgba(255,255,255,.9);
-            border: 1px solid rgba(255,255,255,.2);
-        }
-        .perfil-chip.activo { background: rgba(16,185,129,.25); border-color: rgba(16,185,129,.4); color: #a7f3d0; }
-        /* Info cards */
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .info-card { background: #fff; border: 1px solid var(--line, #e2e8f0); border-radius: 14px; padding: 16px 18px; }
-        .info-card-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-600, #64748b); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-        .info-card-value { font-size: .95rem; font-weight: 600; color: var(--navy-900, #1e293b); }
-        /* Historial */
-        .historial-item { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
-        .historial-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--ocean-700, #0e7490); flex-shrink: 0; margin-top: 4px; box-shadow: 0 0 0 4px rgba(14,116,144,.15); }
-        .historial-line { flex: 1; }
-        .historial-line strong { display: block; font-size: .88rem; color: var(--navy-900, #1e293b); }
-        .historial-line small { font-size: .78rem; color: var(--ink-600, #64748b); }
-        .historial-period { font-size: .75rem; font-weight: 700; color: var(--ocean-700, #0e7490); background: #f0f9ff; padding: 2px 8px; border-radius: 6px; margin-top: 4px; display: inline-block; }
-        /* Badge solo lectura */
-        .readonly-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 10px; border-radius: 8px; font-size: .73rem; font-weight: 700;
-            background: rgba(245,158,11,.1); color: #b45309; border: 1px solid rgba(245,158,11,.3);
-            margin-bottom: 16px;
-        }
-    </style>
+    <title>Expediente · <?= $e($nombreCompleto) ?> | APM</title>
+    <meta name="description" content="Expediente digital del funcionario en la Autoridad Portuaria de Manta.">
+    <?php require ROOT . '/shared/head_assets.php'; ?>
 </head>
 <body>
 <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
-<button class="sidebar-open-btn" id="sidebarOpenBtn" onclick="openSidebar()"
-        title="Abrir menú lateral" aria-label="Abrir menú lateral">
-    <i class="bi bi-layout-sidebar"></i>
-</button>
+<button class="sidebar-open-btn" id="sidebarOpenBtn" onclick="openSidebar()" title="Abrir menú lateral" aria-label="Abrir menú lateral"><i class="bi bi-layout-sidebar"></i></button>
 
 <div class="app">
     <?php require_once ROOT . '/shared/menu.php'; ?>
-
     <section class="content">
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="brand">
-                    <img src="<?= LOGO_URL ?>/logoapm.png" alt="Logo APM">
-                    <div>
-                        <h1>Autoridad Portuaria de Manta</h1>
-                        <p>Módulo Talento Humano</p>
-                    </div>
-                </div>
-            </div>
-            <div class="topbar-actions">
-                <div class="icon-chip"><i class="bi bi-calendar-event"></i><span id="currentDate">--</span></div>
-                <a href="<?= BASE_URL ?>/talento-humano/inicio" class="btn btn-ghost">
-                    <i class="bi bi-arrow-left"></i> Volver al Inicio
-                </a>
-            </div>
-        </header>
-
+        <?php $topbarShowSearch=false; $topbarBackUrl=BASE_URL.'/talento-humano/directorio'; $topbarBackLabel='Volver al Directorio'; require ROOT.'/shared/topbar.php'; ?>
         <main class="main">
-            <div class="content-shell">
+            <div class="content-shell profile-page">
+                <div class="readonly-badge"><i class="bi bi-lock-fill"></i> Expediente digital en modo de consulta. La edición se realiza desde el Directorio de Personal.</div>
 
-                <!-- BADGE SOLO LECTURA -->
-                <div class="readonly-badge">
-                    <i class="bi bi-lock-fill"></i>
-                    Expediente Digital — Modo solo lectura. Para editar use el Directorio de Personal.
-                </div>
-
-                <!-- HERO DEL PERFIL -->
-                <div class="perfil-hero">
-                    <div class="perfil-avatar" style="background:<?= htmlspecialchars($emp['color']) ?>;">
-                        <?= htmlspecialchars($emp['initials']) ?>
+                <section class="perfil-hero">
+                    <div class="perfil-avatar" aria-label="Fotografía o iniciales del funcionario">
+                        <?php if ($fotoUrl !== ''): ?>
+                            <img src="<?= $e($fotoUrl) ?>" alt="Foto de <?= $e($nombreCompleto) ?>">
+                        <?php else: ?>
+                            <?= $e($iniciales) ?>
+                        <?php endif; ?>
                     </div>
                     <div class="perfil-hero-data">
-                        <h2><i class="bi bi-person-badge"></i> <?= htmlspecialchars($emp['nombres']) ?></h2>
-                        <p><?= htmlspecialchars($emp['cargo']) ?> · <?= htmlspecialchars($emp['departamento']) ?></p>
+                        <span class="perfil-eyebrow">Expediente institucional</span>
+                        <h1><?= $e($nombreCompleto) ?></h1>
+                        <p><?= $e($valor($empleado, ['cargo'], 'Sin denominación')) ?> · <?= $e($valor($empleado, ['direccion_area'], 'Sin asignación')) ?></p>
                         <div class="perfil-chips">
-                            <span class="perfil-chip activo"><i class="bi bi-check-circle-fill"></i> <?= htmlspecialchars($emp['estado']) ?></span>
-                            <span class="perfil-chip"><i class="bi bi-calendar3"></i> <?= $emp['anios'] ?> años en la institución</span>
-                            <span class="perfil-chip"><i class="bi bi-file-earmark-person"></i> C.I. <?= htmlspecialchars($emp['cedula']) ?></span>
+                            <span class="perfil-chip <?= $estadoActivo ? 'activo' : 'inactivo' ?>"><i class="bi <?= $estadoActivo ? 'bi-check-circle-fill' : 'bi-x-circle-fill' ?>"></i> <?= $e($estadoTexto) ?></span>
+                            <?php if ($aniosInstitucion !== null): ?><span class="perfil-chip"><i class="bi bi-calendar3"></i> <?= $aniosInstitucion ?> años en la institución</span><?php endif; ?>
+                            <span class="perfil-chip"><i class="bi bi-file-earmark-person"></i> <?= $e($cedula) ?></span>
                         </div>
                     </div>
-                    <div style="position:relative; z-index:1; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
-                        <a href="<?= BASE_URL ?>/talento-humano/accion-personal?cedula=<?= urlencode($emp['cedula']) ?>"
-                           class="btn" style="background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.3); font-size:.83rem;">
-                            <i class="bi bi-file-earmark-text"></i> Acción de Personal
-                        </a>
-                        <button class="btn" style="background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.2); font-size:.83rem;"
-                                onclick="showToast('Generando PDF del expediente... (TCPDF en producción)', 'info')">
-                            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                        </button>
-                    </div>
-                </div>
-
-                <!-- DATOS GENERALES -->
-                <section class="card" style="padding:20px; margin-bottom:20px;">
-                    <h3 style="font-size:.9rem; font-weight:700; color:var(--navy-900); margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-                        <i class="bi bi-person-lines-fill" style="color:var(--ocean-700);"></i> Datos Generales del Funcionario
-                    </h3>
-                    <div class="info-grid">
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-card-text"></i> Cédula de Identidad</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['cedula']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-building"></i> Dirección Institucional</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['direccion']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-diagram-3"></i> Proceso Institucional</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['proceso']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-briefcase"></i> Tipo de Contrato</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['contrato']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-currency-dollar"></i> RMU Mensual</div>
-                            <div class="info-card-value" style="color:#059669; font-size:1.05rem;"><?= htmlspecialchars($emp['sueldo']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-calendar-check"></i> Fecha de Ingreso</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['inicio']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-envelope"></i> Correo Institucional</div>
-                            <div class="info-card-value" style="font-size:.85rem;"><?= htmlspecialchars($emp['email']) ?></div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-card-label"><i class="bi bi-telephone"></i> Teléfono</div>
-                            <div class="info-card-value"><?= htmlspecialchars($emp['telefono']) ?></div>
-                        </div>
+                    <div class="perfil-actions">
+                        <?php if (Auth::can('acciones', 'crear')): ?>
+                        <a href="<?= BASE_URL ?>/talento-humano/accion-personal?cedula=<?= urlencode($cedula) ?>" class="perfil-action"><i class="bi bi-file-earmark-text"></i> Acción de Personal</a>
+                        <?php endif; ?>
+                        <?php if (Auth::can('empleados', 'editar')): ?>
+                        <a href="<?= BASE_URL ?>/talento-humano/empleado/editar?id=<?= (int)$empleado['empleado_id'] ?>" class="perfil-action"><i class="bi bi-pencil-square"></i> Editar expediente</a>
+                        <?php endif; ?>
+                        <a target="_blank" href="<?= BASE_URL ?>/talento-humano/empleado/imprimir-ficha?id=<?= (int)$empleado['empleado_id'] ?>" class="perfil-action"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</a>
                     </div>
                 </section>
 
-                <!-- HISTORIAL LABORAL -->
-                <section class="card" style="padding:20px;">
-                    <h3 style="font-size:.9rem; font-weight:700; color:var(--navy-900); margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-                        <i class="bi bi-clock-history" style="color:var(--ocean-700);"></i> Historial Laboral en la APM
-                    </h3>
-                    <?php foreach ($emp['historial'] as $h): ?>
-                    <div class="historial-item">
-                        <div class="historial-dot"></div>
-                        <div class="historial-line">
-                            <strong><?= htmlspecialchars($h['cargo']) ?></strong>
-                            <small><?= htmlspecialchars($h['direccion']) ?></small>
-                            <span class="historial-period"><i class="bi bi-calendar-range"></i> <?= htmlspecialchars($h['periodo']) ?></span>
-                        </div>
+                <?php foreach ($secciones as $seccion): ?>
+                <section class="card profile-section">
+                    <div class="profile-section-heading">
+                        <span class="profile-section-icon"><i class="bi <?= $e($seccion['icono']) ?>"></i></span>
+                        <div><h2><?= $e($seccion['titulo']) ?></h2><p>Información registrada en el expediente institucional.</p></div>
                     </div>
-                    <?php endforeach; ?>
-
-                    <div style="margin-top:16px; padding-top:14px; border-top:1px solid #f1f5f9; font-size:.8rem; color:var(--ink-600);">
-                        <i class="bi bi-info-circle"></i>
-                        El historial completo se cargará desde la vista <code>vw_th_reporte_historial_jerarquico</code> al conectar con la base de datos.
+                    <div class="profile-info-grid">
+                        <?php foreach ($seccion['campos'] as $campo): ?>
+                        <?php $modificador = $campo[3] ?? ''; ?>
+                        <article class="profile-info-card <?= $modificador === 'info-card--wide' ? 'info-card--wide' : '' ?>">
+                            <div class="profile-info-label"><i class="bi <?= $e($campo[2]) ?>"></i> <?= $e($campo[0]) ?></div>
+                            <div class="profile-info-value <?= $modificador !== 'info-card--wide' ? $e($modificador) : '' ?>"><?= $e($campo[1]) ?></div>
+                        </article>
+                        <?php endforeach; ?>
                     </div>
                 </section>
+                <?php endforeach; ?>
 
+                <?php if (trim((string)($empleado['observaciones'] ?? '')) !== ''): ?>
+                <section class="card profile-section">
+                    <div class="profile-section-heading"><span class="profile-section-icon"><i class="bi bi-journal-text"></i></span><div><h2>Observaciones internas</h2><p>Notas registradas en el expediente.</p></div></div>
+                    <div class="profile-note"><?= nl2br($e(trim((string)$empleado['observaciones']))) ?></div>
+                </section>
+                <?php endif; ?>
+
+                <section class="card profile-section">
+                    <div class="profile-section-heading"><span class="profile-section-icon"><i class="bi bi-clock-history"></i></span><div><h2>Historial laboral en la APM</h2><p>Asignaciones institucionales registradas cronológicamente.</p></div></div>
+                    <div class="profile-timeline">
+                        <?php foreach ($historialPerfil as $h): ?>
+                        <article class="historial-item">
+                            <div class="historial-dot"></div>
+                            <div class="historial-line"><strong><?= $e($h['cargo']) ?></strong><small><?= $e($h['direccion']) ?></small><span class="historial-period"><i class="bi bi-calendar-range"></i> <?= $e($h['periodo']) ?></span></div>
+                        </article>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="profile-audit-note"><i class="bi bi-shield-check"></i> Consulta registrada mediante la auditoría institucional del sistema.</div>
+                </section>
             </div>
         </main>
     </section>
 </div>
-
-<div id="toastContainer" class="toast-container"></div>
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('currentDate');
-    if (el) el.textContent = new Date().toLocaleDateString('es-EC', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const dateElement = document.getElementById('currentDate');
+    if (dateElement) {
+        dateElement.textContent = new Date().toLocaleDateString('es-EC', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    }
 });
 </script>
+<?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>
 </html>

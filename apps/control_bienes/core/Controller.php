@@ -279,4 +279,28 @@ class Controller {
 
         return $notificaciones;
     }
+
+    /**
+     * Consulta fn_TienePermisoNodo del portal (PORTAL_APM.dbo) en cross-DB
+     * same-instance (nombre de 3 partes, sin linked server) para una sesión
+     * puenteada desde el portal. id_modulo=12 fijo (Control de Bienes).
+     */
+    protected function tienePermisoPortal(int $idUsuarioPortal, int $opcion, int $nivelMin): bool {
+        try {
+            $conexionesPath = dirname(ROOT_PATH, 2) . '/config/connections.php';
+            if (!is_file($conexionesPath)) return false;
+            $conn = require $conexionesPath;
+            $dbPortal = $conn['databases']['portal']['name'] ?? 'PORTAL_APM';
+
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare(
+                "SELECT {$dbPortal}.dbo.fn_TienePermisoNodo(?,12,?,0,0,?,1) AS ok"
+            );
+            $stmt->execute([$idUsuarioPortal, $opcion, $nivelMin]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row !== false && (bool)$row['ok'];
+        } catch (Exception $e) {
+            return false;
+        }
+    }
 }

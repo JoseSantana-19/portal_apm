@@ -158,6 +158,15 @@ $inactivos = $total - $activos;
                             <i class="fa-solid fa-ban"></i>
                         </button>
                     </form>
+                    <?php elseif (!$u['estado']): ?>
+                    <form method="POST" action="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/activar" style="display:inline;">
+                        <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                        <button type="button" class="btn btn-sm" title="Activar"
+                                style="background:color-mix(in srgb, var(--color-success) 15%, transparent);color:var(--color-success);border:1px solid color-mix(in srgb, var(--color-success) 45%, transparent);font-weight:700;"
+                                onclick="PortalAlert.confirmAction('¿Activar a <?= htmlspecialchars($u['nombre_completo'], ENT_QUOTES) ?>?', this.form, {title:'¿Activar usuario?', confirmText:'Sí, activar'})">
+                            <i class="fa-solid fa-circle-check"></i> Activar
+                        </button>
+                    </form>
                     <?php endif; ?>
                 </td>
             </tr>

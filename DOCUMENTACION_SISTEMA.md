@@ -1,4 +1,4 @@
-# Portal APM — Documentación del Sistema v5.0
+# Portal APM — Documentación del Sistema v6.0
 
 **Portal de Gestión Integral — Autoridad Portuaria de Manta**
 PHP 8.0+ · SQL Server 2014+ · sqlsrv nativo · Sin PDO en el portal nativo · Sin Composer
@@ -41,7 +41,7 @@ integran al portal sin que éste absorba su código ni duplique sus datos.
 |---|---|---|
 | **Talento Humano** | App embebida (`apps/talento_humano`), SSO con el portal | `Talento_Humano` |
 | **Control de Bienes** | App embebida (`apps/control_bienes`), SSO con el portal | `inventario` |
-| **Portuaria (Bitácoras)** | Nativo en el router del portal, con su propio stack/BDs | `PortuariaDemo` + `PortuariaExterna` |
+| **Bitácoras Portuarias** | App embebida (`apps/bitacoras`), sesión compartida con el portal (desde 2026-08-04) | `PortuariaDemo` + `PortuariaExterna` |
 
 Son los **únicos 3** con presencia real en el menú. `Control de Acceso` (que
 en v4.x vivía nativo dentro de `PORTAL_APM`, tablas `ACCESO_*`) se dio de
@@ -121,6 +121,16 @@ controller y su propio kernel MVC (copiado del más simple existente, no
 reescrito desde cero). Se autentica contra la sesión central del portal
 (puente SSO en su `index.php`: sin sesión → redirige a `/login`). Su BD es
 propia y separada. Es el patrón estándar para integrar un módulo nuevo — ver §17.
+
+**Actualizado 2026-08-11/12:** los 3 ahora tienen un árbol MOIS **real y
+granular** en `CORE_Menu_Nodos`/`CORE_Permisos_Nodo` (una fila por
+pantalla real, no un esqueleto genérico) — ver §10. Talento Humano además
+sumó **login + MFA/TOTP + RBAC propios** (`th_roles`, `th_permisos_rol`),
+que **coexisten** con el puente SSO del portal, no lo reemplazan: un
+usuario puede entrar por SSO (sesión del portal) o directo con sus propias
+credenciales de TH — ambos caminos resuelven permisos, cada uno contra su
+propia fuente (portal vs. `th_permisos_rol`), sincronizadas por
+`SyncPermisosModulo` cuando el rol está mapeado en `CORE_Roles_Modulo_Map`.
 
 ### Patrón C — retirado (2026-08-04)
 Existió como "nativo con stack propio" para Bitácoras (`modules/Portuaria/`,
@@ -418,6 +428,24 @@ cuenta de portal creada **después** del admin inicial se liga a un empleado
 via `CORE_Usuarios.id_empleado_th` (obligatorio para cuentas nuevas — ver
 §11); el admin inicial es la única excepción (`id_empleado_th=NULL`).
 
+**Login/RBAC/auditoría propios (2026-08-11):** además del puente SSO, TH
+tiene su propio login con MFA/TOTP y su propio RBAC —
+`th_roles` (4 roles nativos: Super Administrador, Director de Talento
+Humano, Analista de Nómina, Funcionario Lectura) y `th_permisos_rol`
+(flags `puede_visualizar/crear/editar/eliminar` por rol × módulo nativo,
+18 módulos). Auditoría inmutable propia (`th_logs_auditoria` o similar,
+ver código). Puente de identidad **bidireccional** con el portal: un rol
+nativo mapeado en `CORE_Roles_Modulo_Map` (id_modulo=11) sincroniza sus
+permisos hacia/desde `CORE_Permisos_Nodo` vía `SyncPermisosModulo`. Roles
+nativos actualmente mapeados: `rol_id` 1↔`ADMIN`, 2↔`DIR_TH`, 3↔`ANALISTA_TH`,
+4↔`LECTOR`.
+
+> **Gotcha de sesión:** el puente de identidad usa 3 ajustes de sesión PHP
+> globales relacionados — si alguna vez hay que tocar el nombre de sesión
+> o cómo se resuelve el usuario actual, los 3 se cambian juntos, no solo
+> uno (fuente: memoria de proyecto, confirmar contra
+> `apps/talento_humano/core/Auth.php` antes de tocar).
+
 ---
 
 ### 7.4 Control de Bienes (Patrón B)
@@ -448,6 +476,22 @@ sesión SSO, `core/DatabaseConnection.php`/`DatabaseStatement.php` (fix
 propio que ignora SQLSTATE clase `01`), logo/link de vuelta al portal en el
 layout.
 
+**Permisos por rol Y por usuario (2026-08-11/12):** Bienes ya tenía un
+sistema de permisos **por usuario** (`inv_permisos`, ahora con columna
+`nivel_crud`) pero ninguno por rol. Se agregó `inv_roles`/`inv_permisos_rol`
+(por ahora sin sembrar — sin datos reales todavía) y 3 roles portal nuevos
+mapeados en `CORE_Roles_Modulo_Map` (id_modulo=12):
+`BIENES_SUPERVISOR`↔2, `BIENES_OPERADOR`↔3, `BIENES_AUDITOR`↔4 (más
+`ADMIN`↔1). `Router::checkPermisos()` resuelve nivel por **dos caminos**
+según cómo entró el usuario: puenteado (`Controller::tienePermisoPortal()`
+→ `fn_TienePermisoNodo` cross-DB) o nativo (`PermisoModel::nivelEfectivoNativo()`).
+
+**Hueco de seguridad cerrado:** el router resolvía la acción real por
+`$_GET['action']`, no por la ruta declarada — cualquier acción pública del
+controller resuelto era invocable sin importar qué ruta la gateaba
+nominalmente. Se cerró con `Router::POLITICAS`, tabla explícita
+`(ruta, acción) → (opción MOIS, nivel mínimo)` (17 políticas).
+
 ---
 
 ### 7.5 Bitácoras (Patrón B)
@@ -475,6 +519,20 @@ Identidad: sin login propio — sesión compartida del portal
 No tiene panel nativo en el portal (`/panel/bitacoras`) como sí tienen TH/Bienes
 — queda como mejora futura, no bloqueaba la migración.
 
+**Árbol de permisos real + fixes de gating nativo (2026-08-11/12):** antes
+del control de acceso vía MOIS, Bitácoras gateaba TODO por comparación de
+`$_SESSION['apm_auth']['nom_departa']` contra strings de departamento —
+todo o nada, sin granularidad por pantalla. Ahora `id_modulo=13` tiene 13
+opciones + 10 ítems reales (Registros Base se abrió en 6 catálogos +
+"Ver todo"; CCTV Cámaras en 2 pantallas + "Bitácora de Cámaras"), cada una
+resuelta por `Auth::canXxx()` → `fn_TienePermisoNodo`. De paso se
+corrigieron 3 huecos reales encontrados al auditar el sidebar nativo
+contra sus propios permisos: CCTV Cámaras reutilizaba el flag de "Rondas"
+en vez de `Auth::canAccederCctv()` (existía sin cablear); "Reporte
+supervisor" no tenía ningún chequeo; "Importar funcionarios" — controller
+sin gating, se agregó `Auth::canImportarFuncionarios()` (nueva, mismo
+patrón que sus hermanas).
+
 > **Control de Acceso**, que en v4.x vivía acá como §7.6 (`modules/Control_Acceso/`,
 > tablas `ACCESO_*`), se dio de baja por completo el 2026-07-28 — nunca se
 > desarrolló funcionalidad real, y las tablas quedaron huérfanas causando un
@@ -497,7 +555,7 @@ errores via `errors()/error()/errorHtml()`, `flashOld()/old()`).
 - **`estado TINYINT`:** `0`=Anulado/eliminado lógico · `1`=Activo — nunca DELETE físico
 - **`nivel_jerarquia`:** `0`=Operador · `1`=Analista · `2`=Director · `3`=Gerente · `4`=SuperAdmin
 
-### 9.2 Tablas CORE_ (17 tablas)
+### 9.2 Tablas CORE_ (18 tablas)
 
 | Tabla | Descripción clave |
 |---|---|
@@ -514,6 +572,7 @@ errores via `errors()/error()/errorHtml()`, `flashOld()/old()`).
 | `CORE_Contrasenas_Hist` | Historial BCrypt (máx. 5). |
 | `CORE_Config` | Clave-valor por módulo. |
 | `CORE_Aplicaciones` | Apps registradas para SSO server-to-server (`sp_SSO_*`, ver §7.2). |
+| `CORE_Roles_Modulo_Map` | Mapea un rol del portal a un rol nativo de un módulo integrado (`id_modulo, id_rol_portal, id_rol_externo`) — usado por `SyncPermisosModulo` para sincronizar permisos en ambas direcciones. Nuevo 2026-08-11, ver §10. |
 | `CORE_Landing_Imagenes` | Carrusel de fondos de la landing pública (`/admin/landing`). Ver §11-bis. |
 | `CORE_Landing_Noticias` | Noticias **con imagen obligatoria** — alimentan el carrusel de noticias de la landing. Ver §11-bis. |
 | `CORE_Landing_Consejos` | Consejos/novedades en texto (sin imagen) — franja aparte, separada del carrusel de noticias. Ver §11-bis. |
@@ -633,38 +692,79 @@ L1 (1,0,0,0) Central — Portal APM
 > para cualquier Director+ (`DashboardController::index()`). Tenerla dos veces
 > era 100% redundante.
 
-### Módulos 11 y 12 (Talento Humano / Bienes) — estructura actual
+### Módulos 11, 12, 13 (TH / Bienes / Bitácoras) — sistema de permisos centralizado ("permisos_centrales", 2026-08-11/12)
+
+**Superado el esqueleto genérico de 2-3 nodos** que describían las
+versiones anteriores de este documento. Los 3 módulos integrados ahora
+tienen un árbol MOIS **real**, una fila `(id_modulo, opcion, items, 0)`
+por pantalla de verdad de cada módulo — no un resumen. Tamaño actual:
+
+| id_modulo | Módulo | Opciones (L2) | Ítems reales (L3) adicionales |
+|---|---|---|---|
+| 11 | Talento Humano | 15 (0=raíz, 1=Inicio, 2-14 pantallas) | 6 — Auditoría y Control→(Logs de Actividad, Reportes de Auditoría); Prototipos→(Asistencia, Vacaciones, Evaluación, Capacitación) |
+| 12 | Control de Bienes | 16 (0=raíz, 1=Dashboard, 2-15 pantallas) | 0 — cada pantalla ya es 1:1 con el sidebar nativo |
+| 13 | Bitácoras Portuarias | 14 (0=raíz, 1=Dashboard, 2-13 pantallas) | 10 — Registros Base→(Maestro Personas/Empresas/Destinos/Motivos, Talento Humano, Niveles de importancia, "Ver todo"); Cámaras CCTV→(Maestro de Cámaras, Motivos CCTV, "Bitácora de Cámaras") |
+
+Cada nodo se resuelve por `fn_TienePermisoNodo` (la misma función que usa
+Central, §12) — no hay una función de permisos distinta por módulo. Piezas
+del sistema:
+
+- **`CORE_Roles_Modulo_Map`** (`id_modulo, id_rol_portal, id_rol_externo`)
+  — mapea un rol del portal a un rol nativo del módulo, cuando el módulo
+  tiene su propio sistema de roles (TH: `th_roles`; Bienes: `inv_roles`).
+- **`SyncPermisosModulo`** (`core/SyncPermisosModulo.php`) — sincronización
+  **bidireccional**: guardar permisos desde `/admin/roles/{id}/permisos`
+  llama `centralHaciaTh()`/`centralHaciaBienes()`, que actualiza
+  `th_permisos_rol`/`inv_permisos_rol` para el rol nativo mapeado (si
+  existe mapeo — si no, no hace nada, no falla). El camino inverso
+  (nativo → central) vive del lado de cada módulo.
+- **Resolución dual (puenteado vs. nativo)** — un módulo que además tiene
+  login propio (TH; Bienes parcialmente) resuelve permisos por DOS
+  caminos posibles según cómo entró el usuario: sesión puenteada del
+  portal (`fn_TienePermisoNodo` cross-DB) o sesión nativa del módulo
+  (tabla propia). Ver §7.3/§7.4 para el detalle por módulo.
+
+**Ejemplo real de árbol expandido** (TH, ilustra el patrón L2-cabecera +
+L3-ítems-reales, usado cuando una "opción" del sidebar en realidad agrupa
+más de una pantalla):
 
 ```
-L1 (11,0,0,0) Talento Humano
-  L3 (11,1,1,0) Panel                  → /panel/talento-humano
-  L3 (11,1,5,0) Sistema de Talento Humano → /apps/talento_humano/
-
-L1 (12,0,0,0) Control de Bienes
-  L3 (12,1,1,0) Panel                  → /panel/bienes
-  L3 (12,1,5,0) Sistema de Control de Bienes → /apps/control_bienes/
+L2 (11,12,0,0) Auditoría y Control        (cabecera, sin URL propia)
+  L3 (11,12,1,0) Logs de Actividad        → /apps/talento_humano/auditoria/logs
+  L3 (11,12,2,0) Reportes de Auditoría    → /apps/talento_humano/auditoria/reportes
 ```
 
-El ítem 5 ("Sistema Completo") lo registra `db/apps_origen_integration.sql`.
-El "Panel" (ítem 1) lo registra `db/panel_th_bienes_menu.sql`.
+Migraciones relevantes: `db/{th,bienes,bitacoras}_menu_estructura_real.sql`
+(expansión de nodos), `db/bitacoras_menu_items_raiz_reales.sql` (2 ítems
+con nombre propio que reemplazan un auto-registro genérico duplicado —
+ver "Sidebar: dedupe" más abajo), `db/{th,bienes,bitacoras}_restaurar_acceso_completo.sql`
+(corrección del bug de preservación de acceso — ver
+`INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` §1.4).
 
-### Módulo 13 (Bitácoras) — mismo patrón que TH/Bienes (sin Panel nativo)
+Historial: Bitácoras llegó a tener ~29 nodos antes de simplificarse a 2
+(`db/portuaria_menu_simplificar.sql`, 2026-08-01) y luego expandirse de
+nuevo a 24 nodos reales (2026-08-12) — pero ahora cada nodo representa una
+pantalla real, no es el mismo tipo de inflación que antes.
 
-```
-L1 (13,0,0,0) Bitácoras Portuarias
-  L2 (13,1,0,0) Bitácoras
-    L3 (13,1,7,0) Sistema de Bitácoras → /apps/bitacoras/
-```
+### Sidebar del portal: dedupe + aplanado de áreas de 1 pantalla (2026-08-12)
 
-Historial: tenía ~29 nodos (visitas, rondas, cámaras, catálogos como entradas
-separadas), la mayoría ya `estado=0` desde antes — se simplificó a 2 ítems
-(`db/portuaria_menu_simplificar.sql`, 2026-08). Al migrar a Patrón B
-(2026-08-04, `db/bitacoras_apps_migration_menu.sql`) se borró además el nodo
-"Panel Portuario" (apuntaba a `/portuaria`, vista SPA nativa que ya no existe
-— la app es standalone) y "Sistema de Bitácoras" pasó de `/visitas` a
-`/apps/bitacoras/`. A diferencia de TH/Bienes, Bitácoras no tiene un Panel
-nativo equivalente (`/panel/bitacoras`) todavía — construirlo queda como
-mejora futura, no bloqueó la migración.
+Con árboles más granulares, apareció un bug de UX en
+`modules/Central/views/layouts/sidebar.php`: `models/Acceso_/Menu.php`
+auto-registra cada nodo "opción" plano (items=0, sin hijos) como un ítem
+que se auto-referencia — necesario para que el área no desaparezca del
+sidebar cuando no tiene hijos reales (fix de sesión anterior). Con hijos
+reales agregados, ese auto-registro quedaba como una fila duplicada con el
+mismo nombre que su propio encabezado (ej. "Registros Base" adentro de
+"Registros Base"). Dos fixes:
+
+1. `Menu.php` — si algún ítem real del área ya apunta a la misma URL que
+   el auto-registro, descarta el duplicado (se resuelve agregando un ítem
+   real con nombre propio en la BD, no relabeleando en PHP a ciegas).
+2. `sidebar.php` — **aplanado a nivel de ÁREA** (antes solo existía a
+   nivel de módulo, para el caso de un módulo con 1 solo ítem total): un
+   área con una sola pantalla real y sin hermanas se renderiza como link
+   directo, sin acordeón — 1 click en vez de expandir+click, aplica a la
+   mayoría de pantallas de TH/Bienes/Bitácoras.
 
 ### Visibilidad: dos capas independientes
 
@@ -819,9 +919,11 @@ XSS: `htmlspecialchars($val, ENT_QUOTES, 'UTF-8')` en toda salida a HTML. CSP he
 navegador y los `<div class="alert alert-success/danger">` estáticos por
 [SweetAlert2](https://sweetalert2.github.io/), vendorizado localmente en
 `public/librerias/Otras_librerias/sweetalert2/` (sin CDN — ya estaba en el
-repo, usado antes solo por `modules/Portuaria`). Incluido una sola vez en
-`modules/Central/views/layouts/shell.php`, así que cubre **todo** lo que
-pasa por el shell (Central + Credenciales + Portuaria) automáticamente.
+repo, usado antes solo por Portuaria cuando era nativo). Incluido una sola
+vez en `modules/Central/views/layouts/shell.php`, así que cubre **todo** lo
+que pasa por el shell del portal (Central + Credenciales) automáticamente
+— Bitácoras, al ser app embebida (Patrón B) con su propio layout Bootstrap
+desde 2026-08-04, no pasa por este shell y no hereda esto automático.
 
 ### `js/alerts.js` — `PortalAlert`
 
@@ -1270,6 +1372,67 @@ file ID idéntico en ambas rutas) — nunca hizo falta "sincronizar" con
 `Copy-Item` como se venía haciendo, cualquier edición al repo ya está
 sirviéndose en vivo.
 
+### v6.0 (2026-08-11 a 2026-08-12) — Sistema de permisos centralizado + menú lateral
+
+Sesión maratónica en 4 frentes. Resumen:
+
+**1. Permisos centralizados ("permisos_centrales", Fase 0-3)** — TH, Bienes
+y Bitácoras pasaron de un esqueleto de menú genérico (2-3 nodos) a un árbol
+MOIS real y granular (15/16/14 opciones + 16 ítems reales entre los 3), el
+mismo `fn_TienePermisoNodo` que ya usaba Central. Piezas nuevas:
+`CORE_Roles_Modulo_Map` (mapeo rol portal ↔ rol nativo del módulo),
+`core/SyncPermisosModulo.php` (sync bidireccional al guardar permisos).
+Detalle completo en §7.3/§7.4/§7.5 y §10.
+
+- **Talento Humano** sumó login + MFA/TOTP + RBAC propios
+  (`th_roles`/`th_permisos_rol`), coexistiendo con el puente SSO.
+- **Control de Bienes** sumó permisos por **rol** (antes solo tenía por
+  usuario) — `inv_roles`/`inv_permisos_rol`, 3 roles portal nuevos
+  (`BIENES_SUPERVISOR/OPERADOR/AUDITOR`). Se cerró un hueco de seguridad
+  real: el router resolvía la acción por `$_GET['action']` sin validar
+  contra la ruta declarada — cualquier acción pública era invocable sin
+  importar qué ruta la gateaba. Fix: `Router::POLITICAS` (17 políticas
+  ruta+acción → opción MOIS + nivel mínimo).
+- **Bitácoras** pasó de gating 100% booleano por string de departamento a
+  permisos granulares por pantalla. Se cerraron 3 huecos reales
+  encontrados auditando el sidebar nativo: CCTV Cámaras reutilizaba el
+  flag de "Rondas" en vez de su propio permiso (existía sin cablear);
+  "Reporte supervisor" no tenía ningún chequeo; "Importar funcionarios"
+  sin gating en el controller — las 3 corregidas.
+
+**Gotcha real, encontrado 3 veces (TH, Bienes, Bitácoras):** las
+migraciones de "preservar acceso ya otorgado" al pasar al árbol nuevo solo
+re-otorgaban el nivel sobre el nodo de entrada (Dashboard), no sobre el
+resto de pantallas reales — regresión funcional real (roles con acceso
+amplio quedaron viendo solo Dashboard), no solo cosmética. Corregido con
+scripts de restauración dedicados; documentado como gotcha permanente en
+`INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` §1.4 para no
+repetirlo con el próximo módulo.
+
+**2. Estructura del Menú / Roles y Permisos — coinciden con el sidebar real**
+Varias pantallas de TH y Bitácoras estaban agrupadas en el árbol de admin
+(1 nodo = 1 grupo) cuando el sidebar real del módulo las mostraba como
+links sueltos (ej. "Registros Base" de Bitácoras: 1 nodo → ahora 6 ítems
+reales + "Ver todo"). Se investigó leyendo el código real de cada sidebar
+(no asumido) y se expandió el árbol 1:1.
+
+**3. Menú lateral del portal — dedupe + aplanado de áreas** El
+auto-registro que evita que un área plana desaparezca del sidebar (fix de
+sesión anterior) quedó mostrando filas duplicadas con el mismo nombre que
+su propio encabezado, una vez que esas áreas ganaron hijos reales.
+Corregido en `Menu.php` (descarta el auto-registro si un ítem real
+comparte su URL) y en `sidebar.php` (aplanado nuevo a nivel de ÁREA, no
+solo de módulo — área de 1 sola pantalla = link directo, sin acordeón).
+Ver §10.
+
+**4. Bitácoras — datos pendientes + fix de ruta rota**
+`db/bitacoras_update_tipos_visita_adjuntos.sql` y
+`db/bitacoras_externa_reg_empresas.sql` (128 filas reales de `reg_empresas`,
+corrige una cascada de búsqueda de empresas silenciosamente rota sin esos
+datos) aplicados a `PortuariaDemo`/`PortuariaExterna` con backup previo.
+Se portó `bit_consulta.php` (detalle de ronda desde Dashboard Jefatura,
+roto tras la migración a `apps/bitacoras`) a ruta+controller+vista reales.
+
 ### v3.1 (2026-07-01) y anteriores
 
 Ver historial de git para el detalle de las correcciones de exactitud contra
@@ -1279,4 +1442,4 @@ de v4.0 y no se repiten acá.
 
 ---
 
-*Portal APM v5.0 — Autoridad Portuaria de Manta*
+*Portal APM v6.0 — Autoridad Portuaria de Manta*

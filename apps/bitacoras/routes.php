@@ -31,6 +31,7 @@ $router->get('/bitacoras/visita/detalle',         'PortVisitaController@detalle'
 $router->get('/rondas',                           'PortRondaController@index');
 $router->get('/bitacoras/ronda/api',              'PortRondaController@api');
 $router->post('/bitacoras/ronda/api',             'PortRondaController@api');
+$router->get('/bitacoras/ronda/detalle',          'PortRondaController@detalle');
 
 // CCTV Cámaras (bitácora + maestro + motivos)
 $router->get('/camaras',                          'PortCamaraController@index');

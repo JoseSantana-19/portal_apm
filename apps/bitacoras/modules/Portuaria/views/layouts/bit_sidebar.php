@@ -27,6 +27,9 @@ $puedeVerRegistrosBaseSidebar = apm_can_gestionar_maestros_acceso();
 $puedeVerBloqueAdminSidebar = apm_can_ver_bloque_admin();
 $puedeBitacoraRondasSidebar = apm_can_acceder_bitacora_rondas();
 $puedeDashboardJefeSidebar = apm_can_acceder_dashboard_jefe();
+$puedeCctvSidebar = apm_can_acceder_cctv();
+$puedeReporteSupervisorSidebar = apm_can_acceder_reporte_supervisor();
+$puedeImportarFuncionariosSidebar = apm_can_importar_funcionarios();
 
 $apmUserNameSidebar = isset($_SESSION['apm_auth']['nombres'])
     ? (string) $_SESSION['apm_auth']['nombres']
@@ -207,7 +210,7 @@ $apmCedulaSidebar = isset($_SESSION['apm_auth']['cedula'])
                 </div>
             <?php endif; ?>
 
-            <?php if ($puedeBitacoraRondasSidebar): ?>
+            <?php if ($puedeCctvSidebar): ?>
                 <?php
                     $paginasCctvSidebar = [
                         'bit_inv_camaras.php',
@@ -260,19 +263,23 @@ $apmCedulaSidebar = isset($_SESSION['apm_auth']['cedula'])
                 </div>
             <?php endif; ?>
 
+            <?php if ($puedeReporteSupervisorSidebar): ?>
             <a id="menu-reporte"
                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_reporte_diario_supervisor.php'); ?>"
                href="bit_reporte_diario_supervisor.php">
                 <i class="bi bi-journal-text"></i>
                 <span>Reporte supervisor</span>
             </a>
+            <?php endif; ?>
 
+            <?php if ($puedeImportarFuncionariosSidebar): ?>
             <a id="menu-importar"
                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_importar_funcionarios.php'); ?>"
                href="importar-funcionarios">
                 <i class="bi bi-upload"></i>
                 <span>Importar funcionarios</span>
             </a>
+            <?php endif; ?>
 
         </div>
         <!-- FIN ZONA CON SCROLL -->
