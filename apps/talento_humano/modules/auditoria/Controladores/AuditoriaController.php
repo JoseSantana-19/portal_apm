@@ -72,7 +72,7 @@ class AuditoriaController extends Controller
             $params[':q_detalle']=$busqueda;$params[':q_ip']=$busqueda;
         }
         if($modulo!==''){$where[]='modulo=:modulo';$params[':modulo']=$modulo;}
-        if($desde!==''){$where[]='fecha_hora>=:desde';$params[':desde']=$desde;}
+        if($desde!==''){$where[]='fecha_hora>=CONVERT(date,:desde)';$params[':desde']=$desde;}
         if($hasta!==''){$where[]='fecha_hora<DATEADD(day,1,CONVERT(date,:hasta))';$params[':hasta']=$hasta;}
         $filtro=$where?' WHERE '.implode(' AND ',$where):'';
         $count=$db->prepare('SELECT COUNT_BIG(*) FROM dbo.th_logs_auditoria'.$filtro);$count->execute($params);$total=(int)$count->fetchColumn();
@@ -118,7 +118,7 @@ class AuditoriaController extends Controller
         if($desde>$hasta)[$desde,$hasta]=[$hasta,$desde];$usuario=trim((string)($_GET['usuario']??''));
         $usuarios=$db->query("SELECT DISTINCT usuario FROM dbo.th_logs_auditoria WHERE usuario<>'' ORDER BY usuario")->fetchAll(PDO::FETCH_COLUMN);
         if($usuario!==''&&!in_array($usuario,$usuarios,true))$usuario='';
-        $where='fecha_hora>=:desde AND fecha_hora<DATEADD(day,1,CONVERT(date,:hasta))';$params=[':desde'=>$desde,':hasta'=>$hasta];
+        $where='fecha_hora>=CONVERT(date,:desde) AND fecha_hora<DATEADD(day,1,CONVERT(date,:hasta))';$params=[':desde'=>$desde,':hasta'=>$hasta];
         if($usuario!==''){$where.=' AND usuario=:usuario';$params[':usuario']=$usuario;}
         $summary=$db->prepare("SELECT COUNT_BIG(*) total_eventos,COUNT(DISTINCT usuario) usuarios,
             SUM(CASE WHEN accion IN ('LOGIN','MFA_VALIDADO') THEN 1 ELSE 0 END) accesos,
@@ -141,7 +141,7 @@ class AuditoriaController extends Controller
     public function exportarReporteAuditoria(): void
     {
         $db=Conexion::conectar();$desde=$this->fechaSegura((string)($_GET['desde']??date('Y-m-d',strtotime('-29 days'))),date('Y-m-d',strtotime('-29 days')));$hasta=$this->fechaSegura((string)($_GET['hasta']??date('Y-m-d')),date('Y-m-d'));$usuario=trim((string)($_GET['usuario']??''));
-        $sql='SELECT log_id,fecha_hora,usuario,modulo,accion,descripcion_detalle,direccion_ip FROM dbo.th_logs_auditoria WHERE fecha_hora>=:desde AND fecha_hora<DATEADD(day,1,CONVERT(date,:hasta))';$params=[':desde'=>$desde,':hasta'=>$hasta];
+        $sql='SELECT log_id,fecha_hora,usuario,modulo,accion,descripcion_detalle,direccion_ip FROM dbo.th_logs_auditoria WHERE fecha_hora>=CONVERT(date,:desde) AND fecha_hora<DATEADD(day,1,CONVERT(date,:hasta))';$params=[':desde'=>$desde,':hasta'=>$hasta];
         if($usuario!==''){$sql.=' AND usuario=:usuario';$params[':usuario']=$usuario;}$sql.=' ORDER BY fecha_hora DESC,log_id DESC';
         $stmt=$db->prepare($sql);$stmt->execute($params);$this->auditar('EXPORTAR_AUDITORIA',$usuario!==''?"Exportó auditoría del usuario {$usuario}.":'Exportó auditoría general.');
         $suffix=$usuario!==''?'_'.$usuario:'';header('Content-Type: text/csv; charset=UTF-8');header('Content-Disposition: attachment; filename="Auditoria'.$suffix.'_'.date('Ymd_His').'.csv"');header('Cache-Control: private, no-store');

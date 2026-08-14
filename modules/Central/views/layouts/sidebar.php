@@ -15,10 +15,6 @@ if ($baseUrl !== '' && str_starts_with($currentPath, $baseUrl)) {
 if (!str_starts_with($currentPath, '/')) $currentPath = '/' . $currentPath;
 
 // Fallback menu loader check
-// Badges con datos en vivo de las BDs de cada módulo integrado (TH/Bienes/Portuaria)
-require_once ROOT . '/helpers/module_stats_helper.php';
-$moduleBadges = apm_module_badges();
-
 if (!isset($userMenu) || empty($userMenu)) {
     $menuObj = new Menu();
     $userMenu = $menuObj->getUserMenu((int)($_SESSION['user_id'] ?? 0));
@@ -156,7 +152,15 @@ if (!function_exists('normalizeFaIcon')) {
     </a>
     
     <!-- Module accordion navigation -->
-    <div class="sidebar-mods">
+    <div class="sidebar-mods" id="sidebarMods">
+        <div class="sidebar-search">
+            <i class="fa-solid fa-magnifying-glass sidebar-search-icon"></i>
+            <input type="text" id="sidebarSearchInput" class="sidebar-search-input" placeholder="Buscar en el menú..." autocomplete="off" aria-label="Buscar en el menú">
+            <button type="button" id="sidebarSearchClear" class="sidebar-search-clear" title="Limpiar búsqueda" style="display:none;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="sidebar-search-empty" id="sidebarSearchEmpty">Sin resultados para esa búsqueda.</div>
         <?php if (!empty($sidebarFocus)): ?>
             <a href="<?= APP_URL ?>/dashboard" data-no-spa
                style="display:flex;align-items:center;gap:8px;margin:0 6px 10px;padding:9px 12px;border-radius:10px;text-decoration:none;font-size:.78rem;font-weight:700;color:var(--text-app);background:var(--accent-app);border:1px solid var(--border-app);">
@@ -237,10 +241,6 @@ if (!function_exists('normalizeFaIcon')) {
                             <i class="<?= normalizeFaIcon($mod['icon'] ?? '') ?>" style="font-size:13px; color:#fff;"></i>
                         </div>
                         <span class="sm-name"><?= htmlspecialchars($mod['label'] ?? '') ?></span>
-                        <?php if (isset($moduleBadges[(int)$modId])): $mb = $moduleBadges[(int)$modId]; ?>
-                            <span title="<?= htmlspecialchars($mb['title'], ENT_QUOTES, 'UTF-8') ?>"
-                                  style="margin-left:auto;margin-right:4px;flex:none;font-size:.62rem;font-weight:800;padding:1px 7px;border-radius:20px;background:color-mix(in srgb,<?= $modColor ?> 18%,transparent);color:<?= $modColor ?>;border:1px solid color-mix(in srgb,<?= $modColor ?> 35%,transparent);"><?= (int)$mb['n'] ?></span>
-                        <?php endif; ?>
                     </a>
                     <?php else: ?>
                     <!-- Level 1: Module/Direction -->
@@ -254,10 +254,6 @@ if (!function_exists('normalizeFaIcon')) {
                             <i class="<?= normalizeFaIcon($mod['icon'] ?? '') ?>" style="font-size:13px; color:#fff;"></i>
                         </div>
                         <span class="sm-name"><?= htmlspecialchars($mod['label'] ?? '') ?></span>
-                        <?php if (isset($moduleBadges[(int)$modId])): $mb = $moduleBadges[(int)$modId]; ?>
-                            <span title="<?= htmlspecialchars($mb['title'], ENT_QUOTES, 'UTF-8') ?>"
-                                  style="margin-left:auto;margin-right:4px;flex:none;font-size:.62rem;font-weight:800;padding:1px 7px;border-radius:20px;background:color-mix(in srgb,<?= $modColor ?> 18%,transparent);color:<?= $modColor ?>;border:1px solid color-mix(in srgb,<?= $modColor ?> 35%,transparent);"><?= (int)$mb['n'] ?></span>
-                        <?php endif; ?>
                         <i class="fa-solid fa-chevron-right sm-chevron"></i>
                     </button>
 
@@ -508,6 +504,7 @@ if (!function_exists('normalizeFaIcon')) {
     .sb-area-btn.open {
         color: var(--mod-color, var(--primary-hover));
         background: color-mix(in srgb, var(--mod-color, var(--primary-hover)) 8%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mod-color, var(--primary-hover)) 16%, transparent);
     }
 
     /* Area icon box */
@@ -546,8 +543,19 @@ if (!function_exists('normalizeFaIcon')) {
     }
 
     /* Level 2 container */
-    .sb-items { display: none; padding: 2px 0 3px; }
-    .sb-items.open { display: block; animation: sbReveal 0.2s ease both; }
+    .sb-items {
+        display: block;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding: 0;
+        transition: max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, padding 0.28s ease;
+    }
+    .sb-items.open {
+        max-height: 1200px;
+        opacity: 1;
+        padding: 2px 0 3px;
+    }
 
     /* ════════════════════════════════════════════
        LEVEL 3 — Direct option links
@@ -688,14 +696,21 @@ if (!function_exists('normalizeFaIcon')) {
        LEVEL 4 — Sub-items (deepest level)
     ════════════════════════════════════════════ */
     .sb-subitems {
-        display: none;
-        padding: 2px 0 4px 6px;
-        margin: 1px 0 2px 26px;
-        border-left: 1.5px solid color-mix(in srgb, var(--mod-color, var(--border-app)) 22%, var(--border-app));
+        display: block;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding: 0 0 0 6px;
+        margin: 0 0 0 26px;
+        border-left: 1.5px solid transparent;
+        transition: max-height 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, padding 0.26s ease, border-color 0.26s ease;
     }
     .sb-subitems.open {
-        display: block;
-        animation: sbReveal 0.2s ease both;
+        max-height: 800px;
+        opacity: 1;
+        padding: 2px 0 4px 6px;
+        margin: 1px 0 2px 26px;
+        border-left-color: color-mix(in srgb, var(--mod-color, var(--border-app)) 22%, var(--border-app));
     }
 
     .sb-subitem {
@@ -903,12 +918,140 @@ if (!function_exists('normalizeFaIcon')) {
         color: #EF4444;
     }
 
+    /* ═══════════════════════════════════════════════
+       Buscador del menú
+    ═══════════════════════════════════════════════ */
+    .sidebar-search {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 8px 12px;
+        padding: 9px 11px;
+        background: color-mix(in srgb, var(--accent-app) 92%, transparent);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid var(--border-app);
+        border-radius: 10px;
+        transition: border-color var(--ease), box-shadow var(--ease);
+    }
+    .sidebar-search:focus-within {
+        border-color: color-mix(in srgb, var(--primary-hover) 55%, var(--border-app));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-hover) 16%, transparent);
+    }
+    .sidebar-search-icon { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+    .sidebar-search-input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        background: transparent;
+        outline: none;
+        font-family: var(--font-body);
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--text-app);
+    }
+    .sidebar-search-input::placeholder { color: var(--text-muted); opacity: .85; }
+    .sidebar-search-clear {
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 10px;
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--ease);
+    }
+    .sidebar-search-clear:hover { color: var(--text-app); background: var(--border-app); }
+    .sidebar-search-empty {
+        display: none;
+        padding: 10px 16px 4px;
+        font-size: 11.5px;
+        color: var(--text-muted);
+        text-align: center;
+        font-style: italic;
+    }
+    .sidebar-search-empty.show { display: block; }
+
+    /* Durante la búsqueda, todos los niveles de árbol quedan expandidos --
+       el filtrado real ocurre ocultando (display:none) los <a> que no
+       matchean; los contenedores forzados abiertos solo muestran lo que
+       quedó visible adentro. */
+    .sidebar-mods.searching .sm-tree,
+    .sidebar-mods.searching .sb-items,
+    .sidebar-mods.searching .sb-subitems {
+        max-height: none !important;
+        opacity: 1 !important;
+        overflow: visible !important;
+        transition: none !important;
+    }
+    .sidebar-mods.searching .sm-tree { padding: 2px 0 !important; }
+    .sidebar-mods.searching .sb-items { padding: 2px 0 3px !important; }
+    .sidebar-mods.searching .sb-subitems {
+        padding: 2px 0 4px 6px !important;
+        margin: 1px 0 2px 26px !important;
+        border-left-color: color-mix(in srgb, var(--mod-color, var(--border-app)) 22%, var(--border-app)) !important;
+    }
+    .sidebar-mods.searching .sm-chevron,
+    .sidebar-mods.searching .sab-chevron,
+    .sidebar-mods.searching .sso-chevron {
+        transform: rotate(90deg);
+    }
+
+    /* ═══════════════════════════════════════════════
+       Jerarquía visual reforzada -- tarjeta por módulo,
+       separación real entre secciones sin tocar colores.
+    ═══════════════════════════════════════════════ */
+    .sm-section {
+        margin: 0 6px 4px;
+        border-radius: 12px;
+        transition: background var(--ease);
+    }
+    .sm-header.open {
+        border-radius: 10px 10px 0 0;
+    }
+    .sm-tree.open {
+        background: color-mix(in srgb, var(--mod-color, var(--primary-hover)) 3%, transparent);
+        border-radius: 0 0 10px 10px;
+        padding-bottom: 6px !important;
+    }
+    .sm-name { letter-spacing: -0.005em; }
+
     /* ── Sidebar divider ── */
     .sidebar-divider {
         height: 1px;
         background: var(--border-app);
         margin: 8px 14px;
         opacity: 0.6;
+    }
+
+    /* ── Foco accesible + feedback táctil ── */
+    .sm-header:focus-visible,
+    .sb-area-btn:focus-visible,
+    .sb-subopt-btn:focus-visible,
+    .sb-item-btn:focus-visible,
+    .sb-item:focus-visible,
+    .sb-subitem:focus-visible,
+    .sm-header-block:focus-visible,
+    .sidebar-logout-btn:focus-visible {
+        outline: 2px solid var(--mod-color, var(--primary-hover));
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+    .sm-header:active,
+    .sb-area-btn:active,
+    .sb-subopt-btn:active,
+    .sb-item-btn:active,
+    .sb-item:active,
+    .sb-subitem:active {
+        transform: scale(0.98);
     }
 </style>
 
@@ -932,12 +1075,15 @@ if (!function_exists('normalizeFaIcon')) {
         if (isOpen) {
             btn.classList.remove('open');
             tree.classList.remove('open');
+            // Recordar que el usuario cerró todo — no re-abrir por URL al recargar.
+            localStorage.setItem('apm_sidebar_open_module', '');
         } else {
             btn.classList.add('open');
             tree.classList.add('open');
             // Auto-expand all area panels so links are immediately visible
             tree.querySelectorAll('.sb-area-btn').forEach(a => a.classList.add('open'));
             tree.querySelectorAll('.sb-items').forEach(s => s.classList.add('open'));
+            localStorage.setItem('apm_sidebar_open_module', modId);
         }
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -1110,5 +1256,96 @@ if (!function_exists('normalizeFaIcon')) {
         sb.addEventListener('mouseleave', () => {
             flyout.classList.remove('show');
         });
+
+        // ── Buscador del menú lateral ──────────────────────────────────
+        // Filtra por texto entre los 76+ nodos reales sin depender del
+        // estado open/collapsed normal: fuerza expansión de contenedores
+        // (clase .searching, ver CSS) y oculta con display:none los <a>
+        // que no matchean. Al limpiar, restaura el estado open/closed que
+        // había antes de empezar a escribir (incluida la preferencia
+        // persistida de apm_sidebar_open_module).
+        const sidebarMods = document.getElementById('sidebarMods');
+        const searchInput = document.getElementById('sidebarSearchInput');
+        const searchClear = document.getElementById('sidebarSearchClear');
+        const searchEmpty = document.getElementById('sidebarSearchEmpty');
+
+        if (sidebarMods && searchInput) {
+            let savedOpenState = null;
+
+            const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            function restoreState() {
+                sidebarMods.classList.remove('searching');
+                sidebarMods.querySelectorAll('[data-search-touched]').forEach(el => {
+                    el.style.display = '';
+                    el.removeAttribute('data-search-touched');
+                });
+                if (savedOpenState) {
+                    savedOpenState.forEach(({ el, open }) => el.classList.toggle('open', open));
+                    savedOpenState = null;
+                }
+                if (searchEmpty) searchEmpty.classList.remove('show');
+                if (searchClear) searchClear.style.display = 'none';
+            }
+
+            function applyFilter(rawQuery) {
+                const q = normalize(rawQuery.trim());
+
+                if (q === '') { restoreState(); return; }
+
+                if (searchClear) searchClear.style.display = '';
+
+                if (!sidebarMods.classList.contains('searching')) {
+                    savedOpenState = Array.from(
+                        sidebarMods.querySelectorAll('.sm-header, .sm-tree, .sb-area-btn, .sb-items, .sb-subopt-btn, .sb-subitems')
+                    ).map(el => ({ el, open: el.classList.contains('open') }));
+                    sidebarMods.classList.add('searching');
+                }
+
+                const leaves = Array.from(sidebarMods.querySelectorAll('a[href]'));
+                let anyVisible = false;
+
+                leaves.forEach(leaf => {
+                    const label = leaf.querySelector('.sib-label, .sm-name, .sso-label, .sab-label');
+                    const text = normalize(label ? label.textContent : leaf.textContent);
+                    const match = text.includes(q);
+                    leaf.style.display = match ? '' : 'none';
+                    leaf.setAttribute('data-search-touched', '1');
+                    if (match) anyVisible = true;
+                });
+
+                // Oculta secciones de módulo completas sin ningún resultado.
+                // Oculta filas de grupo-acordeón (área nivel 2 / opción nivel 3
+                // colapsable) que quedaron sin ningún <a> visible adentro --
+                // si no, se ve un encabezado expandido "vacío" (solo aplica a
+                // los que son <button> con hermano .sb-items/.sb-subitems; los
+                // que son <a> directos ya se ocultan solos arriba, son leaves).
+                sidebarMods.querySelectorAll('.sb-area-btn:not(.sb-area-link), .sb-subopt-btn').forEach(btn => {
+                    const wrap = btn.parentElement.querySelector(':scope > .sb-items, :scope > .sb-subitems');
+                    const row = btn.parentElement;
+                    const hasVisible = wrap ? Array.from(wrap.querySelectorAll('a[href]')).some(a => a.style.display !== 'none') : false;
+                    row.style.display = hasVisible ? '' : 'none';
+                    row.setAttribute('data-search-touched', '1');
+                });
+
+                sidebarMods.querySelectorAll('.sm-section').forEach(section => {
+                    const hasVisible = Array.from(section.querySelectorAll('a[href]'))
+                        .some(a => a.style.display !== 'none');
+                    section.style.display = hasVisible ? '' : 'none';
+                    section.setAttribute('data-search-touched', '1');
+                });
+
+                if (searchEmpty) searchEmpty.classList.toggle('show', !anyVisible);
+            }
+
+            searchInput.addEventListener('input', () => applyFilter(searchInput.value));
+            if (searchClear) {
+                searchClear.addEventListener('click', () => {
+                    searchInput.value = '';
+                    restoreState();
+                    searchInput.focus();
+                });
+            }
+        }
     });
 </script>

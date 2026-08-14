@@ -373,6 +373,21 @@ class Auth
         return self::tienePermisoNodo(12, 0, 0, 2);
     }
 
+    // --- Granularidad por sub-ítem de "Registros Base" (opcion=5) y "CCTV" (opcion=7):
+    // antes solo el sidebar nativo gateaba el grupo completo con un único flag
+    // (canGestionarMaestrosAcceso/canAccederCctv); estos nodos individuales ya
+    // existían en el árbol MOIS del portal (editable desde /admin/roles) pero
+    // el sidebar nativo no los aplicaba ahí. Ahora sí.
+    public static function canVerCatalogoPersonas(): bool { return self::tienePermisoNodo(5, 1, 0, 1); }
+    public static function canVerCatalogoEmpresas(): bool { return self::tienePermisoNodo(5, 2, 0, 1); }
+    public static function canVerCatalogoDestinos(): bool { return self::tienePermisoNodo(5, 3, 0, 1); }
+    public static function canVerCatalogoMotivos(): bool { return self::tienePermisoNodo(5, 4, 0, 1); }
+    public static function canVerCatalogoFuncionarios(): bool { return self::tienePermisoNodo(5, 5, 0, 1); }
+    public static function canVerCatalogoNivelesIncidente(): bool { return self::tienePermisoNodo(5, 6, 0, 1); }
+    public static function canVerCctvInventario(): bool { return self::tienePermisoNodo(7, 1, 0, 1); }
+    public static function canVerCctvMotivos(): bool { return self::tienePermisoNodo(7, 2, 0, 1); }
+    public static function canVerCctvBitacora(): bool { return self::tienePermisoNodo(7, 3, 0, 1); }
+
     /** Cierra hueco real: hoy bit_reporte_diario_supervisor.php no chequea nada. */
     public static function canAccederReporteSupervisor(): bool
     {

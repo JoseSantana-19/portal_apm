@@ -33,7 +33,7 @@ class PortRondaController extends PortController
             'fechaMinimaEdicionBitacora' => $fechaMinimaEdicionBitacora,
             'puedeConfigurarDias' => Auth::canConfigurarDiasBitacora(),
             'fechaMaxServidor' => date('Y-m-d'),
-            'extraCss' => [$GLOBALS['url_toast_css'] ?? ''],
+            'extraCss' => [$this->rutas['url_toast_css'] ?? ''],
         ]);
     }
 

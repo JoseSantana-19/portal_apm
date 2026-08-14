@@ -33,6 +33,7 @@
     var warningTimer, logoutTimer, countdownInterval;
     var lastPing   = Date.now();
     var warningOn  = false;
+    var loggedOut  = false; // idempotencia: ver doLogout()
     var deadline   = null; // timestamp ms en el que se cierra la sesión, mientras el aviso está visible
 
     function schedule() {
@@ -75,6 +76,20 @@
     }
 
     function doLogout() {
+        // Bug real: doLogout() tenía 3 caminos que podían dispararla casi al
+        // mismo tiempo (el setInterval de abajo, el .then() del Swal cuando
+        // Swal.close() lo resuelve como no-confirmado, y el logoutTimer de
+        // schedule() que nunca se cancela mientras el aviso está abierto).
+        // 2-3 GET /logout casi simultáneos recreaban la sesión más de una
+        // vez -- el <input _csrf_token> que quedaba en el HTML terminaba sin
+        // coincidir con el de la sesión real al momento de reenviar el
+        // login ("CSRF token mismatch"). Guardia simple: solo la primera
+        // llamada real navega.
+        if (loggedOut) return;
+        loggedOut = true;
+        clearTimeout(warningTimer);
+        clearTimeout(logoutTimer);
+        clearInterval(countdownInterval);
         if (cfg.logoutViaPost) {
             var f = document.createElement('form');
             f.method = 'POST';

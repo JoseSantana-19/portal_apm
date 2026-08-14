@@ -56,6 +56,7 @@ $router->post('/admin/usuarios/{id}',           'AdminController@actualizarUsuar
 $router->post('/admin/usuarios/{id}/eliminar',  'AdminController@eliminarUsuario');
 $router->post('/admin/usuarios/{id}/activar',   'AdminController@activarUsuario');
 $router->post('/admin/usuarios/{id}/permisos',  'AdminController@guardarPermisosUsuario');
+$router->post('/admin/usuarios/{id}/completo',  'AdminController@guardarUsuarioCompleto');
 $router->get('/admin/departamentos',                'AdminController@departamentos');
 $router->get('/admin/departamentos/{id}/editar',    'AdminController@editarDepartamento');
 $router->post('/admin/departamentos/{id}',          'AdminController@actualizarDepartamento');

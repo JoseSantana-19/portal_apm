@@ -31,6 +31,16 @@ $puedeCctvSidebar = apm_can_acceder_cctv();
 $puedeReporteSupervisorSidebar = apm_can_acceder_reporte_supervisor();
 $puedeImportarFuncionariosSidebar = apm_can_importar_funcionarios();
 
+$puedeCatPersonasSidebar = apm_can_ver_catalogo_personas();
+$puedeCatEmpresasSidebar = apm_can_ver_catalogo_empresas();
+$puedeCatDestinosSidebar = apm_can_ver_catalogo_destinos();
+$puedeCatMotivosSidebar = apm_can_ver_catalogo_motivos();
+$puedeCatFuncionariosSidebar = apm_can_ver_catalogo_funcionarios();
+$puedeCatNivelesSidebar = apm_can_ver_catalogo_niveles_incidente();
+$puedeCctvInventarioSidebar = apm_can_ver_cctv_inventario();
+$puedeCctvMotivosSidebar = apm_can_ver_cctv_motivos();
+$puedeCctvBitacoraSidebar = apm_can_ver_cctv_bitacora();
+
 $apmUserNameSidebar = isset($_SESSION['apm_auth']['nombres'])
     ? (string) $_SESSION['apm_auth']['nombres']
     : 'Usuario';
@@ -132,47 +142,59 @@ $apmCedulaSidebar = isset($_SESSION['apm_auth']['cedula'])
                                 <span>Registros Base</span>
                             </a>
 
+                            <?php if ($puedeCatPersonasSidebar): ?>
                             <a id="menu-maestro-personas"
                                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_acc_personas.php'); ?>"
                                href="catalogos/personas">
                                 <i class="bi bi-person-vcard"></i>
                                 <span>Maestro Personas</span>
                             </a>
+                            <?php endif; ?>
 
+                            <?php if ($puedeCatEmpresasSidebar): ?>
                             <a id="menu-maestro-empresas"
                                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_acc_empresas.php'); ?>"
                                href="catalogos/empresas">
                                 <i class="bi bi-building-add"></i>
                                 <span>Maestro Empresas</span>
                             </a>
+                            <?php endif; ?>
 
+                            <?php if ($puedeCatDestinosSidebar): ?>
                             <a id="menu-maestro-destinos"
                                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_acc_destinos.php'); ?>"
                                href="catalogos/destinos">
                                 <i class="bi bi-signpost-split"></i>
                                 <span>Maestro Destinos</span>
                             </a>
+                            <?php endif; ?>
 
+                            <?php if ($puedeCatMotivosSidebar): ?>
                             <a id="menu-maestro-motivos"
                                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_acc_motivos.php'); ?>"
                                href="catalogos/motivos">
                                 <i class="bi bi-chat-left-text"></i>
                                 <span>Maestro Motivos</span>
                             </a>
+                            <?php endif; ?>
 
+                            <?php if ($puedeCatFuncionariosSidebar): ?>
                             <a id="menu-maestro-funcionarios"
                                class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_acc_funcionarios.php'); ?>"
                                href="catalogos/funcionarios">
                                 <i class="bi bi-person-badge"></i>
                                 <span>Talento Humano</span>
                             </a>
+                            <?php endif; ?>
 
+                            <?php if ($puedeCatNivelesSidebar): ?>
                             <a id="menu-maestro-niveles-incidente"
                                class="nav-link"
                                href="catalogos/niveles-incidente">
                                 <i class="bi bi-exclamation-triangle"></i>
                                 <span>Niveles de importancia</span>
                             </a>
+                            <?php endif; ?>
                         <?php endif; ?>
 
                     </div>
@@ -239,26 +261,32 @@ $apmCedulaSidebar = isset($_SESSION['apm_auth']['cedula'])
 
                     <div id="cctvItems"
                          class="ps-2 collapse <?php echo $cctvActivoSidebar ? 'show' : ''; ?>">
+                        <?php if ($puedeCctvInventarioSidebar): ?>
                         <a id="menu-inv-camaras"
                            class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_inv_camaras.php'); ?>"
                            href="camaras/inventario">
                             <i class="bi bi-hdd-network"></i>
                             <span>Maestro de Cámaras</span>
                         </a>
+                        <?php endif; ?>
 
+                        <?php if ($puedeCctvMotivosSidebar): ?>
                         <a id="menu-bit-motivos-camaras"
                            class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_motivos_camaras.php'); ?>"
                            href="camaras/motivos">
                             <i class="bi bi-exclamation-triangle"></i>
                             <span>Motivos CCTV</span>
                         </a>
+                        <?php endif; ?>
 
+                        <?php if ($puedeCctvBitacoraSidebar): ?>
                         <a id="menu-bitacora-camaras"
                            class="nav-link <?php echo apmSidebarActive($paginaActual, 'bit_camaras.php'); ?>"
                            href="camaras">
                             <i class="bi bi-camera-reels"></i>
                             <span>Bitácora de Cámaras</span>
                         </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>

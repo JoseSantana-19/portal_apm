@@ -31,9 +31,9 @@ class PortVisitaController extends PortController
             'dbaseDisponible' => extension_loaded('dbase'),
             'errorCode'      => $_GET['error'] ?? '',
             'extraCss'       => [
-                $GLOBALS['url_select2_css'] ?? '',
-                $GLOBALS['url_select2_bootstrap_theme_css'] ?? '',
-                $GLOBALS['url_toast_css'] ?? '',
+                $this->rutas['url_select2_css'] ?? '',
+                $this->rutas['url_select2_bootstrap_theme_css'] ?? '',
+                $this->rutas['url_toast_css'] ?? '',
             ],
         ]);
     }
@@ -97,9 +97,9 @@ class PortVisitaController extends PortController
             'puedeEditarVisita'     => Auth::canEditarVisitaDesdeListado(),
             'mensaje'               => $mensajes[$msgKey] ?? '',
             'extraCss'              => [
-                $GLOBALS['url_datatables_css'] ?? '',
-                $GLOBALS['url_toast_css'] ?? '',
-                $GLOBALS['url_sweetalert2_css'] ?? '',
+                $this->rutas['url_datatables_css'] ?? '',
+                $this->rutas['url_toast_css'] ?? '',
+                $this->rutas['url_sweetalert2_css'] ?? '',
             ],
         ]);
     }

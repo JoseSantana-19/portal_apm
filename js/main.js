@@ -60,38 +60,59 @@ document.addEventListener("DOMContentLoaded", function() {
     const closeBtn = document.getElementById("sidebar-close-btn");
     const sidebar = document.getElementById("sidebar");
 
-    // Open sidebar automatically on desktop viewports on load
-    if (sidebar && window.innerWidth > 1024) {
-        sidebar.classList.remove("collapsed");
+    // Estado colapsado/expandido persistido — primera visita (sin preferencia
+    // guardada) mantiene el comportamiento de siempre: abierto en desktop,
+    // cerrado en mobile. Con preferencia guardada, esta manda siempre,
+    // incluso en desktop, para que "cerrado y recargo" se respete.
+    if (sidebar) {
+        const savedCollapsed = localStorage.getItem('apm_sidebar_collapsed');
+        const shouldBeOpen = savedCollapsed !== null ? savedCollapsed === '0' : window.innerWidth > 1024;
+        sidebar.classList.toggle("collapsed", !shouldBeOpen);
         const icon = document.getElementById("hamburgerIcon");
         if (icon) {
-            icon.setAttribute("data-lucide", "x");
+            icon.setAttribute("data-lucide", shouldBeOpen ? "x" : "menu");
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    // Acordeón de módulos: PHP abre por defecto el módulo de la página
+    // actual, pero un cierre/apertura manual del usuario debe pisar ese
+    // default tras recargar o navegar (ver window.toggleSidebarModule).
+    const savedOpenModule = localStorage.getItem('apm_sidebar_open_module');
+    if (savedOpenModule !== null) {
+        document.querySelectorAll('.sm-header').forEach(h => h.classList.remove('open'));
+        document.querySelectorAll('.sm-tree').forEach(t => t.classList.remove('open'));
+        if (savedOpenModule !== '') {
+            const hdr = document.getElementById('smhdr-' + savedOpenModule);
+            const tree = document.getElementById('smtree-' + savedOpenModule);
+            if (hdr) hdr.classList.add('open');
+            if (tree) {
+                tree.classList.add('open');
+                tree.querySelectorAll('.sb-area-btn').forEach(a => a.classList.add('open'));
+                tree.querySelectorAll('.sb-items').forEach(s => s.classList.add('open'));
+            }
+        }
+    }
+
+    function setSidebarCollapsed(collapsed) {
+        if (!sidebar) return;
+        sidebar.classList.toggle("collapsed", collapsed);
+        localStorage.setItem('apm_sidebar_collapsed', collapsed ? '1' : '0');
+
+        const icon = document.getElementById("hamburgerIcon");
+        if (icon) {
+            icon.setAttribute("data-lucide", collapsed ? "menu" : "x");
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     }
 
     function toggleSidebar() {
         if (!sidebar) return;
-        const isCollapsed = sidebar.classList.contains("collapsed");
-        sidebar.classList.toggle("collapsed");
-        
-        // Update hamburger icon
-        const icon = document.getElementById("hamburgerIcon");
-        if (icon) {
-            icon.setAttribute("data-lucide", isCollapsed ? "x" : "menu");
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
+        setSidebarCollapsed(!sidebar.classList.contains("collapsed"));
     }
 
     if (toggleBtn) toggleBtn.addEventListener("click", toggleSidebar);
-    if (closeBtn) closeBtn.addEventListener("click", function() {
-        if (sidebar) sidebar.classList.add("collapsed");
-        const icon = document.getElementById("hamburgerIcon");
-        if (icon) {
-            icon.setAttribute("data-lucide", "menu");
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-    });
+    if (closeBtn) closeBtn.addEventListener("click", function() { setSidebarCollapsed(true); });
 
     // 2. User Dropdown & Notification Toggle
     const userMenuBtn   = document.getElementById("user-menu-btn");

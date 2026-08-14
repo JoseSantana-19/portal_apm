@@ -19,6 +19,7 @@ El MySQL que trae Wamp queda sin usar.
 | SSMS | Recomendado para el paso de creación de base de datos (opcional si usás la alternativa por PHP) |
 | ODBC Driver 17 o 18 para SQL Server | Se instala aparte, no viene con Wamp ni con la extensión PHP |
 | Extensión `sqlsrv` + `pdo_sqlsrv` para PHP | Se agrega a mano — ver paso 4 |
+| Extensión `dbase` para PHP | **Opcional.** Solo si vas a usar el desplegable de funcionarios en Bitácoras → Visitas → Registrar (lee `apps/bitacoras/dbf/rolmaes.DBF`). Ver paso 11. Sin esto el resto del portal funciona igual. |
 
 ---
 
@@ -174,23 +175,76 @@ menú, administración, Control de Acceso).
 
 ## 9. Bases de datos de los módulos integrados (opcional)
 
-Para que **Talento Humano**, **Control de Bienes** y **Portuaria** funcionen
+Para que **Talento Humano**, **Control de Bienes** y **Bitácoras** funcionen
 con datos reales (no solo el hub de Central), hacen falta además las bases
-`Talento_Humano`, `inventario` y `PortuariaDemo` — cada una las mantiene el
-equipo dueño de ese módulo por separado.
+`Talento_Humano`, `inventario`, `PortuariaDemo` **y** `PortuariaExterna`
+(esta última son los maestros de funcionarios/departamentos que usa
+Bitácoras) — cada una las mantiene el equipo dueño de ese módulo por
+separado.
 
 En `Z.BASES DE DATOS/` hay un **esquema de referencia** de cada una
-(`Talento_Humano.sql`, `inventario.sql`, `PortuariaDemo.sql`) — solo
-estructura (tablas, vistas, SPs), **sin datos**. Sirven para levantar una
-base vacía y consistente si no tenés un backup real con datos a mano, pero
-no reemplazan el backup/datos reales del equipo de cada módulo. Se ejecutan
-igual que en el paso 8 (SSMS o `db\run_sql.php`), una vez por cada archivo,
-contra la misma instancia. Los 4 scripts (el de PORTAL_APM y estos 3) son
-compatibles con SQL Server 2014 en adelante.
+(`Talento_Humano.sql`, `inventario.sql`, `PortuariaDemo.sql`,
+`PortuariaExterna.sql`) — se ejecutan igual que en el paso 8 (SSMS o
+`db\run_sql.php`), una vez por cada archivo, contra la misma instancia. Los
+5 scripts (el de PORTAL_APM y estos 4) son compatibles con SQL Server 2014
+en adelante y no dependen del orden entre sí.
+
+`Talento_Humano.sql` trae **datos reales completos** (dump de una instancia
+de referencia). `inventario.sql`, `PortuariaDemo.sql` y `PortuariaExterna.sql`
+son solo estructura (tablas, vistas, SPs), **sin datos** — sirven para
+levantar una base vacía y consistente si no tenés un backup real a mano,
+pero no reemplazan el backup/datos reales del equipo de cada módulo.
 
 Si no las creás, el portal arranca igual — los paneles de esos módulos
 muestran vacío/error al intentar leer esas bases, el resto de Central sigue
 funcionando normal.
+
+### 9.1. Migraciones pendientes de Talento Humano (obligatorio si creaste `Talento_Humano.sql`)
+
+`Talento_Humano.sql` es una foto tomada en un momento dado — desde entonces
+el módulo TH sumó login propio + bloqueo de cuenta escalado + MFA/TOTP +
+auditoría inmutable, y esos cambios de esquema **todavía no están
+incorporados al script base**. Si no corrés lo siguiente, TH abre pero el
+login propio del módulo, el bloqueo por intentos fallidos y el MFA van a
+fallar con "invalid column name" o similar.
+
+Ejecutar, **en este orden**, contra la base `Talento_Humano` (mismo método
+que el paso 8 — SSMS o `db\run_sql.php`; todos son idempotentes, no rompen
+nada si se corren dos veces):
+
+1. `apps/talento_humano/database/migracion_critica_2026.sql`
+2. `apps/talento_humano/database/migracion_culminacion_critica_2026.sql`
+3. `apps/talento_humano/database/migracion_ciclo_laboral_2026.sql` *(requiere el paso 2 antes — así lo indica su propio encabezado)*
+4. `apps/talento_humano/database/migracion_calidad_busqueda_2026.sql`
+5. `apps/talento_humano/database/migracion_formatos_oficiales_2026.sql`
+6. `apps/talento_humano/database/migracion_mejoras_operativas_2026.sql`
+7. `apps/talento_humano/database/migracion_cierre_produccion_20260806.sql` *(requiere el paso 5 antes — agrega constraints a tablas que crea ese archivo)*
+8. `apps/talento_humano/database/migracion_seguridad_auditoria_20260810.sql`
+9. `apps/talento_humano/database/patch_reconciliacion_rolmaes_2026.sql`
+
+No hace falta tocar `migra_accion_personal.sql`, `patch_v3_objetos_faltantes.sql`,
+`rectificacion_v2_APM.sql` ni `vistas_sps_restantes.sql` — esos 4 ya están
+incorporados dentro de `Talento_Humano.sql`.
+
+TH además **crea solo, la primera vez que se accede**, una carpeta privada
+`apps/.portal-portuario-private/` con una clave de cifrado (`auth-token.key`,
+usada para el MFA) — no requiere ningún `.env` para esto, solo que Apache
+tenga permiso de escritura dentro de `apps/`. En Wamp esto funciona sin
+tocar nada.
+
+### 9.2. Migraciones pendientes de Control de Bienes (obligatorio si creaste `inventario.sql`)
+
+Mismo caso: `inventario.sql` es anterior a 3 ajustes de esquema. Ejecutar
+(orden entre ellos no importa, no dependen uno del otro) contra la base
+`inventario`:
+
+- `apps/control_bienes/database/migrations/inv_20260727_modelo_inventario.sql`
+- `apps/control_bienes/database/migrations/inv_20260727_centros_consumo_personal.sql`
+- `apps/control_bienes/database/migrations/th_20260727_responsables_inventario.sql`
+
+(Los `.php` en esa misma carpeta — `importar_activos_dbf.php`,
+`corregir_categorias_activos_dbf.php` — son utilitarios de importación de un
+inventario legacy en formato DBF, no hacen falta en una instalación nueva.)
 
 ---
 
@@ -199,11 +253,40 @@ funcionando normal.
 Abrir `http://localhost/portal_apm/login` (o `http://localhost:8080/portal_apm/login`
 si tu Apache de Wamp escucha en otro puerto).
 
-Credenciales iniciales:
-- Usuario: `admin`
+El login del portal es **solo por cédula** (no hay campo de usuario/nombre
+de usuario). Credenciales iniciales del único usuario que trae el seed
+(cuenta técnica `admin`, sin vínculo a un empleado real):
+- Cédula: `1234567777`
 - Contraseña: `Apm2024*`
 
-Cambiar la contraseña desde `/cambiar-contrasena` apenas entrás.
+Cambiar la contraseña desde `/cambiar-contrasena` apenas entrás. El resto de
+las cuentas del portal se crean únicamente desde Talento Humano
+(`/admin/usuarios/desde-th`), no hay alta manual de usuarios.
+
+---
+
+## 11. Extensión `dbase` para PHP (opcional — solo Bitácoras → Visitas → Registrar)
+
+El desplegable de funcionarios en Bitácoras lee un archivo legacy Visual
+FoxPro (`apps/bitacoras/dbf/rolmaes.DBF`, ya viene en el repo con datos)
+usando la extensión PHP `dbase`. Sin esto el resto del portal — incluido el
+resto de Bitácoras — funciona normal; solo ese desplegable específico queda
+vacío.
+
+1. Confirmar versión/arquitectura/TS del PHP de Wamp (mismo dato que
+   usaste en el paso 4).
+2. Descargar la extensión `dbase` para Windows desde PECL
+   (`pecl.php.net/package/dbase`), build que coincida con esa versión de
+   PHP (x64, TS). Si no hay build exacto para tu versión de PHP, probar la
+   más cercana.
+3. Copiar `php_dbase.dll` a `C:\wamp64\bin\php\phpX.Y.Z\ext\`.
+4. Agregar en el `php.ini` de esa versión: `extension=dbase` (o
+   `extension=php_dbase.dll` si el nombre corto no carga).
+5. Wampmanager → "Restart All Services".
+6. Verificar: `C:\wamp64\bin\php\phpX.Y.Z\php.exe -m | findstr dbase`.
+
+Más detalle (con capturas para Laragon, mismo procedimiento en Wamp
+cambiando las rutas) en `apps/bitacoras/dbf/INSTALAR_EXTENSION_DBASE.md`.
 
 ---
 
@@ -218,3 +301,6 @@ Cambiar la contraseña desde `/cambiar-contrasena` apenas entrás.
 | "No se pudo cargar la extension sqlsrv" al correr `db\run_sql.php` | DLL copiada no coincide con la versión/arquitectura/TS de ese PHP | Repetir paso 4, prestar atención a TS vs NTS y al número de versión exacto |
 | Ícono de Wamp queda naranja (no verde) | Algún servicio no arrancó (puerto 80 ocupado por otro programa, típicamente Skype/IIS) | Cambiar el puerto de Apache desde Wampmanager, o liberar el puerto 80 |
 | Bienes/Talento Humano/Portuaria vacíos | Sus bases de datos no existen todavía | Paso 9, o pedir el backup real al equipo de ese módulo |
+| TH abre pero el login propio del módulo, bloqueo por intentos fallidos o MFA fallan con "Invalid column name" | Faltan las migraciones de TH posteriores al script base | Paso 9.1 |
+| Control de Bienes: error de columna al guardar centros de consumo/responsables/tipo de bien | Faltan las migraciones de Bienes posteriores al script base | Paso 9.2 |
+| "credenciales incorrectas" al entrar con `admin`/`Apm2024*` | Se está probando con un "usuario" en vez de la cédula | El login es solo por cédula: `1234567777` |

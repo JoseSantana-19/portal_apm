@@ -50,28 +50,28 @@ class PortCamaraController extends PortController
     public function index()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
+        if (!Auth::canVerCctvBitacora()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
         $this->view('camaras/index', array('pageTitle' => 'Bitácora de Cámaras CCTV | Autoridad Portuaria de Manta'));
     }
 
     public function motivos()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
+        if (!Auth::canVerCctvMotivos()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
         $this->view('camaras/motivos', array('pageTitle' => 'Motivos CCTV | Autoridad Portuaria de Manta'));
     }
 
     public function inventario()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
+        if (!Auth::canVerCctvInventario()) { $this->redirect('dashboard?msg=permiso_denegado'); return; }
         $this->view('camaras/inventario', array('pageTitle' => 'Maestro de Cámaras CCTV | Autoridad Portuaria de Manta'));
     }
 
     public function api()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
+        if (!Auth::canVerCctvBitacora()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
         $this->unificarFuncionesFormato();
         
         $model = $this->model('PortCamaraModel');
@@ -196,7 +196,7 @@ class PortCamaraController extends PortController
     public function apiMotivos()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
+        if (!Auth::canVerCctvMotivos()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
         
         $model = $this->model('PortCamaraModel');
         $action = $_SERVER['REQUEST_METHOD'] === 'GET' ? ($_GET['action'] ?? 'listar') : ($_POST['action'] ?? 'guardar');
@@ -253,7 +253,7 @@ class PortCamaraController extends PortController
     public function apiInventario()
     {
         Auth::guard();
-        if (!Auth::canAccederBitacoraRondas()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
+        if (!Auth::canVerCctvInventario()) { $this->json(array('ok' => false, 'message' => 'Permiso denegado.'), 403); }
         
         $model = $this->model('PortCamaraModel');
         $action = $_SERVER['REQUEST_METHOD'] === 'GET' ? ($_GET['action'] ?? 'listar') : ($_POST['action'] ?? 'guardar');

@@ -68,6 +68,25 @@ class AdminController extends Controller {
         }
         $treePermisosUsuario = $this->construirArbolPermisos($nodosPermisos, $overridesMap);
 
+        // Nivel que le daría SOLO el/los rol(es) asignado(s), sin ninguna
+        // excepción individual — se muestra como referencia ("hereda: Ver")
+        // en cada fila del checklist para que quede claro qué cambia una
+        // excepción de lo que ya tendría por rol.
+        $rolNivelMap = [];
+        if (!empty($asignados)) {
+            $rolIds = array_map('intval', array_column($asignados, 'id_rol'));
+            $placeholders = implode(',', array_fill(0, count($rolIds), '?'));
+            $rolPermisos = $db->fetchAll($db->query(
+                "SELECT id_modulo, opcion, items, subitems, MAX(nivel_crud) AS nivel_crud
+                 FROM CORE_Permisos_Nodo WHERE id_rol IN ({$placeholders}) AND acceso=1 AND estado=1
+                 GROUP BY id_modulo, opcion, items, subitems",
+                array_map(fn($r) => [$r, SQLSRV_PARAM_IN], $rolIds)
+            ));
+            foreach ($rolPermisos as $p) {
+                $rolNivelMap["{$p['id_modulo']}-{$p['opcion']}-{$p['items']}-{$p['subitems']}"] = (int)$p['nivel_crud'];
+            }
+        }
+
         $this->render('Central/admin/usuario_form', [
             'pageTitle'            => 'Editar Usuario',
             'usuario'              => $usuario,
@@ -80,6 +99,7 @@ class AdminController extends Controller {
             // construirArbolPermisos() solo expone el nivel resultante,
             // que por defecto también es 0 para un nodo sin fila alguna.
             'overridesActivos'     => $overridesMap,
+            'rolNivelMap'          => $rolNivelMap,
             'csrf'                 => $this->csrfToken(),
         ]);
     }
@@ -180,6 +200,111 @@ class AdminController extends Controller {
             ]
         );
 
+        SessionHelper::flash('success', 'Usuario actualizado correctamente.');
+        $this->redirect('/admin/usuarios');
+    }
+
+    /**
+     * POST /admin/usuarios/{id}/completo — guardado ÚNICO de la pantalla
+     * Editar Usuario (a pedido explícito del usuario 2026-08-13, antes eran
+     * 2 acciones/botones separados: actualizarUsuario() para datos+roles y
+     * guardarPermisosUsuario() para las excepciones individuales, con el
+     * botón de excepciones fallando en silencio por el bug de $PortalAlert).
+     * Un solo POST, una sola transacción: si algo falla, no queda a medias.
+     */
+    public function guardarUsuarioCompleto(int $id): void {
+        $this->requireAuth();
+        $this->requireLevel(4, [...self::NODO_USUARIOS, 4]);
+        $this->verifyCsrf();
+
+        $db = $this->db();
+        $usuarioExiste = $db->fetch($db->query('SELECT 1 FROM CORE_Usuarios WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]));
+        if (!$usuarioExiste) {
+            if (View::isAjax()) { $this->json(['ok' => false, 'msg' => 'Usuario no encontrado.'], 404); }
+            http_response_code(404); exit;
+        }
+
+        $antesDatos = $db->fetch($db->query(
+            'SELECT nombre_completo, correo, nivel_jerarquia, id_departamento, estado FROM CORE_Usuarios WHERE id_usuario=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+        $antesOverrides = $db->fetchAll($db->query(
+            'SELECT id_modulo, opcion, items, subitems, nivel_crud FROM CORE_Permisos_Nodo_Usuario WHERE id_usuario=?',
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+
+        $db->beginTransaction();
+        try {
+            $db->query(
+                'UPDATE CORE_Usuarios SET nombre_completo=?, correo=?, nivel_jerarquia=?, id_departamento=?, estado=? WHERE id_usuario=?',
+                [
+                    [trim($_POST['nombre_completo'] ?? ''), SQLSRV_PARAM_IN],
+                    [trim($_POST['correo'] ?? ''),          SQLSRV_PARAM_IN],
+                    [(int)($_POST['nivel_jerarquia'] ?? 0), SQLSRV_PARAM_IN],
+                    [(int)($_POST['id_departamento'] ?? 0), SQLSRV_PARAM_IN],
+                    [(int)($_POST['estado'] ?? 1),          SQLSRV_PARAM_IN],
+                    [$id, SQLSRV_PARAM_IN],
+                ]
+            );
+
+            $db->query('DELETE FROM CORE_Usuarios_Roles WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+            $rolesNuevos = [];
+            foreach (array_map('intval', $_POST['roles'] ?? []) as $rolId) {
+                if ($rolId > 0) {
+                    $db->query('INSERT INTO CORE_Usuarios_Roles (id_usuario, id_rol) VALUES (?,?)', [[$id, SQLSRV_PARAM_IN], [$rolId, SQLSRV_PARAM_IN]]);
+                    $rolesNuevos[] = $rolId;
+                }
+            }
+
+            $db->query('DELETE FROM CORE_Permisos_Nodo_Usuario WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]);
+            $overridesNuevos = [];
+            foreach ($_POST['overrides'] ?? [] as $key => $nivel) {
+                $nivel = (int)$nivel;
+                if ($nivel < 0 || $nivel > 4) continue;
+                $parts = explode('-', (string)$key);
+                if (count($parts) !== 4) continue;
+                [$mod, $op, $it, $sub] = array_map('intval', $parts);
+                $db->query(
+                    'INSERT INTO CORE_Permisos_Nodo_Usuario (id_usuario, id_modulo, opcion, items, subitems, nivel_crud, estado, asignado_por)
+                     VALUES (?,?,?,?,?,?,1,?)',
+                    [
+                        [$id, SQLSRV_PARAM_IN], [$mod, SQLSRV_PARAM_IN], [$op, SQLSRV_PARAM_IN],
+                        [$it, SQLSRV_PARAM_IN], [$sub, SQLSRV_PARAM_IN], [$nivel, SQLSRV_PARAM_IN],
+                        [(int)($_SESSION['user_id'] ?? 0), SQLSRV_PARAM_IN],
+                    ]
+                );
+                $overridesNuevos[(string)$key] = $nivel;
+            }
+
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollback();
+            if (View::isAjax()) { $this->json(['ok' => false, 'msg' => 'No se pudo guardar: ' . $e->getMessage()], 500); }
+            SessionHelper::flash('error', 'No se pudo guardar el usuario.');
+            $this->redirect('/admin/usuarios/' . $id . '/editar');
+        }
+
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Usuarios', (string)$id,
+            $antesDatos ? [
+                'nombre_completo' => $antesDatos['nombre_completo'], 'correo' => $antesDatos['correo'],
+                'nivel_jerarquia' => (int)$antesDatos['nivel_jerarquia'], 'id_departamento' => $antesDatos['id_departamento'],
+                'estado' => (int)$antesDatos['estado'],
+            ] : null,
+            [
+                'nombre_completo' => trim($_POST['nombre_completo'] ?? ''), 'correo' => trim($_POST['correo'] ?? ''),
+                'nivel_jerarquia' => (int)($_POST['nivel_jerarquia'] ?? 0), 'id_departamento' => (int)($_POST['id_departamento'] ?? 0),
+                'estado' => (int)($_POST['estado'] ?? 1), 'roles' => $rolesNuevos,
+            ],
+            'EXITO', 'Guardado unico (datos + roles + permisos individuales)'
+        );
+        $antesOverridesMap = [];
+        foreach ($antesOverrides as $r) { $antesOverridesMap["{$r['id_modulo']}-{$r['opcion']}-{$r['items']}-{$r['subitems']}"] = (int)$r['nivel_crud']; }
+        ModuleSecurity::audit('CORE', 'ACTUALIZAR', 'CORE_Permisos_Nodo_Usuario', (string)$id,
+            $antesOverridesMap ?: null, $overridesNuevos ?: null, 'EXITO', 'Override de permisos por usuario individual');
+
+        if (View::isAjax()) {
+            $this->json(['ok' => true, 'msg' => 'Usuario, roles y permisos individuales guardados.']);
+        }
         SessionHelper::flash('success', 'Usuario actualizado correctamente.');
         $this->redirect('/admin/usuarios');
     }
@@ -1326,8 +1451,70 @@ class AdminController extends Controller {
             'id_rol' => (int)$_POST['id_rol'], 'id_empleado_th' => $idEmpleadoTh,
         ], 'EXITO', 'Cuenta creada desde empleado de Talento Humano');
 
-        SessionHelper::flash('success', 'Cuenta creada y vinculada al empleado de Talento Humano.');
+        $puenteOk = $this->provisionarCuentaTh($idEmpleadoTh, (int)$_POST['id_rol'], $emp['cedula'],
+            $this->empleadoNombreCompleto($idEmpleadoTh), trim($_POST['correo'] ?? $emp['correo_institucional'] ?? ''), $hash);
+
+        SessionHelper::flash('success', $puenteOk
+            ? 'Cuenta creada y vinculada al empleado de Talento Humano. Ya puede acceder al módulo de TH con la misma contraseña.'
+            : 'Cuenta creada, pero no se pudo provisionar el acceso nativo a Talento Humano (revisar conexión a esa BD) — el usuario no podrá entrar a ese módulo hasta que se resuelva.');
         $this->redirect('/admin/usuarios');
+    }
+
+    /**
+     * Crea la fila espejo en Talento_Humano.dbo.th_usuarios_sistema para que
+     * el puente de identidad (Auth::loginTrusted() del lado de TH) encuentre
+     * la cuenta por empleado_id y autentique sin pedir credenciales de nuevo.
+     *
+     * Bug real corregido 2026-08-13: crearUsuarioDesdeEmpleado() solo creaba
+     * la cuenta en CORE_Usuarios — sin esta fila, el JOIN cross-DB que hace
+     * el puente (CORE_Usuarios.id_empleado_th = th_usuarios_sistema.empleado_id)
+     * no encontraba nada, TH caía a su login propio, y ahí la cuenta
+     * genuinamente no existía ("credenciales incorrectas" con cualquier
+     * contraseña). Reusa el MISMO hash bcrypt ya calculado para el portal —
+     * misma contraseña de un solo lado, sin pedirla dos veces.
+     *
+     * Nota de alcance: th_usuarios_sistema.rol_id es un ÚNICO rol nativo de
+     * TH (th_permisos_rol), no tiene equivalente de "permiso individual por
+     * usuario" — cualquier override individual otorgado desde
+     * /admin/usuarios/{id}/permisos para nodos del módulo 11 gobierna el
+     * acceso vía el portal, pero TH puertas adentro sigue viendo solo el rol
+     * nativo mapeado. Si el rol de portal no tiene equivalente en
+     * CORE_Roles_Modulo_Map, se usa el rol TH de menor privilegio
+     * ("Funcionario (Lectura)") como base seguridad-primero.
+     */
+    private function provisionarCuentaTh(int $idEmpleadoTh, int $idRolPortal, string $cedula, string $nombre, string $correo, string $hash): bool {
+        try {
+            $conn = require dirname(__DIR__, 3) . '/config/connections.php';
+            $opts = ['CharacterSet' => 'UTF-8', 'TrustServerCertificate' => (bool)($conn['options']['trust_cert'] ?? true)];
+            if (!empty($conn['credentials']['user'])) { $opts['UID'] = $conn['credentials']['user']; $opts['PWD'] = $conn['credentials']['pass']; }
+            $opts['Database'] = $conn['databases']['talento']['name'] ?? 'Talento_Humano';
+            $c = @sqlsrv_connect($conn['databases']['talento']['server'] ?? $conn['server_default'], $opts);
+            if ($c === false) return false;
+
+            $yaExiste = sqlsrv_query($c, 'SELECT usuario_id FROM dbo.th_usuarios_sistema WHERE empleado_id=?', [$idEmpleadoTh]);
+            if ($yaExiste !== false && sqlsrv_fetch_array($yaExiste, SQLSRV_FETCH_ASSOC)) {
+                sqlsrv_close($c);
+                return true; // ya provisionada (idempotente)
+            }
+
+            $mapa = sqlsrv_query($c,
+                'SELECT id_rol_externo FROM PORTAL_APM.dbo.CORE_Roles_Modulo_Map WHERE id_modulo=11 AND id_rol_portal=?', [$idRolPortal]);
+            $rolTh = 4; // "Funcionario (Lectura)" -- default seguro si el rol de portal no tiene mapeo nativo
+            if ($mapa !== false) {
+                $row = sqlsrv_fetch_array($mapa, SQLSRV_FETCH_ASSOC);
+                if ($row) $rolTh = (int)$row['id_rol_externo'];
+            }
+
+            $ok = sqlsrv_query($c,
+                'INSERT INTO dbo.th_usuarios_sistema (usuario, password_hash, correo, nombre, empleado_id, rol_id, estado, debe_cambiar_clave)
+                 VALUES (?,?,?,?,?,?,1,0)',
+                [$cedula, $hash, $correo !== '' ? $correo : ($cedula . '@apm.gob.ec'), $nombre, $idEmpleadoTh, $rolTh]
+            );
+            sqlsrv_close($c);
+            return $ok !== false;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     private function empleadoNombreCompleto(int $idEmpleadoTh): string {

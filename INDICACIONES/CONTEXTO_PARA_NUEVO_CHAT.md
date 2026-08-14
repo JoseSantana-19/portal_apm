@@ -94,9 +94,10 @@ Cambio de fondo hecho esta sesión, no es un detalle menor:
 
 Sesión maratónica: sistema de permisos centralizado (MOIS real, granular,
 por rol Y por usuario) extendido a los 3 módulos integrados, más una
-pasada grande de estilo/UX del menú lateral. **Todavía sin commitear** al
-arrancar este archivo (si esta línea sigue acá, correr `git status` para
-confirmar).
+pasada grande de estilo/UX del menú lateral. **Ya commiteado y pusheado**
+a `main` (commit `fe6ee2e`, 209 archivos) — si `git log -1` no muestra ese
+hash como el más reciente, algo cambió después; correr `git status` para
+ver qué hay pendiente.
 
 ### 1. Sistema de permisos centralizado ("permisos_centrales", Fase 0-3)
 
@@ -186,7 +187,77 @@ roto tras la migración a `apps/bitacoras`) como ruta+controller+vista real.
 Este archivo, `DOCUMENTACION_SISTEMA.md` y
 `INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` actualizados en
 esta misma sesión — ver §18 de `DOCUMENTACION_SISTEMA.md` para el
-changelog completo.
+changelog completo. Además: `apps/.portal-portuario-private/` (secreto
+real de TH, `auth-token.key`) no estaba en `.gitignore` — se agregó al
+`.gitignore` raíz antes de commitear, no borrar esa entrada.
+
+Diseño/plan de referencia de todo lo de arriba, si hace falta el detalle
+completo de una decisión: `docs/superpowers/specs/2026-08-11-permisos-centrales-modulo-th-design.md`
+y `docs/superpowers/plans/2026-08-11-permisos-centrales-fase{0-fase1-th,2-bienes,3-bitacoras}.md`.
+
+### 6. Decisiones deliberadas — NO son bugs, no "arreglar" sin que el usuario lo pida
+
+- **SUPERADO 2026-08-12 — ya no aplica:** lo de abajo describía que
+  Bitácoras gateaba "Registros Base"/"CCTV" solo por grupo, no por
+  sub-ítem. El usuario pidió explícitamente cerrarlo en sesión posterior:
+  `bit_sidebar.php` ahora oculta cada sub-ítem individual
+  (`$puedeCatPersonasSidebar` etc.) Y los controllers reales
+  (`PortCatalogoController::renderMaestro()`, `PortCamaraController`) lo
+  aplican server-side vía `Auth::canVerCatalogoX()`/`canVerCctvX()` — no
+  solo el sidebar. De paso se corrigió un bug real: `PortCamaraController`
+  gateaba las 3 pantallas CCTV con el permiso de RONDAS (opcion=6) en vez
+  del propio de CCTV (opcion=7) — no se notaba porque todos los roles
+  actuales tienen ambos a la vez. Ver memoria `portuaria_module` para el
+  detalle completo.
+- **`BIENES_SUPERVISOR`/`BIENES_OPERADOR`/`BIENES_AUDITOR` tienen una
+  matriz de permisos por defecto que YO diseñé** (basada en
+  `Router::POLITICAS` + el nombre/jerarquía de cada rol), no en un spec
+  aprobado ni en datos nativos reales (`inv_permisos_rol` seguía vacía).
+  Si el usuario reporta que alguno de los 3 puede/no puede hacer algo que
+  no esperaba, no es una regresión — es esa matriz por defecto, ajustable
+  desde `/admin/roles/{id}/permisos`.
+- **`GERENTE`/`ASIST_GCIA` (TH) y los 6 roles genéricos preexistentes de
+  Bienes** (ADMIN, AUDITOR, GERENTE, ASIST_GCIA, DIR_ADMIN, ANALISTA_ADMIN)
+  se dejaron **a propósito** con acceso Dashboard-only a esos módulos —
+  no están mapeados a ningún rol nativo (`CORE_Roles_Modulo_Map`), así que
+  no había nivel real que preservar más allá de esa visibilidad ejecutiva
+  genérica. No expandirlos a ciegas asumiendo que es el mismo bug que se
+  corrigió para los roles sí-mapeados.
+- **`Inventario.dbo.inv_permisos_rol` sigue vacía** — Bienes tiene el
+  esquema de permisos por rol nativo listo pero sin sembrar. El control de
+  acceso real de Bienes hoy corre por el lado del portal
+  (`CORE_Permisos_Nodo` vía `fn_TienePermisoNodo`/`tienePermisoPortal()`),
+  no por `inv_permisos_rol`.
+
+### 7. Metodología de verificación usada toda la sesión (seguir igual)
+
+- **SQL Server:** instancia `.\VICTUS` (nombre local de esta máquina —
+  confirmalo si trabajás en otra). Para queries sueltas de verificación,
+  patrón usado toda la sesión:
+  ```php
+  php -r "
+  \$conn = require 'config/connections.php';
+  \$c = sqlsrv_connect(\$conn['server_default'], ['CharacterSet'=>'UTF-8','TrustServerCertificate'=>true,'Database'=>'PORTAL_APM']);
+  \$s = sqlsrv_query(\$c, 'SELECT ...');
+  while (\$r = sqlsrv_fetch_array(\$s, SQLSRV_FETCH_ASSOC)) { echo json_encode(\$r) . PHP_EOL; }
+  "
+  ```
+  Migraciones: `php db/run_sql.php db/archivo.sql .\VICTUS`. Backup real
+  antes de tocar `PORTAL_APM`: `BACKUP DATABASE [PORTAL_APM] TO
+  DISK='<carpeta de backup por defecto de la instancia>\nombre.bak'` (la
+  carpeta se obtiene con `SELECT SERVERPROPERTY('InstanceDefaultBackupPath')`).
+- **Verificación de UI:** navegador real (Claude-in-Chrome), nunca asumir
+  que el código "debería" funcionar. Login de prueba: cédula
+  `1234567777` / `Apm2024*` (admin, acceso total). Para probar un rol
+  específico con menos privilegios: crear un usuario desechable por SQL
+  directo (`CORE_Usuarios` + `CORE_Usuarios_Roles`, hash real con
+  `password_hash()`), loguear, verificar, **borrar todo al final en la
+  misma sesión** (`CORE_Auditoria`/`CORE_Usuarios_Roles`/`CORE_Usuarios`
+  del usuario de prueba) — nunca dejar cuentas de prueba viviendo en la
+  BD real.
+- **Nunca confiar en "N batches ejecutados correctamente"** de
+  `db/run_sql.php` — siempre verificar con una query directa después (ver
+  gotchas de SQL Server en la guía de módulos §2.8).
 
 ## Plan viejo (2026-07-26) — verificar vigencia antes de asumir
 
@@ -211,3 +282,5 @@ se describió en julio.
 | "¿Qué falta por hacer?" | `docs/superpowers/specs/2026-07-26-central-features-hardening-design.md` (verificar vigencia primero, ver arriba) |
 | Esquema real de un módulo integrado | `Z.BASES DE DATOS/*.sql` |
 | "¿Por qué el sidebar/la página se ve rara después de guardar algo?" | Revisar `data-bypass` en el `<form>` — ver regla de SweetAlert2 arriba |
+| "¿Por qué el rol X puede/no puede ver Y en TH/Bienes/Bitácoras?" | Sección "Decisiones deliberadas" arriba primero (puede ser diseño, no bug) — después `/admin/roles/{id}/permisos` |
+| "¿Cómo verifico algo en la BD o probé un rol de verdad?" | Sección "Metodología de verificación" arriba |

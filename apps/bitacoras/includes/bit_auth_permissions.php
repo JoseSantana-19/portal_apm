@@ -88,6 +88,16 @@ function apm_can_configurar_dias_bitacora()
     return Auth::canConfigurarDiasBitacora();
 }
 
+function apm_can_ver_catalogo_personas() { return Auth::canVerCatalogoPersonas(); }
+function apm_can_ver_catalogo_empresas() { return Auth::canVerCatalogoEmpresas(); }
+function apm_can_ver_catalogo_destinos() { return Auth::canVerCatalogoDestinos(); }
+function apm_can_ver_catalogo_motivos() { return Auth::canVerCatalogoMotivos(); }
+function apm_can_ver_catalogo_funcionarios() { return Auth::canVerCatalogoFuncionarios(); }
+function apm_can_ver_catalogo_niveles_incidente() { return Auth::canVerCatalogoNivelesIncidente(); }
+function apm_can_ver_cctv_inventario() { return Auth::canVerCctvInventario(); }
+function apm_can_ver_cctv_motivos() { return Auth::canVerCctvMotivos(); }
+function apm_can_ver_cctv_bitacora() { return Auth::canVerCctvBitacora(); }
+
 function apm_bitacora_guardia_dias_permitidos(?int $diasConfigurados = null): int
 {
     $dias = $diasConfigurados !== null ? (int) $diasConfigurados : 1;

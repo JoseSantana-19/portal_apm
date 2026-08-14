@@ -264,7 +264,7 @@ $url_js_bitacora_camaras = 'public/js/portuaria/bit_camaras.js?v=' . (
     </div>
 </div>
 
-<script src="<?php echo htmlspecialchars($GLOBALS['url_jquery_js'] ?? ''); ?>"></script>
-<script src="<?php echo htmlspecialchars($GLOBALS['url_select2_js'] ?? ''); ?>"></script>
-<script src="<?php echo htmlspecialchars($GLOBALS['url_toast_js'] ?? ''); ?>"></script>
+<script src="<?php echo htmlspecialchars($url_jquery_js ?? ''); ?>"></script>
+<script src="<?php echo htmlspecialchars($url_select2_js ?? ''); ?>"></script>
+<script src="<?php echo htmlspecialchars($url_toast_js ?? ''); ?>"></script>
 <script src="<?php echo htmlspecialchars($url_js_bitacora_camaras); ?>"></script>

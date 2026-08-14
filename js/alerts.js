@@ -9,7 +9,7 @@ function portalAlertEscape(str) {
     return div.innerHTML;
 }
 
-const PortalAlert = {
+window.PortalAlert = {
     success(msg) {
         Swal.fire({
             icon: 'success',

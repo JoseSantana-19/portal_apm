@@ -13,17 +13,30 @@ class PortCatalogoController extends PortController
         'niveles_incidente' => array('titulo' => 'Niveles de importancia', 'subtitulo' => 'Administración de niveles de visitas.', 'icono' => 'bi-exclamation-triangle', 'boton' => 'Nuevo nivel')
     );
 
+    /** Permiso granular por catálogo (opcion=5, items 1-6) -- antes solo se
+     *  chequeaba el nodo de grupo (items=0), así que revocar un catálogo
+     *  puntual desde /admin/roles no bloqueaba su URL directa. */
+    private const CATALOGO_PERMISO = [
+        'personas' => 'canVerCatalogoPersonas',
+        'empresas' => 'canVerCatalogoEmpresas',
+        'destinos' => 'canVerCatalogoDestinos',
+        'motivos' => 'canVerCatalogoMotivos',
+        'funcionarios' => 'canVerCatalogoFuncionarios',
+        'niveles_incidente' => 'canVerCatalogoNivelesIncidente',
+    ];
+
     private function renderMaestro(string $catalogo)
     {
         Auth::guard();
-        if (!Auth::canGestionarMaestrosAcceso()) { $this->redirect('visitas?msg=permiso_denegado'); return; }
         if (!isset($this->catalogosPermitidos[$catalogo])) { $catalogo = 'personas'; }
+        $metodoPermiso = self::CATALOGO_PERMISO[$catalogo] ?? null;
+        if ($metodoPermiso === null || !Auth::$metodoPermiso()) { $this->redirect('visitas?msg=permiso_denegado'); return; }
         
         $this->view('catalogos/maestro', array(
             'catalogo' => $catalogo,
             'infoCatalogo' => $this->catalogosPermitidos[$catalogo],
             'pageTitle' => $this->catalogosPermitidos[$catalogo]['titulo'] . ' | Autoridad Portuaria de Manta',
-            'extraCss' => array($GLOBALS['url_datatables_css'] ?? '', $GLOBALS['url_toast_css'] ?? '', $GLOBALS['url_sweetalert2_css'] ?? '')
+            'extraCss' => array($this->rutas['url_datatables_css'] ?? '', $this->rutas['url_toast_css'] ?? '', $this->rutas['url_sweetalert2_css'] ?? '')
         ));
     }
 
@@ -33,7 +46,7 @@ class PortCatalogoController extends PortController
         if (!Auth::canGestionarMaestrosAcceso()) { $this->redirect('visitas?msg=permiso_denegado'); return; }
         $this->view('catalogos/index', array(
             'pageTitle' => 'Maestros de Acceso | Autoridad Portuaria de Manta',
-            'extraCss' => array($GLOBALS['url_datatables_css'] ?? '', $GLOBALS['url_toast_css'] ?? '', $GLOBALS['url_sweetalert2_css'] ?? '')
+            'extraCss' => array($this->rutas['url_datatables_css'] ?? '', $this->rutas['url_toast_css'] ?? '', $this->rutas['url_sweetalert2_css'] ?? '')
         ));
     }
 
