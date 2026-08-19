@@ -4,6 +4,9 @@
  * Compatible con PHP 7.4, 8.3 y 8.4
  */
 ?>
+<style>
+.audit-filter-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:13px;align-items:end;width:100%}.audit-filter-grid .filter-actions{display:flex;gap:7px}.audit-table{min-width:1160px}.audit-user strong,.audit-user small,.audit-origin strong,.audit-origin small,.audit-route strong,.audit-route small{display:block}.audit-user small,.audit-origin small,.audit-route small{margin-top:3px;color:var(--text-muted);font-size:10px}.audit-result{display:inline-flex;margin:0 6px 4px 0;padding:4px 8px;border-radius:999px;background:#fff7ed;color:#9a3412;font-size:10px;font-weight:800}.audit-result.error{background:#fee2e2;color:#991b1b}.audit-context{max-width:460px;white-space:normal;line-height:1.45}@media(max-width:900px){.audit-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.audit-filter-grid{grid-template-columns:1fr}}
+</style>
 
 <!-- InvCabecera de Página -->
 <div class="page-header animate-fade-in">
@@ -50,8 +53,10 @@
 
 <!-- Barra de Filtros y Búsqueda -->
 <div class="filter-section animate-fade-in" style="margin-bottom:24px;">
-    <form action="index.php" method="GET" class="filter-controls" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:16px;align-items:end;width:100%;">
+    <form action="index.php" method="GET" class="filter-controls audit-filter-grid">
         <input type="hidden" name="route" value="inv_bitacora">
+        <div class="filter-group" style="margin:0;"><label>Usuario o cuenta</label><input type="text" name="usuario" placeholder="Nombre o usuario" value="<?= htmlspecialchars($filtros['usuario'] ?? '') ?>"></div>
+        <div class="filter-group" style="margin:0;"><label>Dirección IP</label><input type="text" name="ip" placeholder="Ej: 192.168.1.20" value="<?= htmlspecialchars($filtros['ip'] ?? '') ?>"></div>
         
         <div class="filter-group" style="margin:0;">
             <label>Descripción o Código Secuencial</label>
@@ -84,6 +89,9 @@
             </select>
         </div>
 
+        <div class="filter-group" style="margin:0;"><label>Resultado</label><select name="resultado"><option value="">Todos</option><option value="OK" <?= ($filtros['resultado'] ?? '') === 'OK' ? 'selected' : '' ?>>Correcto</option><option value="ERROR_403" <?= ($filtros['resultado'] ?? '') === 'ERROR_403' ? 'selected' : '' ?>>Acceso denegado</option><option value="ERROR_500" <?= ($filtros['resultado'] ?? '') === 'ERROR_500' ? 'selected' : '' ?>>Error interno</option></select></div>
+        <div class="filter-group" style="margin:0;"><label>Desde</label><input type="date" name="desde" value="<?= htmlspecialchars($filtros['desde'] ?? '') ?>"></div>
+        <div class="filter-group" style="margin:0;"><label>Hasta</label><input type="date" name="hasta" value="<?= htmlspecialchars($filtros['hasta'] ?? '') ?>"></div>
         <div class="filter-actions" style="margin:0;">
             <a href="index.php?route=inv_bitacora" class="btn-outline" style="height:40px;display:flex;align-items:center;justify-content:center;" title="Limpiar"><i class="fa-solid fa-eraser"></i></a>
             <button type="submit" class="btn-primary" style="height:40px;"><i class="fa-solid fa-filter"></i> Filtrar</button>
@@ -97,20 +105,12 @@
         <h3>Historial Completo (Últimas 500 operaciones)</h3>
     </div>
     <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 120px;">Secuencial</th>
-                    <th style="width: 160px;">Fecha y Hora</th>
-                    <th style="width: 150px;">Módulo</th>
-                    <th style="width: 140px;">Acción (Tipo)</th>
-                    <th>Descripción Operativa</th>
-                </tr>
-            </thead>
+        <table class="audit-table">
+            <thead><tr><th>Fecha / evento</th><th>Usuario</th><th>Origen</th><th>Ruta / acción</th><th>Módulo</th><th>Tipo</th><th>Descripción operativa</th></tr></thead>
             <tbody>
                 <?php if (empty($logs)): ?>
                     <tr>
-                        <td colspan="5" style="text-align:center; padding:40px; color:var(--text-muted);">
+                        <td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
                             <i class="fa-solid fa-ghost" style="font-size:32px; display:block; margin-bottom:12px; opacity:0.4;"></i>
                             No se encontraron logs de auditoría con los filtros indicados
                         </td>
@@ -135,11 +135,18 @@
                         elseif ($l['modulo'] === 'seq') $modLabel = 'Secuenciales';
                     ?>
                         <tr>
-                            <td class="secuencial-cell"><?= htmlspecialchars($l['secuencial']) ?></td>
-                            <td style="color:var(--text-muted);font-size:13px;"><?= $l['fecha'] ?></td>
+                            <td><strong><?= htmlspecialchars($l['fecha']) ?></strong><span class="ab-detail"><?= htmlspecialchars($l['secuencial']) ?><?= !empty($l['duracion_ms']) ? ' · '.number_format((float)$l['duracion_ms'],2).' ms' : '' ?></span></td>
+                            <td class="audit-user"><strong><?= htmlspecialchars($l['usuario_nombre'] ?? 'Sistema') ?></strong><small><?= htmlspecialchars(($l['usuario_login'] ?? 'sin cuenta').(!empty($l['rol']) ? ' · '.$l['rol'] : '')) ?></small></td>
+                            <td class="audit-origin"><strong><?= htmlspecialchars($l['ip'] ?? '—') ?></strong><small><?= htmlspecialchars($l['equipo'] ?? 'No informado') ?></small></td>
+                            <td class="audit-route"><strong><?= htmlspecialchars($l['ruta'] ?? '—') ?></strong><small><?= htmlspecialchars(($l['metodo_http'] ?? '').' · '.($l['accion'] ?? 'index')) ?></small></td>
                             <td style="font-weight:500;"><i class="fa-regular fa-folder" style="margin-right:6px;"></i> <?= $modLabel ?></td>
                             <td><span class="<?= $actionClass ?>"><?= $tipo ?></span></td>
-                            <td style="color:var(--text-color);line-height:1.4;font-size:13.5px;"><?= htmlspecialchars($l['descripcion']) ?></td>
+                            <td class="audit-context"><?php
+                                $resultado = strtoupper((string)($l['resultado'] ?? 'OK'));
+                                $esDenegado = $resultado === 'ERROR_403' || $tipo === 'DENEGADO';
+                                $esError = str_starts_with($resultado, 'ERROR') && !$esDenegado;
+                                if ($esDenegado || $esError):
+                            ?><span class="audit-result <?= $esError ? 'error' : '' ?>"><?= $esDenegado ? 'ACCESO DENEGADO' : htmlspecialchars(str_replace('_', ' ', $resultado)) ?></span><?php endif; ?><?= htmlspecialchars($l['descripcion']) ?><?php if (!empty($l['request_id'])): ?><span class="ab-detail">Solicitud: <?= htmlspecialchars($l['request_id']) ?></span><?php endif; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>

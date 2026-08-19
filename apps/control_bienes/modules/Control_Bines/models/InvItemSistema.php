@@ -215,6 +215,14 @@ class ItemSistemaModel extends Model {
     public function crear(array $datos): array {
         $datos['tipo_bien'] = $this->detectarTipoBien((int)$datos['grupo_id']);
         if ($datos['tipo_bien'] !== 'AF') $datos['responsable_id'] = null;
+        $copiarDesdeId = (int)($datos['copiar_desde_id'] ?? 0);
+        if ($copiarDesdeId > 0) {
+            $stmtPlantilla = $this->db->prepare("SELECT COUNT(*) FROM inv_productos WHERE id = :id");
+            $stmtPlantilla->execute([':id' => $copiarDesdeId]);
+            if ((int)$stmtPlantilla->fetchColumn() === 0) {
+                throw new InvalidArgumentException('El ítem seleccionado para copiar ya no existe.');
+            }
+        }
         if (empty($datos['codigo'])) {
             $nuevo = (new InvSecuencial())->generarNumero('itm');
             $datos['codigo'] = str_pad($nuevo, 6, '0', STR_PAD_LEFT);
@@ -239,10 +247,10 @@ class ItemSistemaModel extends Model {
         if ($existingId) {
             // Una copia siempre crea otro registro; no debe sobrescribir la
             // plantilla original aunque el usuario conserve el mismo nombre.
-            if (!empty($datos['copiar_desde_id'])) {
+            if ($copiarDesdeId > 0) {
                 $datos['nombre'] = $this->generarNombreCopia($datos['nombre']);
             } else {
-                return $this->actualizar((int)$existingId, $datos);
+                throw new InvalidArgumentException('Ya existe un ítem con ese nombre. Use la opción Editar para modificarlo.');
             }
         }
 

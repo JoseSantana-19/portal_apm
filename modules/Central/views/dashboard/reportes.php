@@ -37,8 +37,8 @@
         <h3 style="font-size:var(--font-size-base);font-weight:var(--font-weight-semibold);">Actividad Reciente del Sistema</h3>
         <a href="<?= APP_URL ?>/admin/auditoria" class="btn btn-ghost btn-sm" data-spa>Ver todo</a>
     </div>
-    <div style="overflow-x:auto;">
-        <table>
+    <div class="table-responsive-wrapper">
+        <table data-dt data-dt-page-length="10">
             <thead>
                 <tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Operación</th><th>IP</th><th>Resultado</th></tr>
             </thead>
@@ -50,15 +50,16 @@
                 $fecha = $a['fecha_creacion'];
                 if ($fecha instanceof DateTime) { $fecha = $fecha->format('d/m/Y H:i'); }
                 elseif (is_string($fecha)) { $fecha = date('d/m/Y H:i', strtotime($fecha)); }
-                $resClass = ($a['resultado'] ?? '') === 'EXITO' ? 'badge-success' : 'badge-danger';
+                $esExito = ($a['resultado'] ?? '') === 'EXITO';
+                $resClass = $esExito ? 'badge-success' : 'badge-danger';
             ?>
             <tr>
-                <td style="font-size:var(--font-size-xs);white-space:nowrap;"><?= htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8') ?></td>
-                <td><?= htmlspecialchars($a['nombre_completo'] ?? 'Sistema', ENT_QUOTES, 'UTF-8') ?></td>
-                <td><code><?= htmlspecialchars($a['modulo'] ?? '', ENT_QUOTES, 'UTF-8') ?></code></td>
+                <td style="font-size:var(--font-size-xs);white-space:nowrap;color:var(--color-text-muted);"><?= htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8') ?></td>
+                <td style="font-weight:600;"><?= htmlspecialchars($a['nombre_completo'] ?? 'Sistema', ENT_QUOTES, 'UTF-8') ?></td>
+                <td><code style="font-family:var(--font-code);font-size:.72rem;background:var(--accent-app);padding:2px 6px;border-radius:4px;"><?= htmlspecialchars($a['modulo'] ?? '', ENT_QUOTES, 'UTF-8') ?></code></td>
                 <td><?= htmlspecialchars($a['operacion'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                 <td style="font-size:var(--font-size-xs);color:var(--color-text-muted);"><?= htmlspecialchars($a['ip_address'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-                <td><span class="badge <?= $resClass ?>"><?= htmlspecialchars($a['resultado'] ?? '', ENT_QUOTES, 'UTF-8') ?></span></td>
+                <td><span class="badge <?= $resClass ?>"><i class="fa-solid fa-<?= $esExito ? 'check' : 'xmark' ?>" style="font-size:8px;"></i> <?= htmlspecialchars($a['resultado'] ?? '', ENT_QUOTES, 'UTF-8') ?></span></td>
             </tr>
             <?php endforeach; ?>
             <?php endif; ?>

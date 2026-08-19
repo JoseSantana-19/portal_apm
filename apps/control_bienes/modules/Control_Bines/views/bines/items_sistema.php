@@ -6,10 +6,10 @@
  */
 ?>
 <style>
-/* ===== Estilos Premium Rediseñados: Ítems del Sistema ===== */
+/* ===== Estilos del Maestro de Ítems ===== */
 .its-inv_layout {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
 }
 
@@ -445,12 +445,31 @@
     font-size: 12.5px;
     color: var(--text-muted);
 }
+@keyframes savedRowPulse {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(16,185,129,0); }
+    35% { box-shadow: inset 4px 0 0 #10b981; background: rgba(16,185,129,.11); }
+}
+.saved-row-highlight { animation: savedRowPulse 2.4s ease; }
+.maestro-items-hero {
+    padding: 24px 26px;
+    border-radius: 18px;
+    color: #fff;
+    background: linear-gradient(125deg, #172554 0%, #1d4ed8 55%, #0891b2 115%);
+    box-shadow: 0 18px 38px rgba(30,64,175,.2);
+}
+.maestro-items-hero .page-title h1,
+.maestro-items-hero .page-title p,
+.maestro-items-hero label { color: #fff !important; }
+.maestro-items-hero .page-title p { opacity: .78; }
+.maestro-items-hero select { background: rgba(255,255,255,.96); color:#172554; border-color:rgba(255,255,255,.35); }
+#maestro-items-table_wrapper { padding: 16px 20px 20px; }
+#maestro-items-table_filter input { min-width:300px; height:40px; border:1px solid var(--border-color); border-radius:10px; background:var(--panel-bg); color:var(--text-color); }
 </style>
 
 <!-- InvCabecera de Página -->
-<div class="page-header animate-fade-in">
+<div class="page-header maestro-items-hero animate-fade-in">
     <div class="page-title">
-        <h1>Catálogo Maestro de Ítems</h1>
+        <h1>Maestro de Ítems</h1>
         <p>Mantenimiento y configuración del catálogo global de productos e insumos portuarios.</p>
     </div>
     <div style="display:flex;gap:12px;align-items:center;">
@@ -474,22 +493,13 @@
         <div class="its-tabs">
             <div class="its-tab active" id="tab-campos" onclick="cambiarTab('campos')"><i class="fa-solid fa-pen-to-square"></i> Ficha de Campos</div>
             <div class="its-tab"        id="tab-lista"  onclick="cambiarTab('lista')"><i class="fa-solid fa-table-list"></i> Lista Completa</div>
-            <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;padding:8px 0;">
-                <form action="index.php" method="GET" style="display:flex;gap:8px;align-items:center;">
-                    <input type="hidden" name="route" value="inv_items_sistema">
-                    <input type="hidden" name="grupo_id" value="<?= (int)$grupoId ?>">
-                    <input type="text" name="termino" value="<?= htmlspecialchars($termino) ?>"
-                           placeholder="Buscar por código, nombre..." id="inp-buscar"
-                           class="its-field-input-new" style="width:220px;padding:8px 12px;font-size:12.5px;">
-                    <button type="submit" class="its-btn-action" style="padding:8px 16px;">
-                        <i class="fa-solid fa-search"></i> Buscar
-                    </button>
-                </form>
+            <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;padding:8px 0;color:var(--text-muted);font-size:12px;font-weight:700;">
+                <i class="fa-solid fa-bolt" style="color:var(--primary);margin-right:7px;"></i> Búsqueda rápida disponible en Lista Completa
             </div>
         </div>
 
         <!-- Action Hub / Toolbar Superior Premium -->
-        <div class="its-action-hub">
+        <div class="its-action-hub" id="items-action-hub">
             <!-- Navegación -->
             <div class="its-action-group">
                 <button class="its-btn-action" onclick="navegarPrimero()" title="Primer Registro">
@@ -538,6 +548,14 @@
                                 <i class="fa-solid fa-tag" style="color:var(--primary);"></i> Identificación del Ítem
                             </div>
                             <div class="its-fields-grid-new">
+                                <div class="its-field-row-new">
+                                    <label>Código Maestro</label>
+                                    <input type="text" name="codigo" id="form-codigo" class="its-field-input-new mono" placeholder="Auto-generado secuencial" readonly>
+                                </div>
+                                <div class="its-field-row-new">
+                                    <label>Nombre del Ítem</label>
+                                    <input type="text" name="nombre" id="form-nombre" class="its-field-input-new" required placeholder="Ej: Aceite Hidráulico SAE 40" oninput="actualizarLivePreview()">
+                                </div>
                                 <div class="its-field-row-new" id="row-plantilla-select">
                                     <label style="color: var(--primary); font-weight: 700;">Copiar desde plantilla (Ítem existente)</label>
                                     <select id="form-copiar-plantilla" class="its-field-input-new">
@@ -567,14 +585,6 @@
                                         </select>
                                         <small style="display:block;margin-top:6px;color:var(--text-muted);">Disponible solamente para bienes de activo fijo.</small>
                                     </div>
-                                </div>
-                                <div class="its-field-row-new">
-                                    <label>Código Maestro</label>
-                                    <input type="text" name="codigo" id="form-codigo" class="its-field-input-new mono" placeholder="Auto-generado secuencial" readonly>
-                                </div>
-                                <div class="its-field-row-new">
-                                    <label>Descripción / Nombre Comercial</label>
-                                    <input type="text" name="nombre" id="form-nombre" class="its-field-input-new" required placeholder="Ej: Aceite Hidráulico SAE 40" oninput="actualizarLivePreview()">
                                 </div>
                                 <div class="its-field-row-new">
                                     <label>Detalle Adicional / Especificaciones</label>
@@ -666,7 +676,7 @@
         <!-- ===== CONTENIDO TAB: LISTA ===== -->
         <div class="its-tab-content" id="content-lista">
             <div class="table-responsive">
-                <table>
+                <table id="maestro-items-table" class="display" style="width:100%">
                     <thead>
                         <tr>
                             <th style="width:90px;">Código</th>
@@ -677,80 +687,13 @@
                             <th style="width:100px;">Precio Unit.</th>
                             <th style="width:100px;">Valor Total</th>
                             <th style="width:65px;text-align:center;">IVA</th>
-                            <th style="width:80px;text-align:center;">Cargar</th>
+                            <th class="columna-acciones">Cargar</th>
                         </tr>
                     </thead>
                     <tbody id="lista-tbody">
                         <!-- Las filas se renderizan dinámicamente con paginación JS -->
                     </tbody>
                 </table>
-            </div>
-            <!-- Paginador de la Lista Completa -->
-            <div id="lista-paginacion" style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--border-color);background:var(--secondary-bg);flex-wrap:wrap;gap:12px;border-bottom-left-radius:20px;border-bottom-right-radius:20px;">
-                <div style="font-size:13px;color:var(--text-muted);">
-                    Mostrando <span id="lista-pag-rango" style="font-weight:700;color:var(--text-color);">0 - 0</span> de <span id="lista-pag-total" style="font-weight:700;color:var(--text-color);">0</span> registros
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;" id="lista-pag-botones">
-                    <!-- Botones dinámicos inyectados por JS -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== COLUMNA DERECHA: Live Preview Card & Telemetría ===== -->
-    <div class="preview-container">
-        
-        <!-- Live Product Card Preview -->
-        <div class="preview-card animate-fade-in">
-            <h4 style="margin:0 0 16px 0;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;display:flex;align-items:center;gap:6px;">
-                <span style="display:inline-block;width:6px;height:6px;background:#10b981;border-radius:50%;animation:pulse 1.5s infinite;"></span>
-                Vista Previa del Producto
-            </h4>
-            
-            <div class="preview-badge-row">
-                <span class="preview-badge-cat" id="si-grupo">Sin Asignar</span>
-                <span class="preview-code" id="pv-codigo">CÓD: ------</span>
-            </div>
-            
-            <h3 class="preview-title" id="si-nombre">Nuevo Ítem del Catálogo</h3>
-            <p class="preview-desc" id="si-desc">Especificación detallada del producto...</p>
-            
-            <div class="preview-stats-grid">
-                <div class="preview-stat-item">
-                    <span class="preview-stat-label">Stock Actual</span>
-                    <span class="preview-stat-val" id="pv-stock">0.00</span>
-                </div>
-                <div class="preview-stat-item">
-                    <span class="preview-stat-label">Unidad</span>
-                    <span class="preview-stat-val" id="si-unidad">u.</span>
-                </div>
-                <div class="preview-stat-item">
-                    <span class="preview-stat-label">Precio Prom.</span>
-                    <span class="preview-stat-val" id="pv-precio">$0.00</span>
-                </div>
-                <div class="preview-stat-item">
-                    <span class="preview-stat-label">Costo Total</span>
-                    <span class="preview-stat-val" id="si-total" style="color:#10b981;">$0.00</span>
-                </div>
-            </div>
-            
-            <!-- Stock Meter / Progress Bar reactiva -->
-            <div class="preview-meter-container">
-                <div class="preview-meter-header">
-                    <span id="pv-status-text" style="color:var(--text-muted);">Sin Existencia</span>
-                    <span id="pv-status-pct" style="color:var(--text-muted);">0%</span>
-                </div>
-                <div class="preview-meter-bar">
-                    <div class="preview-meter-fill" id="pv-status-bar" style="width: 0%; background-color: #ef4444;"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Tarjeta Informativa de Telemetría -->
-        <div class="preview-card" id="item-status-card" style="display:none;background:linear-gradient(135deg,rgba(37,99,235,0.02),rgba(37,99,235,0.05));">
-            <h4 style="margin:0 0 12px 0;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.5px;"><i class="fa-solid fa-circle-check" style="color:var(--primary);margin-right:6px;"></i>Información de Registro</h4>
-            <div style="font-size:12.5px;color:var(--text-color);line-height:1.6;">
-                Este producto se encuentra registrado bajo el código contable institucional y está enlazado a la base de datos de inventario general. Cualquier ajuste en existencias o precios se verá reflejado inmediatamente en los cálculos financieros globales del sistema.
             </div>
         </div>
     </div>
@@ -769,6 +712,8 @@ function cambiarTab(tab) {
     document.querySelectorAll('.its-tab-content').forEach(function(t) { t.classList.remove('active'); });
     document.getElementById('tab-'     + tab).classList.add('active');
     document.getElementById('content-' + tab).classList.add('active');
+    var actionHub = document.getElementById('items-action-hub');
+    if (actionHub) actionHub.style.display = tab === 'campos' ? '' : 'none';
     
     // Quitar la vista previa al mostrar la lista para aprovechar el ancho completo
     var inv_layout = document.querySelector('.its-inv_layout');
@@ -778,6 +723,9 @@ function cambiarTab(tab) {
         } else {
             inv_layout.classList.remove('list-active');
         }
+    }
+    if (tab === 'lista' && _listaTable) {
+        setTimeout(function() { _listaTable.columns.adjust(); }, 0);
     }
 }
 
@@ -790,8 +738,6 @@ function calcularTotal() {
     var total  = (subtotal + (aplicaIva ? subtotal * (_tasaIvaVigente / 100) : 0)).toFixed(4);
     
     document.getElementById('form-total').value = total;
-    document.getElementById('si-total').textContent = '$' + parseFloat(total).toLocaleString('es-EC', {minimumFractionDigits: 2, maximumFractionDigits: 4});
-    
     actualizarLivePreview();
 }
 
@@ -828,6 +774,7 @@ function actualizarResponsablePorTipo() {
 actualizarResponsablePorTipo();
 
 function actualizarLivePreview() {
+    if (!document.getElementById('si-nombre')) return;
     // 1. Nombre y Código
     var nombre = document.getElementById('form-nombre').value.trim();
     var codigo = document.getElementById('form-codigo').value.trim();
@@ -884,9 +831,7 @@ function actualizarLivePreview() {
 /* ===== Filtrar por grupo (GET) ===== */
 function filtrarPorGrupo() {
     var gid = document.getElementById('filtro-grupo').value;
-    var termino = document.getElementById('inp-buscar');
     var url = 'index.php?route=inv_items_sistema&grupo_id=' + encodeURIComponent(gid);
-    if (termino && termino.value.trim() !== '') url += '&termino=' + encodeURIComponent(termino.value.trim());
     window.location.href = url;
 }
 
@@ -943,7 +888,8 @@ function limpiarFormulario() {
     
     document.getElementById('form-exmin').value        = '0';
     document.getElementById('form-exmax').value        = '0';
-    document.getElementById('item-status-card').style.display = 'none';
+    var statusCard = document.getElementById('item-status-card');
+    if (statusCard) statusCard.style.display = 'none';
     
     // Show template copy row and reset it
     var pRow = document.getElementById('row-plantilla-select');
@@ -956,11 +902,101 @@ function limpiarFormulario() {
 
 function cancelarEdicion() { limpiarFormulario(); }
 function modificarItem()   { document.getElementById('form-nombre').focus(); }
-function guardarItem()     { document.getElementById('form-item').submit(); }
+function guardarItem()     { document.getElementById('form-item').requestSubmit(); }
+
+function mostrarToastAjax(mensaje, tipo) {
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + (tipo === 'error' ? 'inv_error' : tipo) + ' show';
+    toast.innerHTML = '<i class="fa-solid ' + (tipo === 'success' ? 'fa-check-circle' : 'fa-circle-exclamation') + '"></i><span></span>';
+    toast.querySelector('span').textContent = mensaje;
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.classList.remove('show');
+        setTimeout(function() { toast.remove(); }, 400);
+    }, 3500);
+}
+
+function itemCoincideConVista(item) {
+    var grupoActivo = parseInt(document.getElementById('filtro-grupo').value || '0', 10);
+    if (grupoActivo > 0 && parseInt(item.grupo_id || '0', 10) !== grupoActivo) return false;
+    return true;
+}
+
+function enfocarFilaItem(itemId, pagina) {
+    cambiarTab('lista');
+    renderListaTable(pagina);
+    setTimeout(function() {
+        var fila = document.getElementById('row-' + itemId);
+        if (!fila) return;
+        fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fila.classList.remove('saved-row-highlight');
+        void fila.offsetWidth;
+        fila.classList.add('saved-row-highlight');
+    }, 80);
+}
+
+function guardarItemSinRecargar(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    if (!form.reportValidity()) return;
+
+    var boton = document.querySelector('.its-btn-action[onclick="guardarItem()"]');
+    if (boton) boton.disabled = true;
+    var copiarDesde = parseInt(document.getElementById('form-copiar-desde-id').value || '0', 10);
+    if (copiarDesde > 0) document.getElementById('form-id').value = '0';
+    var datos = new FormData(form);
+    datos.append('is_ajax', '1');
+
+    fetch(form.action, {
+        method: 'POST',
+        body: datos,
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(respuesta) {
+        return respuesta.json().then(function(data) {
+            if (!respuesta.ok || !data.success) throw new Error(data.mensaje || 'No fue posible guardar el ítem.');
+            return data;
+        });
+    }).then(function(data) {
+        var item = data.item;
+        var indice = _items.findIndex(function(actual) { return String(actual.id) === String(item.id); });
+        var coincide = itemCoincideConVista(item);
+
+        if (indice >= 0 && !coincide) {
+            _items.splice(indice, 1);
+            renderListaTable(Math.min(_listaPage, Math.max(1, Math.ceil(_items.length / _listaLimit))));
+            mostrarToastAjax(data.mensaje + '. El registro ya no coincide con el filtro actual.', 'success');
+            limpiarFormulario();
+            cambiarTab('lista');
+            return;
+        }
+
+        if (indice >= 0) {
+            _items[indice] = item;
+        } else if (coincide) {
+            _items.push(item);
+            indice = _items.length - 1;
+        }
+
+        var indicePlantilla = _plantillas.findIndex(function(actual) { return String(actual.id) === String(item.id); });
+        if (indicePlantilla >= 0) _plantillas[indicePlantilla] = item;
+        else _plantillas.push(item);
+
+        cargarItemEnFormulario(item);
+        var pagina = indice >= 0 ? Math.floor(indice / _listaLimit) + 1 : _listaPage;
+        enfocarFilaItem(item.id, pagina);
+        mostrarToastAjax(data.mensaje + ' sin recargar la lista.', 'success');
+    }).catch(function(error) {
+        mostrarToastAjax(error.message || 'Error al guardar el ítem.', 'error');
+    }).finally(function() {
+        if (boton) boton.disabled = false;
+    });
+}
 
 /* ===== Cargar ítem en el formulario de Campos ===== */
 function cargarItemEnFormulario(item) {
     document.getElementById('form-id').value           = item.id;
+    document.getElementById('form-copiar-desde-id').value = '0';
     document.getElementById('form-codigo').value       = item.codigo || '';
     updateSelectValue('form-grupo', item.grupo_id);
     detectarTipoBienDesdeGrupo();
@@ -1000,7 +1036,8 @@ function cargarItemEnFormulario(item) {
     calcularTotal();
 
     // Activar tarjeta de estado de registro
-    document.getElementById('item-status-card').style.display = 'block';
+    var statusCard = document.getElementById('item-status-card');
+    if (statusCard) statusCard.style.display = 'block';
 
     // Hide template copy row
     var pRow = document.getElementById('row-plantilla-select');
@@ -1040,10 +1077,64 @@ function navegarAnterior() {
 /* ===== Paginación Dinámica del Lado del Cliente ===== */
 var _listaPage = 1;
 var _listaLimit = 50;
+var _listaTable = null;
+
+function escaparMaestro(valor) {
+    var nodo = document.createElement('div');
+    nodo.textContent = valor == null ? '' : String(valor);
+    return nodo.innerHTML;
+}
+
+function iniciarMaestroItemsDataTable() {
+    if (_listaTable || !window.jQuery || !$.fn.DataTable) return _listaTable;
+    _listaTable = $('#maestro-items-table').DataTable({
+        data: _items,
+        deferRender: true,
+        pageLength: _listaLimit,
+        lengthMenu: [10, 25, 50, 100],
+        order: [[0, 'asc']],
+        columns: [
+            { data: 'codigo', render: function(v, type) { return type === 'display' ? '<code style="font-family:monospace;font-weight:700;font-size:12px;color:var(--primary);">' + escaparMaestro(v || '—') + '</code>' : (v || ''); } },
+            { data: null, render: function(item, type) { var texto = [item.nombre || '', item.descripcion || ''].join(' '); return type === 'display' ? '<strong style="display:block;font-size:13px;color:var(--text-color);">' + escaparMaestro(item.nombre || '') + '</strong>' + (item.descripcion ? '<span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">' + escaparMaestro(item.descripcion) + '</span>' : '') : texto; } },
+            { data: 'grupo_nombre', render: function(v, type) { return type === 'display' ? '<span class="status-badge transit" style="font-size:11px;background:#eef2ff;color:#4f46e5;font-weight:600;">' + escaparMaestro(v || '') + '</span>' : (v || ''); } },
+            { data: null, render: function(item) { return escaparMaestro(item.unidad_abrev || item.unidad_nombre || 'u.'); } },
+            { data: 'existencia_actual', className: 'dt-body-center', render: function(v, type, item) { var n = Number(v || 0); if (type !== 'display') return n; var bajo = Number(item.existencia_min || 0) > 0 && n <= Number(item.existencia_min); return '<span style="font-weight:700;color:' + (bajo ? '#f59e0b' : 'var(--text-color)') + ';">' + n.toFixed(2) + '</span>'; } },
+            { data: 'precio_promedio', render: function(v, type) { var n=Number(v || 0); return type === 'display' ? '$' + n.toFixed(2) : n; } },
+            { data: null, render: function(item, type) { var n=Number(item.precio_promedio || 0)*Number(item.existencia_actual || 0); return type === 'display' ? '<strong style="color:#10b981;">$' + n.toFixed(2) + '</strong>' : n; } },
+            { data: 'aplica_iva', className: 'dt-body-center', render: function(v, type) { var aplica=Number(v)===1; return type === 'display' ? '<span class="status-badge ' + (aplica ? 'active' : 'inactive') + '" style="font-size:10px;">' + (aplica ? 'Sí (' + _tasaIvaVigente.toFixed(2) + '%)' : 'No aplica') + '</span>' : (aplica ? 'Sí' : 'No'); } },
+            { data: null, orderable: false, searchable: false, className: 'acciones-cell columna-acciones', render: function() { return '<button type="button" class="btn-accion btn-ver maestro-cargar-item" title="Cargar en Ficha"><i class="fa-solid fa-pen-to-square"></i></button>'; } }
+        ],
+        createdRow: function(row, item) { row.id = 'row-' + item.id; row.style.cursor = 'pointer'; },
+        language: {
+            search: 'Buscar en Maestro de Ítems:',
+            searchPlaceholder: 'Código, nombre, descripción, categoría…',
+            lengthMenu: 'Mostrar _MENU_ registros',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+            infoEmpty: 'Sin registros',
+            zeroRecords: 'No se encontraron ítems coincidentes',
+            paginate: { previous: 'Anterior', next: 'Siguiente' }
+        }
+    });
+    $('#maestro-items-table tbody').on('click', 'tr', function() {
+        var item = _listaTable.row(this).data();
+        if (item) cargarItemEnFormulario(item);
+    });
+    return _listaTable;
+}
 
 function renderListaTable(page) {
     if (!page) page = 1;
     _listaPage = page;
+
+    if (window.jQuery && $.fn.DataTable) {
+        var tabla = iniciarMaestroItemsDataTable();
+        if (tabla) {
+            tabla.clear().rows.add(_items).draw(false);
+            var paginas = tabla.page.info().pages;
+            tabla.page(Math.max(0, Math.min(page - 1, Math.max(0, paginas - 1)))).draw('page');
+            return;
+        }
+    }
 
     var tbody = document.getElementById('lista-tbody');
     if (!tbody) return;
@@ -1086,7 +1177,7 @@ function renderListaTable(page) {
             '<td style="font-size:13px;">$' + precio.toFixed(2) + '</td>' +
             '<td><strong style="color:#10b981;font-size:13px;">$' + total.toFixed(2) + '</strong></td>' +
             '<td style="text-align:center;"><span class="status-badge ' + ivaClass + '" style="font-size:10px;">' + ivaNombre + '</span></td>' +
-            '<td class="acciones-cell" onclick="event.stopPropagation()" style="text-align:center;">' +
+            '<td class="acciones-cell columna-acciones" onclick="event.stopPropagation()">' +
                 '<button type="button" class="btn-accion btn-ver" onclick="cargarItemEnFormulario(' + itemJson + ')" title="Cargar en Ficha"><i class="fa-solid fa-pen-to-square"></i></button>' +
             '</td>' +
         '</tr>';
@@ -1370,6 +1461,7 @@ document.getElementById('form-copiar-plantilla').addEventListener('change', func
     
     if (item) {
         var grupoDestino = document.getElementById('form-grupo').value;
+        _currentIdx = -1;
         document.getElementById('form-id').value = '0';
         document.getElementById('form-codigo').value = '';
         document.getElementById('form-copiar-desde-id').value = item.id;
@@ -1427,6 +1519,7 @@ document.getElementById('form-copiar-plantilla').addEventListener('change', func
 // Cargar la primera página e inicializar selects al iniciar
 document.addEventListener('DOMContentLoaded', function() {
     renderListaTable(1);
+    document.getElementById('form-item').addEventListener('submit', guardarItemSinRecargar);
     
     // Iniciar items en el select de copiar desde plantilla
     populatePlantillaSelect();
@@ -1440,6 +1533,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Cargar automáticamente el ítem especificado en la URL si existe (edit_id o id)
     var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('nuevo') === '1') {
+        nuevoItem();
+        document.getElementById('form-nombre').value = urlParams.get('nombre') || '';
+        document.getElementById('form-descripcion').value = urlParams.get('descripcion') || '';
+        document.getElementById('form-precio').value = Number(urlParams.get('precio') || 0).toFixed(4);
+        calcularTotal();
+    }
     var editId = urlParams.get('edit_id') || urlParams.get('id');
     if (editId) {
         var foundItem = null;

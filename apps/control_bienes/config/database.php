@@ -24,7 +24,9 @@ function getDatabaseConnection() {
             ]);
         } elseif ($driver === 'sqlsrv') {
             $dsn = "sqlsrv:Server=" . DB_HOST;
-            if (DB_PORT && DB_PORT !== '') {
+            // Las instancias con nombre resuelven su propio puerto. Agregar
+            // ",1433" a "servidor\\instancia" impide la conexion local.
+            if (DB_PORT && DB_PORT !== '' && strpos(DB_HOST, '\\') === false) {
                 $dsn .= "," . DB_PORT;
             }
             $dsn .= ";Database=" . DB_NAME;

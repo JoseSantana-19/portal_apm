@@ -1,419 +1,83 @@
 <?php
-/**
- * PERMISOS.PHP - Vista de Gestión de Permisos (por Rol y por Usuario, Solo Admin)
- * Compatible con PHP 7.4, 8.3 y 8.4
- */
+/** Gestión granular de permisos. Solo Administradores. */
+$permIniciales = static function ($nombre): string {
+    $partes = preg_split('/\s+/', trim((string)$nombre)) ?: [];
+    $partes = array_values(array_filter($partes));
+    if (!$partes) return '?';
+    $primera = function_exists('mb_substr') ? mb_substr($partes[0], 0, 1, 'UTF-8') : substr($partes[0], 0, 1);
+    $ultima = count($partes) > 1 ? (function_exists('mb_substr') ? mb_substr($partes[count($partes)-1], 0, 1, 'UTF-8') : substr($partes[count($partes)-1], 0, 1)) : '';
+    return strtoupper($primera.$ultima);
+};
 ?>
 <style>
-.perm-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.perm-tab-btn {
-    padding: 10px 20px; border-radius: 10px 10px 0 0; font-size: 13.5px; font-weight: 700;
-    border: 1px solid var(--border-color); border-bottom: none; background: var(--secondary-bg);
-    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
-}
-.perm-tab-btn.active { background: var(--panel-bg); color: var(--primary); border-color: var(--primary); }
-.perm-tab-pane { display: none; }
-.perm-tab-pane.active { display: block; }
-
-.perm-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
-.perm-user-list { display: flex; flex-direction: column; gap: 6px; }
-.perm-user-card {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 16px; border-radius: 12px; cursor: pointer;
-    border: 2px solid var(--border-color); background: var(--panel-bg);
-    transition: all 0.2s;
-}
-.perm-user-card:hover { border-color: var(--primary); background: rgba(37,99,235,0.03); }
-.perm-user-card.selected { border-color: var(--primary); background: rgba(37,99,235,0.06); }
-.perm-avatar {
-    width: 42px; height: 42px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), #1d4ed8);
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px; flex-shrink: 0;
-}
-.perm-avatar.admin { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.perm-user-info { flex: 1; min-width: 0; }
-.perm-user-info h4 { margin: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.perm-user-info p  { margin: 0; font-size: 11px; color: var(--text-muted); }
-.perm-count-badge {
-    padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 700;
-    background: var(--primary); color: white; flex-shrink: 0;
-}
-
-.perm-section-title {
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--text-muted);
-    padding: 8px 0 4px 0; margin-top: 12px; border-bottom: 1px solid var(--border-color);
-    margin-bottom: 8px;
-}
-.perm-option-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px; border-radius: 10px; margin-bottom: 4px;
-    border: 1px solid transparent; transition: all 0.15s;
-}
-.perm-option-row:hover { background: var(--secondary-bg); border-color: var(--border-color); }
-.perm-option-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-.perm-option-label { flex: 1; font-size: 13.5px; font-weight: 500; color: var(--text-color); }
-.perm-nivel-select {
-    font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px;
-    border: 1px solid var(--border-color); background: var(--panel-bg); color: var(--text-color);
-    min-width: 168px; cursor: pointer;
-}
-.perm-nivel-select:disabled { opacity: 0.6; cursor: not-allowed; }
+.perm-grid{display:grid;grid-template-columns:310px minmax(0,1fr);gap:20px;align-items:start}.perm-side,.perm-main{border:1px solid var(--border-color);border-radius:16px;background:var(--panel-bg)}.perm-side{position:sticky;top:18px;padding:16px;max-height:calc(100vh - 110px);overflow:auto}.perm-search{position:relative;margin-bottom:14px}.perm-search i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted)}.perm-search input{width:100%;padding:10px 12px 10px 34px;border:1px solid var(--border-color);border-radius:9px;background:var(--bg-color);color:var(--text-color)}.perm-user-list{display:grid;gap:7px}.perm-user-card{width:100%;display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--border-color);border-radius:11px;background:var(--panel-bg);cursor:pointer;text-align:left;color:var(--text-color)}.perm-user-card:hover,.perm-user-card.selected{border-color:var(--primary);background:rgba(37,99,235,.06)}.perm-avatar{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#2563eb;color:#fff;font-weight:800}.perm-avatar.admin{background:#f59e0b}.perm-user-info{min-width:0;flex:1}.perm-user-info strong,.perm-user-info small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.perm-user-info small{margin-top:3px;color:var(--text-muted)}.perm-badge{padding:3px 7px;border-radius:20px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:800}.perm-placeholder{padding:80px 24px;text-align:center;color:var(--text-muted)}.perm-toolbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;border-bottom:1px solid var(--border-color);border-radius:16px 16px 0 0;background:var(--panel-bg);box-shadow:0 5px 15px rgba(15,23,42,.05)}.perm-toolbar h3,.perm-toolbar p{margin:0}.perm-toolbar p{margin-top:3px;color:var(--text-muted);font-size:12px}.perm-actions{display:flex;gap:8px;flex-wrap:wrap}.perm-content{padding:18px}.perm-info{display:flex;gap:10px;padding:12px 14px;margin-bottom:14px;border:1px solid #bfdbfe;border-radius:11px;background:#eff6ff;color:#1e40af;font-size:12px}.perm-group{margin-bottom:18px}.perm-group-title{margin:0 0 8px;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.perm-menu{border:1px solid var(--border-color);border-radius:13px;overflow:hidden;margin-bottom:10px}.perm-menu-head{display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--bg-color)}.perm-menu-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#dbeafe;color:#2563eb}.perm-menu-name{flex:1}.perm-menu-name strong,.perm-menu-name small{display:block}.perm-menu-name small{color:var(--text-muted);margin-top:2px}.perm-control-total{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #93c5fd;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800;cursor:pointer}.perm-control-total input,.perm-check{width:17px;height:17px;accent-color:#2563eb}.perm-table{width:100%;border-collapse:collapse}.perm-table th{padding:8px 12px;background:var(--panel-bg);color:var(--text-muted);font-size:10px;text-transform:uppercase;text-align:center}.perm-table th:first-child{text-align:left}.perm-table td{padding:11px 12px;border-top:1px solid var(--border-color);text-align:center}.perm-table td:first-child{text-align:left}.perm-scope strong,.perm-scope small{display:block}.perm-scope small{margin-top:3px;color:var(--text-muted);font-size:10px}.perm-check-label{display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11px;cursor:pointer}.perm-admin{padding:16px;margin:18px;border:1px solid #fcd34d;border-radius:12px;background:#fffbeb;color:#92400e}.perm-save-status{font-size:12px;color:#059669;font-weight:700}@media(max-width:900px){.perm-grid{grid-template-columns:1fr}.perm-side{position:static;max-height:none}.perm-toolbar{top:0}.perm-table{min-width:620px}.perm-menu{overflow-x:auto}}
+</style>
+<style>
+/* Presentación moderna y adaptable al ancho disponible con el menú lateral abierto */
+.perm-page-header{padding:20px 22px;border:1px solid #bfdbfe;border-radius:17px;background:linear-gradient(120deg,#eff6ff 0%,var(--panel-bg) 62%,#eef2ff 100%);box-shadow:0 10px 28px rgba(37,99,235,.07)}.perm-page-header .page-title h1{font-size:24px}.perm-page-header .page-title p{max-width:760px}.perm-admin-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-size:11px;font-weight:800;white-space:nowrap}
+@media(max-width:1350px){.perm-grid{grid-template-columns:1fr}.perm-side{position:static;max-height:none}.perm-search{position:relative;top:auto}.perm-user-list{grid-template-columns:repeat(auto-fit,minmax(235px,1fr));max-height:230px;overflow:auto;padding:2px}.perm-toolbar{top:0}}
+@media(max-width:850px){.perm-toolbar{align-items:flex-start;flex-direction:column}.perm-actions{width:100%}.perm-actions button{flex:1}.perm-table,.perm-table tbody{display:block}.perm-table thead{display:none}.perm-table tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:12px;border-top:1px solid var(--border-color)}.perm-table td{display:flex;align-items:center;justify-content:center;padding:8px;border:0!important}.perm-table td:first-child{grid-column:1/-1;justify-content:flex-start;padding-bottom:10px;background:#f8fafc;border-radius:9px!important}.perm-check-label{flex-direction:row}.perm-check-label span{font-size:11px}}
+@media(max-width:560px){.perm-user-list{grid-template-columns:1fr}.perm-control-total{font-size:0}.perm-control-total:after{content:'Total';font-size:11px}.perm-content{padding:10px}.perm-menu-head{padding:11px}.perm-actions{display:grid;grid-template-columns:1fr 1fr}.perm-save-status{grid-column:1/-1}.perm-table tr{grid-template-columns:1fr}}
+</style>
+<style>
+/* Panel de usuarios con tarjetas independientes y mayor respiración visual */
+.perm-grid{grid-template-columns:minmax(320px,350px) minmax(0,1fr);gap:22px}.perm-side{padding:20px;background:linear-gradient(160deg,#f8fafc 0%,#f1f5f9 100%);border-color:#dbe3ee}.perm-side>h4{margin:0 2px 16px!important;padding:0 0 13px;border-bottom:1px solid #dbe3ee;font-size:11px!important}.perm-search{padding:0 0 14px;margin:0;background:transparent}.perm-search input{height:46px;padding-left:38px;background:var(--panel-bg);border-color:#d7e0eb;box-shadow:0 4px 12px rgba(15,23,42,.04)}.perm-search i{left:14px}.perm-user-list{gap:13px;padding:3px 5px 8px 2px}.perm-user-card{min-height:82px;padding:13px 14px;gap:13px;border:1px solid #dce4ee;border-radius:16px;background:var(--panel-bg);box-shadow:0 5px 14px rgba(15,23,42,.055)}.perm-user-card:hover{border-color:#93c5fd;background:var(--panel-bg);box-shadow:0 10px 22px rgba(37,99,235,.11)}.perm-user-card.selected{border-color:#2563eb;background:linear-gradient(135deg,#eff6ff 0%,#fff 100%);box-shadow:0 0 0 2px rgba(37,99,235,.1),0 10px 22px rgba(37,99,235,.1)}.perm-avatar{width:48px;height:48px;flex:0 0 48px;border-radius:14px;font-size:13px}.perm-user-info{display:flex;flex-direction:column;justify-content:center;gap:6px}.perm-user-info strong{font-size:13px;line-height:1.32}.perm-user-meta{display:flex!important;align-items:center;gap:6px;flex-wrap:wrap;white-space:normal!important;overflow:visible!important}.perm-username{color:var(--text-muted);font-size:10.5px}.perm-role{display:inline-flex;padding:3px 7px;border-radius:12px;background:#eef2ff;color:#4338ca;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}.perm-badge{align-self:flex-start;margin-top:2px;padding:4px 7px;background:#fff;border-color:#bfdbfe;box-shadow:0 2px 5px rgba(37,99,235,.06)}.perm-side::-webkit-scrollbar,.perm-user-list::-webkit-scrollbar{width:7px}.perm-side::-webkit-scrollbar-thumb,.perm-user-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}.perm-side::-webkit-scrollbar-track,.perm-user-list::-webkit-scrollbar-track{background:transparent}
+@media(max-width:1450px){.perm-grid{grid-template-columns:1fr}.perm-side{position:static;max-height:none}.perm-user-list{grid-template-columns:repeat(auto-fit,minmax(285px,1fr));max-height:265px;overflow:auto;padding:4px}.perm-search{position:relative;top:auto}.perm-user-card{min-height:78px}}
+@media(max-width:650px){.perm-side{padding:14px}.perm-user-list{grid-template-columns:1fr;max-height:330px}.perm-user-card{min-height:76px;padding:12px}.perm-badge{display:none}}
+</style>
+<style>
+.perm-side,.perm-side *{box-sizing:border-box}.perm-side{overflow-x:hidden;overflow-y:auto}.perm-user-list{width:100%;max-width:100%;padding-left:2px;padding-right:9px}.perm-user-card{width:100%;max-width:100%;min-width:0}.perm-user-info{min-width:0;overflow:hidden}.perm-user-info strong{max-width:100%;overflow-wrap:anywhere}.perm-user-meta{max-width:100%}.perm-search,.perm-search input{width:100%;max-width:100%}@media(max-width:1450px){.perm-user-list{padding-right:9px}.perm-user-card{width:100%}}
 </style>
 
-<!-- Cabecera -->
-<div class="page-header animate-fade-in">
-    <div class="page-title">
-        <h1><i class="fa-solid fa-key" style="color:var(--primary);margin-right:10px;"></i>Gestión de Permisos</h1>
-        <p>Asigna qué puede Ver, Crear, Editar y Eliminar cada rol y, si hace falta, cada usuario en particular. Solo el Administrador puede modificar estos ajustes.</p>
-    </div>
-</div>
+<div class="page-header perm-page-header animate-fade-in"><div class="page-title"><h1><i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:10px"></i>Gestión de Permisos</h1><p>Controla los menús, sus secciones y acciones. Los nuevos módulos publicados en la navegación se incorporan automáticamente.</p></div><span class="perm-admin-chip"><i class="fa-solid fa-arrows-rotate"></i> Catálogo sincronizado</span></div>
 
-<div class="perm-tabs animate-fade-in">
-    <button class="perm-tab-btn active" id="tab-btn-rol" onclick="cambiarPestana('rol')">
-        <i class="fa-solid fa-user-shield"></i> Permisos por Rol
-    </button>
-    <button class="perm-tab-btn" id="tab-btn-usuario" onclick="cambiarPestana('usuario')">
-        <i class="fa-solid fa-user"></i> Permisos por Usuario (excepciones)
-    </button>
-</div>
-
-<!-- ===================== PESTAÑA: PERMISOS POR ROL ===================== -->
-<div class="perm-tab-pane active" id="tab-pane-rol">
-    <div class="perm-grid animate-fade-in">
-        <div class="panel" style="padding:16px;">
-            <h4 style="margin:0 0 14px 0;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">
-                <i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i> Roles Nativos
-            </h4>
-            <div class="perm-user-list">
-                <?php foreach ($roles as $rol):
-                    $esAdmin = strtolower($rol['nombre']) === 'administrador';
-                ?>
-                <div class="perm-user-card" id="rol-card-<?= $rol['id'] ?>"
-                     onclick="seleccionarRol(<?= $rol['id'] ?>, '<?= htmlspecialchars($rol['nombre'], ENT_QUOTES) ?>')">
-                    <div class="perm-avatar <?= $esAdmin ? 'admin' : '' ?>">
-                        <?= strtoupper(substr($rol['nombre'], 0, 1)) ?>
-                    </div>
-                    <div class="perm-user-info">
-                        <h4><?= htmlspecialchars($rol['nombre']) ?></h4>
-                        <p><?= $esAdmin ? 'Acceso total del sistema' : 'Rol nativo de Bienes' ?></p>
-                    </div>
-                    <?php if ($esAdmin): ?>
-                        <span class="perm-count-badge" style="background:#f59e0b;" title="Acceso total">∞</span>
-                    <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
+<div class="perm-grid animate-fade-in">
+    <aside class="perm-side">
+        <h4 style="margin:0 0 12px;font-size:12px;text-transform:uppercase;color:var(--text-muted)"><i class="fa-solid fa-users"></i> Usuarios</h4>
+        <div class="perm-search"><i class="fa-solid fa-magnifying-glass"></i><input id="perm-user-search" placeholder="Buscar usuario…" oninput="filtrarUsuarios(this.value)"></div>
+        <div class="perm-user-list">
+        <?php foreach ($usuarios as $usr): $admin = strtolower((string)$usr['rol']) === 'administrador'; $matriz=$permisosPorUsuario[$usr['id']] ?? []; $cantidad=0; foreach($matriz as $scopes) foreach($scopes as $regla) if(!empty($regla['read'])||!empty($regla['full'])) $cantidad++; ?>
+            <button type="button" class="perm-user-card" id="user-card-<?= (int)$usr['id'] ?>" data-search="<?= htmlspecialchars(strtolower(($usr['nombre'] ?? '').' '.($usr['usuario'] ?? '').' '.($usr['rol'] ?? '')), ENT_QUOTES) ?>" onclick="seleccionarUsuario(<?= (int)$usr['id'] ?>,<?= htmlspecialchars(json_encode($usr['nombre']),ENT_QUOTES) ?>,<?= htmlspecialchars(json_encode($usr['rol']),ENT_QUOTES) ?>)">
+                <span class="perm-avatar <?= $admin?'admin':'' ?>"><?= htmlspecialchars($permIniciales($usr['nombre'])) ?></span>
+                <span class="perm-user-info"><strong><?= htmlspecialchars($usr['nombre']) ?></strong><small class="perm-user-meta"><span class="perm-username"><?= htmlspecialchars($usr['usuario'] ?? '') ?></span><span class="perm-role"><?= htmlspecialchars($usr['rol']) ?></span></small></span>
+                <span class="perm-badge" id="badge-<?= (int)$usr['id'] ?>"><?= $admin?'TOTAL':$cantidad ?></span>
+            </button>
+        <?php endforeach; ?>
         </div>
+    </aside>
 
-        <div class="panel" id="panel-rol">
-            <div id="rol-placeholder" style="padding:60px;text-align:center;color:var(--text-muted);">
-                <i class="fa-solid fa-hand-pointer" style="font-size:40px;display:block;margin-bottom:16px;opacity:0.3;"></i>
-                <strong style="display:block;margin-bottom:6px;">Selecciona un rol</strong>
-                <span style="font-size:13px;">Los cambios aquí se reflejan también en el sistema central del portal.</span>
-            </div>
-
-            <div id="rol-form" style="display:none;">
-                <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
-                    <div>
-                        <h3 id="rol-nombre" style="margin:0;font-size:16px;font-weight:700;"></h3>
-                        <p style="margin:0;font-size:12px;color:var(--text-muted);">Nivel por pantalla</p>
+    <section class="perm-main">
+        <div id="perm-placeholder" class="perm-placeholder"><i class="fa-solid fa-user-lock" style="display:block;font-size:42px;margin-bottom:14px;opacity:.3"></i><strong>Selecciona un usuario</strong><p>Luego podrás configurar su acceso por menú y sección.</p></div>
+        <div id="perm-editor" style="display:none">
+            <div class="perm-toolbar"><div><h3 id="perm-user-name"></h3><p id="perm-user-role"></p></div><div class="perm-actions"><span id="perm-save-status" class="perm-save-status"></span><button type="button" class="btn-outline" onclick="limpiarPermisos()"><i class="fa-solid fa-eraser"></i> Limpiar</button><button type="button" class="btn-primary" id="perm-save" onclick="guardarPermisos()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button></div></div>
+            <div id="perm-admin" class="perm-admin" style="display:none"><i class="fa-solid fa-crown"></i> <strong>Administrador con control total.</strong> Sus permisos no pueden limitarse desde esta pantalla.</div>
+            <form id="perm-form"><input type="hidden" name="usuario_id" id="perm-user-id"><input type="hidden" name="is_ajax" value="1"><div class="perm-content" id="perm-content">
+                <div class="perm-info"><i class="fa-solid fa-circle-info"></i><span><strong>Ver / lectura</strong> activa un modo de consulta: no permite crear, editar, aprobar, procesar ni eliminar. <strong>Crear</strong> permite registrar nuevos datos y <strong>Editar</strong> permite modificar o procesar registros existentes. La eliminación continúa reservada al Administrador.</span></div>
+                <?php foreach($rutas as $grupoKey=>$grupo): ?><div class="perm-group"><h4 class="perm-group-title"><?= htmlspecialchars($grupo['titulo']) ?></h4>
+                <?php foreach($grupo['items'] as $route=>$menu): if(!empty($menu['solo_admin'])) continue; ?>
+                    <div class="perm-menu" data-route="<?= htmlspecialchars($route) ?>">
+                        <div class="perm-menu-head"><span class="perm-menu-icon"><i class="fa-solid <?= htmlspecialchars($menu['icon']) ?>"></i></span><span class="perm-menu-name"><strong><?= htmlspecialchars($menu['label']) ?></strong><small><?= count($menu['secciones']) ?> sección(es)</small></span><label class="perm-control-total"><input type="checkbox" class="perm-menu-full" onchange="controlTotalMenu('<?= htmlspecialchars($route,ENT_QUOTES) ?>',this.checked)"> Control total del menú</label></div>
+                        <table class="perm-table"><thead><tr><th>Sección</th><th>Ver / lectura</th><th>Crear</th><th>Editar</th><th>Control total</th></tr></thead><tbody>
+                        <?php foreach($menu['secciones'] as $scope=>$titulo): $base='reglas['.$route.']['.$scope.']'; ?>
+                            <tr data-route="<?= htmlspecialchars($route) ?>" data-scope="<?= htmlspecialchars($scope) ?>"><td><span class="perm-scope"><strong><?= htmlspecialchars($titulo) ?></strong><small><?= htmlspecialchars($route.' / '.$scope) ?></small></span></td>
+                                <?php foreach(['read'=>'Lectura','create'=>'Crear','edit'=>'Editar','full'=>'Total'] as $accion=>$label): ?><td><label class="perm-check-label"><input class="perm-check perm-action" type="checkbox" name="<?= htmlspecialchars($base.'['.$accion.']') ?>" value="1" data-route="<?= htmlspecialchars($route) ?>" data-scope="<?= htmlspecialchars($scope) ?>" data-action="<?= $accion ?>" onchange="cambiarPermiso(this)"><span><?= $label ?></span></label></td><?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?></tbody></table>
                     </div>
-                    <div style="display:flex;gap:8px;">
-                        <button class="btn-outline" onclick="marcarTodosNivel('rol', 4)" style="font-size:13px;padding:8px 16px;">
-                            <i class="fa-solid fa-check-double"></i> Total a todo
-                        </button>
-                        <button class="btn-outline" onclick="marcarTodosNivel('rol', 0)" style="font-size:13px;padding:8px 16px;">
-                            <i class="fa-solid fa-xmark"></i> Quitar todo
-                        </button>
-                        <button class="btn-primary" onclick="guardarRol()" id="btn-guardar-rol" style="padding:8px 20px;">
-                            <i class="fa-solid fa-save"></i> Guardar
-                        </button>
-                    </div>
-                </div>
-
-                <div id="rol-admin-notice" style="display:none;padding:20px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);margin:16px;border-radius:12px;">
-                    <i class="fa-solid fa-crown" style="color:#f59e0b;margin-right:8px;"></i>
-                    <strong style="color:#f59e0b;">Rol Administrador</strong>
-                    <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-muted);">Este rol tiene acceso total al sistema por definición. Los niveles individuales no aplican.</p>
-                </div>
-
-                <div style="padding:16px 20px;" id="rol-selects">
-                    <?php foreach ($rutas as $seccion => $secInfo): ?>
-                    <div class="perm-section-title"><?= htmlspecialchars($secInfo['titulo']) ?></div>
-                    <?php
-                    $secColores = ['operaciones' => '#3b82f6', 'datos' => '#10b981', 'sistema' => '#8b5cf6'];
-                    $secColor   = $secColores[$seccion] ?? 'var(--primary)';
-                    foreach ($secInfo['items'] as $rk => $rInfo): ?>
-                    <div class="perm-option-row">
-                        <div class="perm-option-icon" style="background:<?= $secColor ?>18;color:<?= $secColor ?>;">
-                            <i class="fa-solid <?= $rInfo['icon'] ?>"></i>
-                        </div>
-                        <label class="perm-option-label" for="rol-nivel-<?= $rk ?>"><?= htmlspecialchars($rInfo['label']) ?></label>
-                        <select class="perm-nivel-select rol-nivel" id="rol-nivel-<?= $rk ?>" data-route="<?= $rk ?>">
-                            <option value="0">Sin acceso</option>
-                            <option value="1">Ver</option>
-                            <option value="2">Ver + Crear</option>
-                            <option value="3">Ver + Crear + Editar</option>
-                            <option value="4">Total (+ Eliminar)</option>
-                        </select>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+                <?php endforeach; ?></div><?php endforeach; ?>
+            </div></form>
         </div>
-    </div>
-</div>
-
-<!-- ===================== PESTAÑA: PERMISOS POR USUARIO ===================== -->
-<div class="perm-tab-pane" id="tab-pane-usuario">
-    <div class="perm-grid animate-fade-in">
-        <div class="panel" style="padding:16px;">
-            <h4 style="margin:0 0 14px 0;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">
-                <i class="fa-solid fa-users" style="margin-right:6px;"></i> Usuarios del Sistema
-            </h4>
-            <div class="perm-user-list">
-                <?php foreach ($usuarios as $usr):
-                    $pCount = isset($nivelesPorUsuario[$usr['id']]) ? count($nivelesPorUsuario[$usr['id']]) : 0;
-                    $esAdmin = strtolower($usr['rol']) === 'administrador';
-                ?>
-                <div class="perm-user-card"
-                     id="user-card-<?= $usr['id'] ?>"
-                     onclick="seleccionarUsuario(<?= $usr['id'] ?>, '<?= htmlspecialchars($usr['nombre'], ENT_QUOTES) ?>', '<?= htmlspecialchars($usr['rol'], ENT_QUOTES) ?>')">
-                    <div class="perm-avatar <?= $esAdmin ? 'admin' : '' ?>">
-                        <?= strtoupper(substr($usr['nombre'], 0, 1)) ?>
-                    </div>
-                    <div class="perm-user-info">
-                        <h4><?= htmlspecialchars($usr['nombre']) ?></h4>
-                        <p><?= htmlspecialchars($usr['usuario'] ?? '') ?> &bull; <?= htmlspecialchars($usr['rol']) ?></p>
-                    </div>
-                    <?php if ($esAdmin): ?>
-                        <span class="perm-count-badge" style="background:#f59e0b;" title="Acceso total">∞</span>
-                    <?php else: ?>
-                        <span class="perm-count-badge" id="badge-<?= $usr['id'] ?>"><?= $pCount ?></span>
-                    <?php endif; ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <div class="panel" id="panel-usuario">
-            <div id="usuario-placeholder" style="padding:60px;text-align:center;color:var(--text-muted);">
-                <i class="fa-solid fa-hand-pointer" style="font-size:40px;display:block;margin-bottom:16px;opacity:0.3;"></i>
-                <strong style="display:block;margin-bottom:6px;">Selecciona un usuario</strong>
-                <span style="font-size:13px;">Solo hace falta tocar esto si un usuario necesita una excepción distinta a lo que ya le da su rol. "Sin acceso" aquí significa "usar lo que dice el rol", no un bloqueo.</span>
-            </div>
-
-            <div id="usuario-form" style="display:none;">
-                <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
-                    <div>
-                        <h3 id="usuario-nombre" style="margin:0;font-size:16px;font-weight:700;"></h3>
-                        <p id="usuario-rol" style="margin:0;font-size:12px;color:var(--text-muted);"></p>
-                    </div>
-                    <div style="display:flex;gap:8px;">
-                        <button class="btn-outline" onclick="marcarTodosNivel('usuario', 4)" style="font-size:13px;padding:8px 16px;">
-                            <i class="fa-solid fa-check-double"></i> Total a todo
-                        </button>
-                        <button class="btn-outline" onclick="marcarTodosNivel('usuario', 0)" style="font-size:13px;padding:8px 16px;">
-                            <i class="fa-solid fa-xmark"></i> Quitar excepciones
-                        </button>
-                        <button class="btn-primary" onclick="guardarUsuario()" id="btn-guardar-usuario" style="padding:8px 20px;">
-                            <i class="fa-solid fa-save"></i> Guardar
-                        </button>
-                    </div>
-                </div>
-
-                <div id="usuario-admin-notice" style="display:none;padding:20px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);margin:16px;border-radius:12px;">
-                    <i class="fa-solid fa-crown" style="color:#f59e0b;margin-right:8px;"></i>
-                    <strong style="color:#f59e0b;">Usuario Administrador</strong>
-                    <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-muted);">Los Administradores tienen acceso total al sistema. Las excepciones individuales no aplican para este rol.</p>
-                </div>
-
-                <div style="padding:16px 20px;" id="usuario-selects">
-                    <?php foreach ($rutas as $seccion => $secInfo): ?>
-                    <div class="perm-section-title"><?= htmlspecialchars($secInfo['titulo']) ?></div>
-                    <?php foreach ($secInfo['items'] as $rk => $rInfo): ?>
-                    <div class="perm-option-row">
-                        <div class="perm-option-icon" style="background:var(--secondary-bg);color:var(--text-muted);">
-                            <i class="fa-solid <?= $rInfo['icon'] ?>"></i>
-                        </div>
-                        <label class="perm-option-label" for="usuario-nivel-<?= $rk ?>"><?= htmlspecialchars($rInfo['label']) ?></label>
-                        <select class="perm-nivel-select usuario-nivel" id="usuario-nivel-<?= $rk ?>" data-route="<?= $rk ?>">
-                            <option value="0">Usar lo del rol</option>
-                            <option value="1">Ver</option>
-                            <option value="2">Ver + Crear</option>
-                            <option value="3">Ver + Crear + Editar</option>
-                            <option value="4">Total (+ Eliminar)</option>
-                        </select>
-                    </div>
-                    <?php endforeach; ?>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
 
 <script>
-var _rolSeleccionado = 0;
-var _rolEsAdmin = false;
-var _usuarioSeleccionado = 0;
-var _usuarioEsAdmin = false;
-
-// Niveles pre-cargados desde PHP: {id: {route_key: nivel}}
-var _nivelesPorRol = <?= json_encode($nivelesPorRol) ?>;
-var _nivelesPorUsuario = <?= json_encode($nivelesPorUsuario) ?>;
-
-function cambiarPestana(nombre) {
-    document.getElementById('tab-btn-rol').classList.toggle('active', nombre === 'rol');
-    document.getElementById('tab-btn-usuario').classList.toggle('active', nombre === 'usuario');
-    document.getElementById('tab-pane-rol').classList.toggle('active', nombre === 'rol');
-    document.getElementById('tab-pane-usuario').classList.toggle('active', nombre === 'usuario');
-}
-
-function seleccionarRol(id, nombre) {
-    document.querySelectorAll('#tab-pane-rol .perm-user-card').forEach(function(c){ c.classList.remove('selected'); });
-    document.getElementById('rol-card-' + id).classList.add('selected');
-
-    _rolSeleccionado = id;
-    _rolEsAdmin = (nombre.toLowerCase() === 'administrador');
-
-    document.getElementById('rol-nombre').textContent = nombre;
-    document.getElementById('rol-admin-notice').style.display = _rolEsAdmin ? 'block' : 'none';
-
-    var niveles = _nivelesPorRol[id] || {};
-    document.querySelectorAll('.rol-nivel').forEach(function(sel) {
-        sel.value = _rolEsAdmin ? '4' : String(niveles[sel.dataset.route] || 0);
-        sel.disabled = _rolEsAdmin;
-    });
-
-    document.getElementById('rol-placeholder').style.display = 'none';
-    document.getElementById('rol-form').style.display = 'block';
-    document.getElementById('btn-guardar-rol').disabled = _rolEsAdmin;
-}
-
-function seleccionarUsuario(id, nombre, rol) {
-    document.querySelectorAll('#tab-pane-usuario .perm-user-card').forEach(function(c){ c.classList.remove('selected'); });
-    document.getElementById('user-card-' + id).classList.add('selected');
-
-    _usuarioSeleccionado = id;
-    _usuarioEsAdmin = (rol.toLowerCase() === 'administrador');
-
-    document.getElementById('usuario-nombre').textContent = nombre;
-    document.getElementById('usuario-rol').textContent    = 'Rol: ' + rol;
-    document.getElementById('usuario-admin-notice').style.display = _usuarioEsAdmin ? 'block' : 'none';
-
-    var niveles = _nivelesPorUsuario[id] || {};
-    document.querySelectorAll('.usuario-nivel').forEach(function(sel) {
-        sel.value = _usuarioEsAdmin ? '4' : String(niveles[sel.dataset.route] || 0);
-        sel.disabled = _usuarioEsAdmin;
-    });
-
-    document.getElementById('usuario-placeholder').style.display = 'none';
-    document.getElementById('usuario-form').style.display = 'block';
-    document.getElementById('btn-guardar-usuario').disabled = _usuarioEsAdmin;
-}
-
-function marcarTodosNivel(cual, nivel) {
-    if (cual === 'rol') {
-        if (_rolEsAdmin) return;
-        document.querySelectorAll('.rol-nivel').forEach(function(s){ s.value = String(nivel); });
-    } else {
-        if (_usuarioEsAdmin) return;
-        document.querySelectorAll('.usuario-nivel').forEach(function(s){ s.value = String(nivel); });
-    }
-}
-
-function guardarRol() {
-    if (!_rolSeleccionado || _rolEsAdmin) return;
-
-    var btn = document.getElementById('btn-guardar-rol');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-
-    var data = new FormData();
-    data.append('rol_id', _rolSeleccionado);
-    data.append('is_ajax', '1');
-    var nuevosNiveles = {};
-    document.querySelectorAll('.rol-nivel').forEach(function(sel) {
-        var nivel = parseInt(sel.value, 10);
-        if (nivel > 0) {
-            data.append('niveles[' + sel.dataset.route + ']', nivel);
-            nuevosNiveles[sel.dataset.route] = nivel;
-        }
-    });
-
-    fetch('index.php?route=inv_permisos_rol', { method: 'POST', body: data })
-        .then(function(r){ return r.json(); })
-        .then(function(res) {
-            if (res.success) {
-                _nivelesPorRol[_rolSeleccionado] = nuevosNiveles;
-                btn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Guardado';
-                btn.style.background = '#10b981';
-                setTimeout(function() {
-                    btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-                    btn.style.background = '';
-                    btn.disabled = false;
-                }, 2000);
-            } else {
-                alert('Error: ' + (res.mensaje || 'No se pudo guardar'));
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-            }
-        })
-        .catch(function() {
-            alert('Error de conexión al guardar permisos de rol.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-        });
-}
-
-function guardarUsuario() {
-    if (!_usuarioSeleccionado || _usuarioEsAdmin) return;
-
-    var btn = document.getElementById('btn-guardar-usuario');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-
-    var data = new FormData();
-    data.append('usuario_id', _usuarioSeleccionado);
-    data.append('is_ajax', '1');
-    var nuevosNiveles = {};
-    document.querySelectorAll('.usuario-nivel').forEach(function(sel) {
-        var nivel = parseInt(sel.value, 10);
-        if (nivel > 0) {
-            data.append('niveles[' + sel.dataset.route + ']', nivel);
-            nuevosNiveles[sel.dataset.route] = nivel;
-        }
-    });
-
-    fetch('index.php?route=inv_permisos&action=guardar', { method: 'POST', body: data })
-        .then(function(r){ return r.json(); })
-        .then(function(res) {
-            if (res.success) {
-                _nivelesPorUsuario[_usuarioSeleccionado] = nuevosNiveles;
-                var badge = document.getElementById('badge-' + _usuarioSeleccionado);
-                if (badge) badge.textContent = Object.keys(nuevosNiveles).length;
-
-                btn.innerHTML = '<i class="fa-solid fa-check-circle"></i> Guardado';
-                btn.style.background = '#10b981';
-                setTimeout(function() {
-                    btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-                    btn.style.background = '';
-                    btn.disabled = false;
-                }, 2000);
-            } else {
-                alert('Error: ' + (res.mensaje || 'No se pudo guardar'));
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-            }
-        })
-        .catch(function() {
-            alert('Error de conexión al guardar permisos de usuario.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar';
-        });
-}
+var _matrices=<?= json_encode($permisosPorUsuario,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>,_usuario=0,_admin=false;
+function seleccionarUsuario(id,nombre,rol){document.querySelectorAll('.perm-user-card').forEach(c=>c.classList.toggle('selected',c.id==='user-card-'+id));_usuario=id;_admin=String(rol).toLowerCase()==='administrador';document.getElementById('perm-user-id').value=id;document.getElementById('perm-user-name').textContent=nombre;document.getElementById('perm-user-role').textContent='Rol: '+rol;document.getElementById('perm-placeholder').style.display='none';document.getElementById('perm-editor').style.display='block';document.getElementById('perm-admin').style.display=_admin?'block':'none';document.getElementById('perm-content').style.display=_admin?'none':'block';document.getElementById('perm-save').disabled=_admin;aplicarMatriz(_matrices[id]||{})}
+function aplicarMatriz(matriz){document.querySelectorAll('.perm-action').forEach(c=>{const regla=(matriz[c.dataset.route]||{})[c.dataset.scope]||(matriz[c.dataset.route]||{})['*']||{};c.checked=_admin||!!regla.full||!!regla[c.dataset.action];c.disabled=_admin});document.querySelectorAll('.perm-menu-full').forEach(c=>{c.disabled=_admin;sincronizarMenu(c.closest('.perm-menu').dataset.route)})}
+function cambiarPermiso(c){const fila=c.closest('tr'),leer=fila.querySelector('[data-action="read"]'),crear=fila.querySelector('[data-action="create"]'),editar=fila.querySelector('[data-action="edit"]'),total=fila.querySelector('[data-action="full"]');if(c.dataset.action==='full'){leer.checked=crear.checked=editar.checked=c.checked}else if((c.dataset.action==='create'||c.dataset.action==='edit')&&c.checked)leer.checked=true;else if(c.dataset.action==='read'&&!c.checked)crear.checked=editar.checked=total.checked=false;total.checked=leer.checked&&crear.checked&&editar.checked;sincronizarMenu(c.dataset.route)}
+function controlTotalMenu(route,estado){document.querySelectorAll('.perm-action[data-route="'+route+'"]').forEach(c=>c.checked=estado)}
+function sincronizarMenu(route){const acciones=[...document.querySelectorAll('.perm-action[data-route="'+route+'"]')],menu=document.querySelector('.perm-menu[data-route="'+route+'"] .perm-menu-full');menu.checked=acciones.length>0&&acciones.every(c=>c.checked);menu.indeterminate=!menu.checked&&acciones.some(c=>c.checked)}
+function limpiarPermisos(){if(_admin)return;document.querySelectorAll('.perm-action,.perm-menu-full').forEach(c=>{c.checked=false;c.indeterminate=false})}
+function filtrarUsuarios(q){q=String(q||'').toLowerCase();document.querySelectorAll('.perm-user-card').forEach(c=>c.style.display=c.dataset.search.includes(q)?'flex':'none')}
+function guardarPermisos(){if(!_usuario||_admin)return;const btn=document.getElementById('perm-save'),data=new FormData(document.getElementById('perm-form'));btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando';fetch('index.php?route=inv_permisos&action=guardar',{method:'POST',body:data}).then(r=>r.json()).then(res=>{if(!res.success)throw new Error(res.mensaje||res.error||'No se pudo guardar');_matrices[_usuario]=res.matriz||{};const cantidad=Object.values(_matrices[_usuario]).reduce((n,s)=>n+Object.values(s).filter(r=>r.read||r.full).length,0),badge=document.getElementById('badge-'+_usuario);if(badge)badge.textContent=cantidad;document.getElementById('perm-save-status').textContent='Cambios guardados';setTimeout(()=>document.getElementById('perm-save-status').textContent='',2500)}).catch(e=>alert('Error: '+e.message)).finally(()=>{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Guardar cambios'})}
 </script>

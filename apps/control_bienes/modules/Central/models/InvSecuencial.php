@@ -16,6 +16,9 @@ class InvSecuencial extends Model {
             case 'inv':
             case 'ing':
             case 'egr':
+            case 'npe':
+            case 'npa':
+            case 'ocp':
                 $longitud = 5;
                 break;
             case 'bit':
@@ -41,7 +44,8 @@ class InvSecuencial extends Model {
 
         $prefijos = [
             'inv' => 'INV-', 'th' => 'TH-', 'bit' => 'BIT-',
-            'acc' => 'ACC-', 'ing' => 'ING-', 'egr' => 'EGR-', 'itm' => 'ITM-'
+            'acc' => 'ACC-', 'ing' => 'ING-', 'egr' => 'EGR-', 'npe' => 'NPE-',
+            'npa' => 'NPA-', 'ocp' => 'OCP-', 'itm' => 'ITM-'
         ];
         $prefijo = isset($prefijos[$modulo]) ? $prefijos[$modulo] : 'GEN-';
         $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';

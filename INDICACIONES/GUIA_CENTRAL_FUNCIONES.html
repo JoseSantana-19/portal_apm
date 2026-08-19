@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funciones del Portal Central — Portal APM</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --panel3:#222c45; --border:#2a3450;
+  --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+  --primary:#4f7fff; --primary-soft:rgba(79,127,255,.14);
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --purple:#a78bfa;
+  --radius:12px;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; line-height:1.55;}
+a{color:var(--primary);}
+code{font-family:Consolas,monospace; background:var(--panel3); color:var(--primary); padding:2px 7px; border-radius:5px; font-size:.86em;}
+.wrap{max-width:1120px; margin:0 auto; padding:32px 20px 80px;}
+
+header.hero{
+  text-align:center; padding:38px 24px 30px; margin-bottom:28px;
+  background:linear-gradient(160deg,var(--panel),var(--panel2));
+  border:1px solid var(--border); border-radius:var(--radius);
+}
+header.hero h1{margin:0 0 10px; font-size:2rem;}
+header.hero p{margin:0 auto; max-width:720px; color:var(--text-muted);}
+.alert{
+  margin-top:20px; text-align:left; background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.35);
+  border-radius:10px; padding:14px 18px; font-size:.88rem; color:#fbbf24;
+}
+.alert b{color:#fde68a;}
+
+/* Diagrama de alcance */
+.scope{overflow-x:auto; padding:10px 0;}
+.scope-row{display:flex; align-items:stretch; gap:16px; min-width:820px;}
+.scope-box{
+  flex:1; border-radius:12px; padding:18px 20px; position:relative;
+}
+.scope-box.central{
+  background:linear-gradient(160deg, rgba(79,127,255,.18), rgba(79,127,255,.05));
+  border:2px solid var(--primary);
+}
+.scope-box.ext{
+  background:var(--panel2); border:2px dashed var(--border); color:var(--text-muted);
+}
+.scope-box h3{margin:0 0 6px; font-size:1rem;}
+.scope-box.central h3{color:var(--primary);}
+.scope-box p{margin:0; font-size:.82rem;}
+.scope-tag{
+  display:inline-block; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  padding:3px 8px; border-radius:99px; margin-bottom:8px;
+}
+.scope-box.central .scope-tag{background:rgba(79,127,255,.25); color:#c2d3ff;}
+.scope-box.ext .scope-tag{background:var(--panel3); color:var(--text-light);}
+
+section{margin-bottom:36px;}
+h2{font-size:1.4rem; margin:0 0 6px;}
+.section-sub{color:var(--text-muted); font-size:.92rem; margin:0 0 18px;}
+
+/* Índice */
+.toc{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px;}
+.toc a{
+  display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; padding:12px 14px; text-decoration:none; color:var(--text); font-size:.86rem; font-weight:600;
+}
+.toc a:hover{border-color:var(--primary);}
+.toc .n{
+  width:24px; height:24px; border-radius:50%; background:var(--primary-soft); color:var(--primary);
+  display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:800; flex-shrink:0;
+}
+
+/* Tarjeta de función */
+.func{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  margin-bottom:20px; scroll-margin-top:20px;
+}
+.func-head{
+  display:flex; align-items:center; gap:14px; padding:18px 22px; border-bottom:1px solid var(--border);
+  background:var(--panel2); border-radius:var(--radius) var(--radius) 0 0;
+}
+.func-ico{
+  width:38px; height:38px; border-radius:10px; background:var(--primary-soft); color:var(--primary);
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; font-weight:800;
+}
+.func-head h3{margin:0; font-size:1.15rem;}
+.func-head .ruta{margin-left:auto; font-size:.78rem; color:var(--text-light);}
+.func-body{padding:20px 22px;}
+.func-purpose{color:var(--text-muted); font-size:.92rem; margin:0 0 18px;}
+
+.func-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:22px;}
+@media(max-width:820px){.func-grid{grid-template-columns:1fr;}}
+
+.action-list{list-style:none; margin:0; padding:0;}
+.action-list li{
+  display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:.88rem;
+}
+.action-list li:last-child{border-bottom:none;}
+.action-list .tag{
+  flex-shrink:0; font-size:.65rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  padding:3px 8px; border-radius:6px; height:fit-content; margin-top:1px; white-space:nowrap;
+}
+.tag.ver{background:rgba(139,92,246,.16); color:var(--purple);}
+.tag.crear{background:rgba(79,127,255,.16); color:var(--primary);}
+.tag.editar{background:rgba(34,197,94,.16); color:var(--ok);}
+.tag.borrar{background:rgba(239,68,68,.16); color:var(--danger);}
+.tag.total{background:rgba(245,158,11,.16); color:var(--warn);}
+.action-list .desc b{color:var(--text);}
+.action-list .desc{color:var(--text-muted);}
+
+.diagram{
+  background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:16px;
+  display:flex; flex-direction:column; gap:0; align-items:stretch;
+}
+.diagram-title{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-light); margin-bottom:12px; font-weight:700;}
+.dstep{
+  background:var(--panel3); border:1px solid var(--border); border-radius:8px; padding:9px 12px;
+  font-size:.8rem; font-weight:600; text-align:center;
+}
+.dstep.hi{border-color:var(--primary); color:var(--primary); background:rgba(79,127,255,.1);}
+.dstep.ok{border-color:var(--ok); color:var(--ok); background:rgba(34,197,94,.1);}
+.dstep.warn{border-color:var(--warn); color:var(--warn); background:rgba(245,158,11,.1);}
+.darrow{text-align:center; color:var(--text-light); font-size:.85rem; padding:3px 0;}
+.dbranch{display:flex; gap:8px; margin-top:0;}
+.dbranch > div{flex:1; display:flex; flex-direction:column; gap:0;}
+
+.note{
+  margin-top:14px; font-size:.78rem; color:var(--text-light); background:var(--panel2);
+  border-left:3px solid var(--primary); padding:9px 12px; border-radius:0 6px 6px 0;
+}
+.note b{color:var(--text-muted);}
+
+.tables{margin-top:14px; display:flex; flex-wrap:wrap; gap:6px;}
+.tables code{font-size:.72rem;}
+
+.back-top{
+  position:fixed; bottom:24px; right:24px; background:var(--primary); color:#fff; border:none;
+  width:44px; height:44px; border-radius:50%; font-size:1.1rem; cursor:pointer; box-shadow:0 6px 20px -6px rgba(79,127,255,.6);
+  display:flex; align-items:center; justify-content:center; text-decoration:none;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Funciones del Portal Central</h1>
+  <p>Todo lo que el <b>Portal APM en sí mismo</b> hace — el hub que se construyó desde cero. Talento
+  Humano, Control de Bienes y Bitácoras Portuarias son proyectos individuales que se integraron
+  al portal (no se documentan acá función por función; ver <code>GUIA_VISUAL_NAVEGACION.html</code>
+  para navegarlos). Esto es exclusivamente <b>id_modulo = 1 (Central)</b>: administración,
+  seguridad, permisos y contenido del propio hub.</p>
+  <div class="alert">
+    <b>Por qué separar esto:</b> el Portal Central es el ÚNICO módulo que este equipo diseña y
+    controla de punta a punta. TH/Bienes/Bitácoras corren su propio código (con login propio en
+    2 de los 3 casos) — el portal solo los aloja, les da sesión/identidad compartida y les
+    aplica un sistema de permisos común. Confundir "qué hace el portal" con "qué hace un módulo
+    integrado" es la fuente más común de malentendidos al explicar el sistema.
+  </div>
+</header>
+
+<section>
+  <h2>Dónde termina "Central" y empieza lo integrado</h2>
+  <p class="section-sub">Diagrama de alcance real — no organizativo, técnico: quién es dueño del código de cada caja.</p>
+  <div class="scope">
+    <div class="scope-row">
+      <div class="scope-box central">
+        <span class="scope-tag">Construido acá — esta guía</span>
+        <h3>Portal Central</h3>
+        <p>Login único, usuarios, roles, permisos, menú, auditoría, contenido de la landing,
+        inactividad de sesión, dashboards, notificaciones. Dueño de <code>PORTAL_APM</code>.</p>
+      </div>
+      <div class="scope-box ext">
+        <span class="scope-tag">Proyecto individual integrado</span>
+        <h3>Talento Humano</h3>
+        <p>Login/sesión/RBAC propios. El portal solo hace de puente de identidad. Dueño de
+        <code>Talento_Humano</code>.</p>
+      </div>
+      <div class="scope-box ext">
+        <span class="scope-tag">Proyecto individual integrado</span>
+        <h3>Control de Bienes</h3>
+        <p>Login/sesión propios, mismo patrón que TH. Dueño de <code>inventario</code>.</p>
+      </div>
+      <div class="scope-box ext">
+        <span class="scope-tag">Proyecto individual integrado</span>
+        <h3>Bitácoras Portuarias</h3>
+        <p>Sin login propio — usa 100% la sesión y permisos de Central. Dueño de
+        <code>PortuariaDemo</code>/<code>PortuariaExterna</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Índice de funciones</h2>
+  <div class="toc" id="toc"></div>
+</section>
+
+<div id="funciones"></div>
+
+</div>
+
+<a href="#top" class="back-top" title="Volver arriba">↑</a>
+
+<script>
+var FUNCIONES = [
+{
+  id:'dashboard', ico:'01', nombre:'Dashboards', ruta:'/dashboard · /dashboard/operativo · /dashboard/ejecutivo · /reportes',
+  proposito:'Panorama de todo el sistema al entrar. No administra nada — es lectura pura, agregando datos en vivo desde las 4 bases (PORTAL_APM + las 3 integradas vía consultas cross-DB).',
+  acciones:[
+    ['ver','Dashboard Ejecutivo','Automático si tu nivel_jerarquia ≥ 2 (jefatura para arriba). KPIs agregados: empleados activos, bienes inventariados, eventos del mes, alertas pendientes, gráfico de actividad por módulo.'],
+    ['ver','Dashboard Operativo','El que ve el resto (nivel < 2). Actividad reciente en vez de KPIs gerenciales.'],
+    ['ver','Reportes Globales','Últimos 20 registros de auditoría, vista rápida sin ir a la pantalla completa de Auditoría.'],
+  ],
+  diagram:['Login exitoso','→','¿nivel_jerarquia ≥ 2?','branch:Sí → Dashboard Ejecutivo (KPIs):No → Dashboard Operativo (actividad)'],
+  tablas:['DashboardModel (consulta cross-DB TH/Bienes/Bitácoras)'],
+  notaExtra:'Los contadores de "Empleados Activos" y "Bienes Inventariados" leen directo de las BDs de TH/Bienes en vivo — si esos módulos no tienen datos, el dashboard muestra 0, no rompe.'
+},
+{
+  id:'usuarios', ico:'02', nombre:'Gestión de Usuarios', ruta:'/admin/usuarios',
+  proposito:'ÚNICO punto de administración de cuentas del portal. No existe alta manual — cada cuenta nace de un empleado real de Talento Humano, así el sistema nunca tiene un usuario "de mentira" sin respaldo en TH.',
+  acciones:[
+    ['ver','Listado','Todas las cuentas, con rol(es), departamento, estado. Exportable a Excel/PDF (global o por usuario individual).'],
+    ['crear','Crear desde Talento Humano','Selector de empleado real (los que aún no tienen cuenta) → elegís rol(es) y departamento → crea la cuenta de portal Y, en la misma operación, provisiona la cuenta espejo en Talento_Humano.th_usuarios_sistema (para que ese usuario también pueda entrar a TH sin pedirle credenciales de nuevo).'],
+    ['editar','Editar usuario — guardado único','Una sola pantalla, un solo botón: datos personales, roles asignados Y excepciones de permisos individuales (por nodo del árbol MOIS) se guardan juntos en una transacción. Rediseñada 2026-08 para eliminar el bug de "2 botones que hacían cosas distintas".'],
+    ['editar','Excepción individual por permiso','Dentro de Editar Usuario: checklist V/C/E/Total por nodo, cascada de herencia visible ("Hereda: Ver" vs "Excepción: Editar"). Solo afecta CÓMO SE VE EL PORTAL para ese usuario — ver nota abajo, límite real importante.'],
+    ['borrar','Desactivar / Reactivar','Soft-delete — nunca se borra una cuenta físicamente, solo estado=0/1.'],
+    ['ver','Exportar Excel/PDF','Del listado completo o de un usuario puntual (ficha con roles y permisos efectivos).'],
+  ],
+  diagram:['Empleado real en TH','→','Elegir rol(es) + depto','→','INSERT CORE_Usuarios','branch:+ CORE_Usuarios_Roles:+ Talento_Humano.th_usuarios_sistema (puente)','→','Cuenta lista, entra a portal Y a TH sin 2do login'],
+  tablas:['CORE_Usuarios','CORE_Usuarios_Roles','CORE_Permisos_Nodo_Usuario','Talento_Humano.th_usuarios_sistema (cross-DB)'],
+  notaExtra:'Límite real de arquitectura: la excepción individual de acá SOLO gobierna el sidebar/rutas del PORTAL. Talento Humano y Control de Bienes tienen su propio chequeo de permisos nativo (por ROL, no por usuario) — si necesitás que un permiso puntual se refleje DENTRO de TH o Bienes, hay que tocar el rol nativo de ese módulo, la excepción de acá no llega ahí. Bitácoras es la excepción: no tiene permisos propios, así que ahí sí alcanza con esto.'
+},
+{
+  id:'roles', ico:'03', nombre:'Roles y Permisos', ruta:'/admin/roles · /admin/roles/{id}/permisos',
+  proposito:'Motor central de autorización. Un rol es un conjunto de permisos sobre el árbol de menú (MOIS: Módulo→Opción→Ítem→Subítem); un usuario puede tener varios roles a la vez, y se toma el nivel MÁS ALTO entre todos + su(s) rol(es) para cada nodo.',
+  acciones:[
+    ['ver','Listado de roles','25 roles reales (Administrador TI, Director TH, Secretaria, Operador de Bienes, etc.), con nivel jerárquico y departamento asociado.'],
+    ['crear','Crear rol','Código único, nombre, nivel jerárquico (0-4), departamento.'],
+    ['editar','Editar permisos — checklist','Por cada nodo del árbol: 4 checkboxes en cascada (Ver → Crear → Editar → Total), marcar "Editar" activa automáticamente "Ver" y "Crear". Buscador, "seleccionar todo" por columna, contador de cambios.'],
+    ['editar','Sincronización automática hacia TH/Bienes','Al guardar, si el rol tiene mapeo nativo (CORE_Roles_Modulo_Map) con Talento Humano o Control de Bienes, el cambio también escribe en la tabla de permisos NATIVA de ese módulo — para que coincida lo que ve el portal con lo que ve el módulo nativo. Bitácoras no tiene esto (no lo necesita, no tiene sistema propio).'],
+    ['borrar','Desactivar / Reactivar rol','Soft-delete, igual que usuarios.'],
+  ],
+  diagram:['Editor de rol: click checkbox nivel N','→','INSERT/UPDATE CORE_Permisos_Nodo','branch:Portal: fn_TienePermisoNodo ya lo refleja:¿Rol mapeado a TH/Bienes? → SyncPermisosModulo::centralHaciaX()','→','Rol nativo de TH/Bienes actualizado también (si aplica)'],
+  tablas:['CORE_Roles','CORE_Permisos_Nodo','CORE_Roles_Modulo_Map','(cross-DB) Talento_Humano.th_permisos_rol / inventario.inv_permisos_rol'],
+  notaExtra:'La sincronización es en UNA dirección desde acá (portal → módulo nativo). TH tiene el camino inverso también (su propia pantalla de Roles empuja de vuelta a CORE_Permisos_Nodo) — Control de Bienes tiene el código para eso pero su pantalla nativa está gateada solo para rol "administrador" y en la práctica no se usa.'
+},
+{
+  id:'matriz', ico:'04', nombre:'Matriz de Permisos', ruta:'/admin/roles/matriz',
+  proposito:'Vista de solo lectura: los 25 roles como filas, los 4 módulos como columnas, cada celda muestra cobertura ("14/18 nodos con acceso") y nivel máximo alcanzado. Para detectar de un vistazo roles mal configurados sin entrar a cada uno.',
+  acciones:[
+    ['ver','Matriz completa','Click en una celda expande el detalle nodo por nodo de ese rol en ese módulo.'],
+    ['ver','Alerta de roles sin ningún permiso','Contador destacado arriba — roles que existen pero no tienen ni un solo nodo con acceso (típicamente roles a medio configurar).'],
+  ],
+  diagram:null,
+  tablas:['CORE_Roles','CORE_Permisos_Nodo','CORE_Menu_Nodos'],
+  notaExtra:null
+},
+{
+  id:'departamentos', ico:'05', nombre:'Departamentos', ruta:'/admin/departamentos',
+  proposito:'Catálogo de departamentos usado para clasificar usuarios y roles. La mayoría vienen sincronizados automáticamente desde la estructura organizacional real de Talento Humano (un trigger en TH replica altas/bajas de unidades hacia acá).',
+  acciones:[
+    ['ver','Listado jerárquico','Por nivel, con badge de color e ícono.'],
+    ['editar','Editar (parcial)','Si el departamento viene de TH (origen_th=1), el NOMBRE no se puede tocar acá — se sobrescribiría en la próxima sincronización. Solo se edita ícono, color y descripción. Los departamentos sin vínculo a TH sí permiten nombre libre.'],
+  ],
+  diagram:['th_unidades_organizacionales (TH) cambia','→','Trigger de sincronización','→','CORE_Departamentos actualizado','→','Disponible para asignar a usuarios/roles'],
+  tablas:['CORE_Departamentos'],
+  notaExtra:'10 departamentos existen sin vincular a ninguna unidad de TH — pendiente de revisión manual, no es un bug.'
+},
+{
+  id:'menu', ico:'06', nombre:'Estructura del Menú', ruta:'/admin/menu',
+  proposito:'Editor del árbol MOIS (Módulo → Opción → Ítem → Subítem) que define TODO lo que puede existir como nodo navegable o permiso en el sistema — de acá salen las filas que después Roles y Permisos gobierna.',
+  acciones:[
+    ['ver','Árbol completo','Los 4 módulos, con conteo de nodos totales/activos.'],
+    ['crear','Nuevo nodo','Elegís módulo + coordenada (opción/ítem/subítem) + descripción + URL + ícono. Bloquea si la tupla ya existe.'],
+    ['editar','Editar nodo','Descripción, URL, ícono, orden, si requiere MFA, si abre en SPA.'],
+    ['editar','Activar/Desactivar con cascada','Desactivar un nodo padre oculta TODOS sus descendientes automáticamente. Activar un nodo hijo activa en cascada ascendente sus padres (para que no quede "activo pero invisible" por tener un ancestro apagado).'],
+    ['editar','Guardar en lote','Varios toggles pendientes se aplican en una sola transacción — si uno falla, no queda nada a medias.'],
+    ['borrar','Eliminar nodo','Bloqueado si el nodo ya tiene permisos asignados a algún rol (protección real, no solo UI) — hay que desactivarlo en vez de borrarlo.'],
+  ],
+  diagram:['Desactivar "Roles y Permisos" (opción=3)','→','Cascada DESCENDENTE','→','Oculta también sus sub-ítems (si tuviera)','—','Activar un sub-ítem suelto','→','Cascada ASCENDENTE','→','Activa Módulo→Opción→Ítem padres si estaban apagados'],
+  tablas:['CORE_Menu_Nodos','CORE_Permisos_Nodo (chequeado antes de permitir DELETE)'],
+  notaExtra:'Esta es la ÚNICA fuente de verdad de qué existe en el sistema — el sidebar del portal, el editor de permisos y la matriz leen todos de esta misma tabla.'
+},
+{
+  id:'auditoria', ico:'07', nombre:'Auditoría del Sistema', ruta:'/admin/auditoria',
+  proposito:'Registro inmutable de toda acción administrativa relevante (crear/editar/desactivar usuario, rol, departamento, permisos, contenido) — quién, cuándo, desde qué IP, y el diff exacto de qué cambió.',
+  acciones:[
+    ['ver','Listado paginado','25 por página, filtros por módulo/usuario/resultado/fecha.'],
+    ['ver','Ver detalle (diff)','Modal con comparación campo por campo: valor ANTES vs valor DESPUÉS, en JSON legible.'],
+    ['ver','Exportar Excel/PDF','Del set filtrado actual, no de toda la tabla.'],
+  ],
+  diagram:['Acción admin (ej: guardar permisos)','→','ModuleSecurity::audit()','→','sp_RegistrarAuditoria','→','CORE_Auditoria (INSERT-only, sin UPDATE/DELETE)','→','vw_AuditoriaGlobal (la vista que lee esta pantalla)'],
+  tablas:['CORE_Auditoria','vw_AuditoriaGlobal'],
+  notaExtra:'IP local (::1 / 127.0.0.1) se etiqueta "Local" en vez de mostrarse como dato roto — detalle de UX ya resuelto.'
+},
+{
+  id:'landing', ico:'08', nombre:'Contenido del Portal', ruta:'/admin/landing',
+  proposito:'CMS de la pantalla pública de bienvenida (antes del login). 3 piezas de contenido independientes, cada una con su propio orden y estado.',
+  acciones:[
+    ['crear','Carrusel de fondos','Solo imagen (JPG/PNG/WEBP, máx 5MB, validado por contenido real no solo extensión). Reordenable, activar/desactivar, eliminar (borra también el archivo físico).'],
+    ['crear','Noticias','Imagen OBLIGATORIA + texto + link opcional — alimentan el carrusel visual con texto encima. Editar puede reemplazar la imagen pero no quitarla.'],
+    ['crear','Consejos y novedades','Solo texto + link opcional, sin imagen — franja de texto rotativo aparte, no comparte tabla con Noticias a propósito (semántica distinta).'],
+    ['editar','Reordenar','Flechas arriba/abajo, intercambia el campo orden con el vecino inmediato.'],
+  ],
+  diagram:null,
+  tablas:['CORE_Landing_Imagenes','CORE_Landing_Noticias','CORE_Landing_Consejos'],
+  notaExtra:'Los uploads se guardan con nombre aleatorio (bin2hex random_bytes) en imgs/landing — nunca se confía en el nombre original del archivo.'
+},
+{
+  id:'inactividad', ico:'09', nombre:'Inactividad de Sesión', ruta:'/admin/inactividad',
+  proposito:'Configura cuánto tiempo de inactividad real (no tiempo desde login) cierra la sesión, en 3 niveles de cascada: Global → por Módulo → por Usuario. El más específico gana.',
+  acciones:[
+    ['editar','Config Global','Segundos de inactividad + segundos de aviso previo (SweetAlert2 de "tu sesión está por cerrarse").'],
+    ['editar','Config por Módulo','Un valor propio para TH/Bienes/Bitácoras/Central, o "usar global" para heredar.'],
+    ['editar','Override por Usuario','Desde la misma tabla de usuarios — un valor específico para una persona puntual (ej: una cuenta compartida de garita con timeout más corto).'],
+  ],
+  diagram:['¿Usuario tiene override?','branch:Sí → usa ese valor:No → ¿Módulo tiene config propia?','→','branch:Sí → usa el del módulo:No → usa el Global'],
+  tablas:['CORE_Config','CORE_Usuarios (columnas *_override)'],
+  notaExtra:'Solo lo edita nivel_jerarquia=4 (super-admin). El front usa fn_InactividadSegundos/fn_InactividadAvisoSegundos para resolver la cascada en SQL, no en PHP.'
+},
+{
+  id:'modulos', ico:'10', nombre:'Módulos', ruta:'/admin/modulos',
+  proposito:'Registro de qué módulos existen en el sistema (los 4 actuales: Central, TH, Bienes, Bitácoras) — antes esta lista estaba hardcodeada y duplicada en 3 archivos PHP distintos; ahora vive en la BD.',
+  acciones:[
+    ['ver','Listado','Con tipo (nativo/embebido), ícono, color, estado.'],
+    ['crear','Alta de módulo nuevo','id_modulo, código, nombre, tipo, URL base. Queda disponible automáticamente en Estructura del Menú y Roles y Permisos sin tocar código PHP.'],
+    ['editar','Editar / Activar-Desactivar','Cambia cómo se ve en dashboards y sidebar.'],
+  ],
+  diagram:null,
+  tablas:['CORE_Modulos'],
+  notaExtra:'Dar de alta un módulo acá NO crea su código — solo lo registra para que el resto del sistema (menú, permisos, dashboard) sepa que existe. El código del módulo en sí se integra aparte (ver INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md).'
+},
+{
+  id:'cuenta', ico:'11', nombre:'Mi Cuenta', ruta:'/perfil · /cambiar-contrasena · /notificaciones',
+  proposito:'Autogestión de la propia cuenta — no administra a otros usuarios, cada uno ve/edita solo lo suyo.',
+  acciones:[
+    ['editar','Mi Perfil','Datos propios, tema visual preferido (claro/oscuro).'],
+    ['editar','Cambiar Contraseña','Obligatorio en el primer login. Guarda historial de las últimas 5 contraseñas (hash) — aunque hoy no se usa ese historial para bloquear reutilización.'],
+    ['ver','Notificaciones','Centro de notificaciones, marcar como leídas, alertas recientes vía polling.'],
+  ],
+  diagram:null,
+  tablas:['CORE_Usuarios','CORE_Contrasenas_Hist','CORE_Notificaciones'],
+  notaExtra:null
+},
+];
+
+function slug(s){return s;}
+
+function renderDiagram(steps){
+  if(!steps) return '';
+  var html = '<div class="diagram"><div class="diagram-title">Cómo funciona</div>';
+  steps.forEach(function(s){
+    if (s === '→') { html += '<div class="darrow">↓</div>'; return; }
+    if (s === '—') { html += '<div class="darrow">···</div>'; return; }
+    if (s.indexOf('branch:') === 0) {
+      var parts = s.replace('branch:','').split(':');
+      html += '<div class="dbranch">';
+      parts.forEach(function(p){
+        var cls = 'dstep' + (p.indexOf('Sí') === 0 ? ' ok' : (p.indexOf('No') === 0 ? ' warn' : ''));
+        html += '<div><div class="'+cls+'">'+p+'</div></div>';
+      });
+      html += '</div>';
+      return;
+    }
+    html += '<div class="dstep">'+s+'</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+var tocHtml = '', funcHtml = '';
+FUNCIONES.forEach(function(f, i){
+  tocHtml += '<a href="#'+f.id+'"><span class="n">'+f.ico+'</span>'+f.nombre+'</a>';
+
+  var accHtml = f.acciones.map(function(a){
+    return '<li><span class="tag '+a[0]+'">'+a[0]+'</span><span class="desc"><b>'+a[1]+':</b> '+a[2]+'</span></li>';
+  }).join('');
+
+  var tablasHtml = f.tablas.map(function(t){ return '<code>'+t+'</code>'; }).join('');
+
+  funcHtml += '<div class="func" id="'+f.id+'">' +
+    '<div class="func-head"><div class="func-ico">'+f.ico+'</div><h3>'+f.nombre+'</h3><div class="ruta">'+f.ruta+'</div></div>' +
+    '<div class="func-body">' +
+      '<p class="func-purpose">'+f.proposito+'</p>' +
+      '<div class="func-grid">' +
+        '<div><ul class="action-list">'+accHtml+'</ul></div>' +
+        '<div>'+renderDiagram(f.diagram)+
+          (f.notaExtra ? '<div class="note">'+f.notaExtra+'</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="tables">'+tablasHtml+'</div>' +
+    '</div>' +
+  '</div>';
+});
+
+document.getElementById('toc').innerHTML = tocHtml;
+document.getElementById('funciones').innerHTML = funcHtml;
+</script>
+</body>
+</html>

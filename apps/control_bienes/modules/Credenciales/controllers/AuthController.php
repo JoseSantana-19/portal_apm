@@ -61,17 +61,23 @@ class AuthController extends Controller {
                 session_start();
             }
 
+            session_regenerate_id(true);
+
+            $contextoPerfil = $this->usuarioModel->obtenerContextoPerfil($usuario);
             $_SESSION['usuario'] = [
                 'id'         => $usuario['id'],
                 'secuencial' => $usuario['secuencial'],
                 'nombre'     => $usuario['nombre'],
+                'usuario'    => $usuario['usuario'],
                 'rol'        => $usuario['rol'],
-                'rol_id'     => isset($usuario['rol_id']) ? (int)$usuario['rol_id'] : 0
+                'departamento' => $contextoPerfil['departamento'],
+                'cargo'      => $contextoPerfil['cargo']
             ];
             $_SESSION['id_usuario']   = $usuario['id'];
             $_SESSION['usuario_id']   = $usuario['id'];
             $_SESSION['rol']          = $usuario['rol'];
             $_SESSION['ultimo_acceso'] = time();
+            $_SESSION['inventario_sesion_token'] = bin2hex(random_bytes(16));
 
             // Login propio de este módulo (no vino del puente SSO del portal):
             // si el "usuario" con el que entró coincide con una cédula real de
@@ -113,7 +119,7 @@ class AuthController extends Controller {
 
         } else {
             $this->logger->warning("LOGIN_FALLIDO: intento con usuario '{$usuarioInput}'", 'loginPost');
-            $this->redirect('inv_login', 'Usuario o contraseña incorrectos, o cuenta suspendida.', 'error');
+            $this->redirect('inv_login', 'Cédula o contraseña incorrectas, o cuenta suspendida.', 'error');
         }
     }
 
@@ -160,13 +166,38 @@ class AuthController extends Controller {
     /**
      * Cierra la sesión activa
      */
+    public function mantenerSesion() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+
+        if (!isset($_SESSION['usuario'])) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'expired' => true]);
+            exit;
+        }
+
+        $_SESSION['ultimo_acceso'] = time();
+        echo json_encode([
+            'success' => true,
+            'timestamp' => $_SESSION['ultimo_acceso']
+        ]);
+        exit;
+    }
+
     public function logout() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
+        $porInactividad = isset($_GET['timeout']) && (string)$_GET['timeout'] === '1';
+
         if (isset($_SESSION['usuario'])) {
-            $this->registrarAuditoria('LOGOUT', 'acc', "Sesión cerrada voluntariamente por " . $_SESSION['usuario']['nombre']);
+            $motivo = $porInactividad ? 'por inactividad' : 'voluntariamente';
+            $this->registrarAuditoria('LOGOUT', 'acc', "Sesión cerrada {$motivo} por " . $_SESSION['usuario']['nombre']);
         }
 
         $_SESSION = [];
@@ -180,6 +211,9 @@ class AuthController extends Controller {
         session_destroy();
 
         session_start();
+        if ($porInactividad) {
+            $this->redirect('inv_login', 'Tu sesión se cerró por inactividad. Ingresa nuevamente para continuar.', 'warning');
+        }
         $this->redirect('inv_login', 'Sesión cerrada correctamente.', 'info');
     }
 }

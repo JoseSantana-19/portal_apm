@@ -33,6 +33,23 @@ class BinModel extends Model {
         return $items;
     }
 
+    private function aplicarSegmentoOperativo(string &$sql, array $filtros): void {
+        $segmento = trim((string)($filtros['segmento'] ?? ''));
+        if ($segmento === 'sin_stock') {
+            $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)<=0";
+        } elseif ($segmento === 'stock_bajo') {
+            $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)>0 AND COALESCE(p.existencia_min,0)>0 AND i.cantidad<=p.existencia_min";
+        } elseif ($segmento === 'mantenimiento') {
+            $sql .= " AND UPPER(est.descripcion) LIKE '%MANTENIMIENTO%'";
+        } elseif ($segmento === 'sin_responsable') {
+            $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')='AF' AND i.responsable_id IS NULL";
+        } elseif ($segmento === 'consumo') {
+            $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF'";
+        } elseif ($segmento === 'activo_fijo') {
+            $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')='AF'";
+        }
+    }
+
     public function obtenerTodos() {
         $sql = "SELECT i.*, 
                        cat.nombre as categoria, 
@@ -40,13 +57,13 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo,
+                       i.codigo_clasificacion as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
-                FROM inv_inventario i
+                FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
                 JOIN inv_estados est ON i.estado_id = est.idestado
-                LEFT JOIN inv_talento_personal pers ON i.responsable_id = pers.id
+                LEFT JOIN vw_inv_talento_personal pers ON i.responsable_id = pers.id
                 LEFT JOIN inv_productos p ON i.producto_id = p.id
                 ORDER BY i.fecha_registro DESC, i.id DESC";
         $stmt = $this->db->query($sql);
@@ -60,13 +77,13 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo,
+                       i.codigo_clasificacion as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
-                FROM inv_inventario i
+                FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
                 JOIN inv_estados est ON i.estado_id = est.idestado
-                LEFT JOIN inv_talento_personal pers ON i.responsable_id = pers.id
+                LEFT JOIN vw_inv_talento_personal pers ON i.responsable_id = pers.id
                 LEFT JOIN inv_productos p ON i.producto_id = p.id
                 WHERE i.activo = 1
                 ORDER BY i.fecha_registro DESC, i.id DESC";
@@ -81,13 +98,13 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo,
+                       i.codigo_clasificacion as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
-                FROM inv_inventario i
+                FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
                 JOIN inv_estados est ON i.estado_id = est.idestado
-                LEFT JOIN inv_talento_personal pers ON i.responsable_id = pers.id
+                LEFT JOIN vw_inv_talento_personal pers ON i.responsable_id = pers.id
                 LEFT JOIN inv_productos p ON i.producto_id = p.id
                 WHERE i.id = :id";
         $stmt = $this->db->prepare($sql);
@@ -102,15 +119,15 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       p.codigo as producto_codigo,
+                       i.codigo_clasificacion as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien,
                        u.nombre as unidad_nombre,
                        u.extra as unidad_abrev
-                FROM inv_inventario i
+                FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 JOIN inv_zonas z ON i.zona_id = z.id
                 JOIN inv_estados est ON i.estado_id = est.idestado
-                LEFT JOIN inv_talento_personal pers ON i.responsable_id = pers.id
+                LEFT JOIN vw_inv_talento_personal pers ON i.responsable_id = pers.id
                 LEFT JOIN inv_productos p ON i.producto_id = p.id
                 LEFT JOIN inv_unidades u ON p.unidad_id = u.id
                 WHERE i.activo = 1";
@@ -143,13 +160,20 @@ class BinModel extends Model {
             }
         }
 
+        $this->aplicarSegmentoOperativo($sql, $filtros);
+
         if (!empty($filtros['termino'])) {
-            $sql .= " AND (TRANSLATE(LOWER(i.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term1 
-                        OR i.secuencial LIKE :raw_term 
-                        OR TRANSLATE(LOWER(i.marca), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term2)";
-            $params[':term1'] = '%' . $this->normalizarTexto($filtros['termino']) . '%';
-            $params[':term2'] = '%' . $this->normalizarTexto($filtros['termino']) . '%';
-            $params[':raw_term'] = '%' . $filtros['termino'] . '%';
+            $sql .= " AND (i.secuencial LIKE :prefix1
+                        OR i.codigo_clasificacion LIKE :prefix2
+                        OR cat.codigo LIKE :prefix3
+                        OR i.nombre COLLATE Modern_Spanish_CI_AI LIKE :term1
+                        OR i.marca COLLATE Modern_Spanish_CI_AI LIKE :term2
+                        OR cat.nombre COLLATE Modern_Spanish_CI_AI LIKE :term3
+                        OR p.nombre COLLATE Modern_Spanish_CI_AI LIKE :term4)";
+            $contiene = '%' . trim($filtros['termino']) . '%';
+            $prefijo = trim($filtros['termino']) . '%';
+            foreach (range(1, 4) as $indice) $params[':term' . $indice] = $contiene;
+            foreach (range(1, 3) as $indice) $params[':prefix' . $indice] = $prefijo;
         }
 
         // Ordenamiento dinámico
@@ -164,7 +188,7 @@ class BinModel extends Model {
             'valor'      => 'i.valor',
             'iva'        => 'p.aplica_iva',
             'total'      => 'i.valor',
-            'estado'     => 'est.nombre'
+            'estado'     => 'est.descripcion'
         ];
 
         if (!empty($filtros['sort_by']) && isset($allowedSorts[$filtros['sort_by']])) {
@@ -194,6 +218,56 @@ class BinModel extends Model {
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $this->normalizarResultados($stmt->fetchAll());
+    }
+
+    /** Conteo liviano para la paginación de DataTables, sin materializar miles de filas. */
+    public function contarFiltrados(array $filtros = []): int {
+        $sql = "SELECT COUNT(*)
+                FROM vw_inv_items_clasificados i
+                JOIN inv_categorias cat ON i.categoria_id = cat.id
+                JOIN inv_estados est ON i.estado_id = est.idestado
+                LEFT JOIN inv_productos p ON i.producto_id = p.id
+                WHERE i.activo = 1";
+        $params = [];
+
+        if (!empty($filtros['categoria'])) {
+            if (is_numeric($filtros['categoria'])) {
+                $sql .= " AND i.categoria_id = :cat";
+            } else {
+                $sql .= " AND cat.nombre = :cat";
+            }
+            $params[':cat'] = $filtros['categoria'];
+        }
+        if (!empty($filtros['unidad_id'])) {
+            $sql .= " AND p.unidad_id = :unidad_id";
+            $params[':unidad_id'] = (int)$filtros['unidad_id'];
+        }
+        if (!empty($filtros['estado'])) {
+            if (is_numeric($filtros['estado'])) {
+                $sql .= " AND i.estado_id = :estado";
+            } else {
+                $sql .= " AND est.descripcion = :estado";
+            }
+            $params[':estado'] = $filtros['estado'];
+        }
+        $this->aplicarSegmentoOperativo($sql, $filtros);
+        if (!empty($filtros['termino'])) {
+            $sql .= " AND (i.secuencial LIKE :prefix1
+                        OR i.codigo_clasificacion LIKE :prefix2
+                        OR cat.codigo LIKE :prefix3
+                        OR i.nombre COLLATE Modern_Spanish_CI_AI LIKE :term1
+                        OR i.marca COLLATE Modern_Spanish_CI_AI LIKE :term2
+                        OR cat.nombre COLLATE Modern_Spanish_CI_AI LIKE :term3
+                        OR p.nombre COLLATE Modern_Spanish_CI_AI LIKE :term4)";
+            $contiene = '%' . trim($filtros['termino']) . '%';
+            $prefijo = trim($filtros['termino']) . '%';
+            foreach (range(1, 4) as $indice) $params[':term' . $indice] = $contiene;
+            foreach (range(1, 3) as $indice) $params[':prefix' . $indice] = $prefijo;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
     }
 
     public function crear($datos) {
@@ -286,33 +360,115 @@ class BinModel extends Model {
     }
 
     public function obtenerEstadisticas() {
-        $items = $this->obtenerActivos();
-        
+        $sqlResumen = "SELECT COUNT(*) total,
+                              SUM(CASE WHEN COALESCE(i.tipo_bien,p.tipo_bien,'CC')='AF' THEN 1 ELSE 0 END) total_activo_fijo,
+                              SUM(CASE WHEN COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' THEN 1 ELSE 0 END) total_consumo,
+                              SUM(COALESCE(i.cantidad,0)) total_unidades,
+                              SUM(COALESCE(i.valor,0)*COALESCE(i.cantidad,0)) valor_inventariado
+                       FROM vw_inv_items_clasificados i
+                       LEFT JOIN inv_productos p ON p.id=i.producto_id
+                       WHERE i.activo=1";
+        $resumen = $this->db->query($sqlResumen)->fetch() ?: [];
         $stats = [
-            'total' => count($items),
-            'totalConsumoCorriente' => 0,
-            'totalActivoFijo' => 0,
-            'porEstado' => [],
-            'porCategoria' => [],
-            'porZona' => []
+            'total' => (int)($resumen['total'] ?? 0),
+            'totalConsumoCorriente' => (int)($resumen['total_consumo'] ?? 0),
+            'totalActivoFijo' => (int)($resumen['total_activo_fijo'] ?? 0),
+            'totalUnidades' => (float)($resumen['total_unidades'] ?? 0),
+            'valorInventariado' => (float)($resumen['valor_inventariado'] ?? 0),
+            'porEstado' => [], 'porCategoria' => [], 'porZona' => []
         ];
 
-        foreach ($items as $i) {
-            if (($i['tipo_bien'] ?? 'CC') === 'AF') {
-                $stats['totalActivoFijo']++;
-            } else {
-                $stats['totalConsumoCorriente']++;
+        $consultas = [
+            'porEstado' => "SELECT est.descripcion etiqueta, COUNT(*) total FROM vw_inv_items_clasificados i JOIN inv_estados est ON est.idestado=i.estado_id WHERE i.activo=1 GROUP BY est.descripcion ORDER BY total DESC",
+            'porCategoria' => "SELECT cat.nombre etiqueta, COUNT(*) total FROM vw_inv_items_clasificados i JOIN inv_categorias cat ON cat.id=i.categoria_id WHERE i.activo=1 GROUP BY cat.nombre ORDER BY total DESC",
+            'porZona' => "SELECT z.nombre etiqueta, COUNT(*) total FROM vw_inv_items_clasificados i JOIN inv_zonas z ON z.id=i.zona_id WHERE i.activo=1 GROUP BY z.nombre ORDER BY total DESC"
+        ];
+        foreach ($consultas as $clave => $sql) {
+            foreach ($this->db->query($sql)->fetchAll() as $fila) {
+                $stats[$clave][(string)$fila['etiqueta']] = (int)$fila['total'];
             }
-            $estado = $i['estado'];
-            $categoria = $i['categoria'];
-            $zona = $i['zona'];
+        }
+        return $stats;
+    }
 
-            $stats['porEstado'][$estado] = isset($stats['porEstado'][$estado]) ? $stats['porEstado'][$estado] + 1 : 1;
-            $stats['porCategoria'][$categoria] = isset($stats['porCategoria'][$categoria]) ? $stats['porCategoria'][$categoria] + 1 : 1;
-            $stats['porZona'][$zona] = isset($stats['porZona'][$zona]) ? $stats['porZona'][$zona] + 1 : 1;
+    public function obtenerResumenOperativo(): array {
+        $sql = "SELECT
+                    SUM(CASE WHEN COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)<=0 THEN 1 ELSE 0 END) sin_stock,
+                    SUM(CASE WHEN COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)>0 AND COALESCE(p.existencia_min,0)>0 AND i.cantidad<=p.existencia_min THEN 1 ELSE 0 END) stock_bajo,
+                    SUM(CASE WHEN UPPER(est.descripcion) LIKE '%MANTENIMIENTO%' THEN 1 ELSE 0 END) mantenimiento,
+                    SUM(CASE WHEN COALESCE(i.tipo_bien,p.tipo_bien,'CC')='AF' AND i.responsable_id IS NULL THEN 1 ELSE 0 END) sin_responsable
+                FROM vw_inv_items_clasificados i
+                LEFT JOIN inv_productos p ON p.id=i.producto_id
+                JOIN inv_estados est ON est.idestado=i.estado_id
+                WHERE i.activo=1";
+        $resumen = $this->db->query($sql)->fetch() ?: [];
+        $resultado = [
+            'sin_stock' => (int)($resumen['sin_stock'] ?? 0),
+            'stock_bajo' => (int)($resumen['stock_bajo'] ?? 0),
+            'mantenimiento' => (int)($resumen['mantenimiento'] ?? 0),
+            'sin_responsable' => (int)($resumen['sin_responsable'] ?? 0),
+            'movimientos' => [],
+        ];
+        try {
+            $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';
+            $limite = $driver === 'sqlsrv' ? 'TOP 6 ' : '';
+            $sqlMovimientos = "SELECT {$limite}k.fecha_movimiento, k.tipo_movimiento, k.documento_secuencial,
+                                      k.entrada, k.salida, k.saldo_resultante, i.secuencial item_codigo, i.nombre item_nombre
+                               FROM inv_kardex k JOIN inv_inventario i ON i.id=k.item_id
+                               ORDER BY k.fecha_movimiento DESC, k.id_movimiento DESC";
+            if ($driver !== 'sqlsrv') $sqlMovimientos .= ' LIMIT 6';
+            $resultado['movimientos'] = $this->db->query($sqlMovimientos)->fetchAll();
+        } catch (Exception $e) {
+            $resultado['movimientos'] = [];
+        }
+        return $resultado;
+    }
+
+    /**
+     * Cuenta las opciones principales abiertas por el usuario en los ultimos
+     * 90 dias para personalizar sus accesos rapidos.
+     */
+    public function obtenerRutasFrecuentesUsuario(int $usuarioId): array {
+        if ($usuarioId <= 0) return [];
+
+        $rutas = [
+            'items', 'inv_items_sistema', 'requisiciones', 'ordenes_compra',
+            'ingresos', 'egresos', 'inv_maestros', 'reportes',
+            'busqueda_global', 'talento_directorio'
+        ];
+        $marcadores = [];
+        $params = [
+            ':usuario_id' => $usuarioId,
+            ':desde' => date('Y-m-d H:i:s', strtotime('-90 days')),
+        ];
+        foreach ($rutas as $indice => $ruta) {
+            $clave = ':ruta_' . $indice;
+            $marcadores[] = $clave;
+            $params[$clave] = $ruta;
         }
 
-        return $stats;
+        try {
+            $sql = "SELECT ruta, COUNT(*) AS usos
+                    FROM inv_bitacora
+                    WHERE usuario_id = :usuario_id
+                      AND fecha >= :desde
+                      AND tipo = 'ACCESO'
+                      AND (resultado = 'OK' OR resultado IS NULL)
+                      AND ruta IN (" . implode(',', $marcadores) . ")
+                    GROUP BY ruta";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $resultado = [];
+            foreach ($stmt->fetchAll() as $fila) {
+                $ruta = (string)($fila['ruta'] ?? '');
+                if ($ruta !== '') $resultado[$ruta] = (int)($fila['usos'] ?? 0);
+            }
+            arsort($resultado, SORT_NUMERIC);
+            return $resultado;
+        } catch (Throwable $e) {
+            error_log('No se pudieron calcular las acciones frecuentes: ' . $e->getMessage());
+            return [];
+        }
     }
 
     public function exportarCSV($filtros = []) {
@@ -353,11 +509,11 @@ class BinModel extends Model {
     }
 
     public function obtenerResumenPorCategoria($termino = '') {
-        $sql = "SELECT cat.id as categoria_id, cat.nombre as categoria_nombre,
+        $sql = "SELECT cat.id as categoria_id, cat.nombre as categoria_nombre, cat.codigo as categoria_codigo,
                        COUNT(i.id) as total_items,
                        COALESCE(SUM(p.existencia_actual), 0) as total_qty,
                        COALESCE(SUM(i.valor * COALESCE(p.existencia_actual, 1)), 0) as total_value
-                FROM inv_inventario i
+                FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
                 LEFT JOIN inv_productos p ON i.producto_id = p.id
                 WHERE i.activo = 1";
@@ -365,16 +521,20 @@ class BinModel extends Model {
         $params = [];
         if (!empty($termino)) {
             $sql .= " AND (TRANSLATE(LOWER(i.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term1 
-                        OR i.secuencial LIKE :raw_term 
+                        OR i.secuencial LIKE :raw_term
+                        OR i.codigo_clasificacion LIKE :raw_term
+                        OR cat.codigo LIKE :raw_term
                         OR TRANSLATE(LOWER(i.marca), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term2
-                        OR TRANSLATE(LOWER(cat.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term3)";
+                        OR TRANSLATE(LOWER(cat.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term3
+                        OR TRANSLATE(LOWER(p.nombre), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun') LIKE :term4)";
             $params[':term1'] = '%' . $this->normalizarTexto($termino) . '%';
             $params[':term2'] = '%' . $this->normalizarTexto($termino) . '%';
             $params[':term3'] = '%' . $this->normalizarTexto($termino) . '%';
+            $params[':term4'] = '%' . $this->normalizarTexto($termino) . '%';
             $params[':raw_term'] = '%' . $termino . '%';
         }
         
-        $sql .= " GROUP BY cat.id, cat.nombre ORDER BY cat.nombre ASC";
+        $sql .= " GROUP BY cat.id, cat.nombre, cat.codigo ORDER BY cat.nombre ASC";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);

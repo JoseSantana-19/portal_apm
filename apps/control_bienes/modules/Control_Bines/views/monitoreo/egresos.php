@@ -1,615 +1,342 @@
 <?php
-/**
- * BODEGA_EGRESOS.PHP - Vista del Módulo de InvEgreso de Insumos de Bodega
- * Recreada desde cero para máxima compatibilidad y estabilidad total.
- * Compatible con PHP 7.4, 8.3 y 8.4
- */
-
-// Calcular estadísticas rápidas de los egresos
-$totalEgresos = count($egresos);
-$totalItemsOut = 0;
-foreach ($egresos as $egr) {
-    $totalItemsOut += (int)$egr['total_items'];
-}
-
-// Crear un mapeo JSON de stock por item para validación reactiva en el cliente
-$stockMap = [];
+$estadoClase = static function ($estado) {
+    $map = ['PENDIENTE' => 'pending', 'EN_ORDEN' => 'partial', 'APROBADA' => 'active', 'REGISTRADA' => 'pending', 'INGRESADA' => 'active', 'ATENDIDA' => 'active', 'CERRADA' => 'active'];
+    return $map[$estado] ?? 'inactive';
+};
+$ordenesAprobadas = array_values(array_filter($ordenesCompra, static fn($o) => $o['estado'] === 'APROBADA'));
+$facturasPendientes = array_values(array_filter($facturasCompra, static fn($f) => $f['estado'] === 'REGISTRADA'));
+$itemsJson = [];
 foreach ($itemsInventario as $item) {
-    $stockMap[$item['id']] = [
-        'secuencial' => $item['secuencial'],
-        'nombre' => $item['nombre'],
-        'stock' => (int)$item['cantidad']
+    $itemsJson[(int)$item['id']] = [
+        'id' => (int)$item['id'], 'nombre' => $item['nombre'], 'secuencial' => $item['secuencial'],
+        'grupo' => $item['categoria'] ?? '', 'existencia' => (int)($item['cantidad'] ?? 0),
+        'costo_actual' => (float)($item['valor'] ?? 0),
+        'aplica_iva' => isset($item['producto_aplica_iva']) ? (int)$item['producto_aplica_iva'] : 1,
     ];
 }
-$stockMapJson = json_encode($stockMap);
+$facturasJson = [];
+foreach ($facturasCompra as $factura) {
+    unset($factura['ocr_texto']);
+    $facturasJson[(int)$factura['id_factura']] = $factura;
+}
+$proveedoresJson = [];
+foreach ($proveedores as $proveedor) $proveedoresJson[(int)$proveedor['id']] = $proveedor;
+$tasaPeriodoActual = ($periodoActivo && $periodoActivo['tasa_iva'] !== null) ? (float)$periodoActivo['tasa_iva'] : null;
+$ivaOpcionPredeterminada = $tasaPeriodoActual !== null
+    ? 'periodo_actual'
+    : (!empty($tiposIva) ? 'maestro:' . (int)$tiposIva[0]['id'] : 'no_aplica');
+$ivaTasaPredeterminada = $tasaPeriodoActual !== null
+    ? $tasaPeriodoActual
+    : (!empty($tiposIva) ? (float)$tiposIva[0]['tasa_iva'] : 0.0);
+$rolPermiso = strtolower((string)($_SESSION['rol'] ?? ''));
+$matrizBodega = [];
+$rutaPermisoBodega = (string)($_GET['route'] ?? 'ordenes_compra');
+if ($rolPermiso !== 'administrador' && !empty($_SESSION['usuario_id'])) {
+    require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
+    $matrizBodega = (new PermisoModel())->obtenerMatrizUsuario((int)$_SESSION['usuario_id']);
+}
+$puedeBodega = static function (string $seccion, string $accion = 'read') use ($rolPermiso, $matrizBodega, $rutaPermisoBodega): bool {
+    if ($rolPermiso === 'administrador') return true;
+    if ($rutaPermisoBodega === 'ordenes_compra') {
+        $regla = $matrizBodega['ordenes_compra']['general'] ?? $matrizBodega['ordenes_compra']['*'] ?? [];
+        return !empty($regla['full']) || !empty($regla[$accion]);
+    }
+    $regla = $matrizBodega['egresos'][$seccion] ?? $matrizBodega['egresos']['*'] ?? [];
+    return !empty($regla['full']) || !empty($regla[$accion]);
+};
 ?>
 
-<!-- InvCabecera de Página -->
-<div class="page-header animate-fade-in">
-    <div class="page-title">
-        <h1>Egreso de Insumos de Bodega</h1>
-        <p>Despacho y entrega de bienes e insumos a departamentos y personal. Período Fiscal: <strong><?= htmlspecialchars(($periodoActivo ? $periodoActivo['nombre'] : 'Sin Período Activo')) ?></strong></p>
+<style>
+.ab-flow{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:18px 0}.ab-step{background:var(--panel-bg);border:1px solid var(--border-color);border-radius:12px;padding:12px;text-align:center;color:var(--text-muted);font-size:12px}.ab-step strong{display:block;color:var(--text-color);font-size:13px;margin-top:5px}.ab-step i{color:var(--primary);font-size:18px}.ab-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ab-detail{font-size:11px;color:var(--text-muted);display:block;margin-top:4px}.ab-empty{text-align:center;padding:38px!important;color:var(--text-muted)}.ab-modal .modal-content{max-width:980px}.ab-lines{display:grid;gap:10px}.ab-line{display:grid;grid-template-columns:minmax(260px,2fr) 110px 130px 140px 42px;gap:10px;align-items:end;padding:12px;background:var(--bg-color,#f8fafc);border:1px solid var(--border-color);border-radius:12px}.ab-line.note{grid-template-columns:minmax(260px,1fr) 130px 42px}.ab-line label{display:block;font-size:11px;font-weight:700;margin-bottom:5px}.ab-line input,.ab-line select{width:100%}.ab-remove{height:40px;border:0;border-radius:9px;background:#fee2e2;color:#b91c1c;cursor:pointer}.ab-total{display:flex;justify-content:flex-end;gap:24px;font-size:14px;margin-top:14px}.ab-total strong{font-size:18px}.ab-schema{padding:18px;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;margin:18px 0}.ab-ingreso-form{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px}.ab-ingreso-form select{min-width:220px}@media(max-width:900px){.ab-flow{grid-template-columns:repeat(2,1fr)}.ab-line,.ab-line.note{grid-template-columns:1fr 100px 42px}.ab-line .precio,.ab-line .codigo{grid-column:1/-1}.ab-ingreso-form{grid-template-columns:1fr}}
+</style>
+<style>
+.ab-factura-modal .modal-content{max-width:1180px}.ab-doc-header{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;padding:16px;border:1px solid var(--border-color);border-radius:14px;background:linear-gradient(135deg,var(--panel-bg),rgba(59,130,246,.04));margin-bottom:14px}.ab-doc-header .form-group{margin:0}.ab-doc-col-3{grid-column:span 3}.ab-doc-col-4{grid-column:span 4}.ab-doc-col-5{grid-column:span 5}.ab-readonly{min-height:40px;display:flex;align-items:center;padding:9px 11px;border:1px dashed #93c5fd;border-radius:9px;background:#eff6ff;color:#1e3a8a;font-weight:700}.ab-invoice-table{width:100%;border-collapse:separate;border-spacing:0 8px;min-width:1080px}.ab-invoice-table th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);padding:0 8px;text-align:left}.ab-invoice-table td{padding:10px 8px;background:var(--bg-color,#f8fafc);border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);vertical-align:middle}.ab-invoice-table td:first-child{border-left:1px solid var(--border-color);border-radius:10px 0 0 10px}.ab-invoice-table td:last-child{border-right:1px solid var(--border-color);border-radius:0 10px 10px 0}.ab-invoice-table input,.ab-invoice-table select{width:100%;min-width:90px}.ab-invoice-table .ab-grava{min-width:112px}.ab-item-name{min-width:230px}.ab-item-name strong,.ab-item-name small{display:block}.ab-item-name small{color:var(--text-muted);margin-top:3px}.ab-money{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}.ab-invoice-footer{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin-top:16px}.ab-budget-note{padding:16px;border:1px solid #cbd5e1;border-radius:12px;background:var(--panel-bg)}.ab-budget-note strong{display:block;margin-bottom:6px}.ab-budget-note p{font-size:12px;color:var(--text-muted);margin:0}.ab-total-card{padding:16px;border-radius:14px;background:#0f172a;color:#fff}.ab-total-row{display:flex;justify-content:space-between;gap:18px;padding:6px 0;color:#cbd5e1}.ab-total-row.final{border-top:1px solid #475569;margin-top:6px;padding-top:12px;color:#fff;font-size:18px;font-weight:800}.ab-ingreso-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px;border-radius:12px;background:#f8fafc;border:1px solid var(--border-color);margin-bottom:16px}.ab-ingreso-summary small,.ab-ingreso-summary strong{display:block}.ab-ingreso-summary small{color:var(--text-muted);margin-bottom:3px}.ab-ingreso-summary strong{font-size:14px}@media(max-width:900px){.ab-doc-header>*{grid-column:span 12!important}.ab-invoice-footer{grid-template-columns:1fr}.ab-ingreso-summary{grid-template-columns:1fr}}
+.ab-invoice-table input[type=checkbox]{width:auto;min-width:0}
+.ab-invoice-table select{width:100%;min-width:210px}
+.ab-flow{grid-template-columns:repeat(4,1fr)}
+.ab-movement-head{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ab-view-selector{display:flex;align-items:end;gap:12px;padding:16px 18px;margin:18px 0;border:1px solid var(--border-color);border-radius:12px;background:var(--panel-bg)}.ab-view-selector label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}.ab-view-selector select{min-width:300px;height:42px;padding:0 12px;border:1px solid var(--border-color);border-radius:9px;background:var(--panel-bg);color:var(--text-color);font-weight:700}.ab-view-selector-info{display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 12px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}@media(max-width:640px){.ab-view-selector{align-items:stretch;flex-direction:column}.ab-view-selector select{min-width:0;width:100%}}
+.ab-upload-zone{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;padding:16px;margin-bottom:16px;border:1px dashed #60a5fa;border-radius:14px;background:linear-gradient(135deg,#eff6ff,#f8fafc)}.ab-upload-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:12px;background:#2563eb;color:#fff;font-size:20px}.ab-upload-copy strong,.ab-upload-copy span{display:block}.ab-upload-copy span{margin-top:4px;color:#64748b;font-size:12px}.ab-upload-zone input[type=file]{display:none}.ab-scan-status{display:none;padding:12px 14px;margin:-4px 0 16px;border-radius:10px;background:#f8fafc;border:1px solid var(--border-color);font-size:12px;color:var(--text-muted)}.ab-scan-status.active{display:flex;align-items:center;gap:10px}.ab-scan-status.success{border-color:#86efac;background:#f0fdf4;color:#166534}.ab-scan-status.error{border-color:#fca5a5;background:#fef2f2;color:#991b1b}.ab-factura-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:224px}.ab-factura-actions>*{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:37px;margin:0!important;padding:8px 10px!important;border-radius:9px!important;box-sizing:border-box;white-space:nowrap;font-size:12px!important;font-weight:800;text-decoration:none}.ab-factura-actions>:last-child:nth-child(odd){grid-column:1/-1}.ab-factura-actions .btn-editar{border:1px solid #fbbf24;background:#fffbeb;color:#b45309}.ab-factura-actions .btn-editar:hover{background:#fef3c7;color:#92400e}.ab-factura-actions .btn-primary{box-shadow:0 3px 8px rgba(37,99,235,.2)}.ab-btn-movement{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:800;cursor:pointer}.ab-btn-doc{display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;border:1px solid #cbd5e1;background:var(--panel-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;font-size:12px;font-weight:800}.ab-list-card table th:last-child,.ab-list-card table td:last-child{min-width:244px}.ab-movement-modal .modal-content{max-width:1280px}.ab-movement-head{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}.ab-movement-head>div{padding:11px 12px;border:1px solid var(--border-color);border-radius:10px;background:#f8fafc}.ab-movement-head small,.ab-movement-head strong{display:block}.ab-movement-head small{color:var(--text-muted);font-size:10px;text-transform:uppercase;font-weight:800;margin-bottom:4px}.ab-movement-table{width:100%;border-collapse:collapse;font-size:11px}.ab-movement-table th{padding:9px 7px;background:#eff6ff;color:#1e3a8a;text-transform:uppercase;letter-spacing:.03em;text-align:left;white-space:nowrap}.ab-movement-table td{padding:10px 7px;border-bottom:1px solid var(--border-color);vertical-align:top}.ab-movement-summary{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;margin-top:16px}.ab-group-box{padding:14px;border:1px solid var(--border-color);border-radius:12px;background:#f8fafc}.ab-group-box h4{margin:0 0 10px}.ab-group-row{display:grid;grid-template-columns:120px 1fr 90px;gap:8px;padding:7px 0;border-bottom:1px dashed #cbd5e1;font-size:12px}.ab-group-row:last-child{border-bottom:0}.ab-list-card{border:1px solid var(--border-color);border-radius:14px;overflow:hidden}.ab-list-card table{margin:0}.ab-list-card tbody tr:hover{background:rgba(59,130,246,.035)}@media(max-width:900px){.ab-upload-zone{grid-template-columns:auto 1fr}.ab-upload-zone label{grid-column:1/-1}.ab-movement-head{grid-template-columns:repeat(2,1fr)}.ab-movement-summary{grid-template-columns:1fr}.ab-movement-table thead{display:none}.ab-movement-table,.ab-movement-table tbody,.ab-movement-table tr,.ab-movement-table td{display:block;width:100%}.ab-movement-table tr{padding:10px;margin-bottom:10px;border:1px solid var(--border-color);border-radius:12px}.ab-movement-table td{display:grid;grid-template-columns:125px 1fr;gap:8px;padding:6px;border:0}.ab-movement-table td:before{content:attr(data-label);font-weight:800;color:var(--text-muted)}}
+.ab-ingreso-workspace{display:grid;grid-template-columns:420px minmax(0,1fr);gap:18px;padding:20px;background:linear-gradient(135deg,#eff6ff 0,#f8fafc 48%,var(--panel-bg) 100%);border:1px solid #bfdbfe;border-radius:16px;margin-bottom:22px}.ab-ingreso-card{padding:18px;background:var(--panel-bg);border:1px solid var(--border-color);border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.06)}.ab-ingreso-card h3{margin:0 0 5px}.ab-ingreso-card>p{margin:0 0 16px;color:var(--text-muted);font-size:12px}.ab-ingreso-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ab-ingreso-fields .full{grid-column:1/-1}.ab-ingreso-fields label{display:block;margin-bottom:5px;font-size:11px;font-weight:800;color:var(--text-muted)}.ab-ingreso-fields input,.ab-ingreso-fields select,.ab-ingreso-fields textarea{width:100%}.ab-ingreso-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.ab-ingreso-data>div{padding:10px 12px;background:#f8fafc;border:1px solid var(--border-color);border-radius:10px}.ab-ingreso-data small,.ab-ingreso-data strong{display:block}.ab-ingreso-data small{font-size:10px;text-transform:uppercase;font-weight:800;color:var(--text-muted);margin-bottom:3px}.ab-ingreso-buttons{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}.ab-ingreso-preview{min-height:100%;display:flex;flex-direction:column}.ab-ingreso-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.ab-ingreso-preview-table{width:100%;border-collapse:collapse;font-size:12px}.ab-ingreso-preview-table th{padding:9px 8px;text-align:left;background:#eff6ff;color:#1e3a8a}.ab-ingreso-preview-table td{padding:9px 8px;border-bottom:1px solid var(--border-color)}.ab-ingreso-preview-empty{display:grid;place-items:center;min-height:210px;text-align:center;color:var(--text-muted)}.ab-ingreso-preview-empty i{display:block;font-size:34px;margin-bottom:10px;opacity:.35}@media(max-width:980px){.ab-ingreso-workspace{grid-template-columns:1fr}.ab-ingreso-fields{grid-template-columns:1fr}.ab-ingreso-fields .full{grid-column:auto}}
+.ab-search-select{position:relative;width:100%;min-width:230px}.ab-search-select>select{position:absolute!important;left:0;bottom:0;width:100%!important;height:1px!important;min-width:0!important;opacity:0;pointer-events:none}.ab-search-trigger{width:100%;min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border-color);border-radius:9px;background:var(--panel-bg);color:var(--text-color);cursor:pointer;text-align:left}.ab-search-trigger span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ab-search-trigger i{color:var(--text-muted);font-size:12px;transition:transform .18s ease}.ab-search-select.open .ab-search-trigger{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}.ab-search-select.open .ab-search-trigger i{transform:rotate(180deg)}.ab-search-trigger.invalid{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.1)}.ab-search-dropdown{display:none;position:absolute;top:calc(100% + 5px);left:0;width:max(100%,360px);max-width:min(520px,90vw);z-index:1300;padding:8px;background:var(--panel-bg);border:1px solid var(--border-color);border-radius:11px;box-shadow:0 14px 35px rgba(15,23,42,.18)}.ab-search-select.open .ab-search-dropdown{display:block}.ab-search-box{position:relative;margin-bottom:7px}.ab-search-box i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px}.ab-search-box input{width:100%;height:38px;padding:8px 10px 8px 31px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-color,#f8fafc);color:var(--text-color);outline:none}.ab-search-results{max-height:235px;overflow-y:auto}.ab-search-option{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:var(--text-color);cursor:pointer;text-align:left}.ab-search-option:hover,.ab-search-option.active{background:#eff6ff;color:#1d4ed8}.ab-search-option strong,.ab-search-option small{display:block}.ab-search-option small{margin-top:3px;color:var(--text-muted);font-size:11px}.ab-search-empty{padding:18px 8px;text-align:center;color:var(--text-muted);font-size:12px}@media(max-width:640px){.ab-search-select{min-width:0}.ab-search-dropdown{width:100%;max-width:none}}
+.ab-search-dropdown.ab-floating-open{display:block;position:fixed;z-index:100000;width:auto;max-width:none;top:auto;left:auto}.ab-search-select.ab-provider-select{min-width:0}.ab-search-option mark{padding:0;background:#dbeafe;color:#1e40af}.ab-search-option small i{margin-right:4px}.ab-search-results{scrollbar-width:thin}
+.ab-modal .modal-content{scrollbar-gutter:stable}.ab-modal .modal-header{position:sticky;top:0;z-index:90;background:var(--card-bg,var(--panel-bg,#fff));box-shadow:0 5px 14px rgba(15,23,42,.06)}
+.ab-approve-trigger{display:inline-flex!important;align-items:center;gap:6px;width:auto!important;min-width:92px;padding:7px 10px!important;border:1px solid #86efac!important;border-radius:8px!important;background:#f0fdf4!important;color:#15803d!important;font-size:11px!important;font-weight:800!important}.ab-approve-trigger:hover{border-color:#22c55e!important;background:#dcfce7!important}.ab-approve-modal .modal-content{max-width:560px}.ab-approve-heading{display:flex;align-items:center;gap:12px}.ab-approve-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;background:#dcfce7;color:#15803d;font-size:20px}.ab-approve-heading p{margin:4px 0 0;color:var(--text-muted);font-size:12px}.ab-approve-card{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px;border:1px solid #bbf7d0;border-radius:14px;background:linear-gradient(135deg,#f0fdf4,var(--panel-bg))}.ab-approve-card>div{min-width:0}.ab-approve-card .full{grid-column:1/-1}.ab-approve-card small,.ab-approve-card strong{display:block}.ab-approve-card small{margin-bottom:4px;color:var(--text-muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.ab-approve-card strong{overflow:hidden;color:var(--text-color);font-size:13px;text-overflow:ellipsis}.ab-approve-total{color:#15803d!important;font-size:20px!important;font-variant-numeric:tabular-nums}.ab-approve-notice{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border:1px solid #bfdbfe;border-radius:11px;background:#eff6ff;color:#1e40af;font-size:11px;line-height:1.5}.ab-approve-notice i{margin-top:2px}.ab-confirm-button{background:#16a34a!important}.ab-confirm-button:hover{background:#15803d!important}.ab-confirm-button:disabled{cursor:wait;opacity:.72}@media(max-width:560px){.ab-approve-card{grid-template-columns:1fr}.ab-approve-card .full{grid-column:auto}.ab-approve-trigger span{display:none}.ab-approve-trigger{min-width:36px!important}}
+.ab-factura-actions{grid-template-columns:minmax(0,1fr);gap:7px;width:100%;min-width:154px;max-width:188px}.ab-factura-actions>:last-child:nth-child(odd){grid-column:auto}.ab-list-card table th:last-child,.ab-list-card table td:last-child{min-width:194px}
+</style>
+
+<link rel="stylesheet" href="public/css/inv_flujo_bodega.css?v=<?= (int)@filemtime(ROOT_PATH.'public/css/inv_flujo_bodega.css') ?>">
+<div class="wf-page"><header class="wf-hero animate-fade-in">
+    <div class="wf-title"><span><i class="fa-solid fa-cart-shopping"></i></span><div><h1>Órdenes de compra</h1><p>Prepara, revisa y aprueba las compras requeridas para abastecer la bodega.</p></div></div>
+    <?php if ($esquemaDisponible && $puedeBodega('ordenes','create')): ?>
+    <div class="ab-actions">
+        <button class="btn-outline" type="button" onclick="abNuevaOrden()"><i class="fa-solid fa-cart-shopping"></i> Nueva orden</button>
     </div>
+    <?php endif; ?>
+</header>
+<?php $pasoActivo=2; require __DIR__.'/_flujo_bodega.php'; ?>
+
+<?php if (!$esquemaDisponible): ?>
+<div class="ab-schema"><strong><i class="fa-solid fa-database"></i> Módulo preparado, migración pendiente.</strong><br>Ejecute <code>database/migrations/inv_20260808_abastecimiento_bodega.sql</code> en la base <code>inventario</code> para habilitar este flujo.</div>
+<?php else: ?>
+<?php if(empty($flujoSeparado)): ?><div class="stats-row animate-fade-in">
+    <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-hourglass-half"></i></div><div><div class="stat-value"><?= (int)$resumen['ordenes_pendientes'] ?></div><div class="stat-label">Órdenes por aprobar</div></div></div>
+    <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-file-invoice"></i></div><div><div class="stat-value"><?= (int)$resumen['facturas_pendientes'] ?></div><div class="stat-label">Facturas por ingresar</div></div></div>
+    <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-box-open"></i></div><div><div class="stat-value"><?= (int)$resumen['ingresos'] ?></div><div class="stat-label">Ingresos trazables</div></div></div>
+</div><?php endif; ?>
+
+<?php $vistasBodega = array_filter(['ordenes'=>'Órdenes de compra','facturas'=>'Facturas','ingresos'=>'Ingresos a bodega','kardex'=>'Movimientos / Kardex'], static fn($label,$scope) => $puedeBodega($scope,'read'), ARRAY_FILTER_USE_BOTH); ?>
+<?php if(empty($flujoSeparado)): ?><form class="ab-view-selector animate-fade-in" method="GET" action="index.php">
+    <input type="hidden" name="route" value="egresos">
     <div>
-        <button class="btn-primary" onclick="abrirModalEgreso()"><i class="fa-solid fa-plus"></i> Registrar Egreso / Despacho</button>
+        <label for="ab-vista"><i class="fa-solid fa-list"></i> Lista de procesos de bodega</label>
+        <select id="ab-vista" name="vista" onchange="this.form.submit()">
+            <?php foreach ($vistasBodega as $clave=>$label): ?>
+            <option value="<?= htmlspecialchars($clave) ?>" <?= $vistaActiva === $clave ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+            <?php endforeach; ?>
+        </select>
     </div>
-</div>
+    <div class="ab-view-selector-info"><i class="fa-solid fa-warehouse"></i> Proceso activo: <?= htmlspecialchars($vistasBodega[$vistaActiva] ?? $vistasBodega['ordenes']) ?></div>
+</form><?php endif; ?>
 
-<!-- Stats Cards en Tiempo Real -->
-<div class="stats-row animate-fade-in">
-    <div class="stat-card">
-        <div class="stat-icon red"><i class="fa-solid fa-circle-arrow-up"></i></div>
-        <div>
-            <div class="stat-value"><?= $totalEgresos ?></div>
-            <div class="stat-label">Despachos Registrados</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon orange"><i class="fa-solid fa-boxes-packing"></i></div>
-        <div>
-            <div class="stat-value"><?= $totalItemsOut ?></div>
-            <div class="stat-label">Unidades Entregadas</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon blue"><i class="fa-solid fa-hotel"></i></div>
-        <div>
-            <div class="stat-value"><?= count($areas) ?></div>
-            <div class="stat-label">Áreas Destinatarias</div>
-        </div>
-    </div>
-</div>
+<?php if ($vistaActiva === 'ordenes'): ?>
+<div class="content-panel animate-fade-in"><div class="panel-header"><h3>Órdenes de compra</h3><?php if($puedeBodega('ordenes','create')): ?><button class="btn-primary" onclick="abNuevaOrden()"><i class="fa-solid fa-plus"></i> Nueva orden</button><?php endif; ?></div>
+<div class="table-responsive"><table><thead><tr><th>Orden</th><th>Origen</th><th>Proveedor</th><th>Fecha</th><th>Total estimado</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+<?php if (!$ordenesCompra): ?><tr><td colspan="7" class="ab-empty">No existen órdenes de compra.</td></tr><?php endif; ?>
+<?php foreach ($ordenesCompra as $orden): ?><tr><td><strong><?= htmlspecialchars($orden['secuencial']) ?></strong><span class="ab-detail"><?= (int)$orden['total_lineas'] ?> líneas</span></td><td><?= htmlspecialchars(($orden['origen'] ?? '') === 'FACTURA' ? 'Factura directa' : 'Orden manual') ?></td><td><?= htmlspecialchars($orden['proveedor']) ?></td><td><?= htmlspecialchars($orden['fecha']) ?></td><td>$<?= number_format((float)$orden['total_estimado'],2) ?></td><td><span class="status-badge <?= $estadoClase($orden['estado']) ?>"><?= htmlspecialchars($orden['estado']) ?></span></td><td class="ab-actions"><?php if ($orden['estado']==='PENDIENTE' && $puedeBodega('ordenes','edit')): ?><button class="btn-accion btn-editar" type="button" title="Editar orden" onclick="abEditarOrden(<?= (int)$orden['id_orden'] ?>)"><i class="fa-solid fa-pen"></i><span>Editar</span></button><button class="btn-accion ab-approve-trigger" type="button" title="Revisar y aprobar orden" data-id="<?= (int)$orden['id_orden'] ?>" data-orden="<?= htmlspecialchars($orden['secuencial'], ENT_QUOTES, 'UTF-8') ?>" data-proveedor="<?= htmlspecialchars($orden['proveedor'], ENT_QUOTES, 'UTF-8') ?>" data-fecha="<?= htmlspecialchars($orden['fecha'], ENT_QUOTES, 'UTF-8') ?>" data-total="<?= htmlspecialchars(number_format((float)$orden['total_estimado'], 2, '.', ''), ENT_QUOTES, 'UTF-8') ?>" data-lineas="<?= (int)$orden['total_lineas'] ?>" onclick="abConfirmarAprobacion(this.dataset)"><i class="fa-solid fa-check"></i><span>Aprobar</span></button><?php elseif ($orden['estado']==='APROBADA' && $puedeBodega('facturas','create')): ?><a class="btn-accion btn-editar" title="Registrar factura" href="index.php?route=ingresos&action=facturaIngreso&orden_id=<?= (int)$orden['id_orden'] ?>"><i class="fa-solid fa-file-invoice"></i><span>Registrar factura</span></a><?php else: ?>—<?php endif; ?></td></tr><?php endforeach; ?>
+</tbody></table></div></div>
+<?php endif; ?>
 
-<!-- Barra de Filtros y Búsqueda -->
-<div class="filter-section animate-fade-in">
-    <div class="filter-tabs">
-        <span class="filter-tab active">Historial de Salidas / Egresos Realizados</span>
-    </div>
-    
-    <form action="index.php" method="GET" class="filter-controls">
-        <input type="hidden" name="route" value="egresos">
-        
-        <div class="filter-group" style="flex:2;">
-            <label>Búsqueda General</label>
-            <input type="text" name="termino" placeholder="Buscar por secuencial, motivo, observaciones..." value="<?= htmlspecialchars($filtros['termino']) ?>">
-        </div>
+<?php if ($vistaActiva === 'facturas'): ?>
+<div class="content-panel animate-fade-in"><div class="panel-header"><div><h3 style="margin-bottom:4px">Facturas e ingresos de proveedores</h3><span class="ab-detail">Consulta el documento y abre su movimiento completo sin salir de esta pantalla.</span></div><?php if($puedeBodega('facturas','create')): ?><button class="btn-primary" onclick="abAbrirFactura()"><i class="fa-solid fa-file-arrow-up"></i> Crear o escanear factura</button><?php endif; ?></div>
+<div class="inv-help"><i class="fa-solid fa-wand-magic-sparkles"></i> Puedes registrar la factura manualmente o adjuntar una imagen/PDF para detectar sus datos y conservar el documento original.</div>
+<div class="table-responsive ab-list-card"><table><thead><tr><th>Factura</th><th>Orden</th><th>Proveedor</th><th>Fecha</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+<?php if (!$facturasCompra): ?><tr><td colspan="9" class="ab-empty">No existen facturas registradas.</td></tr><?php endif; ?>
+<?php foreach ($facturasCompra as $factura): ?><tr><td><strong><?= htmlspecialchars($factura['numero_factura']) ?></strong><span class="ab-detail"><?= (int)$factura['total_lineas'] ?> registro(s)</span></td><td><?= htmlspecialchars($factura['orden_secuencial']) ?></td><td><?= htmlspecialchars($factura['proveedor']) ?></td><td><?= htmlspecialchars($factura['fecha_factura']) ?></td><td>$<?= number_format((float)$factura['base_cero'] + (float)$factura['subtotal_gravado'],2) ?></td><td>$<?= number_format((float)$factura['valor_iva'],2) ?></td><td><strong>$<?= number_format((float)$factura['total'],2) ?></strong></td><td><span class="status-badge <?= $estadoClase($factura['estado']) ?>"><?= htmlspecialchars($factura['estado']) ?></span></td><td><div class="ab-factura-actions"><button class="ab-btn-movement" type="button" onclick="abVerMovimiento(<?= (int)$factura['id_factura'] ?>)"><i class="fa-solid fa-table-list"></i> Movimiento</button><?php if (!empty($factura['archivo_ruta'])): ?><a class="ab-btn-doc" target="_blank" href="index.php?route=egresos&action=verDocumentoFactura&id=<?= (int)$factura['id_factura'] ?>"><i class="fa-regular fa-file-lines"></i> Documento</a><?php endif; ?><?php if ($factura['estado']==='REGISTRADA' && $puedeBodega('facturas','edit')): ?><button class="btn-accion btn-editar" type="button" onclick="abEditarFactura(<?= (int)$factura['id_factura'] ?>)"><i class="fa-solid fa-pen"></i> Editar</button><?php endif; ?><?php if ($factura['estado']==='REGISTRADA' && $puedeBodega('ingresos','edit')): ?><button class="btn-primary" type="button" onclick="abAbrirIngreso(<?= (int)$factura['id_factura'] ?>)"><i class="fa-solid fa-warehouse"></i> Ingresar</button><?php endif; ?></div></td></tr><?php endforeach; ?>
+</tbody></table></div></div>
+<?php endif; ?>
 
-        <div class="filter-group">
-            <label>Área Destino</label>
-            <select name="area_id">
-                <option value="">Todas...</option>
-                <?php foreach ($areas as $a): ?>
-                    <option value="<?= $a['id'] ?>" <?= ($filtros['area_id'] == $a['id']) ? 'selected' : '' ?>><?= htmlspecialchars($a['nombre']) ?></option>
-                <?php endforeach; ?>
-            </select>
+<?php if ($vistaActiva === 'ingresos'): ?>
+<div class="content-panel animate-fade-in">
+<div class="panel-header"><div><h3 style="margin-bottom:4px">Ingreso a bodega con factura</h3><span class="ab-detail">Selecciona una factura registrada, revisa su movimiento y confirma la recepción.</span></div><?php if($puedeBodega('facturas','create')): ?><button class="btn-primary" type="button" onclick="abAbrirFactura()"><i class="fa-solid fa-file-arrow-up"></i> Crear o escanear factura</button><?php endif; ?></div>
+<?php if ($puedeBodega('ingresos','edit')): ?>
+<div class="ab-ingreso-workspace">
+    <form class="ab-ingreso-card" action="index.php?route=egresos&action=ingresarFacturaBodega" method="post" onsubmit="return confirm('Se actualizarán existencias, costo promedio y Kardex. ¿Confirmar ingreso?')">
+        <h3><i class="fa-solid fa-warehouse" style="color:#2563eb"></i> Datos del ingreso</h3><p>La orden, proveedor, IVA y productos se cargan automáticamente desde la factura.</p>
+        <div class="ab-ingreso-fields">
+            <div class="full"><label>Factura pendiente</label><select name="factura_id" id="ab-ingreso-page-factura" onchange="abSeleccionarIngresoPagina(this.value)" required><option value=""><?= $facturasPendientes ? 'Seleccione una factura…' : 'No hay facturas pendientes; crea o escanea una primero' ?></option><?php foreach ($facturasPendientes as $f): ?><option value="<?= (int)$f['id_factura'] ?>"><?= htmlspecialchars($f['numero_factura'].' · '.$f['proveedor'].' · '.$f['orden_secuencial']) ?></option><?php endforeach; ?></select></div>
+            <div><label>Fecha de ingreso</label><input type="date" name="fecha_ingreso" value="<?= date('Y-m-d') ?>" required></div>
+            <div><label>Responsable de bodega</label><select name="responsable_id" required><option value="">Seleccione…</option><?php foreach ($personal as $p): ?><option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?></option><?php endforeach; ?></select></div>
+            <div class="full"><label>Detalle / observaciones</label><textarea name="observaciones" maxlength="2000" placeholder="Ej: Recepción conforme según factura, condiciones o novedades"></textarea></div>
         </div>
-        
-        <div class="filter-group">
-            <label>Desde</label>
-            <input type="date" name="fecha_inicio" value="<?= htmlspecialchars($filtros['fecha_inicio']) ?>">
-        </div>
-        
-        <div class="filter-group">
-            <label>Hasta</label>
-            <input type="date" name="fecha_fin" value="<?= htmlspecialchars($filtros['fecha_fin']) ?>">
-        </div>
-
-        <div class="filter-group">
-            <label>Responsable</label>
-            <select name="responsable_id">
-                <option value="">Todos...</option>
-                <?php foreach ($personal as $p): ?>
-                    <option value="<?= $p['id'] ?>" <?= ($filtros['responsable_id'] == $p['id']) ? 'selected' : '' ?>><?= htmlspecialchars($p['nombre']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        
-        <div class="filter-actions">
-            <a href="index.php?route=egresos" class="btn-outline" style="height:40px;display:flex;align-items:center;justify-content:center;" title="Limpiar Filtros"><i class="fa-solid fa-eraser"></i></a>
-            <button type="submit" class="btn-primary" style="height:40px;"><i class="fa-solid fa-filter"></i> Filtrar</button>
-        </div>
+        <div class="ab-ingreso-data"><div><small>Orden</small><strong id="ab-ing-page-orden">—</strong></div><div><small>Proveedor</small><strong id="ab-ing-page-proveedor">—</strong></div><div><small>IVA</small><strong id="ab-ing-page-iva">—</strong></div><div><small>Total factura</small><strong id="ab-ing-page-total">$0.00</strong></div></div>
+        <div class="ab-ingreso-buttons"><button class="ab-btn-movement" id="ab-ing-page-movimiento" type="button" onclick="abAbrirMovimientoIngreso()"><i class="fa-solid fa-table-list"></i> Movimiento</button><button class="btn-primary" type="submit" <?= $facturasPendientes ? '' : 'disabled' ?>><i class="fa-solid fa-boxes-stacked"></i> Confirmar ingreso</button></div>
     </form>
+    <div class="ab-ingreso-card ab-ingreso-preview"><div class="ab-ingreso-preview-head"><div><h3>Productos de la factura</h3><span class="ab-detail">Vista previa de lo que aumentará la existencia.</span></div><span class="status-badge pending" id="ab-ing-page-count">0 productos</span></div><div id="ab-ing-page-preview" class="ab-ingreso-preview-empty"><div><i class="fa-solid fa-file-invoice"></i><?= $facturasPendientes ? 'Selecciona una factura para revisar sus registros.' : 'No hay facturas pendientes para ingresar.' ?><?php if (!$facturasPendientes && $puedeBodega('facturas','create')): ?><br><button class="btn-primary" type="button" style="margin-top:14px" onclick="abAbrirFactura()"><i class="fa-solid fa-plus"></i> Crear factura ahora</button><?php endif; ?></div></div></div>
 </div>
+<?php else: ?>
+<div class="inv-help" style="margin:16px 0"><i class="fa-solid fa-eye"></i> Tienes acceso de consulta. Puedes revisar los ingresos realizados y sus movimientos, pero no confirmar nuevas recepciones.</div>
+<?php endif; ?>
+<div class="panel-header" style="border-top:1px solid var(--border-color)"><div><h3 style="margin-bottom:4px">Ingresos realizados</h3><span class="ab-detail">Historial de recepciones confirmadas y sus movimientos.</span></div></div><div class="table-responsive ab-list-card"><table><thead><tr><th>Ingreso</th><th>Factura</th><th>Orden</th><th>Proveedor</th><th>Fecha</th><th>Responsable</th><th>Unidades</th><th>Acción</th></tr></thead><tbody>
+<?php if (!$ingresosCompra): ?><tr><td colspan="8" class="ab-empty">Todavía no hay ingresos generados desde factura.</td></tr><?php endif; ?>
+<?php foreach ($ingresosCompra as $ing): ?><tr><td><strong><?= htmlspecialchars($ing['secuencial']) ?></strong></td><td><?= htmlspecialchars($ing['numero_factura']) ?></td><td><?= htmlspecialchars($ing['orden_secuencial']) ?></td><td><?= htmlspecialchars($ing['proveedor']) ?></td><td><?= htmlspecialchars($ing['fecha']) ?></td><td><?= htmlspecialchars($ing['responsable']) ?></td><td><?= (int)$ing['total_unidades'] ?></td><td><button class="ab-btn-movement" type="button" onclick="abVerMovimiento(<?= (int)$ing['factura_id'] ?>)"><i class="fa-solid fa-table-list"></i> Movimiento</button></td></tr><?php endforeach; ?>
+</tbody></table></div></div>
+<?php endif; ?>
 
-<!-- Tabla Principal de Resultados -->
-<div class="panel animate-fade-in">
-    <div class="panel-header">
-        <h3>Histórico de Salidas Despachadas (<?= count($egresos) ?> registros)</h3>
-    </div>
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>Código de Egreso</th>
-                    <th>Área Solicitante / Destino</th>
-                    <th>Fecha de Despacho</th>
-                    <th>Responsable de Entrega</th>
-                    <th>Cant. Ítems</th>
-                    <th>Motivo de Egreso</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($egresos)): ?>
-                    <tr>
-                        <td colspan="7" style="text-align:center; padding:40px; color:var(--text-muted);">
-                            <i class="fa-solid fa-inbox" style="font-size:32px; display:block; margin-bottom:12px; opacity:0.4;"></i>
-                            No se encontraron egresos registrados
-                        </td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($egresos as $egr): ?>
-                        <tr>
-                            <td class="secuencial-cell"><?= htmlspecialchars($egr['secuencial']) ?></td>
-                            <td><strong><?= htmlspecialchars($egr['area_destino']) ?></strong></td>
-                            <td><?= htmlspecialchars($egr['fecha']) ?></td>
-                            <td><?= htmlspecialchars($egr['responsable']) ?></td>
-                            <td style="text-align:center;"><span class="status-badge dispatched" style="background:#e0e7ff;color:#4338ca;"><?= $egr['total_items'] ?> unid.</span></td>
-                            <td><span style="font-size:13px;color:var(--text-muted);display:block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($egr['motivo']) ?></span></td>
-                            <td class="acciones-cell">
-                                <button class="btn-accion btn-ver" onclick="verDetallesEgreso(<?= $egr['id'] ?>)" title="Ver Detalle de Salida"><i class="fa-solid fa-eye"></i></button>
-                                <a href="index.php?route=egresos&action=acta&id=<?= $egr['id'] ?>" target="_blank" class="btn-accion btn-editar" title="Ver Acta Oficial (Imprimir / PDF)" style="color:var(--primary-blue);"><i class="fa-solid fa-file-pdf"></i></a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+<?php if ($vistaActiva === 'kardex'): ?>
+<div class="content-panel animate-fade-in"><div class="panel-header"><h3>Movimientos de entrada</h3></div><div class="inv-help"><i class="fa-solid fa-scale-balanced"></i> Cada línea conserva saldo anterior y saldo resultante; el historial es inmutable.</div><div class="table-responsive"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Documento</th><th>Entrada</th><th>Saldo anterior</th><th>Saldo resultante</th><th>Observación</th></tr></thead><tbody>
+<?php if (!$kardexEntradas): ?><tr><td colspan="7" class="ab-empty">No existen movimientos de entrada.</td></tr><?php endif; ?>
+<?php foreach ($kardexEntradas as $mov): ?><tr><td><?= htmlspecialchars($mov['fecha_movimiento']) ?></td><td><strong><?= htmlspecialchars($mov['item_nombre']) ?></strong><span class="ab-detail"><?= htmlspecialchars($mov['item_secuencial']) ?></span></td><td><?= htmlspecialchars($mov['documento_secuencial']) ?></td><td><?= (int)$mov['entrada'] ?></td><td><?= (int)$mov['saldo_anterior'] ?></td><td><strong><?= (int)$mov['saldo_resultante'] ?></strong></td><td><?= htmlspecialchars($mov['observaciones'] ?? '') ?></td></tr><?php endforeach; ?>
+</tbody></table></div></div>
+<?php endif; ?>
+
 </div>
+<div class="modal-overlay ab-modal ab-approve-modal" id="ab-aprobar-modal"><div class="modal-content"><div class="modal-header"><div class="ab-approve-heading"><span class="ab-approve-icon"><i class="fa-solid fa-user-check"></i></span><div><h2>Aprobar orden de compra</h2><p>Revisa la información antes de continuar.</p></div></div><button class="modal-close" type="button" onclick="abCerrar('ab-aprobar-modal')" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button></div><form action="index.php?route=egresos&action=aprobarOrdenCompra" method="post" onsubmit="return abEnviarAprobacion(this)"><input type="hidden" name="orden_id" id="ab-aprobar-id"><div class="modal-body"><div class="ab-approve-card"><div><small>Orden</small><strong id="ab-aprobar-orden">—</strong></div><div><small>Fecha</small><strong id="ab-aprobar-fecha">—</strong></div><div class="full"><small>Proveedor</small><strong id="ab-aprobar-proveedor">—</strong></div><div><small>Detalle</small><strong id="ab-aprobar-lineas">0 líneas</strong></div><div><small>Total estimado</small><strong class="ab-approve-total" id="ab-aprobar-total">$0.00</strong></div></div><div class="ab-approve-notice"><i class="fa-solid fa-circle-info"></i><span>Al aprobar, la orden quedará habilitada para registrar la factura del proveedor.</span></div></div><div class="modal-footer"><button type="button" class="btn-outline" onclick="abCerrar('ab-aprobar-modal')">Cancelar</button><button class="btn-primary ab-confirm-button" id="ab-aprobar-submit"><i class="fa-solid fa-check"></i> Confirmar aprobación</button></div></form></div></div>
 
-<!-- Modal: Registro de InvEgreso / Despacho -->
-<div class="modal-overlay" id="egr-modal">
-    <div class="modal-content" style="max-width: 750px;">
-        <div class="modal-header">
-            <h2>Registrar Egreso / Despacho</h2>
-            <button class="modal-close" onclick="cerrarModalEgreso()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <form action="index.php?route=egresos&action=guardar" method="POST" onsubmit="return validarFormularioEgreso()">
-            <div class="modal-body">
-                <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;">
-                    <div class="form-group">
-                        <label>Centro de Consumo Destinatario</label>
-                        <select name="area_id" id="egr-inp-area" required>
-                            <option value="">Seleccionar centro de consumo...</option>
-                            <?php foreach ($centrosConsumo as $cc): ?>
-                                <option value="<?= $cc['id'] ?>"><?= htmlspecialchars($cc['codigo']) ?> - <?= htmlspecialchars($cc['nombre']) ?> (Grupo: <?= htmlspecialchars($cc['grupo_nombre']) ?>)</option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Fecha de Salida</label>
-                        <input type="date" name="fecha" id="egr-inp-fecha" required value="<?= date('Y-m-d') ?>">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Funcionario / Responsable Receptor</label>
-                    <select name="responsable_id" id="egr-inp-responsable" required>
-                        <option value="">Seleccionar funcionario...</option>
-                        <?php foreach ($personal as $p): ?>
-                            <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?> (<?= htmlspecialchars($p['area_actual']) ?>)</option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+<div class="modal-overlay ab-modal" id="ab-orden-modal"><div class="modal-content"><div class="modal-header"><h2 id="ab-orden-titulo">Nueva orden de compra</h2><button class="modal-close" type="button" onclick="abCerrar('ab-orden-modal')"><i class="fa-solid fa-xmark"></i></button></div><form id="ab-orden-form" action="index.php?route=egresos&action=guardarOrdenCompra" method="post"><input type="hidden" name="orden_id" id="ab-orden-id"><div class="modal-body"><div class="form-grid"><div class="form-group"><label>Proveedor</label><select name="proveedor_id" id="ab-orden-proveedor" required><option value="">Seleccione…</option><?php foreach ($proveedores as $p): ?><option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['nombre'].(!empty($p['ruc']) ? ' · '.$p['ruc'] : '')) ?></option><?php endforeach; ?></select></div><div class="form-group"><label>Fecha</label><input id="ab-orden-fecha" type="date" name="fecha" value="<?= date('Y-m-d') ?>" required></div><div class="form-group"><label>Observaciones</label><input id="ab-orden-observaciones" name="observaciones" maxlength="2000"></div></div><h3>Detalle y precio estimado</h3><div class="ab-lines" id="ab-orden-lines"></div><button class="btn-outline" type="button" onclick="abAgregarLinea('orden')"><i class="fa-solid fa-plus"></i> Agregar ítem</button></div><div class="modal-footer"><button type="button" class="btn-outline" onclick="abCerrar('ab-orden-modal')">Cancelar</button><button class="btn-primary" id="ab-orden-guardar">Guardar orden</button></div></form></div></div>
 
-                <div class="form-group">
-                    <label>Motivo de Salida / Despacho</label>
-                    <input type="text" name="motivo" id="egr-inp-motivo" required placeholder="Ej: Abastecimiento mensual, Reparación emergente de grúa...">
-                </div>
-
-                <div class="form-group">
-                    <label>Observaciones Adicionales</label>
-                    <textarea name="observaciones" id="egr-inp-obs" placeholder="Detalles de la entrega, firmas pendientes..."></textarea>
-                </div>
-
-                <!-- Sección dinámica InvCabecera-Detalle -->
-                <div style="border-top:1px solid var(--border-color);padding-top:16px;margin-top:16px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <h4 style="font-size:14px;color:var(--text-main);font-weight:600;"><i class="fa-solid fa-list"></i> Detalle de Salida</h4>
-                        <button type="button" class="btn-outline" style="padding:6px 12px;font-size:12px;" onclick="agregarFilaDetalleEgreso()"><i class="fa-solid fa-plus"></i> Agregar Fila</button>
-                    </div>
-
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        <table style="width:100%;font-size:13px;" id="tabla-detalles-egreso">
-                            <thead>
-                                <tr style="background:var(--secondary-bg);">
-                                    <th style="padding:8px 12px;text-align:left;font-size:11px;">Ítem / Producto con Existencia</th>
-                                    <th style="padding:8px 12px;text-align:center;font-size:11px;width:120px;">Cant. Salida</th>
-                                    <th style="padding:8px 12px;text-align:center;font-size:11px;width:150px;">Stock Disponible</th>
-                                    <th style="padding:8px 12px;font-size:11px;width:50px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-detalles-egreso">
-                                <!-- La primera fila se inyectará dinámicamente al abrir -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <span id="stock-inv_error-global" style="color:var(--danger);font-size:12px;font-weight:600;display:none;margin-right:auto;"><i class="fa-solid fa-triangle-exclamation"></i> Hay errores de stock en la lista.</span>
-                <button type="button" class="btn-outline" onclick="cerrarModalEgreso()">Cancelar</button>
-                <button type="submit" class="btn-primary" id="btn-submit-egreso"><i class="fa-solid fa-save"></i> Registrar Egreso</button>
-            </div>
-        </form>
+<div class="modal-overlay ab-modal ab-factura-modal" id="ab-factura-modal"><div class="modal-content"><div class="modal-header"><div><h2 id="ab-factura-titulo">Crear factura de proveedor</h2><p style="margin:4px 0 0;color:var(--text-muted);font-size:12px">Adjunta el documento para escanearlo o completa los datos manualmente.</p></div><button class="modal-close" type="button" onclick="abCerrar('ab-factura-modal')"><i class="fa-solid fa-xmark"></i></button></div><form id="ab-factura-form" action="index.php?route=egresos&action=guardarFacturaCompra" method="post" enctype="multipart/form-data"><input type="hidden" name="factura_id" id="ab-factura-id"><div class="modal-body">
+    <div class="ab-upload-zone">
+        <div class="ab-upload-icon"><i class="fa-solid fa-file-invoice"></i></div>
+        <div class="ab-upload-copy"><strong id="ab-upload-title">Adjuntar y escanear factura</strong><span id="ab-upload-help">PDF, JPG, PNG o WEBP · máximo 10 MB. Revisa siempre los datos detectados antes de guardar.</span></div>
+        <label class="btn-outline" for="ab-factura-archivo" style="cursor:pointer"><i class="fa-solid fa-cloud-arrow-up"></i> Seleccionar archivo</label>
+        <input id="ab-factura-archivo" name="factura_archivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="abEscanearFactura(this)">
+        <input id="ab-ocr-texto" name="ocr_texto" type="hidden">
     </div>
-</div>
-
-<!-- Modal: Consulta Rápida Detalle de InvEgreso -->
-<div class="modal-overlay" id="egr-modal-detalle">
-    <div class="modal-content modal-content-wide">
-        <div class="modal-header">
-            <h2>Detalle de Despacho / Egreso</h2>
-            <button class="modal-close" onclick="cerrarDetallesEgreso()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="modal-body" id="egr-det-content">
-            <!-- Cargado dinámicamente -->
-        </div>
+    <div class="ab-scan-status" id="ab-scan-status"><i class="fa-solid fa-spinner fa-spin"></i><span>Preparando lectura de la factura…</span></div>
+    <div class="ab-doc-header">
+        <div class="form-group ab-doc-col-4"><label>Origen de la factura</label><select name="orden_compra_id" id="ab-factura-orden" onchange="abCargarOrden(this.value)"><option value="">Factura directa / registro manual</option><?php foreach ($ordenesAprobadas as $o): ?><option value="<?= (int)$o['id_orden'] ?>"><?= htmlspecialchars($o['secuencial'].' - '.$o['proveedor']) ?></option><?php endforeach; ?></select></div>
+        <div class="form-group ab-doc-col-5"><label>Proveedor</label><div class="ab-readonly" id="ab-factura-proveedor" style="display:none">Se completa desde la orden</div><select name="proveedor_id" id="ab-factura-proveedor-manual" required><option value="">Seleccione el proveedor…</option><?php foreach ($proveedores as $p): ?><option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['nombre'].(!empty($p['ruc']) ? ' · '.$p['ruc'] : '')) ?></option><?php endforeach; ?></select></div>
+        <div class="form-group ab-doc-col-3"><label>Número de factura</label><input id="ab-numero-factura" name="numero_factura" maxlength="100" placeholder="Ej: 001-001-000123233" required></div>
+        <div class="form-group ab-doc-col-4"><label>Fecha de factura</label><input id="ab-fecha-factura" type="date" name="fecha_factura" value="<?= date('Y-m-d') ?>" required></div>
+        <div class="form-group ab-doc-col-4"><label>IVA aplicable</label><select name="iva_opcion" id="ab-iva-opcion" onchange="abCambiarFuenteIva()" required><?php if ($tasaPeriodoActual !== null): ?><option value="periodo_actual" data-tasa="<?= htmlspecialchars((string)$tasaPeriodoActual) ?>" selected>Período actual · <?= number_format($tasaPeriodoActual, 2) ?>% — <?= htmlspecialchars($periodoActivo['nombre'] ?? 'Vigente') ?></option><?php endif; ?><optgroup label="Tasas de Maestros"><?php foreach ($tiposIva as $tipoIva): ?><option value="maestro:<?= (int)$tipoIva['id'] ?>" data-tasa="<?= htmlspecialchars((string)(float)$tipoIva['tasa_iva']) ?>" <?= $ivaOpcionPredeterminada === 'maestro:' . (int)$tipoIva['id'] ? 'selected' : '' ?>><?= number_format((float)$tipoIva['tasa_iva'], 2) ?>% — <?= htmlspecialchars($tipoIva['nombre']) ?></option><?php endforeach; ?></optgroup><option value="no_aplica" data-tasa="0" <?= $ivaOpcionPredeterminada === 'no_aplica' ? 'selected' : '' ?>>No aplicable · 0%</option></select><input type="hidden" name="iva_porcentaje" id="ab-iva" value="<?= htmlspecialchars((string)$ivaTasaPredeterminada) ?>"><small class="ab-detail">Cada producto puede marcarse individualmente como gravado o no aplicable.</small></div>
+        <div class="form-group ab-doc-col-4"><label>Referencia</label><div class="ab-readonly" id="ab-factura-referencia">Orden pendiente de selección</div></div>
     </div>
-</div>
+    <div class="inv-help" id="ab-factura-ayuda"><i class="fa-solid fa-pen-to-square"></i> Factura directa: selecciona el proveedor y agrega manualmente los productos recibidos.</div>
+    <div class="table-responsive"><table class="ab-invoice-table"><thead><tr><th>Ítem / descripción</th><th>Grupo</th><th>Existencia</th><th>Cantidad</th><th>P. unitario</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Código presupuestario</th></tr></thead><tbody id="ab-factura-lines"></tbody></table></div>
+    <button class="btn-outline" id="ab-agregar-factura-linea" type="button" onclick="abAgregarLineaFacturaManual()"><i class="fa-solid fa-plus"></i> Agregar producto</button>
+    <div class="ab-invoice-footer"><div class="ab-budget-note"><strong><i class="fa-solid fa-code-branch"></i> Distribución presupuestaria</strong><p>La partida se conserva por cada línea de factura, como en el sistema anterior, pero ahora queda vinculada al producto y al documento de compra.</p></div><div class="ab-total-card"><div class="ab-total-row"><span>Subtotal</span><strong id="ab-subtotal">$0.00</strong></div><div class="ab-total-row"><span>Base 0%</span><strong id="ab-base0">$0.00</strong></div><div class="ab-total-row"><span>Base gravada</span><strong id="ab-gravado">$0.00</strong></div><div class="ab-total-row"><span>IVA</span><strong id="ab-valor-iva">$0.00</strong></div><div class="ab-total-row final"><span>Total factura</span><strong id="ab-total">$0.00</strong></div></div></div>
+</div><div class="modal-footer"><button type="button" class="btn-outline" onclick="abCerrar('ab-factura-modal')">Cancelar</button><button class="btn-primary" id="ab-factura-guardar"><i class="fa-solid fa-file-circle-check"></i> Registrar factura</button></div></form></div></div>
 
-<!-- Configuración de Bodega y Stock Map serializado en HTML -->
-<div id="bodega-egresos-config" data-stock-map="<?= htmlspecialchars($stockMapJson, ENT_QUOTES, 'UTF-8') ?>" style="display:none;"></div>
+<div class="modal-overlay ab-modal" id="ab-ingreso-modal"><div class="modal-content" style="max-width:720px"><div class="modal-header"><div><h2>Preparar ingreso a bodega</h2><p style="margin:4px 0 0;color:var(--text-muted);font-size:12px">La factura seleccionada será la fuente única del proveedor, orden, cantidades y costos.</p></div><button class="modal-close" onclick="abCerrar('ab-ingreso-modal')"><i class="fa-solid fa-xmark"></i></button></div><form action="index.php?route=egresos&action=ingresarFacturaBodega" method="post" onsubmit="return confirm('Se actualizarán existencias, costo promedio y Kardex. ¿Confirmar ingreso?')"><input type="hidden" name="factura_id" id="ab-ingreso-factura-id"><div class="modal-body"><div class="ab-ingreso-summary"><div><small>Factura</small><strong id="ab-ingreso-factura">—</strong></div><div><small>Orden</small><strong id="ab-ingreso-orden">—</strong></div><div><small>Proveedor</small><strong id="ab-ingreso-proveedor">—</strong></div><div><small>Total</small><strong id="ab-ingreso-total">$0.00</strong></div></div><div class="form-grid"><div class="form-group"><label>Fecha de ingreso</label><input type="date" name="fecha_ingreso" value="<?= date('Y-m-d') ?>" required></div><div class="form-group"><label>Responsable de bodega</label><select name="responsable_id" required><option value="">Seleccione…</option><?php foreach ($personal as $p): ?><option value="<?= (int)$p['id'] ?>"><?= htmlspecialchars($p['nombre']) ?></option><?php endforeach; ?></select></div></div><div class="form-group"><label>Detalle / observaciones</label><textarea name="observaciones" maxlength="2000" placeholder="Ej: Registro de compra según factura, condiciones de recepción o novedades"></textarea></div><div class="inv-help"><i class="fa-solid fa-calculator"></i> Al confirmar se guardan existencia anterior, existencia nueva y costo promedio ponderado por cada ítem.</div></div><div class="modal-footer"><button type="button" class="btn-outline" onclick="abCerrar('ab-ingreso-modal')">Cancelar</button><button class="btn-primary"><i class="fa-solid fa-boxes-stacked"></i> Confirmar ingreso</button></div></form></div></div>
 
-<!-- Lógica JS Ultra-Compatible y Telemetría -->
+<div class="modal-overlay ab-modal ab-movement-modal" id="ab-movimiento-modal"><div class="modal-content"><div class="modal-header"><div><h2>Movimiento de ingreso a bodega</h2><p style="margin:4px 0 0;color:var(--text-muted);font-size:12px">Detalle completo vinculado a la orden y factura seleccionadas.</p></div><button class="modal-close" onclick="abCerrar('ab-movimiento-modal')"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body">
+    <div class="ab-movement-head">
+        <div><small>Factura</small><strong id="ab-mov-factura">—</strong></div>
+        <div><small>Orden</small><strong id="ab-mov-orden">—</strong></div>
+        <div><small>Proveedor</small><strong id="ab-mov-proveedor">—</strong></div>
+        <div><small>Fecha</small><strong id="ab-mov-fecha">—</strong></div>
+    </div>
+    <div class="table-responsive"><table class="ab-movement-table"><thead><tr><th>Factura</th><th>Orden</th><th>Descripción</th><th>Ítem</th><th>Cantidad</th><th>P. unitario</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Referencia</th></tr></thead><tbody id="ab-mov-lines"></tbody></table></div>
+    <div class="ab-movement-summary"><div class="ab-group-box"><h4><i class="fa-solid fa-layer-group"></i> Resumen por grupo de producto</h4><div id="ab-mov-groups"></div></div><div class="ab-total-card"><div class="ab-total-row"><span>Subtotal</span><strong id="ab-mov-subtotal">$0.00</strong></div><div class="ab-total-row"><span>Base 0%</span><strong id="ab-mov-base0">$0.00</strong></div><div class="ab-total-row"><span>Base gravada</span><strong id="ab-mov-gravado">$0.00</strong></div><div class="ab-total-row"><span>IVA</span><strong id="ab-mov-iva">$0.00</strong></div><div class="ab-total-row final"><span>Total</span><strong id="ab-mov-total">$0.00</strong></div></div></div>
+</div><div class="modal-footer"><a id="ab-mov-documento" class="btn-outline" target="_blank" style="display:none;text-decoration:none"><i class="fa-regular fa-file-lines"></i> Ver factura original</a><button type="button" class="btn-primary" onclick="abCerrar('ab-movimiento-modal')">Cerrar</button></div></div></div>
+
+<template id="ab-linea-orden"><div class="ab-line"><div><label>Ítem</label><select class="ab-item" required><?= '<option value="">Seleccione…</option>' ?><?php foreach ($itemsInventario as $i): ?><option value="<?= (int)$i['id'] ?>"><?= htmlspecialchars($i['secuencial'].' - '.$i['nombre']) ?></option><?php endforeach; ?></select></div><div><label>Cantidad</label><input class="ab-cantidad" type="number" min="1" step="1" value="1" required></div><div class="precio"><label>Precio estimado</label><input class="ab-precio" type="number" min="0" step="0.0001" value="0" required></div><div class="codigo"></div><button class="ab-remove" type="button" onclick="abQuitarLinea(this)"><i class="fa-solid fa-trash"></i></button></div></template>
+
 <script>
-    console.log('[Telemetría Bodega] Iniciando carga de scripts en inv_bodega_egresos.php');
+const abOrdenes=<?= json_encode(array_column($ordenesCompra, 'detalles', 'id_orden'), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const abOrdenesMeta=<?= json_encode(array_column($ordenesCompra, null, 'id_orden'), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const abFacturasMeta=<?= json_encode($facturasJson, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const abItems=<?= json_encode($itemsJson, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+const abProveedores=<?= json_encode($proveedoresJson, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+function abNormalizar(texto){return String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+function abCerrarBuscadores(excepto){document.querySelectorAll('.ab-search-select.open').forEach(el=>{if(el!==excepto&&el._closeSearch)el._closeSearch()})}
+function abMejorarSelector(select,tipo='item'){
+    if(!select||select.dataset.searchReady==='1')return;
+    select.dataset.searchReady='1';
+    const wrapper=document.createElement('div'),trigger=document.createElement('button'),dropdown=document.createElement('div'),box=document.createElement('div'),input=document.createElement('input'),results=document.createElement('div');
+    const esProveedor=tipo==='proveedor',placeholder=esProveedor?'Seleccione el proveedor…':'Seleccione un producto…';
+    wrapper.className='ab-search-select'+(esProveedor?' ab-provider-select':'');trigger.type='button';trigger.className='ab-search-trigger';trigger.innerHTML='<span>'+placeholder+'</span><i class="fa-solid fa-chevron-down"></i>';dropdown.className='ab-search-dropdown';box.className='ab-search-box';box.innerHTML='<i class="fa-solid fa-magnifying-glass"></i>';input.type='search';input.placeholder=esProveedor?'Buscar por nombre, RUC o código…':'Buscar por código, descripción o grupo…';input.autocomplete='off';results.className='ab-search-results';box.appendChild(input);dropdown.append(box,results);select.parentNode.insertBefore(wrapper,select);wrapper.append(select,trigger);document.body.appendChild(dropdown);
+    const cerrar=()=>{wrapper.classList.remove('open');dropdown.classList.remove('ab-floating-open');input.value=''};wrapper._closeSearch=cerrar;
+    const ubicar=()=>{const rect=trigger.getBoundingClientRect(),margen=12,minimo=esProveedor?330:410,ancho=Math.min(Math.max(rect.width,minimo),window.innerWidth-margen*2);dropdown.style.width=ancho+'px';dropdown.style.left=Math.max(margen,Math.min(rect.left,window.innerWidth-ancho-margen))+'px';dropdown.style.top=(rect.bottom+6)+'px';const alto=dropdown.offsetHeight,espacioAbajo=window.innerHeight-rect.bottom-margen;if(alto>espacioAbajo&&rect.top>espacioAbajo)dropdown.style.top=Math.max(margen,rect.top-alto-6)+'px'};
+    const sincronizar=()=>{const opt=select.options[select.selectedIndex],texto=opt&&opt.value?opt.textContent.trim():placeholder;trigger.querySelector('span').textContent=texto;trigger.title=texto;trigger.classList.remove('invalid')};
+    const mostrar=(consulta='')=>{const q=abNormalizar(consulta),fragment=document.createDocumentFragment();let encontrados=0;Array.from(select.options).forEach(opt=>{if(!opt.value)return;const meta=(esProveedor?abProveedores:abItems)[opt.value]||{},codigo=meta.secuencial||meta.codigo||'',nombre=meta.nombre||opt.textContent,secundario=esProveedor?([meta.ruc?'RUC '+meta.ruc:'',meta.telefono1||meta.telefono||''].filter(Boolean).join(' · ')||'Proveedor registrado'):(meta.grupo||'Sin grupo'),buscar=abNormalizar(opt.textContent+' '+Object.values(meta).join(' '));if(q&&!buscar.includes(q))return;const boton=document.createElement('button');boton.type='button';boton.className='ab-search-option'+(String(select.value)===String(opt.value)?' active':'');boton.innerHTML='<strong>'+abEsc(esProveedor?nombre:((codigo?codigo+' - ':'')+nombre))+'</strong><small><i class="fa-solid '+(esProveedor?'fa-building':'fa-layer-group')+'"></i>'+abEsc(secundario)+'</small>';boton.addEventListener('click',()=>{select.value=opt.value;select.dispatchEvent(new Event('change',{bubbles:true}));sincronizar();cerrar()});fragment.appendChild(boton);encontrados++});results.innerHTML='';if(encontrados)results.appendChild(fragment);else results.innerHTML='<div class="ab-search-empty"><i class="fa-solid fa-magnifying-glass"></i> Sin resultados para “'+abEsc(consulta)+'”</div>'};
+    trigger.addEventListener('click',e=>{e.stopPropagation();const abrir=!wrapper.classList.contains('open');abCerrarBuscadores(wrapper);if(!abrir){cerrar();return}wrapper.classList.add('open');dropdown.classList.add('ab-floating-open');mostrar('');ubicar();requestAnimationFrame(()=>input.focus())});
+    dropdown.addEventListener('click',e=>e.stopPropagation());
+    input.addEventListener('input',()=>mostrar(input.value));
+    input.addEventListener('keydown',e=>{if(e.key==='Escape'){cerrar();trigger.focus()}else if(e.key==='Enter'){const primero=results.querySelector('.ab-search-option');if(primero){e.preventDefault();primero.click()}}});
+    select.addEventListener('change',sincronizar);select.addEventListener('invalid',()=>{trigger.classList.add('invalid');trigger.focus()});sincronizar()
+}
+function abMejorarSelectorItem(select){abMejorarSelector(select,'item')}
+function abMejorarSelectorProveedor(select){abMejorarSelector(select,'proveedor')}
+document.addEventListener('click',()=>abCerrarBuscadores());window.addEventListener('resize',()=>abCerrarBuscadores());document.addEventListener('scroll',e=>{if(!(e.target instanceof Element)||!e.target.closest('.ab-search-results'))abCerrarBuscadores()},true);
+function abAbrir(id){document.getElementById(id).classList.add('active');if(id==='ab-orden-modal'&&!document.querySelector('#ab-orden-lines .ab-line'))abAgregarLinea('orden')}
+function abCerrar(id){abCerrarBuscadores();document.getElementById(id).classList.remove('active')}
+function abNuevaOrden(){
+    const form=document.getElementById('ab-orden-form');form.action='index.php?route=egresos&action=guardarOrdenCompra';form.reset();
+    document.getElementById('ab-orden-id').value='';document.getElementById('ab-orden-titulo').textContent='Nueva orden de compra';document.getElementById('ab-orden-guardar').textContent='Guardar orden';
+    document.getElementById('ab-orden-fecha').value='<?= date('Y-m-d') ?>';document.getElementById('ab-orden-lines').innerHTML='';document.getElementById('ab-orden-proveedor').dispatchEvent(new Event('change',{bubbles:true}));abAgregarLinea('orden');abAbrir('ab-orden-modal')
+}
+function abEditarOrden(id){
+    const orden=abOrdenesMeta[id];if(!orden||orden.estado!=='PENDIENTE'){alert('Esta orden ya no se puede editar.');return}
+    const form=document.getElementById('ab-orden-form');form.action='index.php?route=egresos&action=editarOrdenCompra';document.getElementById('ab-orden-id').value=id;document.getElementById('ab-orden-titulo').textContent='Editar orden '+(orden.secuencial||'');document.getElementById('ab-orden-guardar').textContent='Guardar cambios';
+    const proveedor=document.getElementById('ab-orden-proveedor');proveedor.value=String(orden.proveedor_id||'');proveedor.dispatchEvent(new Event('change',{bubbles:true}));document.getElementById('ab-orden-fecha').value=orden.fecha||'';document.getElementById('ab-orden-observaciones').value=orden.observaciones||'';
+    document.getElementById('ab-orden-lines').innerHTML='';(orden.detalles||[]).forEach(d=>abAgregarLinea('orden',d));abAbrir('ab-orden-modal')
+}
+function abConfirmarAprobacion(orden){
+    document.getElementById('ab-aprobar-id').value=orden.id||'';
+    document.getElementById('ab-aprobar-orden').textContent=orden.orden||'—';
+    document.getElementById('ab-aprobar-proveedor').textContent=orden.proveedor||'—';
+    document.getElementById('ab-aprobar-fecha').textContent=orden.fecha||'—';
+    document.getElementById('ab-aprobar-total').textContent='$'+Number(orden.total||0).toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('ab-aprobar-lineas').textContent=(Number(orden.lineas||0))+' línea(s)';
+    const boton=document.getElementById('ab-aprobar-submit');
+    boton.disabled=false;
+    boton.innerHTML='<i class="fa-solid fa-check"></i> Confirmar aprobación';
+    abAbrir('ab-aprobar-modal');
+}
+function abEnviarAprobacion(form){
+    const boton=form.querySelector('#ab-aprobar-submit');
+    if(!form.orden_id.value||boton.disabled)return false;
+    boton.disabled=true;
+    boton.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Aprobando orden...';
+    return true;
+}
+function abAbrirFactura(){
+    const form=document.getElementById('ab-factura-form');form.action='index.php?route=egresos&action=guardarFacturaCompra';form.reset();document.getElementById('ab-factura-id').value='';document.getElementById('ab-factura-titulo').textContent='Crear factura de proveedor';document.getElementById('ab-factura-guardar').innerHTML='<i class="fa-solid fa-file-circle-check"></i> Registrar factura';
+    const orden=document.getElementById('ab-factura-orden');orden.disabled=false;orden.value='';document.getElementById('ab-fecha-factura').value='<?= date('Y-m-d') ?>';document.getElementById('ab-upload-title').textContent='Adjuntar y escanear factura';document.getElementById('ab-scan-status').className='ab-scan-status';abCargarOrden('');abCambiarFuenteIva();abAbrir('ab-factura-modal')
+}
+function abAgregarLinea(tipo,datos={}){const tpl=document.getElementById('ab-linea-'+tipo),linea=tpl.content.firstElementChild.cloneNode(true),contenedor=document.getElementById('ab-'+tipo+'-lines');contenedor.appendChild(linea);const selector=linea.querySelector('.ab-item');selector.value=datos.item_id||'';linea.querySelector('.ab-cantidad').value=datos.cantidad||datos.cantidad_solicitada||1;if(linea.querySelector('.ab-precio'))linea.querySelector('.ab-precio').value=datos.precio_unitario_estimado||0;abMejorarSelectorItem(selector);abRenombrar(tipo)}
+function abQuitarLinea(btn){const cont=btn.closest('.ab-lines');btn.closest('.ab-line').remove();if(!cont.children.length)abAgregarLinea('orden');else abRenombrar('orden')}
+function abRenombrar(tipo){document.querySelectorAll('#ab-'+tipo+'-lines .ab-line').forEach((l,i)=>{l.querySelector('.ab-item').name='items['+i+'][item_id]';l.querySelector('.ab-cantidad').name='items['+i+'][cantidad]';if(l.querySelector('.ab-precio'))l.querySelector('.ab-precio').name='items['+i+'][precio]'})}
+function abFacturaDesdeOrden(id){abAbrirFactura();document.getElementById('ab-factura-orden').value=String(id);abCargarOrden(id)}
+function abEditarFactura(id){
+    const factura=abFacturasMeta[id];if(!factura||factura.estado!=='REGISTRADA'){alert('Esta factura ya no se puede editar porque fue procesada.');return}
+    const form=document.getElementById('ab-factura-form');form.reset();form.action='index.php?route=egresos&action=editarFacturaCompra';document.getElementById('ab-factura-id').value=id;document.getElementById('ab-factura-titulo').textContent='Editar factura '+(factura.numero_factura||'');document.getElementById('ab-factura-guardar').innerHTML='<i class="fa-solid fa-floppy-disk"></i> Guardar cambios';document.getElementById('ab-numero-factura').value=factura.numero_factura||'';document.getElementById('ab-fecha-factura').value=factura.fecha_factura||'';document.getElementById('ab-upload-title').textContent=factura.archivo_ruta?'Reemplazar documento adjunto (opcional)':'Adjuntar documento (opcional)';document.getElementById('ab-scan-status').className='ab-scan-status';
+    const orden=document.getElementById('ab-factura-orden'),directa=factura.orden_origen==='FACTURA';orden.disabled=true;
+    if(directa){orden.value='';abCargarOrden('');const proveedor=document.getElementById('ab-factura-proveedor-manual');proveedor.value=String(factura.proveedor_id||'');proveedor.dispatchEvent(new Event('change',{bubbles:true}));const cont=document.getElementById('ab-factura-lines');cont.innerHTML='';(factura.detalles||[]).forEach(d=>abAgregarLineaFacturaManual({item_id:d.item_id,cantidad:d.cantidad,precio:d.precio_unitario,grava_iva:d.grava_iva,codigo_presupuestario:d.codigo_presupuestario}))}else{orden.value=String(factura.orden_compra_id||'');abCargarOrden(factura.orden_compra_id)}
+    abSeleccionarIvaDetectado(Number(factura.iva_porcentaje||0));document.querySelectorAll('#ab-factura-lines tr').forEach(tr=>{const itemId=tr.querySelector('[name*="[item_id]"]')?.value,detalle=(factura.detalles||[]).find(d=>String(d.item_id)===String(itemId));if(!detalle)return;tr.querySelector('.ab-factura-precio').value=Number(detalle.precio_unitario||0).toFixed(4);tr.querySelector('.ab-grava').value=Number(detalle.grava_iva)?'1':'0';const codigo=tr.querySelector('[name*="[codigo_presupuestario]"]');if(codigo)codigo.value=detalle.codigo_presupuestario||''});abTotalesFactura();abAbrir('ab-factura-modal')
+}
+function abCargarOrden(id){
+    const cont=document.getElementById('ab-factura-lines'),meta=abOrdenesMeta[id]||{},manual=!id,proveedorManual=document.getElementById('ab-factura-proveedor-manual'),proveedorLectura=document.getElementById('ab-factura-proveedor'),agregar=document.getElementById('ab-agregar-factura-linea'),ayuda=document.getElementById('ab-factura-ayuda');cont.innerHTML='';
+    const proveedorControl=proveedorManual.closest('.ab-search-select')||proveedorManual;proveedorControl.style.display=manual?'block':'none';proveedorManual.required=manual;proveedorLectura.style.display=manual?'none':'flex';agregar.style.display=manual?'inline-flex':'none';
+    ayuda.innerHTML=manual?'<i class="fa-solid fa-pen-to-square"></i> Factura directa: selecciona el proveedor y agrega manualmente los productos recibidos.':'<i class="fa-solid fa-shield-halved"></i> Los productos y cantidades provienen de la orden aprobada; registra el precio real, IVA y código presupuestario.';
+    document.getElementById('ab-factura-proveedor').textContent=meta.proveedor||'Se completa desde la orden';
+    document.getElementById('ab-factura-referencia').textContent=manual?'Factura directa; se generará una referencia interna':(meta.secuencial?('Orden '+meta.secuencial):'Orden pendiente de selección');
+    if(manual){abAgregarLineaFacturaManual();return}
+    (abOrdenes[id]||[]).forEach((d,i)=>{
+        const tr=document.createElement('tr'),item=abItems[d.item_id]||{},aplica=Number(item.aplica_iva??1)===1;
+        tr.dataset.codigo=item.secuencial||'';tr.dataset.nombre=item.nombre||'';
+        tr.innerHTML='<td class="ab-item-name"><strong>'+abEsc((item.secuencial||'')+' - '+(item.nombre||''))+'</strong><small>Costo actual: $'+Number(item.costo_actual||0).toFixed(4)+'</small><input type="hidden" name="items['+i+'][item_id]" value="'+d.item_id+'"></td><td>'+abEsc(item.grupo||'—')+'</td><td class="ab-money">'+Number(item.existencia||0)+'</td><td class="ab-money"><strong>'+d.cantidad+'</strong><input type="hidden" name="items['+i+'][cantidad]" value="'+d.cantidad+'"></td><td><input class="ab-factura-precio" type="number" min="0" step="0.0001" name="items['+i+'][precio]" value="'+d.precio_unitario_estimado+'" oninput="abTotalesFactura()" required></td><td class="ab-money ab-linea-subtotal">$0.00</td><td><select class="ab-grava" name="items['+i+'][grava_iva]" data-master-aplica="'+(aplica?'1':'0')+'" onchange="abTotalesFactura()"><option value="1" '+(aplica?'selected':'')+'>Aplica tasa</option><option value="0" '+(!aplica?'selected':'')+'>No aplica</option></select><small class="ab-linea-iva" style="display:block;margin-top:3px">$0.00</small></td><td class="ab-money ab-linea-total"><strong>$0.00</strong></td><td><input name="items['+i+'][codigo_presupuestario]" placeholder="1.3.1.01.11"></td>';
+        cont.appendChild(tr)
+    });abCambiarFuenteIva()
+}
+function abAgregarLineaFacturaManual(datos={}){
+    const cont=document.getElementById('ab-factura-lines'),i=cont.children.length,tr=document.createElement('tr'),opciones=Object.values(abItems).map(item=>'<option value="'+item.id+'">'+abEsc((item.secuencial||'')+' - '+(item.nombre||''))+'</option>').join('');
+    tr.innerHTML='<td class="ab-item-name"><select class="ab-item-manual" name="items['+i+'][item_id]" onchange="abActualizarLineaFactura(this)" required><option value="">Seleccione un producto…</option>'+opciones+'</select><button type="button" class="ab-remove-line" onclick="abQuitarLineaFactura(this)" style="margin-top:6px;border:0;background:transparent;color:#b91c1c;cursor:pointer"><i class="fa-solid fa-trash"></i> Quitar</button></td><td class="ab-linea-grupo">—</td><td class="ab-money ab-linea-existencia">0</td><td><input class="ab-cantidad-manual" type="number" min="1" step="1" name="items['+i+'][cantidad]" value="'+Number(datos.cantidad||1)+'" oninput="abTotalesFactura()" required></td><td><input class="ab-factura-precio" type="number" min="0" step="0.0001" name="items['+i+'][precio]" value="'+Number(datos.precio||0).toFixed(4)+'" oninput="abTotalesFactura()" required></td><td class="ab-money ab-linea-subtotal">$0.00</td><td><select class="ab-grava" name="items['+i+'][grava_iva]" data-master-aplica="1" onchange="abTotalesFactura()"><option value="1">Aplica tasa</option><option value="0">No aplica</option></select><small class="ab-linea-iva" style="display:block;margin-top:3px">$0.00</small></td><td class="ab-money ab-linea-total"><strong>$0.00</strong></td><td><input name="items['+i+'][codigo_presupuestario]" placeholder="1.3.1.01.11"></td>';
+    cont.appendChild(tr);const selector=tr.querySelector('.ab-item-manual');if(datos.item_id){selector.value=String(datos.item_id);abActualizarLineaFactura(selector)}abMejorarSelectorItem(selector);abTotalesFactura()
+}
+function abActualizarLineaFactura(select){const tr=select.closest('tr'),item=abItems[select.value]||{},grava=tr.querySelector('.ab-grava'),aplica=Number(item.aplica_iva??1)===1;tr.dataset.codigo=item.secuencial||'';tr.dataset.nombre=item.nombre||'';tr.querySelector('.ab-linea-grupo').textContent=item.grupo||'—';tr.querySelector('.ab-linea-existencia').textContent=Number(item.existencia||0);grava.dataset.masterAplica=aplica?'1':'0';grava.value=document.getElementById('ab-iva-opcion').value==='no_aplica'?'0':grava.dataset.masterAplica;abTotalesFactura()}
+function abQuitarLineaFactura(btn){const cont=document.getElementById('ab-factura-lines');btn.closest('tr').remove();if(!cont.children.length)abAgregarLineaFacturaManual();else abRenombrarFactura();abTotalesFactura()}
+function abRenombrarFactura(){document.querySelectorAll('#ab-factura-lines tr').forEach((tr,i)=>{const item=tr.querySelector('.ab-item-manual');if(item)item.name='items['+i+'][item_id]';tr.querySelector('input[name*="[cantidad]"]').name='items['+i+'][cantidad]';tr.querySelector('.ab-factura-precio').name='items['+i+'][precio]';tr.querySelector('.ab-grava').name='items['+i+'][grava_iva]';tr.querySelector('input[name*="[codigo_presupuestario]"]').name='items['+i+'][codigo_presupuestario]'})}
+function abCambiarFuenteIva(){const selector=document.getElementById('ab-iva-opcion'),opcion=selector.options[selector.selectedIndex],tasa=Number(opcion?.dataset.tasa||0),noAplica=selector.value==='no_aplica';document.getElementById('ab-iva').value=String(tasa);document.querySelectorAll('#ab-factura-lines .ab-grava').forEach(campo=>{if(noAplica){campo.value='0';campo.disabled=true}else{if(campo.disabled)campo.value=campo.dataset.masterAplica||'1';campo.disabled=false}});abTotalesFactura()}
+function abTotalesFactura(){let base0=0,gravado=0;const tasa=Number(document.getElementById('ab-iva').value||0);document.querySelectorAll('#ab-factura-lines tr').forEach(l=>{const cantidad=Number(l.querySelector('input[name*="[cantidad]"]').value||0),precio=Number(l.querySelector('.ab-factura-precio').value||0),base=cantidad*precio,grava=l.querySelector('.ab-grava').value==='1'&&tasa>0,ivaLinea=grava?base*tasa/100:0;if(grava)gravado+=base;else base0+=base;l.querySelector('.ab-linea-subtotal').textContent='$'+base.toFixed(2);l.querySelector('.ab-linea-iva').textContent='$'+ivaLinea.toFixed(2);l.querySelector('.ab-linea-total').innerHTML='<strong>$'+(base+ivaLinea).toFixed(2)+'</strong>'});const valorIva=gravado*tasa/100;document.getElementById('ab-subtotal').textContent='$'+(base0+gravado).toFixed(2);document.getElementById('ab-base0').textContent='$'+base0.toFixed(2);document.getElementById('ab-gravado').textContent='$'+gravado.toFixed(2);document.getElementById('ab-valor-iva').textContent='$'+valorIva.toFixed(2);document.getElementById('ab-total').textContent='$'+(base0+gravado+valorIva).toFixed(2)}
+function abAbrirIngreso(id){const f=abFacturasMeta[id]||{};document.getElementById('ab-ingreso-factura-id').value=id;document.getElementById('ab-ingreso-factura').textContent=f.numero_factura||'—';document.getElementById('ab-ingreso-orden').textContent=f.orden_secuencial||'—';document.getElementById('ab-ingreso-proveedor').textContent=f.proveedor||'—';document.getElementById('ab-ingreso-total').textContent='$'+Number(f.total||0).toFixed(2);abAbrir('ab-ingreso-modal')}
+function abSeleccionarIngresoPagina(id){
+    const f=abFacturasMeta[id]||{},preview=document.getElementById('ab-ing-page-preview'),boton=document.getElementById('ab-ing-page-movimiento'),count=document.getElementById('ab-ing-page-count');if(!preview)return;
+    document.getElementById('ab-ing-page-orden').textContent=f.orden_secuencial||'—';document.getElementById('ab-ing-page-proveedor').textContent=f.proveedor||'—';document.getElementById('ab-ing-page-iva').textContent=id?(Number(f.iva_porcentaje||0).toFixed(2)+'%'):'—';document.getElementById('ab-ing-page-total').textContent=abDinero(f.total);boton.title=id?'Ver registros de la factura':'Primero crea o selecciona una factura';
+    const detalles=f.detalles||[];count.textContent=detalles.length+' producto'+(detalles.length===1?'':'s');
+    if(!detalles.length){preview.className='ab-ingreso-preview-empty';preview.innerHTML='<div><i class="fa-solid fa-file-invoice"></i>Selecciona una factura para revisar sus registros.</div>';return}
+    preview.className='table-responsive';preview.innerHTML='<table class="ab-ingreso-preview-table"><thead><tr><th>Producto</th><th>Cantidad</th><th>P. unitario</th><th>Total</th></tr></thead><tbody>'+detalles.map(d=>'<tr><td><strong>'+abEsc(d.item_nombre||'—')+'</strong><span class="ab-detail">'+abEsc(d.item_secuencial||'')+'</span></td><td>'+Number(d.cantidad||0)+'</td><td>'+abDinero(d.precio_unitario)+'</td><td><strong>'+abDinero(Number(d.cantidad||0)*Number(d.precio_unitario||0)*(d.grava_iva?1+Number(f.iva_porcentaje||0)/100:1))+'</strong></td></tr>').join('')+'</tbody></table>'
+}
+function abAbrirMovimientoIngreso(){const selector=document.getElementById('ab-ingreso-page-factura'),id=selector?selector.value:'';if(id&&abFacturasMeta[id]){abVerMovimiento(id);return}abAbrirFactura()}
+function abVerMovimiento(id){
+    const f=abFacturasMeta[id]||{},tbody=document.getElementById('ab-mov-lines'),grupos={};if(!f.id_factura||!tbody){alert('Selecciona una factura válida para consultar su movimiento.');return}tbody.innerHTML='';
+    document.getElementById('ab-mov-factura').textContent=f.numero_factura||'—';document.getElementById('ab-mov-orden').textContent=f.orden_secuencial||'—';document.getElementById('ab-mov-proveedor').textContent=f.proveedor||'—';document.getElementById('ab-mov-fecha').textContent=f.fecha_factura||'—';
+    (f.detalles||[]).forEach(d=>{const base=Number(d.cantidad||0)*Number(d.precio_unitario||0),iva=d.grava_iva?base*Number(f.iva_porcentaje||0)/100:0,total=base+iva,grupo=d.grupo_nombre||'Sin grupo';grupos[grupo]=(grupos[grupo]||0)+total;const tr=document.createElement('tr');const celdas=[f.numero_factura||'—',f.orden_secuencial||'—',d.item_nombre||'—',d.item_secuencial||'—',Number(d.cantidad||0),abDinero(d.precio_unitario),abDinero(base),abDinero(iva),abDinero(total),d.codigo_presupuestario||'—'];const labels=['Factura','Orden','Descripción','Ítem','Cantidad','P. unitario','Subtotal','IVA','Total','Referencia'];tr.innerHTML=celdas.map((v,i)=>'<td data-label="'+labels[i]+'">'+abEsc(v)+'</td>').join('');tbody.appendChild(tr)});
+    const groups=document.getElementById('ab-mov-groups');groups.innerHTML=Object.entries(grupos).map(([g,t])=>'<div class="ab-group-row"><code>'+abEsc((f.detalles||[]).find(d=>(d.grupo_nombre||'Sin grupo')===g)?.grupo_codigo||'—')+'</code><span>'+abEsc(g)+'</span><strong>'+abDinero(t)+'</strong></div>').join('')||'<span class="ab-detail">Sin grupos registrados.</span>';
+    document.getElementById('ab-mov-subtotal').textContent=abDinero(Number(f.base_cero||0)+Number(f.subtotal_gravado||0));document.getElementById('ab-mov-base0').textContent=abDinero(f.base_cero);document.getElementById('ab-mov-gravado').textContent=abDinero(f.subtotal_gravado);document.getElementById('ab-mov-iva').textContent=abDinero(f.valor_iva);document.getElementById('ab-mov-total').textContent=abDinero(f.total);
+    const doc=document.getElementById('ab-mov-documento');if(f.archivo_ruta){doc.href='index.php?route=egresos&action=verDocumentoFactura&id='+encodeURIComponent(id);doc.style.display='inline-flex'}else{doc.style.display='none';doc.removeAttribute('href')}abAbrir('ab-movimiento-modal')
+}
+function abDinero(v){return '$'+Number(v||0).toFixed(2)}
 
-    // Serializar centros de consumo para autocompletar responsable
-    const centrosConsumoData = <?= json_encode($centrosConsumo) ?>;
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const areaSelect = document.getElementById('egr-inp-area');
-        if (areaSelect) {
-            areaSelect.addEventListener('change', function() {
-                const ccId = this.value;
-                if (ccId) {
-                    const cc = centrosConsumoData.find(c => c.id == ccId);
-                    if (cc && cc.funcionario_id) {
-                        const respSelect = document.getElementById('egr-inp-responsable');
-                        if (respSelect) {
-                            respSelect.value = String(cc.funcionario_id);
-                            console.log('[Telemetría Bodega] Responsable autocompletado por ID oficial: ' + cc.funcionario);
-                        }
-                    }
-                }
-            });
-        }
-    });
-
-    var stockMap = {};
-    try {
-        var configEl = document.getElementById('bodega-egresos-config');
-        if (configEl) {
-            stockMap = JSON.parse(configEl.dataset.stockMap);
-            console.log('[Telemetría Bodega] Mapa de stock cargado exitosamente.');
-        }
-    } catch (e) {
-        console.error('[Telemetría Bodega] Error al cargar mapa de stock:', e);
-    }
-
-    var filaIndexEgreso = 1;
-
-    // Construcción ultra-compatible de plantilla HTML usando matriz de cadenas
-    var filaEgresoTemplate = [
-        '<tr>',
-        '    <td style="padding:8px 12px;">',
-        '        <select name="items[{INDEX}][item_id]" required class="select-item" onchange="verificarStockFila(this)" style="width:100%;padding:6px;border:1px solid var(--border-color);border-radius:4px;background:var(--secondary-bg);">',
-        '            <option value="">Seleccionar ítem...</option>',
-        <?php foreach ($itemsInventario as $item): ?>
-        '            <option value="<?= $item['id'] ?>"><?= htmlspecialchars($item['secuencial']) ?> - <?= htmlspecialchars(str_replace(array("'", "\"", "\r", "\n"), " ", $item['nombre']), ENT_QUOTES, 'UTF-8') ?> (Marca: <?= htmlspecialchars(str_replace(array("'", "\"", "\r", "\n"), " ", $item['marca']), ENT_QUOTES, 'UTF-8') ?>) [Stock: <?= $item['cantidad'] ?>]</option>',
-        <?php endforeach; ?>
-        '        </select>',
-        '    </td>',
-        '    <td style="padding:8px 12px;">',
-        '        <input type="number" name="items[{INDEX}][cantidad]" required min="1" class="cant-item" value="1" oninput="verificarStockFila(this)" style="width:100%;padding:6px;border:1px solid var(--border-color);border-radius:4px;background:var(--secondary-bg);text-align:center;">',
-        '    </td>',
-        '    <td style="padding:8px 12px;text-align:center;">',
-        '        <span class="stock-display" style="font-weight:600;color:var(--text-muted);">--</span>',
-        '    </td>',
-        '    <td style="padding:8px 12px;text-align:center;">',
-        '        <button type="button" class="btn-accion btn-eliminar" onclick="eliminarFilaDetalleEgreso(this)" style="width:24px;height:24px;border-radius:4px;"><i class="fa-solid fa-trash-can"></i></button>',
-        '    </td>',
-        '</tr>'
-    ].join('\n');
-
-    console.log('[Telemetría Bodega] Plantilla filaEgresoTemplate inicializada correctamente.');
-
-    function abrirModalEgreso() {
-        console.log('[Telemetría Bodega] abrirModalEgreso() llamado.');
-        try {
-            document.getElementById('egr-inp-area').value = '';
-            document.getElementById('egr-inp-motivo').value = '';
-            document.getElementById('egr-inp-obs').value = '';
-            document.getElementById('egr-inp-responsable').value = '';
-            document.getElementById('stock-inv_error-global').style.display = 'none';
-            document.getElementById('btn-submit-egreso').disabled = false;
-            
-            var tbody = document.getElementById('tbody-detalles-egreso');
-            if (tbody) {
-                tbody.innerHTML = filaEgresoTemplate.replace(/{INDEX}/g, '0');
-                console.log('[Telemetría Bodega] Fila base (0) inyectada en tbody-detalles-egreso.');
-            } else {
-                console.error('[Telemetría Bodega] tbody-detalles-egreso no se encuentra en el DOM.');
-            }
-            
-            filaIndexEgreso = 1;
-            var modal = document.getElementById('egr-modal');
-            if (modal) {
-                modal.classList.add('active');
-                console.log('[Telemetría Bodega] Modal overlay de egresos activo.');
-            } else {
-                console.error('[Telemetría Bodega] El overlay #egr-modal no existe.');
-            }
-        } catch (e) {
-            console.error('[Telemetría Bodega] Falló abrirModalEgreso():', e);
-            alert('Error al abrir el formulario: ' + e.message);
-        }
-    }
-
-    function cerrarModalEgreso() {
-        console.log('[Telemetría Bodega] cerrarModalEgreso() llamado.');
-        var modal = document.getElementById('egr-modal');
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    }
-
-    function agregarFilaDetalleEgreso() {
-        console.log('[Telemetría Bodega] agregarFilaDetalleEgreso() llamado. Índice actual: ' + filaIndexEgreso);
-        try {
-            var tbody = document.getElementById('tbody-detalles-egreso');
-            if (tbody) {
-                var tempDiv = document.createElement('tbody');
-                tempDiv.innerHTML = filaEgresoTemplate.replace(/{INDEX}/g, filaIndexEgreso);
-                var newRow = tempDiv.firstElementChild;
-                tbody.appendChild(newRow);
-                filaIndexEgreso++;
-                console.log('[Telemetría Bodega] Fila agregada con éxito.');
-            }
-        } catch (e) {
-            console.error('[Telemetría Bodega] Falló agregarFilaDetalleEgreso():', e);
-        }
-    }
-
-    function eliminarFilaDetalleEgreso(btn) {
-        console.log('[Telemetría Bodega] eliminarFilaDetalleEgreso() llamado.');
-        try {
-            var tr = btn.closest('tr');
-            var tbody = document.getElementById('tbody-detalles-egreso');
-            if (tbody && tbody.rows.length <= 1) {
-                alert('Debe tener al menos un ítem para registrar el egreso.');
-                return;
-            }
-            if (tr) {
-                tr.parentNode.removeChild(tr);
-                console.log('[Telemetría Bodega] Fila de egreso removida.');
-            }
-            verificarEstatusErroresGlobal();
-        } catch (e) {
-            console.error('[Telemetría Bodega] Falló eliminarFilaDetalleEgreso():', e);
-        }
-    }
-
-    function verificarStockFila(element) {
-        try {
-            var tr = element.closest('tr');
-            var select = tr.querySelector('.select-item');
-            var input = tr.querySelector('.cant-item');
-            var display = tr.querySelector('.stock-display');
-
-            if (!select || !input || !display) return;
-
-            if (select.value === '') {
-                display.textContent = '--';
-                display.style.color = 'var(--text-muted)';
-                return;
-            }
-
-            var itemId = parseInt(select.value);
-            var itemInfo = stockMap[itemId];
-            var stockDisponible = itemInfo ? itemInfo.stock : 0;
-            var cantSalida = parseInt(input.value) || 0;
-
-            display.textContent = stockDisponible + ' unidades';
-
-            if (cantSalida > stockDisponible) {
-                display.style.color = 'var(--danger)';
-                display.innerHTML = 'Excede stock<br><span style="font-size:10px;">(Máx: ' + stockDisponible + ')</span>';
-                tr.style.background = 'rgba(239, 68, 68, 0.03)';
-            } else {
-                display.style.color = 'var(--success)';
-                tr.style.background = 'transparent';
-            }
-
-            verificarEstatusErroresGlobal();
-        } catch (e) {
-            console.error('[Telemetría Bodega] Falló verificarStockFila():', e);
-        }
-    }
-
-    function verificarEstatusErroresGlobal() {
-        try {
-            var rows = document.querySelectorAll('#tbody-detalles-egreso tr');
-            var errorStock = false;
-
-            rows.forEach(function(tr) {
-                var select = tr.querySelector('.select-item');
-                var input = tr.querySelector('.cant-item');
-                if (select && select.value !== '') {
-                    var itemId = parseInt(select.value);
-                    var itemInfo = stockMap[itemId];
-                    var stockDisponible = itemInfo ? itemInfo.stock : 0;
-                    var cantSalida = parseInt(input.value) || 0;
-
-                    if (cantSalida > stockDisponible) {
-                        errorStock = true;
-                    }
-                }
-            });
-
-            var errorLabel = document.getElementById('stock-inv_error-global');
-            var btnSubmit = document.getElementById('btn-submit-egreso');
-
-            if (errorLabel && btnSubmit) {
-                if (errorStock) {
-                    errorLabel.style.display = 'inline-block';
-                    btnSubmit.disabled = true;
-                    btnSubmit.style.opacity = '0.5';
-                    btnSubmit.style.cursor = 'not-allowed';
-                } else {
-                    errorLabel.style.display = 'none';
-                    btnSubmit.disabled = false;
-                    btnSubmit.style.opacity = '1';
-                    btnSubmit.style.cursor = 'pointer';
-                }
-            }
-        } catch (e) {
-            console.error('[Telemetría Bodega] Falló verificarEstatusErroresGlobal():', e);
-        }
-    }
-
-    function validarFormularioEgreso() {
-        console.log('[Telemetría Bodega] validarFormularioEgreso() llamado.');
-        var selects = document.querySelectorAll('#tbody-detalles-egreso select');
-        var selectedIds = [];
-        for (var i = 0; i < selects.length; i++) {
-            var s = selects[i];
-            if (s.value === '') {
-                alert('Por favor complete todos los ítems seleccionados.');
-                return false;
-            }
-            if (selectedIds.indexOf(s.value) !== -1) {
-                alert('No se permiten ítems duplicados en el mismo egreso de bodega. Modifique la cantidad en una sola fila.');
-                return false;
-            }
-            selectedIds.push(s.value);
-        }
-        return true;
-    }
-
-    function cerrarDetallesEgreso() {
-        console.log('[Telemetría Bodega] cerrarDetallesEgreso() llamado.');
-        var modal = document.getElementById('egr-modal-detalle');
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    }
-
-    function verDetallesEgreso(id) {
-        console.log('[Telemetría Bodega] verDetallesEgreso() llamado para ID: ' + id);
-        var content = document.getElementById('egr-det-content');
-        var modal = document.getElementById('egr-modal-detalle');
-        
-        if (!content || !modal) {
-            console.error('[Telemetría Bodega] Los contenedores del visor no existen.');
-            return;
-        }
-
-        content.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:32px;color:var(--primary);"></i><p style="margin-top:12px;">Cargando detalles de egreso...</p></div>';
-        modal.classList.add('active');
-
-        fetch('index.php?route=egresos&action=verDetalle&id=' + id)
-            .then(function(res) {
-                if (!res.ok) throw new Error('Error HTTP ' + res.status);
-                return res.text();
-            })
-            .then(function(text) {
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    console.error('[Telemetría Bodega] Respuesta no válida:', text);
-                    throw new Error('La respuesta del servidor no tiene formato JSON válido.');
-                }
-            })
-            .then(function(egr) {
-                if (egr.inv_error) throw new Error(egr.inv_error);
-
-                var tablaItems = '';
-                egr.detalles.forEach(function(det) {
-                    tablaItems += 
-                        '<tr style="border-bottom: 1px solid var(--border-color);">' +
-                            '<td style="padding: 8px 10px;font-family: monospace;font-weight: 700;color: var(--text-color);">' + det.item_secuencial + '</td>' +
-                            '<td style="padding: 8px 10px;">' +
-                                '<strong style="color:var(--text-color);">' + det.item_nombre + '</strong><br>' +
-                                '<span style="font-size:11px;color:var(--text-muted);">' + det.item_categoria + ' | Marca: ' + det.item_marca + '</span>' +
-                            '</td>' +
-                            '<td style="padding: 8px 10px;text-align:center;">' +
-                                '<span class="status-badge dispatched" style="background:rgba(239, 68, 68, 0.08);color:#ef4444;font-weight:700;padding:2px 8px;border-radius:6px;font-size:11px;">' + det.cantidad + ' u.</span>' +
-                            '</td>' +
-                        '</tr>';
-                });
-
-                var obsText = egr.observaciones ? egr.observaciones : 'Sin observaciones adicionales registradas.';
-
-                content.innerHTML = 
-                    '<div class="detalle-header" style="display:flex;align-items:center;gap:18px;margin-bottom:24px;border-bottom:1px solid var(--border-color);padding-bottom:20px;">' +
-                        '<div class="detalle-icono" style="font-size:36px;color:#ef4444;background:rgba(239,68,68,0.1);width:68px;height:68px;border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow: 0 4px 12px rgba(0,0,0,0.05);"><i class="fa-solid fa-circle-arrow-up"></i></div>' +
-                        '<div style="flex:1;">' +
-                            '<h2 style="margin:0 0 6px 0;font-size:22px;font-weight:700;color:var(--text-color);letter-spacing:-0.5px;">Egreso: ' + egr.secuencial + '</h2>' +
-                            '<span style="font-size:13px;color:var(--text-muted);font-weight:500;"><i class="fa-solid fa-calendar-day" style="margin-right:6px;"></i>Fecha de despacho: <strong>' + egr.fecha + '</strong></span>' +
-                        '</div>' +
-                    '</div>' +
-
-                    '<div class="modal-detail-layout">' +
-                        '<div>' +
-                            '<div class="detalle-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">' +
-                                '<div class="detalle-campo" style="background:var(--panel-bg);padding:12px 16px;border-radius:12px;border:1px solid var(--border-color);display:flex;flex-direction:column;gap:4px;">' +
-                                    '<label style="display:block;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;"><i class="fa-solid fa-hotel" style="margin-right:6px;color:#ef4444;"></i>Área Solicitante / Destino</label>' +
-                                    '<span style="font-size:14px;font-weight:700;color:var(--text-color);">' + egr.area_destino + '</span>' +
-                                '</div>' +
-                                '<div class="detalle-campo" style="background:var(--panel-bg);padding:12px 16px;border-radius:12px;border:1px solid var(--border-color);display:flex;flex-direction:column;gap:4px;">' +
-                                    '<label style="display:block;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;"><i class="fa-solid fa-user-tie" style="margin-right:6px;color:#ef4444;"></i>Responsable de Entrega</label>' +
-                                    '<span style="font-size:14px;font-weight:700;color:var(--text-color);">' + egr.responsable + '</span>' +
-                                '</div>' +
-                            '</div>' +
-                            
-                            '<div style="background:linear-gradient(135deg, rgba(239,68,68,0.02) 0%, rgba(239,68,68,0.06) 100%);padding:12px 16px;border-radius:12px;margin-bottom:16px;border:1px solid rgba(239,68,68,0.08);">' +
-                                '<span style="display:block;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;"><i class="fa-solid fa-file-signature" style="color:#ef4444;margin-right:6px;"></i>Motivo del Egreso</span>' +
-                                '<p style="font-size:13px;font-weight:600;margin:0;color:var(--text-color);line-height:1.4;">' + egr.motivo + '</p>' +
-                            '</div>' +
-                            
-                            '<div class="detalle-campo" style="margin-bottom:16px;">' +
-                                '<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;"><i class="fa-solid fa-message" style="color:#ef4444;"></i>Observaciones Históricas</label>' +
-                                '<span style="font-size:13px;line-height:1.5;display:block;background:var(--panel-bg);padding:12px 14px;border-radius:12px;border:1px solid var(--border-color);color:var(--text-color);font-style:italic;max-height: 90px; overflow-y: auto;">' + obsText + '</span>' +
-                            '</div>' +
-                        '</div>' +
-                        
-                        '<div>' +
-                            '<h4 style="font-size:12px;margin:0 0 10px 0;font-weight:700;color:var(--text-color);text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-boxes-stacked" style="color:#ef4444;"></i> Insumos Despachados</h4>' +
-                            '<div style="border:1px solid var(--border-color);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--panel-bg);max-height: 250px; overflow-y: auto;">' +
-                                '<table style="width:100%;font-size:12px;border-collapse:collapse;">' +
-                                    '<thead>' +
-                                        '<tr style="background:rgba(0,0,0,0.02);border-bottom:1px solid var(--border-color);">' +
-                                            '<th style="padding:8px;text-align:left;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Código</th>' +
-                                            '<th style="padding:8px;text-align:left;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Ítem / Insumo</th>' +
-                                            '<th style="padding:8px;text-align:center;font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;width:110px;">Cant.</th>' +
-                                        '</tr>' +
-                                    '</thead>' +
-                                    '<tbody>' +
-                                        tablaItems +
-                                    '</tbody>' +
-                                '</table>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>' +
-
-                    '<div style="display:flex;justify-content:flex-end;margin-top:16px;gap:12px;border-top:1px solid var(--border-color);padding-top:16px;">' +
-                        '<a href="index.php?route=egresos&action=acta&id=' + egr.id + '" target="_blank" class="btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;background:#ef4444;border-color:#ef4444;"><i class="fa-solid fa-file-pdf"></i> Imprimir Acta</a>' +
-                    '</div>';
-                console.log('[Telemetría Bodega] Detalles de egreso renderizados.');
-            })
-            .catch(function(err) {
-                console.error('[Telemetría Bodega] Falló verDetallesEgreso():', err);
-                content.innerHTML = 
-                    '<div style="text-align:center;padding:40px;color:var(--danger);">' +
-                        '<i class="fa-solid fa-triangle-exclamation" style="font-size:32px;margin-bottom:12px;"></i>' +
-                        '<p style="font-weight:600;">Error al cargar detalles</p>' +
-                        '<p style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + err.message + '</p>' +
-                    '</div>';
-            });
-    }
-
-    console.log('[Telemetría Bodega] Todos los scripts de inv_bodega_egresos.php cargados exitosamente.');
+function abCargarScript(id,src){return new Promise((resolve,reject)=>{if(document.getElementById(id)){const espera=()=>window.Tesseract||window.pdfjsLib?resolve():setTimeout(espera,80);espera();return}const s=document.createElement('script');s.id=id;s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+function abEstadoEscaneo(texto,tipo=''){const box=document.getElementById('ab-scan-status');box.className='ab-scan-status active'+(tipo?' '+tipo:'');box.querySelector('span').textContent=texto;box.querySelector('i').className=tipo==='success'?'fa-solid fa-circle-check':tipo==='error'?'fa-solid fa-triangle-exclamation':'fa-solid fa-spinner fa-spin'}
+async function abEscanearFactura(input){
+    const file=input.files&&input.files[0];if(!file)return;if(file.size>10*1024*1024){input.value='';abEstadoEscaneo('El archivo supera el máximo de 10 MB.','error');return}
+    document.getElementById('ab-upload-title').textContent=file.name;abEstadoEscaneo('Preparando el documento para lectura…');
+    try{
+        const fuentes=[];
+        if(file.type==='application/pdf'){
+            await abCargarScript('ab-pdfjs','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+            for(let p=1;p<=Math.min(pdf.numPages,2);p++){const page=await pdf.getPage(p),viewport=page.getViewport({scale:1.8}),canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;fuentes.push(canvas)}
+        }else fuentes.push(file);
+        await abCargarScript('ab-tesseract','https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');let texto='';
+        for(let i=0;i<fuentes.length;i++){const r=await Tesseract.recognize(fuentes[i],'spa',{logger:m=>{if(m.status==='recognizing text')abEstadoEscaneo('Escaneando factura… '+Math.round((m.progress||0)*100)+'%')}});texto+='\n'+(r.data.text||'')}
+        texto=texto.trim();if(!texto)throw new Error('No se pudo reconocer texto en el documento.');document.getElementById('ab-ocr-texto').value=texto;const detectados=abAplicarDatosOCR(texto);abEstadoEscaneo('Lectura terminada. Se completaron '+detectados+' dato(s); revisa las casillas antes de guardar.','success')
+    }catch(e){abEstadoEscaneo('El archivo quedó adjunto, pero no se pudo escanear automáticamente. Puedes completar los datos manualmente.','error')}
+}
+function abAplicarDatosOCR(texto){
+    let n=0;const limpio=texto.replace(/\r/g,'');const factura=(limpio.match(/(?:FACTURA|N[ÚU]MERO|NRO\.?|NO\.?)[^0-9]{0,18}(\d{3}[\s-]?\d{3}[\s-]?\d{6,9})/i)||limpio.match(/\b(\d{3}[\s-]\d{3}[\s-]\d{6,9})\b/));if(factura){document.getElementById('ab-numero-factura').value=factura[1].replace(/\s/g,'-');n++}
+    const fecha=limpio.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](20\d{2})\b/)||limpio.match(/\b(20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})\b/);if(fecha){document.getElementById('ab-fecha-factura').value=fecha[1].length===4?fecha[1]+'-'+fecha[2].padStart(2,'0')+'-'+fecha[3].padStart(2,'0'):fecha[3]+'-'+fecha[2].padStart(2,'0')+'-'+fecha[1].padStart(2,'0');n++}
+    const iva=limpio.match(/IVA\s*(\d{1,2}(?:[.,]\d+)?)\s*%/i);if(iva&&abSeleccionarIvaDetectado(Number(iva[1].replace(',','.'))))n++
+    const ruc=(limpio.match(/(?:RUC|IDENTIFICACI[ÓO]N)[^0-9]{0,12}(\d{13})/i)||limpio.match(/\b(\d{13})\b/));if(ruc){const orden=Object.values(abOrdenesMeta).find(o=>o.estado==='APROBADA'&&String(o.proveedor_ruc||'').replace(/\D/g,'')===ruc[1]);if(orden){document.getElementById('ab-factura-orden').value=String(orden.id_orden);abCargarOrden(orden.id_orden);n++}else{const proveedor=Object.values(abProveedores).find(p=>String(p.ruc||'').replace(/\D/g,'')===ruc[1]);if(proveedor){const selectorProveedor=document.getElementById('ab-factura-proveedor-manual');selectorProveedor.value=String(proveedor.id);selectorProveedor.dispatchEvent(new Event('change',{bubbles:true}));n++}}}
+    n+=abAplicarPreciosOCR(limpio);abTotalesFactura();return n
+}
+function abSeleccionarIvaDetectado(tasa){const selector=document.getElementById('ab-iva-opcion'),opciones=Array.from(selector.options),coincidencia=opciones.find(o=>Math.abs(Number(o.dataset.tasa||0)-tasa)<0.001&&(tasa!==0||o.value==='no_aplica'))||opciones.find(o=>Math.abs(Number(o.dataset.tasa||0)-tasa)<0.001);if(!coincidencia)return false;selector.value=coincidencia.value;abCambiarFuenteIva();return true}
+function abAplicarPreciosOCR(texto){let encontrados=0;const lineas=texto.split(/\n+/);document.querySelectorAll('#ab-factura-lines tr').forEach(tr=>{const codigo=(tr.dataset.codigo||'').replace(/\s/g,''),palabras=(tr.dataset.nombre||'').toUpperCase().split(/\s+/).filter(p=>p.length>3).slice(0,2),linea=lineas.find(l=>codigo&&l.replace(/\s/g,'').includes(codigo))||lineas.find(l=>palabras.length&&palabras.every(p=>l.toUpperCase().includes(p)));if(!linea)return;const nums=(linea.match(/\d+[.,]\d{2,4}/g)||[]).map(abNumeroOCR).filter(v=>Number.isFinite(v)&&v>=0);if(!nums.length)return;const cantidad=Number(tr.querySelector('input[name*="[cantidad]"]').value||1),totalLinea=nums[nums.length-1],anterior=nums.length>1?nums[nums.length-2]:null,calculado=totalLinea/cantidad,precio=anterior!==null&&Math.abs(anterior-calculado)<=Math.max(.02,calculado*.03)?anterior:calculado;if(precio>0){tr.querySelector('.ab-factura-precio').value=precio.toFixed(4);encontrados++}});return encontrados}
+function abNumeroOCR(v){v=String(v).replace(/\s/g,'');const coma=v.lastIndexOf(','),punto=v.lastIndexOf('.');if(coma>punto)v=v.replace(/\./g,'').replace(',','.');else v=v.replace(/,/g,'');return Number(v)}
+function abEsc(v){const d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML}
+document.addEventListener('DOMContentLoaded',()=>{abMejorarSelectorProveedor(document.getElementById('ab-orden-proveedor'));abMejorarSelectorProveedor(document.getElementById('ab-factura-proveedor-manual'));abCambiarFuenteIva();const selector=document.getElementById('ab-ingreso-page-factura');if(selector&&selector.options.length>1&&!selector.value){selector.selectedIndex=1;abSeleccionarIngresoPagina(selector.value)}});
 </script>
+<?php endif; ?>

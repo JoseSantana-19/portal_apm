@@ -63,17 +63,10 @@ $nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
     <span style="display:flex;align-items:center;gap:5px;"><span style="width:11px;height:11px;border-radius:3px;background:var(--border-app);display:inline-block;"></span> Sin acceso</span>
 </div>
 
-<!-- Buscador -->
-<div style="max-width:340px;margin-bottom:var(--sp-3);position:relative;">
-    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;"></i>
-    <input type="text" id="matriz-q" placeholder="Buscar rol por nombre o código…"
-           class="form-control" style="padding-left:2.2rem;" oninput="filterMatriz(this.value)">
-</div>
-
 <!-- Matriz -->
 <div class="card">
-    <div style="overflow-x:auto;">
-        <table id="matriz-table" style="min-width:640px;">
+    <div class="table-responsive-wrapper">
+        <table id="matriz-table" style="min-width:640px;" data-dt data-dt-page-length="25">
             <thead>
                 <tr>
                     <th style="min-width:220px;">Rol</th>
@@ -96,14 +89,14 @@ $nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
                 $sinNingunPermiso = true;
                 foreach ($fila['celdas'] as $c) { if ($c['con_acceso'] > 0) { $sinNingunPermiso = false; break; } }
             ?>
-                <tr data-search="<?= strtolower($e(($rol['codigo']??'').' '.$rol['nombre'])) ?>" style="<?= $inactivo ? 'opacity:.55;' : '' ?>">
+                <tr style="<?= $inactivo ? 'opacity:.55;' : '' ?>">
                     <td>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <?php if ($sinNingunPermiso): ?>
-                            <i class="fa-solid fa-triangle-exclamation" style="color:#dc3545;font-size:.75rem;" title="Este rol no tiene ningún permiso configurado"></i>
+                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--color-danger);font-size:.75rem;" title="Este rol no tiene ningún permiso configurado"></i>
                             <?php endif; ?>
                             <div>
-                                <div style="font-weight:600;font-size:.85rem;"><?= $e($rol['nombre']) ?><?php if ($inactivo): ?> <span class="badge badge-gray" style="font-size:.6rem;">Inactivo</span><?php endif; ?></div>
+                                <div style="font-weight:600;font-size:.85rem;"><?= $e($rol['nombre']) ?><?php if ($inactivo): ?> <span class="badge badge-gray" style="font-size:.65rem;">Inactivo</span><?php endif; ?></div>
                                 <div style="font-size:.7rem;color:var(--text-muted);">
                                     <code><?= $e($rol['codigo']) ?></code>
                                     · <?= $e($rol['departamento'] ?: 'Sin departamento') ?>
@@ -118,10 +111,10 @@ $nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
                         if ($c['con_acceso'] === 0) {
                             $bg = 'transparent'; $fg = 'var(--text-muted)'; $bd = 'var(--border-app)'; $txt = '—';
                         } elseif ($c['con_acceso'] === $c['total']) {
-                            $bg = 'color-mix(in srgb, #198754 14%, transparent)'; $fg = '#198754'; $bd = 'color-mix(in srgb, #198754 40%, transparent)';
+                            $bg = 'color-mix(in srgb, var(--color-success) 14%, transparent)'; $fg = 'var(--color-success)'; $bd = 'color-mix(in srgb, var(--color-success) 35%, transparent)';
                             $txt = $nivelLabels[$c['nivel_max']] ?? '';
                         } else {
-                            $bg = 'color-mix(in srgb, #fd7e14 14%, transparent)'; $fg = '#fd7e14'; $bd = 'color-mix(in srgb, #fd7e14 40%, transparent)';
+                            $bg = 'color-mix(in srgb, var(--color-warning) 14%, transparent)'; $fg = 'var(--color-warning)'; $bd = 'color-mix(in srgb, var(--color-warning) 35%, transparent)';
                             $txt = $c['con_acceso'] . '/' . $c['total'];
                         }
                     ?>
@@ -130,7 +123,8 @@ $nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
                         <button type="button" onclick='verDetalleMatriz(<?= json_encode([
                             'rol' => $rol['nombre'], 'modulo' => $meta['label'], 'detalle' => $c['detalle'],
                         ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
-                            style="background:<?= $bg ?>;color:<?= $fg ?>;border:1px solid <?= $bd ?>;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;min-width:64px;">
+                            style="background:<?= $bg ?>;color:<?= $fg ?>;border:1px solid <?= $bd ?>;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;min-width:64px;transition:var(--transition);"
+                            title="Ver desglose de permisos">
                             <?= $e($txt) ?>
                         </button>
                         <?php else: ?>
@@ -143,27 +137,11 @@ $nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
             </tbody>
         </table>
     </div>
-    <div id="matriz-empty-search" style="display:none;padding:var(--sp-8);text-align:center;color:var(--text-muted);">
-        <i class="fa-solid fa-magnifying-glass" style="font-size:1.5rem;opacity:.3;margin-bottom:var(--sp-2);display:block;"></i>
-        Sin resultados para la búsqueda
-    </div>
 </div>
 
 </div>
 
 <script>
-function filterMatriz(q) {
-    q = q.toLowerCase().trim();
-    let visible = 0;
-    document.querySelectorAll('#matriz-table tbody tr[data-search]').forEach(tr => {
-        const match = !q || tr.dataset.search.includes(q);
-        tr.style.display = match ? '' : 'none';
-        if (match) visible++;
-    });
-    const empty = document.getElementById('matriz-empty-search');
-    if (empty) empty.style.display = (q && visible === 0) ? 'block' : 'none';
-}
-
 function verDetalleMatriz(info) {
     const nivelNombre = {0:'Sin acceso',1:'Ver',2:'Crear',3:'Editar',4:'Total'};
     const nivelColor  = {0:'#adb5bd',1:'#6c757d',2:'#0d6efd',3:'#fd7e14',4:'#198754'};

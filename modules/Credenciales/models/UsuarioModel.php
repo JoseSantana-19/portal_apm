@@ -115,7 +115,43 @@ class UsuarioModel extends Model {
             return ['error' => 'Usuario o contraseña incorrectos.'];
         }
 
-        // Crear sesión en BD
+        // MFA: si el usuario lo tiene activo, la sesión NO se crea todavía acá
+        // -- se resuelve en AuthController tras validar el código de 6
+        // dígitos (ver completeLogin()). Contraseña ya verificada arriba, así
+        // que esto ya cuenta como "credenciales correctas, falta 2do factor".
+        $mfaRow = $this->fetch($this->query(
+            'SELECT requiere_mfa, mfa_secreto, mfa_ultimo_paso FROM CORE_Usuarios WHERE id_usuario=?',
+            [[$idUsuario, SQLSRV_PARAM_IN]]
+        ));
+        if ($mfaRow && (bool)$mfaRow['requiere_mfa'] && !empty($mfaRow['mfa_secreto'])) {
+            return [
+                'success'          => true,
+                'mfa_required'     => true,
+                'id_usuario'       => (int)$idUsuario,
+                'nombre_usuario'   => $username,
+                'nombre_completo'  => $nombre,
+                'nivel_jerarquia'  => (int)$nivel,
+                'id_departamento'  => $idDepto,
+                'tema_preferido'   => $tema ?? 'light',
+                'requiere_cambio'  => (bool)$reqCambio,
+            ];
+        }
+
+        return array_merge(
+            ['mfa_required' => false],
+            $this->completeLogin((int)$idUsuario, $username, $nombre, (int)$nivel, $idDepto, $tema ?? 'light', (bool)$reqCambio)
+        );
+    }
+
+    /**
+     * Segunda mitad de un login exitoso: crea la sesión real en BD, resetea
+     * el contador de intentos fallidos y registra la auditoría de LOGIN.
+     * Separado de authenticate() para que un login con MFA activo NO deje
+     * una sesión/auditoría "a medias" mientras el usuario todavía no
+     * confirmó el segundo factor (ver ese branch arriba).
+     */
+    public function completeLogin(int $idUsuario, string $username, string $nombre, int $nivel, $idDepto, string $tema, bool $reqCambio, bool $requiereMfa = false): array {
+        $conn  = self::db()->getConn();
         $token = SecurityHelper::generateToken(64);
         $horas = defined('SESSION_HOURS_EXPIRA') ? SESSION_HOURS_EXPIRA : 8;
         $ip    = SecurityHelper::getClientIp();
@@ -149,13 +185,14 @@ class UsuarioModel extends Model {
 
         return [
             'success'          => true,
-            'id_usuario'       => (int)$idUsuario,
+            'id_usuario'       => $idUsuario,
             'nombre_usuario'   => $username,
             'nombre_completo'  => $nombre,
-            'nivel_jerarquia'  => (int)$nivel,
+            'nivel_jerarquia'  => $nivel,
             'id_departamento'  => $idDepto,
-            'tema_preferido'   => $tema ?? 'light',
-            'requiere_cambio'  => (bool)$reqCambio,
+            'tema_preferido'   => $tema,
+            'requiere_cambio'  => $reqCambio,
+            'requiere_mfa'     => $requiereMfa,
             'session_token'    => $token,
         ];
     }

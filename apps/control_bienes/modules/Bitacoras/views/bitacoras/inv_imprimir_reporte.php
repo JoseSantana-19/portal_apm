@@ -183,7 +183,9 @@
             <?php else: ?>
                 Histórico Completo
             <?php endif; ?>
-            <?php if (!empty($idInicio) || !empty($idFin)): ?>
+            <?php if (!empty($idExacto)): ?>
+                | <strong>ID exacto:</strong> #<?= htmlspecialchars($idExacto) ?>
+            <?php elseif (!empty($idInicio) || !empty($idFin)): ?>
                 | <strong>IDs Filtrados:</strong> #<?= htmlspecialchars($idInicio ?: '1') ?> al #<?= htmlspecialchars($idFin ?: 'Max') ?>
             <?php endif; ?>
         </div>
@@ -231,7 +233,7 @@
             <tbody>
                 <?php foreach ($datosReporte as $r): ?>
                     <tr>
-                        <td><code><?= htmlspecialchars($r['codigo']) ?></code></td>
+                        <td><code><?= htmlspecialchars($r['codigo']) ?></code><br><small>ID #<?= (int)$r['id'] ?></small></td>
                         <td style="font-weight:600;"><?= htmlspecialchars($r['nombre']) ?></td>
                         <td><?= htmlspecialchars($r['funcionario_actual'] ?? $r['funcionario']) ?></td>
                         <td><?= htmlspecialchars($r['grupo_nombre']) ?> (<?= htmlspecialchars($r['grupo_codigo']) ?>)</td>
@@ -263,7 +265,7 @@
                     $sumValor += (float)($r['cantidad'] * $r['valor']);
                 ?>
                     <tr>
-                        <td><strong><?= htmlspecialchars($r['secuencial']) ?></strong></td>
+                        <td><strong><?= htmlspecialchars($r['secuencial']) ?></strong><br><small>ID #<?= (int)$r['id'] ?></small></td>
                         <td style="font-weight:600;"><?= htmlspecialchars($r['nombre']) ?></td>
                         <td><?= htmlspecialchars($r['marca']) ?></td>
                         <td><?= htmlspecialchars($r['categoria_nombre']) ?></td>
@@ -302,12 +304,15 @@
                     $sumSub  += (float)$r['subtotal'];
                 ?>
                     <tr>
-                        <td><strong><?= htmlspecialchars($r['ingreso_codigo']) ?></strong></td>
+                        <td><strong><?= htmlspecialchars($r['ingreso_codigo']) ?></strong><br><small>ID #<?= (int)$r['ingreso_id'] ?></small></td>
                         <td><?= htmlspecialchars($r['fecha']) ?></td>
                         <td><?= htmlspecialchars($r['proveedor']) ?></td>
                         <td>
                             <strong><?= htmlspecialchars($r['item_nombre']) ?></strong>
-                            <span style="font-size: 8px; color: #64748b; display:block;"><?= htmlspecialchars($r['item_secuencial']) ?></span>
+                            <span style="font-size: 8px; color: #64748b; display:block;">
+                                <?= htmlspecialchars($r['item_secuencial']) ?> · ID #<?= (int)$r['item_id'] ?>
+                                <?php if (!empty($r['producto_codigo'])): ?> · <?= htmlspecialchars($r['producto_codigo']) ?><?php endif; ?>
+                            </span>
                         </td>
                         <td style="text-align:center;"><?= $r['cantidad'] ?> <?= htmlspecialchars($r['unidad'] ?? 'u.') ?></td>
                         <td style="text-align:right;">$<?= number_format($r['valor_unitario'], 2) ?></td>

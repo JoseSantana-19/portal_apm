@@ -7,7 +7,7 @@
 
 require_once ROOT_PATH . 'core/Model.php';
 
-class InvBusquedaGlobal extends Model {
+class BusquedaGlobalModel extends Model {
 
     /**
      * Realiza la búsqueda clásica (para compatibilidad)
@@ -23,6 +23,11 @@ class InvBusquedaGlobal extends Model {
         $resultados = [];
         $likeTerm = '%' . $termino . '%';
         $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';
+        $castTexto = function($campoSql) use ($driver) {
+            return $driver === 'sqlite'
+                ? "CAST($campoSql AS TEXT)"
+                : "CAST($campoSql AS VARCHAR(30))";
+        };
 
         if (empty($modulos)) {
             $modulos = ['inventario', 'bodega', 'inv_maestros', 'usuarios', 'inv_bitacora'];
@@ -39,18 +44,23 @@ class InvBusquedaGlobal extends Model {
 
         // 1. BÚSQUEDA EN INVENTARIO GENERAL
         if (in_array('inventario', $modulos)) {
-            $where = "activo = 1";
+            $where = "i.activo = 1";
             if ($campo === 'codigo') {
-                $where .= " AND (secuencial LIKE :q)";
+                $where .= " AND ({$castTexto('i.id')} LIKE :q OR i.codigo_clasificacion LIKE :q OR c.codigo LIKE :q)";
             } elseif ($campo === 'nombre') {
-                $where .= " AND (nombre LIKE :q)";
+                $where .= " AND (i.nombre LIKE :q OR p.nombre LIKE :q OR c.nombre LIKE :q)";
             } elseif ($campo === 'extra') {
-                $where .= " AND (marca LIKE :q OR observaciones LIKE :q)";
+                $where .= " AND (i.marca LIKE :q OR i.observaciones LIKE :q)";
             } else {
-                $where .= " AND (secuencial LIKE :q OR nombre LIKE :q OR marca LIKE :q OR observaciones LIKE :q)";
+                $where .= " AND ({$castTexto('i.id')} LIKE :q OR i.codigo_clasificacion LIKE :q OR c.codigo LIKE :q OR i.nombre LIKE :q OR p.nombre LIKE :q OR c.nombre LIKE :q OR i.marca LIKE :q OR i.observaciones LIKE :q)";
             }
 
-            $sql = $compileQuery("id, secuencial, nombre, marca, observaciones", "inv_inventario", $where, "secuencial ASC");
+            $sql = $compileQuery(
+                "i.id, i.secuencial, i.nombre, i.marca, i.observaciones, i.codigo_clasificacion AS producto_codigo",
+                "vw_inv_items_clasificados i LEFT JOIN inv_productos p ON i.producto_id = p.id LEFT JOIN inv_categorias c ON i.categoria_id = c.id",
+                $where,
+                "i.secuencial ASC"
+            );
             try {
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute([':q' => $likeTerm]);
@@ -62,7 +72,9 @@ class InvBusquedaGlobal extends Model {
                         'color' => '#1e40af', // azul
                         'id' => $row['id'],
                         'titulo' => $row['nombre'],
-                        'subtitulo' => 'Secuencial: ' . $row['secuencial'] . ' | Marca: ' . $row['marca'],
+                        'subtitulo' => 'Secuencial: ' . $row['secuencial']
+                            . (!empty($row['producto_codigo']) ? ' | Código maestro: ' . $row['producto_codigo'] : '')
+                            . ' | Marca: ' . $row['marca'],
                         'detalle' => $row['observaciones'] ?? '',
                         'url' => 'index.php?route=inventario&termino=' . urlencode($row['secuencial'])
                     ];
@@ -75,13 +87,13 @@ class InvBusquedaGlobal extends Model {
             // Ingresos
             $whereIng = "1=1";
             if ($campo === 'codigo') {
-                $whereIng .= " AND (secuencial LIKE :q)";
+                $whereIng .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q)";
             } elseif ($campo === 'nombre') {
                 $whereIng .= " AND (proveedor LIKE :q)";
             } elseif ($campo === 'extra') {
                 $whereIng .= " AND (observaciones LIKE :q)";
             } else {
-                $whereIng .= " AND (secuencial LIKE :q OR proveedor LIKE :q OR observaciones LIKE :q)";
+                $whereIng .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q OR proveedor LIKE :q OR observaciones LIKE :q)";
             }
             
             $sqlIng = $compileQuery("id, secuencial, proveedor, observaciones", "inv_bod_ingresos", $whereIng, "secuencial ASC");
@@ -106,13 +118,13 @@ class InvBusquedaGlobal extends Model {
             // Egresos
             $whereEgr = "1=1";
             if ($campo === 'codigo') {
-                $whereEgr .= " AND (secuencial LIKE :q)";
+                $whereEgr .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q)";
             } elseif ($campo === 'nombre') {
                 $whereEgr .= " AND (motivo LIKE :q)";
             } elseif ($campo === 'extra') {
                 $whereEgr .= " AND (observaciones LIKE :q)";
             } else {
-                $whereEgr .= " AND (secuencial LIKE :q OR motivo LIKE :q OR observaciones LIKE :q)";
+                $whereEgr .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q OR motivo LIKE :q OR observaciones LIKE :q)";
             }
 
             $sqlEgr = $compileQuery("id, secuencial, motivo, observaciones", "inv_bod_egresos", $whereEgr, "secuencial ASC");
@@ -195,13 +207,13 @@ class InvBusquedaGlobal extends Model {
         if (in_array('usuarios', $modulos)) {
             $whereUsr = "1=1";
             if ($campo === 'codigo') {
-                $whereUsr .= " AND (secuencial LIKE :q)";
+                $whereUsr .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q)";
             } elseif ($campo === 'nombre') {
                 $whereUsr .= " AND (nombre LIKE :q OR usuario LIKE :q)";
             } elseif ($campo === 'extra') {
                 $whereUsr .= " AND (rol LIKE :q)";
             } else {
-                $whereUsr .= " AND (nombre LIKE :q OR usuario LIKE :q OR rol LIKE :q)";
+                $whereUsr .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q OR nombre LIKE :q OR usuario LIKE :q OR rol LIKE :q)";
             }
 
             $sqlUsr = $compileQuery("id, secuencial, nombre, usuario, rol, activo", "inv_usuarios", $whereUsr, "nombre ASC");
@@ -227,15 +239,15 @@ class InvBusquedaGlobal extends Model {
 
         // 5. BÚSQUEDA EN BITÁCORA DEL SISTEMA
         if (in_array('inv_bitacora', $modulos)) {
-            $whereBit = "1=1";
+            $whereBit = "descripcion NOT LIKE 'Búsqueda global desde Maestros:%'";
             if ($campo === 'codigo') {
-                $whereBit .= " AND (secuencial LIKE :q)";
+                $whereBit .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q)";
             } elseif ($campo === 'nombre') {
                 $whereBit .= " AND (descripcion LIKE :q)";
             } elseif ($campo === 'extra') {
                 $whereBit .= " AND (modulo LIKE :q OR tipo LIKE :q)";
             } else {
-                $whereBit .= " AND (secuencial LIKE :q OR tipo LIKE :q OR descripcion LIKE :q)";
+                $whereBit .= " AND ({$castTexto('id')} LIKE :q OR secuencial LIKE :q OR tipo LIKE :q OR descripcion LIKE :q)";
             }
 
             $sqlBit = $compileQuery("id, secuencial, tipo, modulo, descripcion, fecha", "inv_bitacora", $whereBit, "fecha DESC");
@@ -258,6 +270,50 @@ class InvBusquedaGlobal extends Model {
             } catch (Exception $e) {}
         }
 
+        // Priorizar coincidencias exactas y respetar el límite como máximo global,
+        // no como un límite independiente por cada módulo consultado.
+        $terminoNormalizado = mb_strtolower(trim($termino), 'UTF-8');
+        foreach ($resultados as $indice => &$resultado) {
+            $titulo = mb_strtolower((string)($resultado['titulo'] ?? ''), 'UTF-8');
+            $subtitulo = mb_strtolower((string)($resultado['subtitulo'] ?? ''), 'UTF-8');
+            $detalle = mb_strtolower((string)($resultado['detalle'] ?? ''), 'UTF-8');
+            $patronIdentificador = '/(?:usuario|código maestro|código|secuencial):\s*'
+                . preg_quote($terminoNormalizado, '/') . '(?:\s*\||\s*$)/iu';
+            $resultado['_orden_original'] = $indice;
+            $resultado['_relevancia'] = 5;
+
+            if ((string)($resultado['id'] ?? '') === trim($termino)) {
+                $resultado['_relevancia'] = 0;
+            } elseif (preg_match($patronIdentificador, $subtitulo . ' ' . $detalle)) {
+                $resultado['_relevancia'] = 1;
+            } elseif ($titulo === $terminoNormalizado) {
+                $resultado['_relevancia'] = 1;
+            } elseif (strpos($titulo, $terminoNormalizado) === 0) {
+                $resultado['_relevancia'] = 2;
+            } elseif (strpos($titulo, $terminoNormalizado) !== false) {
+                $resultado['_relevancia'] = 3;
+            } elseif (strpos($subtitulo . ' ' . $detalle, $terminoNormalizado) !== false) {
+                $resultado['_relevancia'] = 4;
+            }
+        }
+        unset($resultado);
+
+        usort($resultados, function($a, $b) {
+            if ($a['_relevancia'] === $b['_relevancia']) {
+                return $a['_orden_original'] <=> $b['_orden_original'];
+            }
+            return $a['_relevancia'] <=> $b['_relevancia'];
+        });
+
+        $resultados = array_slice($resultados, 0, $limite);
+        foreach ($resultados as &$resultado) {
+            unset($resultado['_relevancia'], $resultado['_orden_original']);
+        }
+        unset($resultado);
+
         return $resultados;
     }
 }
+
+// Compatibilidad con referencias históricas del módulo.
+class_alias('BusquedaGlobalModel', 'InvBusquedaGlobal');

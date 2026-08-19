@@ -125,12 +125,19 @@ class DatabaseStatement {
             if (!$this->stmtResource) {
                 $errors = sqlsrv_errors();
                 $msg = "";
+                $hasRealError = false;
                 if ($errors) {
                     foreach ($errors as $err) {
+                        $sqlState = $err['SQLSTATE'] ?? '';
+                        if (substr($sqlState, 0, 2) !== '01') {
+                            $hasRealError = true;
+                        }
                         $msg .= $err['message'] . "\n";
                     }
                 }
-                throw new Exception("Error al ejecutar sentencia (SQL Server): " . $msg . " | SQL: " . $this->rewrittenSql);
+                if ($hasRealError) {
+                    throw new Exception("Error al ejecutar sentencia (SQL Server): " . $msg . " | SQL: " . $this->rewrittenSql);
+                }
             }
             return true;
 

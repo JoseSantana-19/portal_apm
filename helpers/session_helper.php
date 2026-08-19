@@ -52,6 +52,11 @@ class SessionHelper {
         $_SESSION['tema']            = $user['tema_preferido'] ?? 'light';
         $_SESSION['last_activity']   = time();
         $_SESSION['_csrf_token']     = bin2hex(random_bytes(32));
+        // Cacheado en sesión para no consultar CORE_Usuarios en cada cambio
+        // de módulo (ver ModuleGateController) -- requiere_mfa no cambia
+        // dentro de una sesión activa salvo que el propio usuario lo
+        // desactive desde Mi Cuenta, y ese flujo ya limpia esta bandera.
+        $_SESSION['_requiere_mfa']   = (bool)($user['requiere_mfa'] ?? false);
     }
 
     public static function logout(): void {

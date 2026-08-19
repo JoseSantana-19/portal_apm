@@ -107,7 +107,7 @@
                             <?php endif; ?>
                             <th>Información Adicional / Extra</th>
                         <?php endif; ?>
-                        <th style="width: 100px;">Acciones</th>
+                        <th class="columna-acciones">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-datos-cabecera" style="display:none;">
@@ -146,7 +146,7 @@
                                     <?php endif; ?>
                                     <td><?= !empty($item['extra']) ? htmlspecialchars($item['extra']) : '<span style="color:var(--text-muted);font-style:italic;">Ninguna</span>' ?></td>
                                 <?php endif; ?>
-                                <td class="acciones-cell">
+                                <td class="acciones-cell columna-acciones">
                                     <button class="btn-accion btn-editar" onclick="editarCabecera(<?= htmlspecialchars(json_encode($item)) ?>)" title="Editar"><i class="fa-solid fa-pen"></i></button>
                                 </td>
                             </tr>

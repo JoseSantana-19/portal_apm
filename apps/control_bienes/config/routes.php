@@ -36,6 +36,16 @@ return [
         'controller' => 'MonitoreoController',
         'action'     => 'ingresos'
     ],
+    'requisiciones' => [
+        'module'     => 'Control_Bines',
+        'controller' => 'MonitoreoController',
+        'action'     => 'requisiciones'
+    ],
+    'ordenes_compra' => [
+        'module'     => 'Control_Bines',
+        'controller' => 'MonitoreoController',
+        'action'     => 'ordenesCompra'
+    ],
     'egresos' => [
         'module'     => 'Control_Bines',
         'controller' => 'MonitoreoController',
@@ -144,6 +154,16 @@ return [
         'controller' => 'AuthController',
         'action'     => 'logout'
     ],
+    'mantener_sesion' => [
+        'module'     => 'Credenciales',
+        'controller' => 'AuthController',
+        'action'     => 'mantenerSesion'
+    ],
+    'perfil_foto' => [
+        'module'     => 'Credenciales',
+        'controller' => 'UsuarioController',
+        'action'     => 'actualizarFotoPerfil'
+    ],
     'usuarios' => [
         'module'     => 'Credenciales',
         'controller' => 'UsuarioController',
@@ -153,10 +173,5 @@ return [
         'module'     => 'Credenciales',
         'controller' => 'PermisoController',
         'action'     => 'index'
-    ],
-    'inv_permisos_rol' => [
-        'module'     => 'Credenciales',
-        'controller' => 'PermisoController',
-        'action'     => 'guardarRol'
     ]
 ];

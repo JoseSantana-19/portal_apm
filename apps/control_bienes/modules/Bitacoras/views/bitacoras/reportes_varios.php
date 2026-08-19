@@ -9,6 +9,30 @@ $totalRegistros = count($datosReporte);
 $extraStat = 0;
 $valorTotalReporte = 0.0;
 
+$configBusqueda = [
+    'proveedores' => [
+        'label' => 'ID, RUC, nombre o contacto',
+        'placeholder' => 'Ej.: 4, 0991234567001 o nombre del proveedor'
+    ],
+    'centros_consumo' => [
+        'label' => 'ID, código, centro, funcionario o grupo',
+        'placeholder' => 'Ej.: 12, CC-001, nombre del centro o funcionario'
+    ],
+    'items' => [
+        'label' => 'ID, secuencial, código de producto o descripción',
+        'placeholder' => 'Ej.: 127, INV-001, código, nombre, marca o categoría'
+    ],
+    'compras' => [
+        'label' => 'ID de ingreso/ítem, secuencial, producto o proveedor',
+        'placeholder' => 'Ej.: 15, ING-001, código de producto o proveedor'
+    ],
+    'mensual' => [
+        'label' => 'ID o secuencial de orden, o proveedor',
+        'placeholder' => 'Busca las órdenes que se consolidarán por mes'
+    ]
+];
+$busquedaActiva = $configBusqueda[$tabActivo] ?? $configBusqueda['proveedores'];
+
 if ($tabActivo === 'items') {
     foreach ($datosReporte as $item) {
         $extraStat += (int)$item['cantidad'];
@@ -35,7 +59,7 @@ if ($tabActivo === 'items') {
     </div>
     <?php if ($generarReporte && !empty($datosReporte)): ?>
     <div>
-        <a href="index.php?route=reportes&action=imprimir&tab=<?= $tabActivo ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&action=imprimir&tab=<?= $tabActivo ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_exacto=<?= urlencode($idExacto) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
            target="_blank" 
            class="btn-primary" 
            style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
@@ -106,31 +130,31 @@ if ($tabActivo === 'items') {
 <div class="filter-section animate-fade-in" style="padding-bottom: 0; margin-bottom: 24px;">
     <div class="filter-tabs" style="border-bottom: 1px solid var(--border-color); display:flex; gap:16px;">
         
-        <a href="index.php?route=reportes&tab=proveedores<?= $generarReporte ? '&generar=1' : '' ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&tab=proveedores" 
            class="filter-tab <?= ($tabActivo === 'proveedores') ? 'active' : '' ?>" 
            style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'proveedores') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
             <i class="fa-solid fa-truck-field"></i> Listado de Proveedores
         </a>
 
-        <a href="index.php?route=reportes&tab=centros_consumo<?= $generarReporte ? '&generar=1' : '' ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&tab=centros_consumo" 
            class="filter-tab <?= ($tabActivo === 'centros_consumo') ? 'active' : '' ?>" 
            style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'centros_consumo') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
             <i class="fa-solid fa-building-flag"></i> Listado de Centros de Consumo
         </a>
 
-        <a href="index.php?route=reportes&tab=items<?= $generarReporte ? '&generar=1' : '' ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&tab=items" 
            class="filter-tab <?= ($tabActivo === 'items') ? 'active' : '' ?>" 
            style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'items') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
             <i class="fa-solid fa-box"></i> Listado de Ítems
         </a>
 
-        <a href="index.php?route=reportes&tab=compras<?= $generarReporte ? '&generar=1' : '' ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&tab=compras" 
            class="filter-tab <?= ($tabActivo === 'compras') ? 'active' : '' ?>" 
            style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'compras') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
             <i class="fa-solid fa-shopping-bag"></i> Compras a Proveedores
         </a>
 
-        <a href="index.php?route=reportes&tab=mensual<?= $generarReporte ? '&generar=1' : '' ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
+        <a href="index.php?route=reportes&tab=mensual" 
            class="filter-tab <?= ($tabActivo === 'mensual') ? 'active' : '' ?>" 
            style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'mensual') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
             <i class="fa-solid fa-calendar-days"></i> Reporte Mensual Órdenes
@@ -143,18 +167,24 @@ if ($tabActivo === 'items') {
         <input type="hidden" name="tab" value="<?= htmlspecialchars($tabActivo) ?>">
         <input type="hidden" name="generar" value="1">
 
-        <!-- Filtro: Rango de ID (Para todos los reportes) -->
-        <div class="filter-group" style="max-width:120px;">
-            <label><i class="fa-solid fa-hashtag"></i> ID Desde</label>
+        <!-- El consolidado mensual no representa un único registro y no tiene ID propio. -->
+        <?php if ($tabActivo !== 'mensual'): ?>
+        <div class="filter-group" style="max-width:140px;">
+            <label><i class="fa-solid fa-hashtag"></i> ID exacto</label>
+            <input type="number" name="id_exacto" placeholder="ID interno" value="<?= htmlspecialchars($idExacto) ?>" min="1" style="width:100%; box-sizing:border-box;">
+        </div>
+        <div class="filter-group" style="max-width:125px;">
+            <label><i class="fa-solid fa-arrow-right"></i> ID desde</label>
             <input type="number" name="id_inicio" placeholder="Mínimo" value="<?= htmlspecialchars($idInicio) ?>" min="1" style="width:100%; box-sizing:border-box;">
         </div>
-        <div class="filter-group" style="max-width:120px;">
-            <label><i class="fa-solid fa-hashtag"></i> ID Hasta</label>
+        <div class="filter-group" style="max-width:125px;">
+            <label><i class="fa-solid fa-arrow-left"></i> ID hasta</label>
             <input type="number" name="id_fin" placeholder="Máximo" value="<?= htmlspecialchars($idFin) ?>" min="1" style="width:100%; box-sizing:border-box;">
         </div>
+        <?php endif; ?>
 
-        <!-- Filtro: Rango de fecha (solo para compras y reporte mensual) -->
-        <?php if ($tabActivo === 'compras' || $tabActivo === 'mensual'): ?>
+        <!-- Fechas de registro para ítems y fechas de ingreso para compras/mensual. -->
+        <?php if ($tabActivo === 'items' || $tabActivo === 'compras' || $tabActivo === 'mensual'): ?>
             <div class="filter-group">
                 <label><i class="fa-solid fa-calendar"></i> Fecha Desde</label>
                 <input type="date" name="fecha_inicio" value="<?= htmlspecialchars($fechaInicio) ?>">
@@ -180,8 +210,8 @@ if ($tabActivo === 'items') {
 
         <!-- Filtro: Búsqueda General (para todos los reportes) -->
         <div class="filter-group" style="flex:2;">
-            <label><i class="fa-solid fa-magnifying-glass"></i> Búsqueda por ID / Término</label>
-            <input type="text" name="termino" placeholder="Buscar por ID, códigos, nombres..." value="<?= htmlspecialchars($termino) ?>">
+            <label><i class="fa-solid fa-magnifying-glass"></i> <?= htmlspecialchars($busquedaActiva['label']) ?></label>
+            <input type="text" name="termino" placeholder="<?= htmlspecialchars($busquedaActiva['placeholder']) ?>" value="<?= htmlspecialchars($termino) ?>">
         </div>
 
         <div class="filter-actions" style="margin-top:auto;">
@@ -246,7 +276,10 @@ if ($tabActivo === 'items') {
                     <tbody>
                         <?php foreach ($datosReporte as $r): ?>
                             <tr>
-                                <td><code style="background:var(--border-color); padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px; color:var(--primary);"><?= htmlspecialchars($r['codigo']) ?></code></td>
+                                <td>
+                                    <code style="background:var(--border-color); padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px; color:var(--primary);"><?= htmlspecialchars($r['codigo']) ?></code><br>
+                                    <small style="color:var(--text-muted);">ID #<?= (int)$r['id'] ?></small>
+                                </td>
                                 <td style="font-weight: 600; color: var(--text-color);"><?= htmlspecialchars($r['nombre']) ?></td>
                                 <td><strong><?= htmlspecialchars($r['funcionario_actual'] ?? $r['funcionario']) ?></strong></td>
                                 <td><span class="status-badge active" style="background:rgba(139,92,246,0.1); color:#8b5cf6; border-color:rgba(139,92,246,0.2); font-size:11px;"><?= htmlspecialchars($r['grupo_nombre']) ?> (<?= htmlspecialchars($r['grupo_codigo']) ?>)</span></td>
@@ -289,12 +322,18 @@ if ($tabActivo === 'items') {
                     <tbody>
                         <?php foreach ($datosReporte as $r): ?>
                             <tr>
-                                <td class="secuencial-cell"><?= htmlspecialchars($r['ingreso_codigo']) ?></td>
+                                <td class="secuencial-cell">
+                                    <?= htmlspecialchars($r['ingreso_codigo']) ?><br>
+                                    <small style="color:var(--text-muted);">ID #<?= (int)$r['ingreso_id'] ?></small>
+                                </td>
                                 <td><?= htmlspecialchars($r['fecha']) ?></td>
                                 <td style="font-weight:600; color:var(--text-color);"><?= htmlspecialchars($r['proveedor']) ?></td>
                                 <td>
                                     <strong><?= htmlspecialchars($r['item_nombre']) ?></strong><br>
-                                    <span style="font-size:11px; color:var(--text-muted);"><?= htmlspecialchars($r['item_secuencial']) ?></span>
+                                    <span style="font-size:11px; color:var(--text-muted);">
+                                        <?= htmlspecialchars($r['item_secuencial']) ?> · ID #<?= (int)$r['item_id'] ?>
+                                        <?php if (!empty($r['producto_codigo'])): ?> · <?= htmlspecialchars($r['producto_codigo']) ?><?php endif; ?>
+                                    </span>
                                 </td>
                                 <td style="text-align:center;"><span class="status-badge transit" style="background:#e0f2fe; color:#0369a1; font-weight:700;"><?= $r['cantidad'] ?> <?= htmlspecialchars($r['unidad'] ?? 'u.') ?></span></td>
                                 <td style="text-align:right; color:var(--text-color); font-weight:600;">$<?= number_format($r['valor_unitario'], 2) ?></td>
@@ -417,7 +456,9 @@ function renderReporteItems(page) {
         }
 
         html += '<tr>' +
-            '<td class="secuencial-cell">' + (r.secuencial || '') + '</td>' +
+            '<td class="secuencial-cell">' + (r.secuencial || '') +
+                '<br><small style="color:var(--text-muted);">ID #' + (r.id || '') +
+                (r.producto_codigo ? ' · ' + r.producto_codigo : '') + '</small></td>' +
             '<td style="font-weight: 600; color: var(--text-color);">' + (r.nombre || '') + '</td>' +
             '<td><strong>' + (r.marca || '') + '</strong></td>' +
             '<td><span class="status-badge transit" style="font-size:11px;">' + (r.categoria_nombre || '') + '</span></td>' +

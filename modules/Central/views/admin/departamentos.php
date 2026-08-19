@@ -50,8 +50,8 @@ $desdeTh = count(array_filter($deptos, fn($d) => (int)$d['origen_th'] === 1));
 </div>
 
 <div class="card">
-    <div style="overflow-x:auto;">
-        <table id="deptos-table">
+    <div class="table-responsive-wrapper">
+        <table id="deptos-table" data-dt data-dt-cols-noorder="5" data-dt-page-length="25">
             <thead>
                 <tr>
                     <th>Código</th>
@@ -73,9 +73,13 @@ $desdeTh = count(array_filter($deptos, fn($d) => (int)$d['origen_th'] === 1));
                     </code>
                 </td>
                 <td>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <?php if (!empty($d['icono'])): ?><i class="fa-solid fa-<?= htmlspecialchars($d['icono'], ENT_QUOTES, 'UTF-8') ?>" style="color:<?= htmlspecialchars($d['color_badge'] ?: 'var(--color-primary)', ENT_QUOTES, 'UTF-8') ?>;"></i><?php endif; ?>
-                        <span style="font-weight:var(--font-weight-medium);"><?= htmlspecialchars($d['nombre'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <?php if (!empty($d['icono'])): ?>
+                        <span style="width:26px;height:26px;border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,<?= htmlspecialchars($d['color_badge'] ?: 'var(--color-primary)', ENT_QUOTES, 'UTF-8') ?> 14%,transparent);color:<?= htmlspecialchars($d['color_badge'] ?: 'var(--color-primary)', ENT_QUOTES, 'UTF-8') ?>;flex-shrink:0;">
+                            <i class="fa-solid fa-<?= htmlspecialchars($d['icono'], ENT_QUOTES, 'UTF-8') ?>" style="font-size:0.75rem;"></i>
+                        </span>
+                        <?php endif; ?>
+                        <span class="dt-truncate dt-truncate-md" style="font-weight:var(--font-weight-medium);" title="<?= htmlspecialchars($d['nombre'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($d['nombre'], ENT_QUOTES, 'UTF-8') ?></span>
                     </div>
                 </td>
                 <td>
@@ -87,18 +91,20 @@ $desdeTh = count(array_filter($deptos, fn($d) => (int)$d['origen_th'] === 1));
                     <span class="badge badge-gray">Manual (portal)</span>
                     <?php endif; ?>
                 </td>
-                <td><?= (int)$d['nivel'] ?></td>
+                <td><span style="font-weight:600;font-size:var(--font-size-xs);"><?= (int)$d['nivel'] ?></span></td>
                 <td>
                     <span class="badge <?= $d['estado'] ? 'badge-success' : 'badge-gray' ?>">
                         <i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i>
                         <?= $d['estado'] ? 'Activo' : 'Inactivo' ?>
                     </span>
                 </td>
-                <td style="text-align:right;">
-                    <a href="<?= APP_URL ?>/admin/departamentos/<?= $d['id_departamento'] ?>/editar"
-                       class="btn btn-ghost btn-sm" data-spa title="Editar">
-                        <i class="fa-solid fa-pencil"></i>
-                    </a>
+                <td style="text-align:right;white-space:nowrap;">
+                    <div class="dt-actions">
+                        <a href="<?= APP_URL ?>/admin/departamentos/<?= $d['id_departamento'] ?>/editar"
+                           class="btn btn-ghost btn-sm" data-spa title="Editar departamento">
+                            <i class="fa-solid fa-pencil"></i>
+                        </a>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>

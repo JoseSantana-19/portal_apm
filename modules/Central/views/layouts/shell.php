@@ -16,6 +16,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <!-- SweetAlert2 (vendorizado localmente, ver public/librerias/Otras_librerias/sweetalert2) -->
 <link rel="stylesheet" href="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
+<!-- DataTables 3.0.1 (vendorizado localmente, ver public/librerias/datatables-core) + tema propio -->
+<link rel="stylesheet" href="<?= APP_URL ?>/public/librerias/datatables-core/dataTables.dataTables.min.css">
+<link rel="stylesheet" href="<?= APP_URL ?>/css/datatables-theme.css?v=<?= @filemtime(ROOT_PATH . '/css/datatables-theme.css') ?: 1 ?>">
 <!-- ApexCharts (sync — must be available before view inline scripts run) -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
 <script src="<?= APP_URL ?>/public/js/charts.js"></script>
@@ -79,6 +82,8 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
 <script src="<?= APP_URL ?>/js/alerts.js"></script>
+<script src="<?= APP_URL ?>/public/librerias/datatables-core/dataTables.min.js"></script>
+<script src="<?= APP_URL ?>/js/datatables-init.js?v=<?= @filemtime(ROOT_PATH . '/js/datatables-init.js') ?: time() ?>"></script>
 <!-- ?v=filemtime: cache-busting — sin esto, un navegador que ya tenía este
      archivo en caché de una visita anterior puede seguir usando una copia
      vieja indefinidamente aunque el archivo en el servidor ya se corrigió. -->

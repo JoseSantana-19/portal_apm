@@ -1,19 +1,16 @@
 /*
   Modelo de inventario v2 - SQL Server Enterprise 2014
   Migracion idempotente. No elimina ni transforma datos existentes.
-  Solo toca la base [inventario] — no depende de las otras 2 migraciones
-  de esta carpeta ni de Talento_Humano.
-
-  NOTA: sin BEGIN/COMMIT TRANSACTION explicito — se probo contra un clon y el
-  driver sqlsrv (MARS) revierte cualquier transaccion que quede abierta al
-  cruzar un separador GO ("transaccion iniciada en un lote MARS todavia
-  activa al final del lote"). Cada paso ya es idempotente por su propio IF,
-  igual que el resto de scripts del proyecto (PORTAL_APM_COMPLETO.sql etc.),
-  asi que no hace falta el wrapper transaccional para que sea seguro re-
-  ejecutar si algo falla a medias.
 */
-USE [inventario]
-GO
+SET XACT_ABORT ON;
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET ARITHABORT ON;
+SET NUMERIC_ROUNDABORT OFF;
+BEGIN TRANSACTION;
 
 IF COL_LENGTH('dbo.inv_productos', 'tipo_bien') IS NULL
     ALTER TABLE dbo.inv_productos ADD tipo_bien CHAR(2) NOT NULL
@@ -28,11 +25,12 @@ IF COL_LENGTH('dbo.inv_productos', 'secuencial_numero') IS NULL
 
 IF COL_LENGTH('dbo.inv_productos', 'codigo_legacy') IS NULL
     ALTER TABLE dbo.inv_productos ADD codigo_legacy NVARCHAR(50) NULL;
+
+/* Fuerza una nueva compilacion para que SQL Server 2014 reconozca las
+   columnas recien agregadas en las instrucciones siguientes. */
+COMMIT TRANSACTION;
 GO
-/* NOTA: el GO de arriba es necesario — sin el, las columnas recien agregadas
-   (tipo_bien) no son visibles todavia para el UPDATE de abajo dentro del
-   mismo batch (falla real de compilacion, confirmado probando contra un
-   clon de la base). */
+BEGIN TRANSACTION;
 
 /* Clasificacion inicial usando los grupos contables historicos de activos (1.4.x). */
 UPDATE p
@@ -153,6 +151,8 @@ IF COL_LENGTH('dbo.inv_secuenciales', 'longitud') IS NULL
 IF COL_LENGTH('dbo.inv_secuenciales', 'reinicia_por_periodo') IS NULL
     ALTER TABLE dbo.inv_secuenciales ADD reinicia_por_periodo BIT NOT NULL
         CONSTRAINT df_inv_secuenciales_reinicio DEFAULT (0);
+
+COMMIT TRANSACTION;
 GO
 
 IF OBJECT_ID('dbo.sp_inv_buscar_funcionario', 'P') IS NOT NULL

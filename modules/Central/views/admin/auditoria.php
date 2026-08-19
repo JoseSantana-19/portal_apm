@@ -98,8 +98,8 @@ $ipLabel = function (?string $ip) {
 
     <!-- Tabla -->
     <div class="card">
-        <div style="overflow-x:auto;">
-            <table>
+        <div class="table-responsive-wrapper">
+            <table data-dt data-dt-page-length="25">
                 <thead>
                     <tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Operación</th><th>Tabla</th><th>IP</th><th>Resultado</th><th>Detalle</th></tr>
                 </thead>
@@ -119,14 +119,14 @@ $ipLabel = function (?string $ip) {
                         <td style="font-size:.83rem;font-weight:600;"><?= $e($r['nombre_usuario'] ?? 'Sistema') ?></td>
                         <td><code style="font-family:var(--font-code);font-size:.72rem;background:var(--accent-app);padding:2px 6px;border-radius:4px;"><?= $e($r['modulo'] ?? '') ?></code></td>
                         <td style="font-size:.8rem;"><?= $e($r['operacion'] ?? '') ?><?php if (!empty($r['tabla_afectada']) && !empty($r['id_registro'])): ?><br><span style="font-size:.68rem;color:var(--text-muted);">#<?= $e($r['id_registro']) ?></span><?php endif; ?></td>
-                        <td style="font-size:.78rem;color:var(--text-muted);"><?= $e($r['tabla_afectada'] ?: '—') ?></td>
+                        <td style="font-size:.78rem;color:var(--text-muted);"><span class="dt-truncate dt-truncate-xs" title="<?= $e($r['tabla_afectada'] ?: '—') ?>"><?= $e($r['tabla_afectada'] ?: '—') ?></span></td>
                         <td style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;" <?= $ipFull ? 'title="'.$e($ipFull).'"' : '' ?>><?= $e($ipTxt) ?><?= $ipFull ? ' <i class="fa-solid fa-house" style="opacity:.5;font-size:9px;" title="Loopback / desarrollo local"></i>' : '' ?></td>
                         <td><span class="badge <?= $esErr ? 'badge-danger' : 'badge-success' ?>"><i class="fa-solid fa-<?= $esErr?'xmark':'check' ?>" style="font-size:8px;"></i> <?= $e($r['resultado'] ?? '') ?></span></td>
                         <td style="font-size:.78rem;color:var(--text-muted);">
                             <div style="display:flex;align-items:center;gap:6px;">
-                                <span style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= $e($r['detalle'] ?? '') ?>"><?= $e($r['detalle'] ?: ($tieneCambios ? '—' : '—')) ?></span>
+                                <span class="dt-truncate dt-truncate-md" title="<?= $e($r['detalle'] ?? '') ?>"><?= $e($r['detalle'] ?: ($tieneCambios ? '—' : '—')) ?></span>
                                 <?php if ($tieneCambios): ?>
-                                <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;flex-shrink:0;"
+                                <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;flex-shrink:0;width:28px;height:28px;"
                                         title="Ver qué cambió"
                                         onclick='verDetalleAuditoria(<?= json_encode([
                                             'operacion' => $r['operacion'] ?? '',

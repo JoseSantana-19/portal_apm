@@ -15,16 +15,16 @@ function loadEnv() {
         foreach ($lines as $line) {
             // Ignorar comentarios
             if (strpos(trim($line), '#') === 0) continue;
-            
+
             // Dividir por el primer signo =
             $parts = explode('=', $line, 2);
             if (count($parts) === 2) {
                 $name = trim($parts[0]);
                 $value = trim($parts[1]);
-                
+
                 // Limpiar comillas si las hay
                 $value = trim($value, "\"'");
-                
+
                 if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
                     putenv("{$name}={$value}");
                     $_ENV[$name] = $value;
@@ -42,6 +42,7 @@ loadEnv();
 define('APP_ENV',           getenv('APP_ENV') ?: 'development');
 define('APP_DEBUG',         (getenv('APP_DEBUG') === 'true' || getenv('APP_DEBUG') === '1'));
 define('APP_VERSION',       '4.0.0');
+date_default_timezone_set(getenv('APP_TIMEZONE') ?: 'America/Guayaquil');
 
 // Base URL (Autodetectar si no está definida en .env)
 $baseUrl = getenv('APP_URL');

@@ -11,6 +11,48 @@ set_time_limit(0);
 // Cargar globals
 require_once 'config/globals.php';
 
+/**
+ * Ejecuta un archivo de SQL Server respetando los separadores GO de sqlcmd.
+ */
+function ejecutarMigracionSqlServer(PDO $pdo, string $archivo): void
+{
+    $sql = file_get_contents($archivo);
+    if ($sql === false) {
+        throw new RuntimeException("No se pudo leer la migracion: {$archivo}");
+    }
+
+    $lotes = preg_split('/^\s*GO\s*(?:--.*)?$/mi', $sql);
+    foreach ($lotes as $lote) {
+        $lote = trim($lote);
+        if ($lote !== '') {
+            $pdo->exec($lote);
+        }
+    }
+}
+
+/**
+ * Encuentra el primer respaldo existente. Los patrones se ordenan por fecha
+ * para que una instalacion nueva use automaticamente la copia mas reciente.
+ */
+function buscarRespaldo(array $rutas, array $patrones = []): string
+{
+    foreach ($rutas as $ruta) {
+        $real = realpath($ruta);
+        if ($real !== false && is_file($real)) return $real;
+    }
+    $encontrados = [];
+    foreach ($patrones as $patron) {
+        foreach (glob($patron) ?: [] as $archivo) {
+            if (is_file($archivo)) $encontrados[] = $archivo;
+        }
+    }
+    usort($encontrados, static function (string $a, string $b): int {
+        return filemtime($b) <=> filemtime($a);
+    });
+    if (!$encontrados) throw new RuntimeException('No se encontro un respaldo compatible en el proyecto.');
+    return (string)realpath($encontrados[0]);
+}
+
 echo "=== INICIANDO CONFIGURACIÓN DE BASE DE DATOS ===\n";
 
 try {
@@ -26,8 +68,8 @@ try {
     echo "Consultando rutas de almacenamiento por defecto...\n";
     $stmtPath = $pdoMaster->query("SELECT SERVERPROPERTY('InstanceDefaultDataPath') AS DefaultData, SERVERPROPERTY('InstanceDefaultLogPath') AS DefaultLog");
     $rowPath = $stmtPath->fetch(PDO::FETCH_ASSOC);
-    $defaultData = $rowPath['DefaultData'] ?: "C:\\Program Files\\Microsoft SQL Server\\MSSQL16.JORDANYMB\\MSSQL\\DATA\\";
-    $defaultLog = $rowPath['DefaultLog'] ?: "C:\\Program Files\\Microsoft SQL Server\\MSSQL16.JORDANYMB\\MSSQL\\DATA\\";
+    $defaultData = $rowPath['DefaultData'] ?: "C:\\Program Files\\Microsoft SQL Server\\MSSQL16.JORDANYMB1\\MSSQL\\DATA\\";
+    $defaultLog = $rowPath['DefaultLog'] ?: "C:\\Program Files\\Microsoft SQL Server\\MSSQL16.JORDANYMB1\\MSSQL\\DATA\\";
     
     // Asegurar diagonal final
     $defaultData = rtrim($defaultData, '\\') . '\\';
@@ -51,9 +93,13 @@ try {
             $pdoMaster->exec("ALTER DATABASE [inventario] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
         }
 
-        $backupFile = "c:\\xampp\\htdocs\\Control_bines\\inventario.bak";
+        $backupFile = buscarRespaldo(
+            [__DIR__ . DIRECTORY_SEPARATOR . 'inventario.bak'],
+            [__DIR__ . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR . 'inventario_*.bak']
+        );
+        echo "Respaldo seleccionado: {$backupFile}\n";
         $sqlRestore = "RESTORE DATABASE [inventario] FROM DISK = :backup_file 
-                       WITH REPLACE,
+                       WITH FILE = 1, REPLACE,
                        MOVE 'inventario' TO :mdf_path,
                        MOVE 'inventario_log' TO :ldf_path";
                        
@@ -85,9 +131,13 @@ try {
             $pdoMaster->exec("ALTER DATABASE [Talento_Humano] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
         }
 
-        $backupFileTh = "c:\\xampp\\htdocs\\Control_bines\\talento_humano\\base de datos\\Talento_Humano.bak";
+        $backupFileTh = buscarRespaldo([
+            __DIR__ . DIRECTORY_SEPARATOR . 'talento_humano' . DIRECTORY_SEPARATOR . 'base de datos' . DIRECTORY_SEPARATOR . 'Talento_Humano.bak',
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'base_talentoHumano' . DIRECTORY_SEPARATOR . 'Talento_Humano_pre_mejoras_operativas_20260729_115921.bak',
+        ]);
+        echo "Respaldo seleccionado: {$backupFileTh}\n";
         $sqlRestoreTh = "RESTORE DATABASE [Talento_Humano] FROM DISK = :backup_file
-                         WITH REPLACE,
+                         WITH FILE = 1, REPLACE,
                          MOVE 'Talento_Humano' TO :mdf_path,
                          MOVE 'Talento_Humano_log' TO :ldf_path";
                          
@@ -401,31 +451,54 @@ try {
     // 7. Sincronizar datos iniciales de th_empleados a inv_talento_personal
     echo "Sincronizando registros de personal iniciales...\n";
     
-    // Vaciar tabla de personal en inventario
-    // (Deshabilitar FK temporalmente si es necesario)
-    $pdoInv->exec("ALTER TABLE inv_inventario NOCHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_bod_ingresos NOCHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_bod_egresos NOCHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_talento_asignaciones NOCHECK CONSTRAINT ALL");
-    
-    $pdoInv->exec("DELETE FROM inv_talento_personal");
-    
-    // Insertar desde th_empleados
+    // Actualizar e insertar desde th_empleados sin borrar funcionarios
+    // historicos, pues pueden estar referenciados por asignaciones antiguas.
     $sqlInitialSync = "
+        UPDATE destino
+        SET destino.nombre = {$nombreSelect},
+            destino.identificacion = origen.{$cedulaSelect}
+        FROM inv_talento_personal destino
+        JOIN Talento_Humano.dbo.th_empleados origen
+          ON origen.empleado_id = destino.id;
+
         SET IDENTITY_INSERT inv_talento_personal ON;
         INSERT INTO inv_talento_personal (id, nombre, identificacion)
-        SELECT empleado_id, {$nombreSelect}, {$cedulaSelect}
-        FROM Talento_Humano.dbo.th_empleados;
+        SELECT origen.empleado_id, {$nombreSelect}, origen.{$cedulaSelect}
+        FROM Talento_Humano.dbo.th_empleados origen
+        WHERE NOT EXISTS (
+            SELECT 1 FROM inv_talento_personal destino
+            WHERE destino.id = origen.empleado_id
+        );
         SET IDENTITY_INSERT inv_talento_personal OFF;
     ";
     $pdoInv->exec($sqlInitialSync);
     
-    $pdoInv->exec("ALTER TABLE inv_inventario CHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_bod_ingresos CHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_bod_egresos CHECK CONSTRAINT ALL");
-    $pdoInv->exec("ALTER TABLE inv_talento_asignaciones CHECK CONSTRAINT ALL");
-    
     echo "Registros iniciales sincronizados exitosamente.\n\n";
+
+    // 8. Aplicar en orden las migraciones versionadas del proyecto.
+    echo "Aplicando migraciones versionadas...\n";
+    $migraciones = [
+        'inv_20260727_modelo_inventario.sql',
+        'th_20260727_responsables_inventario.sql',
+        'inv_20260727_centros_consumo_personal.sql',
+        'inv_20260803_prevenir_duplicados_catalogo.sql',
+        'inv_20260803_talento_humano_vistas.sql',
+        'inv_20260803_tiempos_sesion_inventario.sql',
+        'inv_20260805_inactividad_por_usuario.sql',
+        'inv_20260806_flujo_digital_egresos.sql',
+        'inv_20260808_abastecimiento_bodega.sql',
+        'inv_20260808_facturas_documentos.sql',
+        'inv_20260808_proveedores_contacto.sql',
+        'inv_20260810_notificaciones_auditoria_contexto.sql',
+        'inv_20260813_clasificacion_items.sql',
+        'inv_20260813_ingresos_factura_v2.sql',
+    ];
+    foreach ($migraciones as $migracion) {
+        $pdoInv->exec('USE [inventario]');
+        ejecutarMigracionSqlServer($pdoInv, __DIR__ . '/database/migrations/' . $migracion);
+        echo "- {$migracion}: OK\n";
+    }
+    echo "Migraciones aplicadas exitosamente.\n\n";
 
     echo "=== PROCESO DE BASE DE DATOS COMPLETADO CON ÉXITO ===\n";
 

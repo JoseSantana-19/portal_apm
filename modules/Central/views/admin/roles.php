@@ -56,21 +56,10 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
     </div>
 </div>
 
-<!-- Search + table -->
+<!-- Table -->
 <div class="card">
-    <?php if (!empty($roles)): ?>
-    <div style="padding:var(--sp-4);border-bottom:1px solid var(--color-border-light);">
-        <div style="position:relative;max-width:320px;">
-            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:var(--sp-3);top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:var(--font-size-xs);pointer-events:none;"></i>
-            <input type="text" placeholder="Buscar por código o nombre…"
-                   class="form-control" style="padding-left:calc(var(--sp-3)*2 + 0.75rem);"
-                   oninput="filterRoles(this.value)">
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <div style="overflow-x:auto;">
-        <table id="roles-table">
+    <div class="table-responsive-wrapper">
+        <table id="roles-table" data-dt data-dt-page-length="25">
             <thead>
                 <tr>
                     <th>Código</th>
@@ -96,7 +85,7 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
                 $nivelLbl   = $nivelLabels[$nivel] ?? $nivel;
                 $nivelColor = $nivelColors[$nivel] ?? 'badge-gray';
             ?>
-            <tr data-search="<?= strtolower(htmlspecialchars(($r['codigo']??'').' '.($r['nombre']??''), ENT_QUOTES)) ?>">
+            <tr>
                 <td>
                     <code style="background:color-mix(in srgb,var(--color-primary) 8%,transparent);
                                  color:var(--color-primary);padding:2px 6px;border-radius:var(--radius-sm);
@@ -107,12 +96,12 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
                 <td>
                     <div style="font-weight:var(--font-weight-medium);"><?= htmlspecialchars($r['nombre'], ENT_QUOTES, 'UTF-8') ?></div>
                     <?php if (!empty($r['descripcion'])): ?>
-                    <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;">
-                        <?= htmlspecialchars(mb_substr($r['descripcion'], 0, 60), ENT_QUOTES, 'UTF-8') ?>
+                    <div class="dt-truncate dt-truncate-md" style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;" title="<?= htmlspecialchars($r['descripcion'], ENT_QUOTES, 'UTF-8') ?>">
+                        <?= htmlspecialchars(mb_substr($r['descripcion'], 0, 80), ENT_QUOTES, 'UTF-8') ?>
                     </div>
                     <?php endif; ?>
                 </td>
-                <td><?= htmlspecialchars($r['departamento'] ?? 'Global', ENT_QUOTES, 'UTF-8') ?></td>
+                <td><span class="dt-truncate dt-truncate-sm" title="<?= htmlspecialchars($r['departamento'] ?? 'Global', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($r['departamento'] ?? 'Global', ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td><span class="badge <?= $nivelColor ?>"><?= $nivelLbl ?></span></td>
                 <td>
                     <span class="badge <?= $r['estado'] ? 'badge-success' : 'badge-gray' ?>">
@@ -121,33 +110,34 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
                     </span>
                 </td>
                 <td style="text-align:right;white-space:nowrap;">
-                    <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/editar"
-                       class="btn btn-ghost btn-sm" data-spa title="Editar rol">
-                        <i class="fa-solid fa-pencil"></i>
-                    </a>
-                    <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/permisos"
-                       class="btn btn-ghost btn-sm" data-spa title="Configurar permisos"
-                       style="color:var(--color-primary);">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </a>
-                    <?php if ($r['estado']): ?>
-                    <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/eliminar" style="display:inline;">
-                        <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
-                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar"
-                                onclick="PortalAlert.confirmAction('¿Desactivar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Desactivar rol?', confirmText:'Sí, desactivar'})">
-                            <i class="fa-solid fa-ban"></i>
-                        </button>
-                    </form>
-                    <?php else: ?>
-                    <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/activar" style="display:inline;">
-                        <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
-                        <button type="button" class="btn btn-sm" title="Activar"
-                                style="background:color-mix(in srgb, var(--color-success) 15%, transparent);color:var(--color-success);border:1px solid color-mix(in srgb, var(--color-success) 45%, transparent);font-weight:700;"
-                                onclick="PortalAlert.confirmAction('¿Activar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Activar rol?', confirmText:'Sí, activar'})">
-                            <i class="fa-solid fa-circle-check"></i> Activar
-                        </button>
-                    </form>
-                    <?php endif; ?>
+                    <div class="dt-actions">
+                        <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/editar"
+                           class="btn btn-ghost btn-sm" data-spa title="Editar rol">
+                            <i class="fa-solid fa-pencil"></i>
+                        </a>
+                        <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/permisos"
+                           class="btn btn-ghost btn-sm" data-spa title="Configurar permisos"
+                           style="color:var(--color-primary);">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </a>
+                        <?php if ($r['estado']): ?>
+                        <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/eliminar">
+                            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar rol"
+                                    onclick="PortalAlert.confirmAction('¿Desactivar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Desactivar rol?', confirmText:'Sí, desactivar'})">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                        </form>
+                        <?php else: ?>
+                        <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/activar">
+                            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
+                            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-success);" title="Activar rol"
+                                    onclick="PortalAlert.confirmAction('¿Activar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Activar rol?', confirmText:'Sí, activar'})">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </button>
+                        </form>
+                        <?php endif; ?>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -155,22 +145,4 @@ $activos = count(array_filter($roles, fn($r) => $r['estado']));
             </tbody>
         </table>
     </div>
-    <div id="roles-empty-search" style="display:none;padding:var(--sp-8);text-align:center;color:var(--color-text-muted);">
-        <i class="fa-solid fa-magnifying-glass" style="font-size:1.5rem;opacity:0.3;margin-bottom:var(--sp-2);display:block;"></i>
-        Sin resultados para la búsqueda
-    </div>
 </div>
-
-<script>
-function filterRoles(q) {
-    q = q.toLowerCase().trim();
-    let visible = 0;
-    document.querySelectorAll('#roles-table tbody tr[data-search]').forEach(tr => {
-        const match = !q || tr.dataset.search.includes(q);
-        tr.style.display = match ? '' : 'none';
-        if (match) visible++;
-    });
-    const empty = document.getElementById('roles-empty-search');
-    if (empty) empty.style.display = (q && visible === 0) ? 'block' : 'none';
-}
-</script>

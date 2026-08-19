@@ -96,7 +96,17 @@ final class AuthController extends Controller
     public function expireSession(): void
     {
         if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit;}
-        Auth::requireCsrf($_POST['_csrf']??null);Auth::expireForInactivity();header('Location: '.BASE_URL.'/login?expired=1');exit;
+        // Sin requireCsrf() a propósito: este endpoint SOLO cierra una
+        // sesión que el propio cliente ya considera vencida (aviso de
+        // inactividad, ver js/inactivity-warning.js). El _csrf que trae
+        // el POST se capturó al cargar la página -- si la sesión real
+        // vence/se recicla ANTES de que el aviso dispare, ese token queda
+        // desactualizado y un requireCsrf() acá dejaba al usuario varado
+        // en una pantalla sin login ("La sesion del formulario vencio",
+        // bug real reproducido en vivo). Rechazar el cierre de una sesión
+        // que el cliente ya dio por terminada no protege nada -- en el
+        // peor caso, un POST cross-site forjado solo adelanta un logout.
+        Auth::expireForInactivity();header('Location: '.BASE_URL.'/login?expired=1');exit;
     }
 
     public function logout(): void

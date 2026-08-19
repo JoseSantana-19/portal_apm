@@ -25,6 +25,17 @@ La migración `database/migrations/inv_20260727_modelo_inventario.sql` incorpora
 
 `sp_inv_buscar_funcionario` consulta la copia local sincronizada y permite buscar por cédula o nombre. La sincronización desde Talento Humano debe marcar funcionarios inactivos en vez de eliminarlos, para conservar la historia.
 
+## Flujo digital de egresos
+
+La migración `database/migrations/inv_20260806_flujo_digital_egresos.sql` agrega:
+
+- `inv_notas_pedido`: cabecera de la nota, centro de consumo, solicitante, receptor, tipo de bien y estado.
+- `inv_notas_pedido_detalles`: cantidades solicitadas, entregadas y pendientes por producto.
+- `inv_kardex`: historial inmutable generado al confirmar cada egreso.
+- Las referencias `nota_pedido_id`, `centro_consumo_id` y `estado` en `inv_bod_egresos`.
+
+Los estados operativos de una nota son `ENVIADA`, `EN_REVISION`, `DISPONIBLE`, `PARCIAL`, `SIN_EXISTENCIAS`, `ATENDIDA`, `CERRADA` y `CANCELADA`. Los egresos confirmados no modifican Ingresos y registran sus cambios de stock en la misma transacción del Kardex.
+
 ## Pendientes de la segunda fase
 
 - Servicio transaccional de cierre y generación de saldos.

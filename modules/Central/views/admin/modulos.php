@@ -50,8 +50,8 @@ $h = fn($val) => htmlspecialchars((string)($val ?? ''), ENT_QUOTES, 'UTF-8');
 </div>
 
 <div class="card">
-    <div style="overflow-x:auto;">
-        <table id="modulos-table">
+    <div class="table-responsive-wrapper">
+        <table id="modulos-table" data-dt data-dt-cols-noorder="6" data-dt-page-length="25">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -66,7 +66,7 @@ $h = fn($val) => htmlspecialchars((string)($val ?? ''), ENT_QUOTES, 'UTF-8');
             <tbody>
             <?php foreach ($modulos as $m): ?>
             <tr data-modulo-row="<?= (int)$m['id_modulo'] ?>">
-                <td><code style="color:var(--color-text-muted);"><?= (int)$m['id_modulo'] ?></code></td>
+                <td><code style="color:var(--color-text-muted);font-size:var(--font-size-xs);"><?= (int)$m['id_modulo'] ?></code></td>
                 <td>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
@@ -87,22 +87,24 @@ $h = fn($val) => htmlspecialchars((string)($val ?? ''), ENT_QUOTES, 'UTF-8');
                     </span>
                 </td>
                 <td style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
-                    <?php if ($m['base_url']): ?><div><i class="fa-solid fa-link" style="font-size:9px;"></i> <?= $h($m['base_url']) ?></div><?php endif; ?>
-                    <?php if ($m['conexion_bd']): ?><div><i class="fa-solid fa-database" style="font-size:9px;"></i> <?= $h($m['conexion_bd']) ?></div><?php endif; ?>
+                    <?php if ($m['base_url']): ?><div class="dt-truncate dt-truncate-sm" title="<?= $h($m['base_url']) ?>"><i class="fa-solid fa-link" style="font-size:9px;"></i> <?= $h($m['base_url']) ?></div><?php endif; ?>
+                    <?php if ($m['conexion_bd']): ?><div class="dt-truncate dt-truncate-sm" title="<?= $h($m['conexion_bd']) ?>"><i class="fa-solid fa-database" style="font-size:9px;"></i> <?= $h($m['conexion_bd']) ?></div><?php endif; ?>
                     <?php if (!$m['base_url'] && !$m['conexion_bd']): ?>&mdash;<?php endif; ?>
                 </td>
                 <td>
                     <button type="button" class="badge <?= $m['estado'] ? 'badge-success' : 'badge-gray' ?>"
-                            style="border:none;cursor:pointer;" data-toggle-modulo="<?= (int)$m['id_modulo'] ?>">
+                            data-toggle-modulo="<?= (int)$m['id_modulo'] ?>" title="Clic para alternar estado">
                         <i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i>
                         <?= $m['estado'] ? 'Activo' : 'Inactivo' ?>
                     </button>
                 </td>
-                <td style="text-align:right;">
-                    <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/editar"
-                       class="btn btn-ghost btn-sm" data-spa title="Editar">
-                        <i class="fa-solid fa-pencil"></i>
-                    </a>
+                <td style="text-align:right;white-space:nowrap;">
+                    <div class="dt-actions">
+                        <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/editar"
+                           class="btn btn-ghost btn-sm" data-spa title="Editar módulo">
+                            <i class="fa-solid fa-pencil"></i>
+                        </a>
+                    </div>
                 </td>
             </tr>
             <?php endforeach; ?>

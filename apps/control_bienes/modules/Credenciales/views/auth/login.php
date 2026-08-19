@@ -15,13 +15,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.5);
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #020617 100%);
-            --glass-bg: rgba(30, 41, 59, 0.45);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --primary: #2777d3;
+            --primary-glow: rgba(39, 119, 211, 0.18);
+            --bg-gradient: linear-gradient(145deg, #ffffff 0%, #f6fbff 46%, #eaf5ff 100%);
+            --glass-bg: linear-gradient(145deg, rgba(235, 247, 255, 0.98), rgba(205, 231, 255, 0.95));
+            --glass-border: rgba(255, 255, 255, 0.92);
+            --text-main: #17324d;
+            --text-muted: #58738f;
             --danger: #ef4444;
             --success: #10b981;
             --warning: #f59e0b;
@@ -45,26 +45,103 @@
             position: relative;
         }
 
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 12% 18%, rgba(255,255,255,.98) 0 9%, transparent 27%),
+                radial-gradient(circle at 88% 82%, rgba(255,255,255,.9) 0 11%, transparent 30%),
+                linear-gradient(rgba(83, 155, 224, .045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(83, 155, 224, .045) 1px, transparent 1px);
+            background-size: auto, auto, 42px 42px, 42px 42px;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            z-index: 2;
+            left: -8%;
+            bottom: -235px;
+            width: 116%;
+            height: 390px;
+            border-radius: 50% 50% 0 0;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(118, 190, 246, .25), rgba(224, 243, 255, .82));
+            box-shadow:
+                0 -18px 0 rgba(255,255,255,.72),
+                0 -36px 0 rgba(126,194,247,.08);
+            transform: rotate(-2deg);
+        }
+
+        .nautical-mark {
+            position: absolute;
+            z-index: 3;
+            display: grid;
+            place-items: center;
+            width: 82px;
+            height: 82px;
+            border: 1px solid rgba(70, 143, 210, .16);
+            border-radius: 26px;
+            background: rgba(255,255,255,.66);
+            color: rgba(48, 123, 190, .42);
+            box-shadow: 0 16px 36px rgba(62, 130, 190, .1), inset 0 1px 0 #fff;
+            backdrop-filter: blur(7px);
+            animation: decorDrift 8s ease-in-out infinite alternate;
+        }
+
+        .nautical-mark i { font-size: 29px; }
+        .nautical-mark.compass { top: 11%; right: 9%; transform: rotate(9deg); }
+        .nautical-mark.ship { right: 14%; bottom: 15%; width: 102px; height: 70px; border-radius: 35px; animation-delay: -3s; }
+        .nautical-mark.waves { left: 10%; bottom: 18%; width: 112px; height: 62px; border-radius: 31px; animation-delay: -5s; }
+
+        .bubble-cluster {
+            position: absolute;
+            z-index: 2;
+            top: 20%;
+            left: 9%;
+            width: 125px;
+            height: 170px;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 25% 80%, rgba(255,255,255,.9) 0 8px, rgba(74,151,219,.18) 9px 10px, transparent 11px),
+                radial-gradient(circle at 68% 55%, rgba(255,255,255,.9) 0 14px, rgba(74,151,219,.15) 15px 16px, transparent 17px),
+                radial-gradient(circle at 38% 22%, rgba(255,255,255,.92) 0 20px, rgba(74,151,219,.14) 21px 22px, transparent 23px);
+            animation: bubblesFloat 7s ease-in-out infinite alternate;
+        }
+
+        @keyframes decorDrift {
+            from { translate: 0 0; }
+            to { translate: 0 -12px; }
+        }
+
+        @keyframes bubblesFloat {
+            from { transform: translateY(8px); }
+            to { transform: translateY(-10px); }
+        }
+
         /* Orbes Decorativos Animados en Segundo Plano */
         .orb {
             position: absolute;
             border-radius: 50%;
             filter: blur(100px);
             z-index: 1;
-            opacity: 0.6;
+            opacity: 0.32;
             animation: orbFloat 25s infinite ease-in-out alternate;
         }
         .orb-1 {
             width: 400px;
             height: 400px;
-            background: #1d4ed8;
+            background: #a8d8ff;
             top: -100px;
             left: -100px;
         }
         .orb-2 {
             width: 500px;
             height: 500px;
-            background: #4f46e5;
+            background: #c5dcff;
             bottom: -150px;
             right: -100px;
             animation-delay: -5s;
@@ -72,7 +149,7 @@
         .orb-3 {
             width: 300px;
             height: 300px;
-            background: #06b6d4;
+            background: #b7edf7;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -98,17 +175,17 @@
             background: var(--glass-bg);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--glass-border);
+            border: 2px solid var(--glass-border);
             border-radius: 24px;
             padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 26px 65px -24px rgba(40, 105, 165, 0.38), inset 0 1px 0 rgba(255,255,255,.9);
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             text-align: center;
         }
 
         .inv_login-card:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 30px 60px -15px rgba(59, 130, 246, 0.2);
+            border-color: #ffffff;
+            box-shadow: 0 32px 72px -24px rgba(40, 105, 165, 0.42), inset 0 1px 0 #fff;
             transform: translateY(-4px);
         }
 
@@ -116,14 +193,14 @@
         .brand-logo {
             width: 80px;
             height: 80px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.72);
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 24px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 12px 26px rgba(42, 113, 177, 0.15);
         }
 
         .brand-logo i {
@@ -190,8 +267,8 @@
         .inv_login-input {
             width: 100%;
             padding: 16px 20px 16px 52px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(69, 133, 194, 0.2);
             border-radius: 16px;
             color: var(--text-main);
             font-size: 16px;
@@ -200,14 +277,14 @@
         }
 
         .inv_login-input::placeholder {
-            color: rgba(148, 163, 184, 0.5);
+            color: rgba(88, 115, 143, 0.58);
         }
 
         .inv_login-input:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 4px var(--primary-glow);
-            background: rgba(15, 23, 42, 0.8);
+            background: #ffffff;
         }
 
         .inv_login-input:focus + i.input-icon {
@@ -262,8 +339,8 @@
 
         /* Alertas / Toast */
         .alert-toast {
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: rgba(255, 250, 235, 0.9);
+            border: 1px solid rgba(217, 143, 20, 0.28);
             border-radius: 16px;
             padding: 16px 20px;
             margin-bottom: 24px;
@@ -281,7 +358,7 @@
 
         .alert-toast p {
             font-size: 14px;
-            color: #fef3c7;
+            color: #815414;
             margin: 0;
             line-height: 1.4;
         }
@@ -321,6 +398,12 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        @media (max-width: 820px) {
+            .nautical-mark.compass { right: 3%; top: 5%; transform: scale(.72) rotate(9deg); }
+            .nautical-mark.ship { right: 2%; bottom: 7%; transform: scale(.72); }
+            .nautical-mark.waves, .bubble-cluster { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -329,6 +412,10 @@
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
+    <div class="bubble-cluster" aria-hidden="true"></div>
+    <div class="nautical-mark compass" aria-hidden="true"><i class="fa-regular fa-compass"></i></div>
+    <div class="nautical-mark waves" aria-hidden="true"><i class="fa-solid fa-water"></i></div>
+    <div class="nautical-mark ship" aria-hidden="true"><i class="fa-solid fa-ship"></i></div>
 
     <div class="inv_login-container">
         <div class="inv_login-card">
@@ -338,7 +425,7 @@
             </div>
             
             <h1>Terminal Portuaria</h1>
-            <p>Control de Acceso Operativo e Inventario General. Por favor, introduce tus credenciales para iniciar sesión.</p>
+            <p>Control de Acceso Operativo e Inventario General. Ingresa con tu cédula y contraseña.</p>
 
             <!-- Alerta por inactividad/timeout o inv_error de sesión -->
             <?php if (isset($_SESSION['toast'])): ?>
@@ -353,9 +440,9 @@
 
             <form action="index.php?route=login_post" method="POST" onsubmit="iniciarCarga(event)">
                 <div class="form-group">
-                    <label for="usuario">Nombre de Usuario</label>
+                    <label for="usuario">Cédula</label>
                     <div class="input-wrapper">
-                        <input type="text" name="usuario" id="usuario" class="inv_login-input" placeholder="Nombre de usuario (ej: admin)" required autocomplete="username">
+                        <input type="text" name="usuario" id="usuario" class="inv_login-input" placeholder="Cédula (o admin para pruebas)" required autocomplete="username" inputmode="numeric">
                         <i class="fa-solid fa-user input-icon"></i>
                     </div>
                 </div>

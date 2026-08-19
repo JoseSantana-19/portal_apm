@@ -4,6 +4,8 @@
 /* ── Auth ───────────────────────────────────────── */
 $router->get('/login',              'AuthController@showLogin');
 $router->post('/login',             'AuthController@login');
+$router->get('/login/verificar',    'AuthController@showMfaChallenge');
+$router->post('/login/verificar',   'AuthController@verifyMfaChallenge');
 $router->get('/logout',             'AuthController@logout');
 $router->post('/api/keepalive',     'AuthController@keepalive');
 $router->post('/set-theme',         'AuthController@setTheme');
@@ -24,6 +26,10 @@ $router->get('/panel/bienes',         'PanelController@bienes');
 /* ── Sistemas origen embebidos: redirección robusta /apps/{app} → /apps/{app}/ ── */
 $router->get('/apps/{app}',                     'AppsController@abrir');
 
+/* ── Gate de MFA al cambiar de módulo integrado (ver ModuleGateController) ── */
+$router->get('/ir',                             'ModuleGateController@abrir');
+$router->post('/ir/verificar',                  'ModuleGateController@verificar');
+
 /* ── SSO central para módulos (server-to-server, ver db/sso_module_login.sql) ── */
 $router->post('/api/sso/login',                 'ApiSsoController@login');
 $router->post('/api/sso/validate',              'ApiSsoController@validate');
@@ -39,6 +45,10 @@ $router->get('/perfil',                         'AuthController@perfil');
 $router->post('/perfil',                        'AuthController@actualizarPerfil');
 $router->get('/cambiar-contrasena',             'AuthController@showCambiarContrasena');
 $router->post('/cambiar-contrasena',            'AuthController@cambiarContrasena');
+$router->get('/perfil/seguridad',               'AuthController@showSeguridad');
+$router->post('/perfil/seguridad/preparar',     'AuthController@prepararMfa');
+$router->post('/perfil/seguridad/activar',      'AuthController@activarMfa');
+$router->post('/perfil/seguridad/desactivar',   'AuthController@desactivarMfa');
 
 /* ── Admin (nivel_jerarquia >= 3) ───────────────── */
 $router->get('/admin/usuarios',                 'AdminController@usuarios');

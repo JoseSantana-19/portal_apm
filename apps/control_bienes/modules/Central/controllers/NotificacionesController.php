@@ -22,9 +22,11 @@ class NotificacionesController extends Controller {
             session_start();
         }
 
-        $this->notifModel->marcarTodasComoVistas();
+        $usuarioId = (int)($_SESSION['usuario_id'] ?? $_SESSION['usuario']['id'] ?? 0);
+        $esAdmin = strtolower((string)($_SESSION['rol'] ?? $_SESSION['usuario']['rol'] ?? '')) === 'administrador';
+        $this->notifModel->marcarTodasComoVistas($usuarioId, $esAdmin);
 
-        $persistentes = $this->notifModel->obtenerRecientes(30);
+        $persistentes = $this->notifModel->obtenerRecientes(30, $usuarioId, $esAdmin);
         $notificacionesIds = [];
         foreach ($persistentes as $n) {
             $notificacionesIds[] = 'evt_' . $n['id'];
@@ -32,6 +34,7 @@ class NotificacionesController extends Controller {
 
         $dbConnection = Database::getInstance()->getConnection();
         try {
+            if (!$esAdmin) throw new RuntimeException('Las alertas globales son exclusivas del Administrador.');
             $driver = defined('DB_DRIVER') ? DB_DRIVER : 'sqlite';
             if ($driver === 'sqlsrv') {
                 $sqlStock = "SELECT TOP 8 id FROM inv_inventario WHERE activo = 1 AND cantidad <= 5";
@@ -77,13 +80,16 @@ class NotificacionesController extends Controller {
             session_start();
         }
 
-        $persistentes = $this->notifModel->obtenerRecientes(100);
+        $usuarioId = (int)($_SESSION['usuario_id'] ?? $_SESSION['usuario']['id'] ?? 0);
+        $esAdmin = strtolower((string)($_SESSION['rol'] ?? $_SESSION['usuario']['rol'] ?? '')) === 'administrador';
+        $persistentes = $this->notifModel->obtenerRecientes(100, $usuarioId, $esAdmin);
         $eliminadasIds = isset($_SESSION['notificaciones_eliminadas']) ? $_SESSION['notificaciones_eliminadas'] : [];
         foreach ($persistentes as $n) {
             $eliminadasIds[] = 'evt_' . $n['id'];
         }
 
         try {
+            if (!$esAdmin) throw new RuntimeException('Las alertas globales son exclusivas del Administrador.');
             $dbConnection = Database::getInstance()->getConnection();
             $sqlStock = "SELECT id FROM inv_inventario WHERE activo = 1 AND cantidad <= 5";
             $itemsStock = $dbConnection->query($sqlStock)->fetchAll();
@@ -106,7 +112,7 @@ class NotificacionesController extends Controller {
         $_SESSION['notificaciones_eliminadas'] = array_unique($eliminadasIds);
         $_SESSION['notificaciones_vistas'] = array_unique($eliminadasIds);
 
-        $this->notifModel->vaciarTodas();
+        $this->notifModel->vaciarVisibles($usuarioId, $esAdmin);
         $this->jsonResponse(['success' => true]);
     }
 }

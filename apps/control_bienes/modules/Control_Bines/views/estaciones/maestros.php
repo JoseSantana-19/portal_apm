@@ -15,7 +15,28 @@
 
 // Tabla activa (por defecto 'categorias' = Grupo de Productos)
 $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
+$tipoBien = isset($tipoBien) && $tipoBien === 'AF' ? 'AF' : 'CC';
+$soloLectura = isset($soloLectura) ? (bool)$soloLectura : false;
+if (!empty($_permisoVista['readonly'])) $soloLectura = true;
+$columnasMaestro = [
+    'categorias' => 5,
+    'grupo_centros_consumo' => 4,
+    'productos' => 7,
+    'centros_consumo' => 6,
+    'proveedores' => 5,
+    'unidades' => 4,
+    'tipos_iva' => 4,
+];
+$totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
 ?>
+
+<style>
+.maestro-tipo-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 20px 16px}.maestro-tipo-opcion{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--panel-bg);color:var(--text-color);font-size:13px;font-weight:700;text-decoration:none;transition:border-color .18s,background .18s,color .18s}.maestro-tipo-opcion:hover{border-color:#93c5fd;background:#f8fbff}.maestro-tipo-opcion.activo-cc{border-color:#3b82f6;background:#eff6ff;color:#2563eb}.maestro-tipo-opcion.activo-af{border-color:#64748b;background:#f8fafc;color:#334155}.maestro-tipo-opcion strong{font-size:12px}@media(max-width:720px){.maestro-tipo-lista{grid-template-columns:1fr;padding-left:14px;padding-right:14px}}
+.prov-modal{max-width:920px!important}.prov-intro{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin-bottom:18px;border:1px solid #bfdbfe;border-radius:12px;background:linear-gradient(135deg,#eff6ff,#f8fafc);color:#1e3a8a}.prov-intro i{font-size:22px;color:#2563eb;margin-top:2px}.prov-intro strong{display:block;margin-bottom:3px}.prov-intro span{font-size:12px;color:#475569}.prov-section{padding:16px;border:1px solid var(--border-color);border-radius:14px;background:var(--panel-bg);margin-bottom:14px}.prov-section-title{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13px;font-weight:800;color:var(--text-color)}.prov-section-title i{color:var(--primary)}.prov-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.prov-col-3{grid-column:span 3}.prov-col-4{grid-column:span 4}.prov-col-5{grid-column:span 5}.prov-col-6{grid-column:span 6}.prov-col-7{grid-column:span 7}.prov-col-8{grid-column:span 8}.prov-col-12{grid-column:span 12}.prov-card-title{display:flex;align-items:center;gap:8px}.prov-code{font-size:10px;padding:3px 7px;border-radius:999px;background:#eff6ff;color:#2563eb;font-weight:800}.prov-contact{display:block;font-weight:700;color:var(--text-color)}.prov-meta{display:block;margin-top:3px;color:var(--text-muted);font-size:11px;line-height:1.5}.maestro-selectores{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--border-color);background:rgba(59,130,246,.035)}.maestro-selector{min-width:240px}.maestro-selector.tipo{min-width:250px}.maestro-selector label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)}.maestro-selector select{width:100%;height:40px;border:1px solid var(--border-color);border-radius:9px;background:var(--panel-bg);color:var(--text-color);font-weight:700;padding:0 11px}.maestro-selector-info{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}@media(max-width:760px){.prov-grid>*{grid-column:span 12!important}.prov-modal{max-width:96%!important}.maestro-selector,.maestro-selector.tipo{min-width:100%;width:100%}}
+.dt-maestros-top{display:flex;justify-content:flex-end;padding:10px 20px;border-bottom:1px solid var(--border-color)}.dt-button{border:1px solid var(--border-color)!important;border-radius:8px!important;background:var(--panel-bg)!important;color:var(--text-color)!important;font-size:12px!important;font-weight:700!important;padding:8px 12px!important}.dt-button:hover{border-color:#93c5fd!important;background:#eff6ff!important;color:#1d4ed8!important}#tabla-maestros_wrapper{width:100%}#tabla-maestros_wrapper table.dataTable{width:100%!important;margin:0!important;border-collapse:collapse!important;table-layout:auto}#tabla-maestros_wrapper table.dataTable th,#tabla-maestros_wrapper table.dataTable td{white-space:normal!important;overflow-wrap:anywhere;word-break:normal;padding:10px 8px;font-size:12px;line-height:1.35}#tabla-maestros_wrapper table.dataTable thead th{font-size:11px}#tabla-maestros_wrapper table.dataTable.no-footer{border-bottom:0}#tabla-maestros_wrapper .dtr-details{width:100%;padding:8px 12px!important}#tabla-maestros_wrapper .dtr-title{min-width:130px;font-weight:800}.table-responsive:has(#tabla-maestros){overflow:visible}@media(max-width:1100px){#tabla-maestros_wrapper table.dataTable th,#tabla-maestros_wrapper table.dataTable td{padding:8px 6px;font-size:11px}.prov-card-title{align-items:flex-start;flex-direction:column;gap:3px}}
+.maestro-table-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 20px;border-bottom:1px solid var(--border-color);background:linear-gradient(90deg,rgba(59,130,246,.025),rgba(245,158,11,.025))}.maestro-table-search{display:flex;align-items:center;gap:8px;flex:1;min-width:0}.maestro-search-box{position:relative;width:min(430px,100%)}.maestro-search-box i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#64748b;font-size:12px;pointer-events:none}.maestro-search-box input{width:100%;height:38px;padding:8px 13px 8px 34px;border:1px solid #cbd5e1;border-radius:9px;background:var(--panel-bg);color:var(--text-color);font-size:13px;transition:border-color .18s,box-shadow .18s}.maestro-search-box input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.1);outline:0}.maestro-server-search{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap}.maestro-server-search .maestro-search-box{flex:1;min-width:230px}.maestro-server-search select{height:38px;padding:0 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--panel-bg);color:var(--text-color)}#maestro-export-actions{display:flex;align-items:center;justify-content:flex-end;min-width:max-content}#maestro-export-actions .dt-buttons{display:flex;gap:7px}.dt-maestros-buttons{display:none}@media(max-width:720px){.maestro-table-toolbar{align-items:stretch;flex-direction:column;padding:10px 14px}.maestro-table-search,.maestro-search-box,.maestro-server-search{width:100%}#maestro-export-actions{justify-content:flex-start}.maestro-server-search .btn-primary{height:38px}}
+.dt-maestros-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid var(--border-color);background:rgba(248,250,252,.7)}.dt-maestros-footer .dataTables_info{padding:0!important;color:var(--text-muted);font-size:12px}.dt-maestros-footer .dataTables_paginate{padding:0!important}@media(max-width:640px){.dt-maestros-footer{align-items:flex-start;flex-direction:column;padding:10px 14px}}
+</style>
 
 <!-- InvCabecera de Página -->
 <div class="page-header animate-fade-in">
@@ -28,7 +49,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
             <p>Administración y relación del catálogo corporativo, proveedores, infraestructura de consumo y tributación impositiva.</p>
         <?php endif; ?>
     </div>
-    <?php if ($tablaActiva !== 'busqueda_global'): ?>
+    <?php if ($tablaActiva !== 'busqueda_global' && !$soloLectura): ?>
     <div>
         <button class="btn-primary" onclick="abrirModalMaestro()" id="btn-agregar-maestro">
             <i class="fa-solid fa-plus"></i> Agregar Registro
@@ -62,7 +83,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                style="text-align:left;display:flex;align-items:center;text-decoration:none;padding:12px 16px;border-radius:10px;gap:10px;">
                 <i class="fa-solid fa-tags" style="width:16px;color:<?= ($tablaActiva === 'categorias') ? 'white' : 'var(--text-muted)' ?>;"></i>
                 <span style="flex:1;">1. Grupo de Productos</span>
-                <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;"><?= isset($conteos['categorias']) ? $conteos['categorias'] : 0 ?></span>
+                <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;"><?= ($conteos['categorias_cc'] ?? 0) + ($conteos['categorias_af'] ?? 0) ?></span>
             </a>
 
             <!-- Grupo de Centros de Consumo -->
@@ -70,7 +91,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                class="filter-tab <?= ($tablaActiva === 'grupo_centros_consumo') ? 'active' : '' ?>"
                style="text-align:left;display:flex;align-items:center;text-decoration:none;padding:12px 16px;border-radius:10px;gap:10px;">
                 <i class="fa-solid fa-sitemap" style="width:16px;color:<?= ($tablaActiva === 'grupo_centros_consumo') ? 'white' : 'var(--text-muted)' ?>;"></i>
-                <span style="flex:1;">2. Gr. Centros Consumo</span>
+                <span style="flex:1;">2. Grupos Consumo (Áreas)</span>
                 <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;"><?= isset($conteos['grupo_centros_consumo']) ? $conteos['grupo_centros_consumo'] : 0 ?></span>
             </a>
 
@@ -80,7 +101,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                style="text-align:left;display:flex;align-items:center;text-decoration:none;padding:12px 16px;border-radius:10px;gap:10px;">
                 <i class="fa-solid fa-box" style="width:16px;color:<?= ($tablaActiva === 'productos') ? 'white' : 'var(--text-muted)' ?>;"></i>
                 <span style="flex:1;">3. Catálogo Productos</span>
-                <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;"><?= isset($conteos['productos']) ? $conteos['productos'] : 0 ?></span>
+                <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;"><?= ($conteos['productos_cc'] ?? 0) + ($conteos['productos_af'] ?? 0) ?></span>
             </a>
 
             <!-- Centros de Consumo -->
@@ -127,9 +148,9 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
             $infoSecciones = [
                 'busqueda_global' => ['icono' => 'fa-magnifying-glass', 'color' => '#3b82f6', 'titulo' => 'Buscador Centralizado', 'desc' => 'Rastrea e identifica cualquier registro (Bienes, Transacciones, Maestros, Usuarios o Bitácora) en todo el puerto.'],
                 'categorias' => ['icono' => 'fa-tags',               'color' => '#3b82f6', 'titulo' => 'Grupo de Productos',      'desc' => 'Estructura contable y grupos clasificadores (con códigos) para agrupar los insumos.'],
-                'grupo_centros_consumo' => ['icono' => 'fa-sitemap', 'color' => '#8b5cf6', 'titulo' => 'Gr. Centros de Consumo',  'desc' => 'Grupos organizativos o departamentos generales del puerto.'],
-                'productos'  => ['icono' => 'fa-box',                'color' => '#10b981', 'titulo' => 'Catálogo de Productos', 'desc' => 'Ítems vinculados a un grupo de productos, unidad y tributación.'],
-                'centros_consumo' => ['icono' => 'fa-building-flag','color' => '#ec4899', 'titulo' => 'Centros de Consumo',      'desc' => 'Oficinas/Puestos de trabajo vinculados a un departamento con un funcionario a cargo.'],
+                'grupo_centros_consumo' => ['icono' => 'fa-sitemap', 'color' => '#8b5cf6', 'titulo' => 'Áreas / Departamentos', 'desc' => 'Grupos de consumo obtenidos de las áreas activas de Talento Humano.'],
+                'productos'  => ['icono' => 'fa-box', 'color' => '#10b981', 'titulo' => 'Catálogo de Productos', 'desc' => 'Catálogo separado entre bienes de consumo corriente y activos fijos.'],
+                'centros_consumo' => ['icono' => 'fa-users', 'color' => '#ec4899', 'titulo' => 'Funcionarios', 'desc' => 'Centros de consumo obtenidos de los funcionarios activos y relacionados con su área.'],
                 'proveedores' => ['icono' => 'fa-truck-field',       'color' => '#f59e0b', 'titulo' => 'Proveedores Oficiales',  'desc' => 'Entidades externas habilitadas para comercializar y realizar ingresos a bodega.'],
                 'unidades'   => ['icono' => 'fa-calculator',         'color' => '#06b6d4', 'titulo' => 'Unidades de Medida',    'desc' => 'Unidades físicas (U., Gl., Kg.) para la valoración exacta de insumos.'],
                 'tipos_iva'  => ['icono' => 'fa-file-invoice-dollar','color' => '#ef4444', 'titulo' => 'Tasas de IVA',          'desc' => 'Tasas impositivas aplicables a productos del catálogo.'],
@@ -149,14 +170,28 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
     <?php if ($tablaActiva !== 'busqueda_global'): ?>
     <!-- Panel Derecho: Tabla de Datos (Estilizada Modernamente con badges) -->
     <div class="panel" style="position:relative;">
+        <?php if (in_array($tablaActiva, ['categorias', 'productos'], true)): ?>
+        <form class="maestro-selectores" method="GET" action="index.php">
+            <input type="hidden" name="route" value="inv_maestros">
+            <input type="hidden" name="tabla" value="<?= htmlspecialchars($tablaActiva) ?>">
+            <div class="maestro-selector tipo">
+                <label><i class="fa-solid fa-list"></i> Lista de tipo de bien</label>
+                <select name="tipo" onchange="this.form.submit()">
+                    <option value="CC" <?= $tipoBien === 'CC' ? 'selected' : '' ?>>Bienes de consumo corriente</option>
+                    <option value="AF" <?= $tipoBien === 'AF' ? 'selected' : '' ?>>Activos fijos</option>
+                </select>
+            </div>
+            <div class="maestro-selector-info"><i class="fa-solid <?= $tipoBien === 'AF' ? 'fa-building-shield' : 'fa-box-open' ?>"></i><?= $tipoBien === 'AF' ? 'Lista activa: Activos fijos' : 'Lista activa: Consumo corriente' ?></div>
+        </form>
+        <?php endif; ?>
         <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
             <h3 style="margin:0; flex:1; min-width:250px;">
                 <?php
                 $titulos = [
                     'categorias' => '<i class="fa-solid fa-tags" style="margin-right:8px;color:#3b82f6;"></i> Grupo de Productos (Categorías)',
-                    'grupo_centros_consumo' => '<i class="fa-solid fa-sitemap" style="margin-right:8px;color:#8b5cf6;"></i> Grupo de Centros de Consumo',
+                    'grupo_centros_consumo' => '<i class="fa-solid fa-sitemap" style="margin-right:8px;color:#8b5cf6;"></i> Grupos de Consumo: Áreas / Departamentos',
                     'productos'  => '<i class="fa-solid fa-box" style="margin-right:8px;color:#10b981;"></i> Catálogo de Productos',
-                    'centros_consumo' => '<i class="fa-solid fa-building-flag" style="margin-right:8px;color:#ec4899;"></i> Centros de Consumo',
+                    'centros_consumo' => '<i class="fa-solid fa-users" style="margin-right:8px;color:#ec4899;"></i> Centros de Consumo: Funcionarios',
                     'proveedores' => '<i class="fa-solid fa-truck-field" style="margin-right:8px;color:#f59e0b;"></i> Proveedores',
                     'unidades'   => '<i class="fa-solid fa-calculator" style="margin-right:8px;color:#06b6d4;"></i> Unidades de Medida',
                     'tipos_iva'  => '<i class="fa-solid fa-file-invoice-dollar" style="margin-right:8px;color:#ef4444;"></i> Tasas de IVA impositivas',
@@ -164,19 +199,36 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                 echo isset($titulos[$tablaActiva]) ? $titulos[$tablaActiva] : $tablaActiva;
                 ?>
             </h3>
-            <!-- Buscador Individual (Filtro local en tiempo real) -->
-            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-                <div style="position:relative; min-width:240px;">
-                    <i class="fa-solid fa-filter" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px;"></i>
-                    <input type="text" id="buscador-individual" placeholder="Filtrar esta tabla..." 
-                           style="padding: 8px 12px 8px 32px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--secondary-bg); color: var(--text-color); font-size: 13px; width: 100%; transition: all 0.3s;"
-                           oninput="filtrarTablaIndividual(this.value)">
-                    <span id="buscador-individual-count" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:600; color:white; background:var(--primary-blue); padding:1px 6px; border-radius:10px; display:none;">0</span>
-                </div>
+        </div>
+        <?php if ($soloLectura): ?>
+        <div style="margin:0 20px 16px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.08);color:var(--text-muted);font-size:12px;">
+            <i class="fa-solid fa-database" style="color:#3b82f6;margin-right:6px;"></i>
+            Datos oficiales de Talento Humano. Esta sección es de consulta y se actualiza desde su sistema de origen.
+        </div>
+        <?php endif; ?>
+        <div class="maestro-table-toolbar">
+            <div class="maestro-table-search">
+                <?php if ($paginacion !== null): ?>
+                <form method="GET" action="index.php" class="maestro-server-search">
+                    <input type="hidden" name="route" value="inv_maestros">
+                    <input type="hidden" name="tabla" value="<?= htmlspecialchars($tablaActiva) ?>">
+                    <input type="hidden" name="tipo" value="<?= htmlspecialchars($tipoBien) ?>">
+                    <div class="maestro-search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="search" name="buscar_maestro" value="<?= htmlspecialchars($busquedaMaestro ?? '') ?>" placeholder="Buscar en este maestro..."></div>
+                    <select name="por_pagina" onchange="this.form.submit()">
+                        <?php foreach ([25, 50, 100] as $cantidadPagina): ?>
+                        <option value="<?= $cantidadPagina ?>" <?= (int)$paginacion['por_pagina'] === $cantidadPagina ? 'selected' : '' ?>><?= $cantidadPagina ?> por página</option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="btn-primary" style="height:38px;padding:0 12px;"><i class="fa-solid fa-search"></i> Buscar</button>
+                </form>
+                <?php else: ?>
+                <div class="maestro-search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="buscador-individual" value="<?= htmlspecialchars($busquedaMaestro ?? '') ?>" placeholder="Buscar en este maestro..." oninput="filtrarTablaIndividual(this.value)"></div>
+                <?php endif; ?>
             </div>
+            <div id="maestro-export-actions"></div>
         </div>
         <div class="table-responsive">
-            <table>
+            <table id="tabla-maestros" class="display responsive" style="width:100%">
                 <thead>
                     <tr>
                         <th style="width:70px;">ID</th>
@@ -185,24 +237,26 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                             <th>Nombre del Grupo</th>
                             <th>Detalle / Descripción</th>
                         <?php elseif ($tablaActiva === 'grupo_centros_consumo'): ?>
+                            <!-- Columna conservada para una posible reactivación:
                             <th style="width:100px;">Código</th>
-                            <th>Nombre del Departamento</th>
-                            <th>Funcionario Representante</th>
+                            -->
+                            <th>Área / Departamento</th>
+                            <th>Estructura Superior</th>
                         <?php elseif ($tablaActiva === 'productos'): ?>
                             <th style="width:110px;">Código</th>
                             <th>Nombre del Producto</th>
                             <th>Grupo / Categoría</th>
                             <th>Unidad de Medida</th>
-                            <th>IVA</th>
+                            <th><?= $tipoBien === 'AF' ? 'Unidades registradas' : 'IVA' ?></th>
                         <?php elseif ($tablaActiva === 'centros_consumo'): ?>
-                            <th style="width:100px;">Código</th>
-                            <th>Puesto / Descripción del Centro</th>
-                            <th>Funcionario a Cargo</th>
-                            <th>Grupo Organizativo</th>
+                            <th style="width:120px;">Cédula</th>
+                            <th>Funcionario</th>
+                            <th>Cargo</th>
+                            <th>Área / Departamento</th>
                         <?php elseif ($tablaActiva === 'proveedores'): ?>
-                            <th>Razón Social / Nombre</th>
                             <th style="width:160px;">RUC / Identificación</th>
-                            <th>Contacto y Dirección</th>
+                            <th>Proveedor</th>
+                            <th>Contacto y ubicación</th>
                         <?php elseif ($tablaActiva === 'unidades'): ?>
                             <th>Nombre de la Unidad</th>
                             <th>Abreviatura</th>
@@ -210,19 +264,11 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                             <th>Descripción</th>
                             <th>Tasa (%)</th>
                         <?php endif; ?>
-                        <th style="width:90px; text-align:center;">Acciones</th>
+                        <th class="columna-acciones">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-datos-inv_maestros">
-                    <?php if (empty($items)): ?>
-                        <tr>
-                            <td colspan="<?= $tablaActiva === 'productos' || $tablaActiva === 'centros_consumo' ? 6 : 5 ?>" style="text-align:center;padding:52px;color:var(--text-muted);">
-                                <i class="fa-solid fa-inbox" style="font-size:40px;display:block;margin-bottom:14px;opacity:0.25;"></i>
-                                <strong style="display:block;margin-bottom:6px;">Sin registros en la tabla</strong>
-                                <span style="font-size:13px;">Usa el botón <strong>"Agregar Registro"</strong> para ingresar datos.</span>
-                            </td>
-                        </tr>
-                    <?php else: ?>
+                    <?php if (!empty($items)): ?>
                         <?php foreach ($items as $item): ?>
                             <tr id="row-<?= $item['id'] ?>" class="animate-fade-in">
                                 <td><strong>#<?= $item['id'] ?></strong></td>
@@ -231,7 +277,9 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                                     <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
                                     <td style="color:var(--text-muted);font-size:13px;"><?= !empty($item['extra']) ? htmlspecialchars($item['extra']) : '<em>—</em>' ?></td>
                                 <?php elseif ($tablaActiva === 'grupo_centros_consumo'): ?>
-                                    <td><code style="background:var(--border-color);padding:3px 8px;border-radius:5px;font-weight:700;font-size:12px;"><?= htmlspecialchars($item['codigo'] ?? '—') ?></code></td>
+                                    <!-- Código interno conservado para uso futuro:
+                                    <td><code><?= htmlspecialchars($item['codigo'] ?? '—') ?></code></td>
+                                    -->
                                     <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
                                     <td><strong><?= htmlspecialchars($item['representante'] ?? '—') ?></strong></td>
                                 <?php elseif ($tablaActiva === 'productos'): ?>
@@ -240,6 +288,9 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                                     <td><span class="status-badge transit" style="font-size: 11px;"><?= htmlspecialchars($item['grupo_nombre']) ?></span></td>
                                     <td><code style="background:var(--secondary-bg);padding:3px 6px;border-radius:4px;font-size:11px;font-weight:600;"><?= htmlspecialchars($item['unidad_nombre']) ?></code></td>
                                     <td>
+                                        <?php if ($tipoBien === 'AF'): ?>
+                                        <span class="status-badge active"><?= (int)($item['unidades_registradas'] ?? 1) ?> unidad(es)</span>
+                                        <?php else: ?>
                                         <?php
                                         $ivaNombre = '0%';
                                         foreach ($tiposIvaList as $tipo) {
@@ -250,27 +301,32 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                                         }
                                         ?>
                                         <span class="status-badge <?= (float)$ivaNombre > 0 ? 'active' : 'inactive' ?>"><?= $ivaNombre ?></span>
+                                        <?php endif; ?>
                                     </td>
                                 <?php elseif ($tablaActiva === 'centros_consumo'): ?>
                                     <td><code style="background:var(--border-color);padding:3px 8px;border-radius:5px;font-weight:700;font-size:12px;"><?= htmlspecialchars($item['codigo'] ?? '—') ?></code></td>
-                                    <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
                                     <td><strong><?= htmlspecialchars($item['funcionario'] ?? '—') ?></strong></td>
+                                    <td style="color:var(--text-muted);font-size:12px;"><?= htmlspecialchars($item['extra'] ?? '—') ?></td>
                                     <td><span class="status-badge active" style="background:rgba(139,92,246,0.1);color:#8b5cf6;border-color:rgba(139,92,246,0.2);"><?= htmlspecialchars($item['grupo_nombre'] ?? '—') ?></span></td>
                                 <?php elseif ($tablaActiva === 'proveedores'): ?>
-                                    <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
                                     <td><code style="background:var(--border-color);padding:4px 8px;border-radius:5px;font-weight:700;"><?= htmlspecialchars($item['ruc']) ?></code></td>
-                                    <td style="color:var(--text-muted);font-size:13px;"><?= !empty($item['extra']) ? htmlspecialchars($item['extra']) : '<em>—</em>' ?></td>
+                                    <td><span class="prov-card-title"><strong><?= htmlspecialchars($item['nombre']) ?></strong></span><span class="prov-meta"><?= htmlspecialchars($item['representante'] ?: 'Sin representante registrado') ?></span></td>
+                                    <td><span class="prov-contact"><?= htmlspecialchars($item['telefono1'] ?: ($item['email'] ?: 'Sin contacto')) ?></span><span class="prov-meta"><?= htmlspecialchars(trim(($item['ciudad'] ?? '').' · '.($item['direccion'] ?? ''), ' ·') ?: 'Sin ubicación') ?></span></td>
                                 <?php elseif ($tablaActiva === 'unidades'): ?>
                                     <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
-                                    <td><code style="background:var(--border-color);padding:3px 8px;border-radius:5px;font-weight:600;"><?= htmlspecialchars($item['extra']) ?></code></td>
+                                    <td><code style="background:var(--border-color);padding:3px 8px;border-radius:5px;font-weight:600;"><?= htmlspecialchars((string)($item['extra'] ?? '')) ?: '—' ?></code></td>
                                 <?php elseif ($tablaActiva === 'tipos_iva'): ?>
                                     <td style="font-weight:600;color:var(--text-color);"><?= htmlspecialchars($item['nombre']) ?></td>
                                     <td><strong style="color:var(--primary);font-size:15px;"><?= number_format($item['tasa_iva'], 2) ?>%</strong></td>
                                 <?php endif; ?>
-                                <td class="acciones-cell" style="text-align:center;">
+                                <td class="acciones-cell columna-acciones">
+                                    <?php if (!empty($item['solo_lectura']) || $soloLectura): ?>
+                                    <span class="status-badge transit" title="Dato administrado en el sistema de origen"><i class="fa-solid fa-lock"></i> Consulta</span>
+                                    <?php else: ?>
                                     <button class="btn-accion btn-editar" onclick="editarMaestro(<?= htmlspecialchars(json_encode($item)) ?>)" title="Editar">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -278,6 +334,26 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                 </tbody>
             </table>
         </div>
+        <?php if ($paginacion !== null): ?>
+        <?php
+            $paginaActual = (int)$paginacion['pagina'];
+            $totalPaginas = (int)$paginacion['total_paginas'];
+            $desde = $paginacion['total'] > 0 ? (($paginaActual - 1) * (int)$paginacion['por_pagina']) + 1 : 0;
+            $hasta = min($paginacion['total'], $paginaActual * (int)$paginacion['por_pagina']);
+            $urlPagina = 'index.php?route=inv_maestros&tabla=' . urlencode($tablaActiva)
+                . '&tipo=' . urlencode($tipoBien)
+                . '&buscar_maestro=' . urlencode($busquedaMaestro ?? '')
+                . '&por_pagina=' . (int)$paginacion['por_pagina'];
+        ?>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border-color);flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--text-muted);">Mostrando <?= $desde ?>–<?= $hasta ?> de <strong><?= (int)$paginacion['total'] ?></strong> registros</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <?php if ($paginaActual > 1): ?><a class="btn-outline" style="text-decoration:none;padding:7px 10px;" href="<?= htmlspecialchars($urlPagina . '&pagina=' . ($paginaActual - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Anterior</a><?php endif; ?>
+                <span style="font-size:12px;font-weight:700;">Página <?= $paginaActual ?> de <?= $totalPaginas ?></span>
+                <?php if ($paginaActual < $totalPaginas): ?><a class="btn-outline" style="text-decoration:none;padding:7px 10px;" href="<?= htmlspecialchars($urlPagina . '&pagina=' . ($paginaActual + 1)) ?>">Siguiente <i class="fa-solid fa-chevron-right"></i></a><?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
     <?php else: ?>
     <!-- Panel Derecho: Búsqueda Global Centralizada con Filtros Avanzados -->
@@ -483,13 +559,14 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
 
 <!-- ===== Modal: Crear / Editar Maestro (Modernizado Glassmorphism) ===== -->
 <div class="modal-overlay" id="maestro-modal">
-    <div class="modal-content" style="max-width:520px; border-radius:16px;">
+    <div class="modal-content <?= $tablaActiva === 'proveedores' ? 'prov-modal' : '' ?>" style="max-width:520px; border-radius:16px;">
         <div class="modal-header" style="border-bottom:1px solid var(--border-color); padding-bottom:16px;">
             <h2 id="maestro-modal-title" style="font-size:18px; font-weight:700; color:var(--text-main);">Nuevo Registro</h2>
             <button class="modal-close" onclick="cerrarModalMaestro()"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <form action="index.php?route=inv_maestros&action=guardar" method="POST" autocomplete="off">
+        <form action="index.php?route=inv_maestros&action=guardar" method="POST" autocomplete="off" id="form-maestro">
             <input type="hidden" name="tabla" value="<?= htmlspecialchars($tablaActiva) ?>">
+            <input type="hidden" name="tipo_bien" value="<?= htmlspecialchars($tipoBien) ?>">
             <input type="hidden" name="id"    id="mae-inp-id" value="0">
             <div class="modal-body" style="padding-top:20px;">
 
@@ -554,7 +631,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                             <select name="unidad_id" id="mae-inp-unidad" required>
                                 <option value="">Seleccionar unidad...</option>
                                 <?php foreach ($unidadesList as $uni): ?>
-                                    <option value="<?= $uni['id'] ?>"><?= htmlspecialchars($uni['nombre']) ?> (<?= htmlspecialchars($uni['extra']) ?>)</option>
+                                    <option value="<?= $uni['id'] ?>"><?= htmlspecialchars($uni['nombre']) ?> (<?= htmlspecialchars($uni['extra'] ?? '') ?>)</option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -602,24 +679,25 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
 
                 <!-- Caso 5: Proveedores -->
                 <?php elseif ($tablaActiva === 'proveedores'): ?>
-                    <div class="form-group">
-                        <label>Razón Social / Nombre del Proveedor</label>
-                        <input type="text" name="nombre" id="mae-inp-nombre" required placeholder="Ej: Importadora Andina S.A.">
-                    </div>
-                    <div class="form-group">
-                        <label>RUC / Cédula del Proveedor</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" name="ruc" id="mae-inp-ruc" required placeholder="Ej: 1391234567001" maxlength="13" oninput="this.value=this.value.replace(/[^0-9]/g,'')" style="flex: 1;">
-                            <button type="button" class="btn-primary" id="btn-buscar-ruc" onclick="ejecutarBusquedaRuc()" style="padding: 10px 14px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px;">
-                                <i class="fa-solid fa-magnifying-glass"></i> Consultar
-                            </button>
-                        </div>
-                        <small id="lookup-indicator" style="display: block; margin-top: 4px; font-size: 11px; color: var(--text-muted);"></small>
-                    </div>
-                    <div class="form-group">
-                        <label>Contacto, Teléfono y Dirección</label>
-                        <input type="text" name="extra" id="mae-inp-extra" placeholder="Dirección, teléfono, contacto corporativo...">
-                    </div>
+                    <div class="prov-intro"><i class="fa-solid fa-building-circle-check"></i><div><strong>Ficha centralizada del proveedor</strong><span>La información registrada aquí se reutiliza en órdenes de compra, facturas e ingresos a bodega.</span></div></div>
+                    <section class="prov-section"><h3 class="prov-section-title"><i class="fa-solid fa-id-card"></i> Identificación</h3><div class="prov-grid">
+                        <input type="hidden" name="codigo" id="mae-inp-codigo">
+                        <div class="form-group prov-col-4"><label>RUC / cédula</label><div style="display:flex;gap:8px"><input type="text" name="ruc" id="mae-inp-ruc" required placeholder="1391234567001" maxlength="13" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"><button type="button" class="btn-primary" id="btn-buscar-ruc" onclick="ejecutarBusquedaRuc()" title="Consultar identificación"><i class="fa-solid fa-magnifying-glass"></i></button></div><small id="lookup-indicator" style="display:block;margin-top:4px;font-size:11px;color:var(--text-muted)"></small></div>
+                        <div class="form-group prov-col-8"><label>Razón social / nombre</label><input type="text" name="nombre" id="mae-inp-nombre" required maxlength="255" placeholder="Ej: Importadora Andina S.A."></div>
+                        <div class="form-group prov-col-12"><label>Representante o contacto principal</label><input type="text" name="representante" id="mae-inp-representante" maxlength="255" placeholder="Nombre de la persona de contacto"></div>
+                    </div></section>
+                    <section class="prov-section"><h3 class="prov-section-title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3><div class="prov-grid">
+                        <div class="form-group prov-col-8"><label>Dirección</label><input type="text" name="direccion" id="mae-inp-direccion" maxlength="500" placeholder="Calle principal, numeración y sector"></div>
+                        <div class="form-group prov-col-4"><label>Ciudad</label><input type="text" name="ciudad" id="mae-inp-ciudad" maxlength="150" placeholder="Ej: Manta"></div>
+                        <div class="form-group prov-col-12"><label>Referencia</label><input type="text" name="referencia" id="mae-inp-referencia" maxlength="500" placeholder="Punto de referencia o instrucciones de entrega"></div>
+                    </div></section>
+                    <section class="prov-section"><h3 class="prov-section-title"><i class="fa-solid fa-address-book"></i> Canales de contacto</h3><div class="prov-grid">
+                        <div class="form-group prov-col-3"><label>Teléfono principal</label><input type="tel" name="telefono1" id="mae-inp-telefono1" maxlength="50" placeholder="05 260 0000"></div>
+                        <div class="form-group prov-col-3"><label>Teléfono alterno</label><input type="tel" name="telefono2" id="mae-inp-telefono2" maxlength="50" placeholder="09 9000 0000"></div>
+                        <div class="form-group prov-col-3"><label>Fax</label><input type="tel" name="fax" id="mae-inp-fax" maxlength="50" placeholder="Opcional"></div>
+                        <div class="form-group prov-col-3"><label>Correo electrónico</label><input type="email" name="email" id="mae-inp-email" maxlength="180" placeholder="ventas@proveedor.com"></div>
+                    </div></section>
+                    <input type="hidden" name="extra" id="mae-inp-extra">
 
                 <!-- Caso 6: Unidades de Medida -->
                 <?php elseif ($tablaActiva === 'unidades'): ?>
@@ -655,9 +733,140 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
 
 <script>
     const tablaActiva = <?= json_encode($tablaActiva) ?>;
+    const tipoBienActivo = <?= json_encode($tipoBien) ?>;
+    let tablaMaestrosDT = null;
+
+    function escaparHtmlMaestro(valor) {
+        const div = document.createElement('div');
+        div.textContent = valor == null || valor === '' ? '—' : String(valor);
+        return div.innerHTML;
+    }
+
+    function mostrarToastMaestro(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-' + (tipo === 'error' ? 'inv_error' : tipo) + ' show';
+        toast.innerHTML = '<i class="fa-solid ' + (tipo === 'success' ? 'fa-check-circle' : 'fa-circle-exclamation') + '"></i><span></span>';
+        toast.querySelector('span').textContent = mensaje;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+        }, 3500);
+    }
+
+    function registroMaestroCoincide(item) {
+        if (tablaActiva === 'categorias') {
+            const prefijo = tipoBienActivo === 'AF' ? '1.4.' : '1.3.';
+            if (String(item.codigo || '').indexOf(prefijo) !== 0) return false;
+        }
+        if (tablaActiva === 'productos' && String(item.tipo_bien || 'CC') !== tipoBienActivo) return false;
+
+        const buscador = document.querySelector('[name="buscar_maestro"]') || document.getElementById('buscador-individual');
+        const termino = buscador ? buscador.value.toLowerCase().trim() : '';
+        if (!termino) return true;
+        return [item.id, item.codigo, item.nombre, item.extra, item.ruc, item.representante, item.direccion,
+            item.ciudad, item.email, item.telefono1, item.telefono2, item.fax, item.referencia,
+            item.grupo_nombre, item.unidad_nombre]
+            .join(' ').toLowerCase().indexOf(termino) !== -1;
+    }
+
+    function contenidoFilaMaestro(item) {
+        let html = '<td><strong>#' + escaparHtmlMaestro(item.id) + '</strong></td>';
+        if (tablaActiva === 'categorias') {
+            html += '<td><code>' + escaparHtmlMaestro(item.codigo) + '</code></td>'
+                + '<td style="font-weight:600;">' + escaparHtmlMaestro(item.nombre) + '</td>'
+                + '<td>' + escaparHtmlMaestro(item.extra) + '</td>';
+        } else if (tablaActiva === 'productos') {
+            const ivaSelect = document.getElementById('mae-inp-iva');
+            let ivaTexto = item.aplica_iva == 1 ? 'Sí aplica' : 'No aplica';
+            if (ivaSelect) {
+                const opcion = Array.from(ivaSelect.options).find(opt => String(opt.value) === String(item.aplica_iva));
+                if (opcion) ivaTexto = opcion.textContent.trim();
+            }
+            html += '<td><code>' + escaparHtmlMaestro(item.codigo) + '</code></td>'
+                + '<td style="font-weight:600;">' + escaparHtmlMaestro(item.nombre) + '</td>'
+                + '<td><span class="status-badge transit">' + escaparHtmlMaestro(item.grupo_nombre) + '</span></td>'
+                + '<td><code>' + escaparHtmlMaestro(item.unidad_nombre) + '</code></td>'
+                + '<td><span class="status-badge active">' + escaparHtmlMaestro(ivaTexto) + '</span></td>';
+        } else if (tablaActiva === 'proveedores') {
+            html += '<td><code>' + escaparHtmlMaestro(item.ruc) + '</code></td>'
+                + '<td><span class="prov-card-title"><strong>' + escaparHtmlMaestro(item.nombre) + '</strong></span><span class="prov-meta">' + escaparHtmlMaestro(item.representante || 'Sin representante registrado') + '</span></td>'
+                + '<td><span class="prov-contact">' + escaparHtmlMaestro(item.telefono1 || item.email || 'Sin contacto') + '</span><span class="prov-meta">' + escaparHtmlMaestro([item.ciudad,item.direccion].filter(Boolean).join(' · ') || 'Sin ubicación') + '</span></td>';
+        } else if (tablaActiva === 'unidades') {
+            html += '<td style="font-weight:600;">' + escaparHtmlMaestro(item.nombre) + '</td>'
+                + '<td><code>' + escaparHtmlMaestro(item.extra) + '</code></td>';
+        } else if (tablaActiva === 'tipos_iva') {
+            html += '<td style="font-weight:600;">' + escaparHtmlMaestro(item.nombre) + '</td>'
+                + '<td><strong>' + Number(item.tasa_iva || 0).toFixed(2) + '%</strong></td>';
+        }
+        return html + '<td class="acciones-cell columna-acciones"><button type="button" class="btn-accion btn-editar fila-editar-maestro" title="Editar"><i class="fa-solid fa-pen"></i></button></td>';
+    }
+
+    function actualizarFilaMaestro(item) {
+        const tbody = document.getElementById('tbody-datos-inv_maestros');
+        const selectorFila = '#row-' + item.id;
+        let fila = tablaMaestrosDT ? tablaMaestrosDT.row(selectorFila).node() : document.getElementById('row-' + item.id);
+
+        if (!registroMaestroCoincide(item)) {
+            if (fila && tablaMaestrosDT) tablaMaestrosDT.row(fila).remove().draw(false);
+            else if (fila) fila.remove();
+            return null;
+        }
+
+        if (!fila) {
+            fila = document.createElement('tr');
+            fila.id = 'row-' + item.id;
+        }
+
+        fila.innerHTML = contenidoFilaMaestro(item);
+        fila.querySelector('.fila-editar-maestro').addEventListener('click', () => editarMaestro(item));
+        if (tablaMaestrosDT) {
+            const filaApi = tablaMaestrosDT.row(selectorFila);
+            if (filaApi.any()) filaApi.invalidate('dom').draw(false);
+            else tablaMaestrosDT.row.add(fila).draw(false);
+        } else if (!fila.isConnected) {
+            tbody.prepend(fila);
+        }
+        return fila;
+    }
+
+    function guardarMaestroSinRecargar(event) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        if (!form.reportValidity()) return;
+        const boton = form.querySelector('[type="submit"]');
+        boton.disabled = true;
+
+        const datos = new FormData(form);
+        datos.append('is_ajax', '1');
+        fetch(form.action, {
+            method: 'POST', body: datos, credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(respuesta => respuesta.json().then(data => {
+            if (!respuesta.ok || !data.success) throw new Error(data.mensaje || 'No fue posible guardar el maestro.');
+            return data;
+        })).then(data => {
+            const fila = actualizarFilaMaestro(data.registro);
+            cerrarModalMaestro();
+            if (fila) {
+                const filtroLocal = document.getElementById('buscador-individual');
+                if (filtroLocal) filtrarTablaIndividual(filtroLocal.value);
+                fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                fila.classList.remove('highlighted-row');
+                void fila.offsetWidth;
+                fila.classList.add('highlighted-row');
+                setTimeout(() => fila.classList.remove('highlighted-row'), 4000);
+            }
+            mostrarToastMaestro(data.mensaje + ' sin recargar la lista.', 'success');
+        }).catch(error => {
+            mostrarToastMaestro(error.message || 'Error al guardar el maestro.', 'error');
+        }).finally(() => {
+            boton.disabled = false;
+        });
+    }
 
     function abrirModalMaestro() {
-        document.getElementById('maestro-modal-title').textContent = 'Nuevo Registro';
+        document.getElementById('maestro-modal-title').textContent = tablaActiva === 'proveedores' ? 'Nuevo proveedor' : 'Nuevo Registro';
         document.getElementById('mae-inp-id').value = '0';
         document.getElementById('mae-inp-nombre').value = '';
 
@@ -671,6 +880,10 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         if (funcionario) funcionario.value = '';
         var ruc = document.getElementById('mae-inp-ruc');
         if (ruc) ruc.value = '';
+        ['representante','direccion','ciudad','email','telefono1','telefono2','fax','referencia'].forEach(function(campo){
+            var input = document.getElementById('mae-inp-' + campo);
+            if (input) input.value = '';
+        });
         var grupo = document.getElementById('mae-inp-grupo');
         if (grupo) grupo.value = '';
         var unidad = document.getElementById('mae-inp-unidad');
@@ -694,6 +907,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         const rucInput = document.getElementById('mae-inp-ruc');
         const nombreInput = document.getElementById('mae-inp-nombre');
         const extraInput = document.getElementById('mae-inp-extra');
+        const direccionInput = document.getElementById('mae-inp-direccion');
         const indicator = document.getElementById('lookup-indicator');
 
         if (!rucInput) return;
@@ -717,6 +931,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
                     if (extraInput && data.extra) {
                         extraInput.value = data.extra;
                     }
+                    if (direccionInput && data.extra && !direccionInput.value) direccionInput.value = data.extra;
                     indicator.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + data.nombre + ' | Obtenido de: <strong>' + data.origen + '</strong>';
                     indicator.style.color = '#10b981';
                 } else {
@@ -731,7 +946,7 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
     }
 
     function editarMaestro(item) {
-        document.getElementById('maestro-modal-title').textContent = 'Editar Registro';
+        document.getElementById('maestro-modal-title').textContent = tablaActiva === 'proveedores' ? 'Editar proveedor' : 'Editar Registro';
         document.getElementById('mae-inp-id').value = item.id;
         document.getElementById('mae-inp-nombre').value = item.nombre || '';
 
@@ -745,6 +960,10 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         if (funcionario) funcionario.value = item.funcionario_id || '';
         var ruc = document.getElementById('mae-inp-ruc');
         if (ruc) ruc.value = item.ruc || '';
+        ['representante','direccion','ciudad','email','telefono1','telefono2','fax','referencia'].forEach(function(campo){
+            var input = document.getElementById('mae-inp-' + campo);
+            if (input) input.value = item[campo] || '';
+        });
         
         var grupo = document.getElementById('mae-inp-grupo');
         if (grupo && item.grupo_id) grupo.value = item.grupo_id;
@@ -765,6 +984,10 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
 
     // 1. Filtrado Individual en Tiempo Real (Cliente)
     function filtrarTablaIndividual(val) {
+        if (tablaMaestrosDT) {
+            tablaMaestrosDT.search(val).draw();
+            return;
+        }
         const query = val.toLowerCase().trim();
         const tbody = document.getElementById('tbody-datos-inv_maestros');
         if (!tbody) return;
@@ -848,6 +1071,44 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        const formMaestro = document.getElementById('form-maestro');
+        if (formMaestro) formMaestro.addEventListener('submit', guardarMaestroSinRecargar);
+
+        if (window.jQuery && $.fn.DataTable && document.getElementById('tabla-maestros')) {
+            const tieneBotones = !!($.fn.dataTable && $.fn.dataTable.Buttons);
+            const tieneResponsive = !!($.fn.dataTable && $.fn.dataTable.Responsive);
+            const paginacionLocal = tablaActiva === 'centros_consumo';
+            const tituloExportacion = 'Maestros - ' + document.querySelector('.panel-header h3').innerText.trim();
+            tablaMaestrosDT = $('#tabla-maestros').DataTable({
+                dom: (tieneBotones ? '<"dt-maestros-buttons"B>' : '') + 't' + (paginacionLocal ? '<"dt-maestros-footer"ip>' : ''),
+                responsive: tieneResponsive ? { details: { type: 'inline', target: 'tr' } } : false,
+                autoWidth: false,
+                paging: paginacionLocal,
+                pageLength: 50,
+                searching: true,
+                info: paginacionLocal,
+                order: [],
+                columnDefs: [
+                    { targets: -1, orderable: false, searchable: false, className: 'columna-acciones', responsivePriority: 1 },
+                    { targets: 0, responsivePriority: 4 },
+                    { targets: 1, responsivePriority: 2 },
+                    { targets: 2, responsivePriority: 1 }
+                ],
+                buttons: tieneBotones ? [
+                    { extend: 'print', text: '<i class="fa-solid fa-print"></i> Imprimir', title: tituloExportacion, exportOptions: { columns: ':not(.columna-acciones)' } }
+                ] : [],
+                language: {
+                    zeroRecords: 'No se encontraron coincidencias',
+                    emptyTable: 'No hay registros en este maestro',
+                    info: 'Mostrando _START_ a _END_ de _TOTAL_ funcionarios',
+                    infoEmpty: 'No hay funcionarios para mostrar',
+                    paginate: { previous: 'Anterior', next: 'Siguiente' }
+                }
+            });
+            if (tieneBotones) tablaMaestrosDT.buttons().container().appendTo('#maestro-export-actions');
+            const filtroInicial = document.getElementById('buscador-individual');
+            if (filtroInicial && filtroInicial.value.trim()) tablaMaestrosDT.search(filtroInicial.value).draw();
+        }
         // Efecto hover sutil al pasar el mouse por las tarjetas de resultado
         const cards = document.querySelectorAll('.result-card');
         cards.forEach(card => {
@@ -884,3 +1145,15 @@ $tablaActiva = isset($tablaActiva) ? $tablaActiva : 'categorias';
         }
     });
 </script>
+<?php if ($tablaActiva === 'proveedores' && !empty($_GET['nuevo']) && !$soloLectura): ?>
+<script>
+window.addEventListener('load',function(){
+    if(typeof abrirModalMaestro==='function') abrirModalMaestro();
+    var params = new URLSearchParams(window.location.search);
+    var nombre = document.getElementById('mae-inp-nombre');
+    var ruc = document.getElementById('mae-inp-ruc');
+    if (nombre && params.get('nombre')) nombre.value = params.get('nombre');
+    if (ruc && params.get('ruc')) ruc.value = params.get('ruc').replace(/\D/g, '').slice(0, 13);
+});
+</script>
+<?php endif; ?>

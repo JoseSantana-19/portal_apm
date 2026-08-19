@@ -20,6 +20,21 @@ if (!isset($userMenu) || empty($userMenu)) {
     $userMenu = $menuObj->getUserMenu((int)($_SESSION['user_id'] ?? 0));
 }
 
+/**
+ * Todo link hacia un módulo integrado (apps/talento_humano, apps/control_bienes,
+ * apps/bitacoras) pasa por /ir?destino=... en vez de la URL final directa --
+ * ese gateway es el único lugar que exige reconfirmar MFA antes de dejar
+ * pasar a un usuario que lo tiene activo (ver ModuleGateController). Los
+ * links internos del propio portal (Central) siguen yendo directo.
+ */
+function apm_sidebar_link(string $appUrl, string $rawUrl): string {
+    $rawUrl = ltrim($rawUrl, '/');
+    if (str_starts_with($rawUrl, 'apps/')) {
+        return $appUrl . '/ir?destino=' . rawurlencode($rawUrl);
+    }
+    return $appUrl . '/' . $rawUrl;
+}
+
 /* ── MODO MÓDULO (apartado individual) ──────────────────────────────
    Si la ruta actual pertenece a un módulo integrado, el sidebar se
    enfoca SOLO en ese módulo: sus opciones individuales expandidas +
@@ -227,7 +242,7 @@ if (!function_exists('normalizeFaIcon')) {
                 ?>
                 <div class="sm-section" style="--mod-color: <?= $modColor ?>; --mod-color-alpha: <?= $modColor ?>20;">
                     <?php if ($esLinkDirecto):
-                        $modUrl = APP_URL . '/' . ltrim($soloItem['url'], '/');
+                        $modUrl = apm_sidebar_link(APP_URL, $soloItem['url']);
                         $modActiveDirecta = ($currentPath === '/' . ltrim($soloItem['url'], '/'));
                     ?>
                     <!-- Level 1: Módulo con un solo destino -- link directo, sin acordeón -->
@@ -292,7 +307,7 @@ if (!function_exists('normalizeFaIcon')) {
                                 ?>
                                 <div style="margin-bottom: <?= $singleArea ? '2px' : '6px' ?>;">
                                     <?php if ($areaEsLinkDirecto):
-                                        $areaUrl = APP_URL . '/' . ltrim($areaSoloItem['url'], '/');
+                                        $areaUrl = apm_sidebar_link(APP_URL, $areaSoloItem['url']);
                                         $areaActivaDirecta = ($currentPath === '/' . ltrim($areaSoloItem['url'], '/'));
                                     ?>
                                     <a class="sb-area-btn sb-area-link <?= $areaActivaDirecta ? 'open' : '' ?>" href="<?= $areaUrl ?>" <?= !empty($areaSoloItem['spa']) ? 'data-spa' : 'data-no-spa' ?>
@@ -346,7 +361,7 @@ if (!function_exists('normalizeFaIcon')) {
                                                         <!-- Level 4: Links -->
                                                         <?php foreach ($opt['children'] as $subopt): ?>
                                                             <?php 
-                                                            $subUrl = APP_URL . '/' . ltrim($subopt['url'] ?? '', '/');
+                                                            $subUrl = apm_sidebar_link(APP_URL, $subopt['url'] ?? '');
                                                             $subActive = ($currentPath === '/' . ltrim($subopt['url'] ?? '', '/'));
                                                             ?>
                                                             <a href="<?= $subUrl ?>" class="sb-subitem <?= $subActive ? 'active' : '' ?>" <?= !empty($subopt['spa']) ? 'data-spa' : 'data-no-spa' ?> id="sit-<?= $subopt['id'] ?>"
@@ -365,7 +380,7 @@ if (!function_exists('normalizeFaIcon')) {
                                             <?php else: ?>
                                                 <!-- Simple Level 3 Link -->
                                                 <?php 
-                                                $linkUrl = APP_URL . '/' . ltrim($opt['url'] ?? '', '/');
+                                                $linkUrl = apm_sidebar_link(APP_URL, $opt['url'] ?? '');
                                                 $isActive = ($currentPath === '/' . ltrim($opt['url'] ?? '', '/'));
                                                 ?>
                                                 <a href="<?= $linkUrl ?>" class="sb-item-btn sb-item <?= $isActive ? 'active' : '' ?>" <?= !empty($opt['spa']) ? 'data-spa' : 'data-no-spa' ?> id="sit-<?= $opt['id'] ?>"

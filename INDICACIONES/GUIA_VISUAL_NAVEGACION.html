@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía Visual de Navegación — Portal APM</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --border:#2a3450;
+  --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+  --primary:#4f7fff; --primary-soft:rgba(79,127,255,.14);
+  --portal:#8b5cf6; --th:#22c55e; --bienes:#f59e0b; --bit:#ec4899;
+  --ok:#22c55e; --radius:12px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  line-height:1.5; padding-bottom:80px;
+}
+a{color:var(--primary);}
+.wrap{max-width:1100px; margin:0 auto; padding:32px 20px;}
+header.hero{
+  text-align:center; padding:36px 20px 28px; margin-bottom:28px;
+  background:linear-gradient(160deg,var(--panel),var(--panel2));
+  border:1px solid var(--border); border-radius:var(--radius);
+}
+header.hero h1{margin:0 0 8px; font-size:1.9rem;}
+header.hero p{margin:0; color:var(--text-muted); max-width:640px; margin:0 auto;}
+.badge-row{display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap;}
+.badge{
+  font-size:.72rem; font-weight:700; padding:5px 12px; border-radius:999px;
+  text-transform:uppercase; letter-spacing:.04em;
+}
+.badge.portal{background:rgba(139,92,246,.15); color:var(--portal);}
+.badge.th{background:rgba(34,197,94,.15); color:var(--th);}
+.badge.bienes{background:rgba(245,158,11,.15); color:var(--bienes);}
+.badge.bit{background:rgba(236,72,153,.15); color:var(--bit);}
+
+section{margin-bottom:32px;}
+h2{font-size:1.3rem; margin:0 0 14px; display:flex; align-items:center; gap:10px;}
+h2 .num{
+  width:28px; height:28px; border-radius:50%; background:var(--primary-soft);
+  color:var(--primary); display:flex; align-items:center; justify-content:center;
+  font-size:.85rem; font-weight:800; flex-shrink:0;
+}
+
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px 22px;
+}
+
+/* Credenciales */
+.cred-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.cred-box{
+  background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+  padding:14px 16px;
+}
+.cred-box b{display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:6px;}
+.cred-box code{
+  font-family:Consolas,monospace; background:rgba(79,127,255,.12); color:var(--primary);
+  padding:3px 9px; border-radius:6px; font-size:.95rem; font-weight:700;
+}
+.cred-note{margin-top:14px; font-size:.85rem; color:var(--text-muted);}
+
+/* Organigrama */
+.orgchart{overflow-x:auto; padding:20px 0 6px;}
+.org-root{
+  display:flex; flex-direction:column; align-items:center; gap:0; min-width:760px;
+}
+.org-node{
+  background:var(--panel2); border:2px solid var(--primary); color:var(--text);
+  border-radius:10px; padding:12px 22px; font-weight:700; font-size:1rem;
+  cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+}
+.org-node:hover{transform:translateY(-2px); box-shadow:0 8px 20px -8px rgba(79,127,255,.5);}
+.org-branches{display:flex; gap:18px; margin-top:0; position:relative;}
+.org-branches::before{
+  content:""; position:absolute; top:-24px; left:50%; width:1px; height:24px;
+  background:var(--border);
+}
+.org-col{display:flex; flex-direction:column; align-items:center; position:relative; padding-top:24px;}
+.org-col::before{content:""; position:absolute; top:0; left:50%; width:1px; height:24px; background:var(--border);}
+.org-mod{
+  border-radius:10px; padding:10px 18px; font-weight:700; font-size:.9rem;
+  cursor:pointer; border:2px solid; text-align:center; min-width:150px;
+  transition:transform .12s ease;
+}
+.org-mod:hover{transform:translateY(-2px);}
+.org-mod.portal{border-color:var(--portal); background:rgba(139,92,246,.12); color:var(--portal);}
+.org-mod.th{border-color:var(--th); background:rgba(34,197,94,.12); color:var(--th);}
+.org-mod.bienes{border-color:var(--bienes); background:rgba(245,158,11,.12); color:var(--bienes);}
+.org-mod.bit{border-color:var(--bit); background:rgba(236,72,153,.12); color:var(--bit);}
+.org-leaves{display:flex; flex-direction:column; gap:6px; margin-top:14px; position:relative;}
+.org-leaves::before{content:""; position:absolute; top:-14px; left:50%; width:1px; height:14px; background:var(--border);}
+.org-leaf{
+  font-size:.74rem; color:var(--text-muted); background:var(--panel);
+  border:1px solid var(--border); border-radius:6px; padding:5px 10px; white-space:nowrap;
+}
+
+/* Progreso */
+.progress-bar{
+  position:fixed; bottom:0; left:0; right:0; background:var(--panel);
+  border-top:1px solid var(--border); padding:12px 20px; z-index:50;
+  display:flex; align-items:center; gap:14px; justify-content:center;
+}
+.progress-track{width:min(400px,50vw); height:8px; background:var(--panel2); border-radius:99px; overflow:hidden; border:1px solid var(--border);}
+.progress-fill{height:100%; background:linear-gradient(90deg,var(--primary),var(--th)); width:0%; transition:width .2s ease;}
+.progress-label{font-size:.82rem; color:var(--text-muted); font-variant-numeric:tabular-nums;}
+.progress-reset{
+  background:none; border:1px solid var(--border); color:var(--text-muted);
+  font-size:.75rem; padding:5px 10px; border-radius:6px; cursor:pointer;
+}
+.progress-reset:hover{color:var(--text); border-color:var(--text-light);}
+
+/* Acordeón de módulos */
+details.mod{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  margin-bottom:14px; overflow:hidden;
+}
+details.mod[open]{border-color:var(--mod-c,var(--primary));}
+details.mod > summary{
+  list-style:none; cursor:pointer; padding:16px 20px; display:flex; align-items:center; gap:12px;
+  font-weight:700; font-size:1.02rem; user-select:none;
+}
+details.mod > summary::-webkit-details-marker{display:none;}
+details.mod > summary::after{
+  content:"▸"; margin-left:auto; color:var(--text-light); transition:transform .15s ease; font-size:.8rem;
+}
+details.mod[open] > summary::after{transform:rotate(90deg);}
+.mod-dot{width:11px; height:11px; border-radius:50%; background:var(--mod-c,var(--primary)); flex-shrink:0;}
+.mod-count{
+  font-size:.72rem; font-weight:600; color:var(--text-muted); background:var(--panel2);
+  padding:3px 9px; border-radius:99px;
+}
+.mod-body{padding:0 20px 18px;}
+.mod-desc{color:var(--text-muted); font-size:.88rem; margin:0 0 14px; padding-top:2px;}
+
+.area-title{
+  font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-light); margin:16px 0 8px; padding-top:10px; border-top:1px solid var(--border);
+}
+.area-title:first-child{border-top:none; margin-top:0; padding-top:0;}
+
+.row{
+  display:flex; align-items:flex-start; gap:12px; padding:9px 10px; border-radius:8px;
+}
+.row:hover{background:var(--panel2);}
+.row input[type=checkbox]{
+  margin-top:3px; width:17px; height:17px; accent-color:var(--ok); cursor:pointer; flex-shrink:0;
+}
+.row label.checked .row-title{color:var(--text-muted); text-decoration:line-through;}
+.row-main{flex:1; min-width:0;}
+.row-title{font-weight:600; font-size:.92rem;}
+.row-desc{font-size:.8rem; color:var(--text-muted); margin-top:2px;}
+.row-link{
+  font-size:.78rem; font-family:Consolas,monospace; color:var(--primary);
+  text-decoration:none; white-space:nowrap; flex-shrink:0; align-self:center;
+  border:1px solid var(--border); padding:4px 10px; border-radius:6px;
+}
+.row-link:hover{background:var(--primary-soft);}
+.row-noscreen{
+  font-size:.78rem; color:var(--text-light); font-style:italic; flex-shrink:0; align-self:center;
+}
+
+.notes{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px;}
+.notes h3{margin:18px 0 8px; font-size:.98rem;}
+.notes h3:first-child{margin-top:0;}
+.notes p, .notes li{color:var(--text-muted); font-size:.88rem;}
+.notes code{background:var(--panel2); color:var(--primary); padding:2px 7px; border-radius:5px; font-family:Consolas,monospace;}
+.notes ul{margin:6px 0; padding-left:20px;}
+
+.roles-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px; margin-top:8px;}
+.role-chip{
+  background:var(--panel2); border:1px solid var(--border); border-radius:8px;
+  padding:8px 11px; font-size:.8rem;
+}
+.role-chip code{display:block; font-size:.68rem; color:var(--text-light); margin-top:2px;}
+
+.search-box{margin-bottom:20px;}
+.search-box input{
+  width:100%; padding:12px 16px; border-radius:10px; border:1px solid var(--border);
+  background:var(--panel2); color:var(--text); font-size:.92rem;
+}
+.search-box input:focus{outline:none; border-color:var(--primary);}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>Guía Visual de Navegación — Portal APM</h1>
+  <p>Mapa completo de todo lo que existe hoy en el sistema, con link directo a cada pantalla y un checklist para ir marcando qué ya probaste. Pensada para alguien que arranca de cero.</p>
+  <div class="badge-row">
+    <span class="badge portal">Central / Portal</span>
+    <span class="badge th">Talento Humano</span>
+    <span class="badge bienes">Control de Bienes</span>
+    <span class="badge bit">Bitácoras Portuarias</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">1</span>Credenciales de acceso</h2>
+  <div class="card">
+    <div class="cred-grid">
+      <div class="cred-box">
+        <b>Portal (login único, por cédula)</b>
+        Cédula: <code>1234567777</code><br><br>
+        Contraseña: <code>Apm2024*</code>
+      </div>
+      <div class="cred-box">
+        <b>URL base</b>
+        <a href="http://localhost/portal_apm/login" target="_blank">http://localhost/portal_apm/login</a>
+      </div>
+    </div>
+    <p class="cred-note">
+      Esa es la ÚNICA cuenta que trae el sistema recién instalado (técnica, acceso total). No hay
+      alta manual de usuarios: cuentas nuevas se crean desde <b>Talento Humano → Administración de
+      Usuarios</b> (dentro del portal, sección 2.2 más abajo), eligiendo un empleado real y un rol.
+      Te va a pedir cambiar la contraseña la primera vez que entrés.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">2</span>Organigrama del sistema</h2>
+  <div class="card">
+    <div class="orgchart">
+      <div class="org-root">
+        <div class="org-node" onclick="document.getElementById('mod-central').scrollIntoView({behavior:'smooth'});document.getElementById('mod-central').open=true;">
+          Portal APM (hub central)
+        </div>
+        <div class="org-branches">
+          <div class="org-col">
+            <div class="org-mod portal" onclick="document.getElementById('mod-central').scrollIntoView({behavior:'smooth'});document.getElementById('mod-central').open=true;">Central</div>
+            <div class="org-leaves">
+              <div class="org-leaf">Dashboard</div>
+              <div class="org-leaf">Usuarios / Roles</div>
+              <div class="org-leaf">Menú / Auditoría</div>
+              <div class="org-leaf">Landing / Módulos</div>
+            </div>
+          </div>
+          <div class="org-col">
+            <div class="org-mod th" onclick="document.getElementById('mod-th').scrollIntoView({behavior:'smooth'});document.getElementById('mod-th').open=true;">Talento Humano</div>
+            <div class="org-leaves">
+              <div class="org-leaf">Directorio / Ingreso</div>
+              <div class="org-leaf">Acción de Personal</div>
+              <div class="org-leaf">Reportes / Auditoría</div>
+              <div class="org-leaf">Login nativo propio</div>
+            </div>
+          </div>
+          <div class="org-col">
+            <div class="org-mod bienes" onclick="document.getElementById('mod-bienes').scrollIntoView({behavior:'smooth'});document.getElementById('mod-bienes').open=true;">Control de Bienes</div>
+            <div class="org-leaves">
+              <div class="org-leaf">Inventario / Ítems</div>
+              <div class="org-leaf">Ingresos / Egresos</div>
+              <div class="org-leaf">Reportes</div>
+              <div class="org-leaf">Login nativo propio</div>
+            </div>
+          </div>
+          <div class="org-col">
+            <div class="org-mod bit" onclick="document.getElementById('mod-bitacoras').scrollIntoView({behavior:'smooth'});document.getElementById('mod-bitacoras').open=true;">Bitácoras Portuarias</div>
+            <div class="org-leaves">
+              <div class="org-leaf">Visitas / Rondas</div>
+              <div class="org-leaf">Catálogos</div>
+              <div class="org-leaf">CCTV</div>
+              <div class="org-leaf">Sin login propio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cred-note">Click en cualquier caja para saltar directo a su checklist detallado.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">3</span>Checklist de pruebas por módulo</h2>
+  <div class="search-box">
+    <input type="text" id="q" placeholder="Filtrar por nombre de pantalla…" oninput="filtrar(this.value)">
+  </div>
+  <div id="modulos"></div>
+</section>
+
+<section>
+  <h2><span class="num">4</span>Notas importantes antes de probar</h2>
+  <div class="notes">
+    <h3>Talento Humano y Control de Bienes tienen login PROPIO</h3>
+    <p>Son apps con su propia sesión y su propia tabla de usuarios. Si entrás desde el portal ya
+    logueado, un puente automático te mete directo sin pedir credenciales de nuevo (si tu cuenta
+    de portal está vinculada a un empleado). Si entrás directo a esas URLs sin pasar por el
+    portal, te va a pedir login nativo — para eso hace falta una cuenta creada específicamente en
+    ese módulo.</p>
+
+    <h3>Bitácoras NO tiene login ni permisos propios</h3>
+    <p>Usa 100% la sesión y los permisos del portal (<code>fn_TienePermisoNodo</code>). Lo que veas
+    ahí depende exclusivamente de lo que el rol/usuario tenga asignado en
+    <code>/admin/roles/{id}/permisos</code> o en el editor de usuario.</p>
+
+    <h3>Cómo probar con un rol distinto al de administrador</h3>
+    <p>El admin ve TODO — para probar cómo se ve el sistema para un rol más limitado:</p>
+    <ol>
+      <li>Crear un empleado/usuario de prueba desde <b>Talento Humano → Administración de
+      Usuarios → Crear desde Talento Humano</b> (sección 2.2), asignándole uno de los roles de
+      abajo.</li>
+      <li>O editar los permisos individuales de un usuario existente desde
+      <code>/admin/usuarios/{id}/editar</code> (checklist de excepciones).</li>
+      <li>Cerrar sesión y entrar con la cuenta de prueba — el sidebar del portal y de cada módulo
+      se ajusta solo.</li>
+    </ol>
+    <div class="roles-grid" id="roles-grid"></div>
+
+    <h3>Extensión <code>dbase</code> (opcional)</h3>
+    <p>El desplegable de funcionarios en <b>Bitácoras → Registrar Ingreso</b> necesita la extensión
+    PHP <code>dbase</code> instalada (ver <code>INSTALACION_MANUAL_WAMPSERVER.md</code>, paso 11).
+    Sin eso, el resto de Bitácoras funciona igual — solo ese desplegable queda vacío.</p>
+
+    <h3>Si algo no carga o tira error</h3>
+    <p>Revisar <code>INSTALACION_MANUAL_WAMPSERVER.md</code> → sección "Problemas comunes". La
+    causa más frecuente en una instalación nueva: falta correr las migraciones pendientes de TH
+    (paso 9.1) o de Bienes (paso 9.2) sobre sus bases de datos.</p>
+  </div>
+</section>
+
+</div>
+
+<div class="progress-bar">
+  <span class="progress-label" id="progLabel">0 / 0 probado</span>
+  <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+  <button class="progress-reset" onclick="if(confirm('¿Reiniciar todo el progreso marcado?')){localStorage.removeItem('apm_guia_progreso');location.reload();}">Reiniciar progreso</button>
+</div>
+
+<script>
+var BASE = 'http://localhost/portal_apm/';
+
+// Estructura real tomada de CORE_Menu_Nodos (Central/TH/Bienes) y del
+// sidebar nativo de Bitácoras — no inventada. url:null = nodo que gatea
+// un permiso/acción puntual, no tiene pantalla propia para navegar.
+var MODULOS = [
+  {
+    id:'mod-central', color:'var(--portal)', nombre:'Central — Portal APM',
+    desc:'El hub. Dashboard, administración de usuarios/roles/menú, auditoría y contenido del portal.',
+    areas:[
+      {titulo:'Panel Principal', items:[
+        {n:'Dashboard Ejecutivo', u:'dashboard', d:'KPIs generales de los 3 módulos integrados.'},
+        {n:'Dashboard Operativo', u:'dashboard/operativo', d:'Vista operativa del día a día.'},
+      ]},
+      {titulo:'Administración', items:[
+        {n:'Gestión de Usuarios', u:'admin/usuarios', d:'Listado, editar usuario (roles + permisos individuales en un solo guardado).'},
+        {n:'Roles y Permisos', u:'admin/roles', d:'Editor de permisos por rol, tipo checklist (V/C/E/Total).'},
+        {n:'Matriz de Permisos', u:'admin/roles/matriz', d:'Vista consolidada de todos los roles contra todos los nodos.'},
+        {n:'Estructura del Menú', u:'admin/menu', d:'Editar el árbol MOIS (módulo/opción/ítem/subítem) que arma el sidebar.'},
+        {n:'Auditoría del Sistema', u:'admin/auditoria', d:'Log inmutable de acciones administrativas, con diff antes/después.'},
+        {n:'Contenido del Portal', u:'admin/landing', d:'CMS de la pantalla de bienvenida: carrusel, noticias, consejos.'},
+        {n:'Inactividad de Sesión', u:'admin/inactividad', d:'Configurar tiempos de cierre por inactividad (global/módulo/usuario).'},
+        {n:'Módulos', u:'admin/modulos', d:'Registro de los módulos integrados del portal.'},
+      ]},
+      {titulo:'Mi Cuenta', items:[
+        {n:'Mi Perfil', u:'perfil', d:'Datos propios + cambio de contraseña.'},
+        {n:'Notificaciones', u:'notificaciones', d:'Centro de notificaciones del portal.'},
+      ]},
+    ]
+  },
+  {
+    id:'mod-th', color:'var(--th)', nombre:'Talento Humano',
+    desc:'Gestión de personal. Login/sesión propios (con puente automático desde el portal).',
+    areas:[
+      {titulo:'Operación diaria', items:[
+        {n:'Inicio', u:'apps/talento_humano/talento-humano/inicio', d:'Dashboard propio de TH.'},
+        {n:'Directorio de Personal', u:'apps/talento_humano/talento-humano/directorio', d:'Listado de empleados, buscador, exportar.'},
+        {n:'Formulario de Ingreso', u:'apps/talento_humano/talento-humano/empleado/crear', d:'Alta de un empleado nuevo.'},
+        {n:'Acción de Personal', u:'apps/talento_humano/talento-humano/accion-personal', d:'Nombramientos, ascensos, sanciones, etc.'},
+        {n:'Movimientos internos', u:'apps/talento_humano/talento-humano/directorio?modo=movimiento', d:'Traslados/reubicaciones entre unidades.'},
+        {n:'Estudio Socioeconómico', u:'apps/talento_humano/talento-humano/estudio-seguridad', d:'Ficha socioeconómica del empleado.'},
+        {n:'Biblioteca de Formularios', u:'apps/talento_humano/talento-humano/biblioteca', d:'Formatos oficiales descargables.'},
+      ]},
+      {titulo:'Administración de TH', items:[
+        {n:'Estructura y cargos', u:'apps/talento_humano/admin/maestros', d:'Maestros: puestos, unidades, títulos, períodos.'},
+        {n:'Administración de Usuarios', u:'apps/talento_humano/admin/usuarios', d:'Crear cuenta de portal+TH desde un empleado real — punto de entrada para cuentas nuevas.'},
+        {n:'Roles y Permisos (TH nativo)', u:'apps/talento_humano/admin/roles', d:'RBAC propio de TH (th_permisos_rol) — distinto del sistema central del portal.'},
+        {n:'Políticas y Normativas', u:'apps/talento_humano/admin/politicas', d:'Documentos institucionales.'},
+      ]},
+      {titulo:'Auditoría y Reportes', items:[
+        {n:'Logs de Actividad', u:'apps/talento_humano/auditoria/logs', d:'Auditoría inmutable propia de TH.'},
+        {n:'Reportes de Auditoría', u:'apps/talento_humano/auditoria/reportes', d:'Filtros/export sobre los logs.'},
+        {n:'Reportes Generales', u:'apps/talento_humano/reportes', d:'Reportes institucionales de personal.'},
+      ]},
+      {titulo:'Prototipos (en desarrollo, marcados "Demo")', items:[
+        {n:'Asistencia y Turnos', u:'apps/talento_humano/talento-humano/asistencia', d:'Prototipo, no funcional a fondo todavía.'},
+        {n:'Vacaciones y Ausencias', u:'apps/talento_humano/talento-humano/vacaciones', d:'Prototipo.'},
+        {n:'Evaluación y Desempeño', u:'apps/talento_humano/talento-humano/desempeno', d:'Prototipo.'},
+        {n:'Capacitación y Desarrollo', u:'apps/talento_humano/talento-humano/capacitacion', d:'Prototipo.'},
+      ]},
+    ]
+  },
+  {
+    id:'mod-bienes', color:'var(--bienes)', nombre:'Control de Bienes',
+    desc:'Inventario institucional. Login/sesión propios (con puente automático desde el portal).',
+    areas:[
+      {titulo:'Operación', items:[
+        {n:'Dashboard', u:'apps/control_bienes/index.php?route=dashboard', d:'Resumen del inventario.'},
+        {n:'Inventario General', u:'apps/control_bienes/index.php?route=inventario', d:'Listado completo de bienes.'},
+        {n:'Catálogo de Ítems', u:'apps/control_bienes/index.php?route=items', d:'Productos/ítems catalogados.'},
+        {n:'Ítems del Sistema', u:'apps/control_bienes/index.php?route=inv_items_sistema', d:'Ítems normalizados del sistema.'},
+        {n:'Ingresos de Bodega', u:'apps/control_bienes/index.php?route=ingresos', d:'Registrar entrada de bienes.'},
+        {n:'Egresos de Bodega', u:'apps/control_bienes/index.php?route=egresos', d:'Registrar salida de bienes.'},
+      ]},
+      {titulo:'Maestros y configuración', items:[
+        {n:'Tablas de Cabecera', u:'apps/control_bienes/index.php?route=cabeceras', d:'Catálogos base del módulo.'},
+        {n:'Maestros', u:'apps/control_bienes/index.php?route=inv_maestros', d:'Categorías, unidades de medida, etc.'},
+        {n:'Períodos e IVA', u:'apps/control_bienes/index.php?route=inv_periodos', d:'Configuración fiscal por período.'},
+        {n:'Secuenciales de Índice', u:'apps/control_bienes/index.php?route=inv_secuenciales', d:'Numeración de actas/documentos.'},
+        {n:'Directorio de Personal', u:'apps/control_bienes/index.php?route=talento_directorio', d:'Espejo de personal para asignar responsables.'},
+      ]},
+      {titulo:'Administración y reportes', items:[
+        {n:'Gestión de Usuarios', u:'apps/control_bienes/index.php?route=usuarios', d:'Usuarios nativos de Bienes.'},
+        {n:'Gestión de Permisos', u:'apps/control_bienes/index.php?route=inv_permisos', d:'Pantalla nativa — en la práctica gateada solo para rol "administrador", el sistema real de permisos es el del portal.'},
+        {n:'Bitácora del Sistema', u:'apps/control_bienes/index.php?route=inv_bitacora', d:'Log de acciones dentro de Bienes.'},
+        {n:'Reportes Varios', u:'apps/control_bienes/index.php?route=reportes', d:'Exportables del inventario.'},
+      ]},
+    ]
+  },
+  {
+    id:'mod-bitacoras', color:'var(--bit)', nombre:'Bitácoras Portuarias',
+    desc:'Control de acceso portuario. Sin login propio — 100% sesión y permisos del portal.',
+    areas:[
+      {titulo:'Operación diaria', items:[
+        {n:'Dashboard', u:'apps/bitacoras/portuaria/dashboard', d:'Resumen de visitas/rondas del día.'},
+        {n:'Dashboard de Jefatura', u:'apps/bitacoras/dashboard-jefe', d:'Vista gerencial.'},
+        {n:'Registrar Ingreso', u:'apps/bitacoras/visitas/registrar', d:'Registrar visita/ingreso (necesita extensión dbase para el desplegable de funcionarios).'},
+        {n:'Listado de Visitas', u:'apps/bitacoras/visitas', d:'Historial de visitas registradas.'},
+        {n:'Rondas de Vigilancia', u:'apps/bitacoras/rondas', d:'Registro de rondas de seguridad.'},
+        {n:'Reporte de Supervisor', u:'apps/bitacoras/bit_reporte_diario_supervisor.php', d:'Reporte diario consolidado.'},
+        {n:'Importar Funcionarios', u:'apps/bitacoras/importar-funcionarios', d:'Carga masiva de funcionarios.'},
+      ]},
+      {titulo:'Registros Base (catálogos)', items:[
+        {n:'Ver todo (catálogos)', u:'apps/bitacoras/catalogos', d:'Panel general de catálogos.'},
+        {n:'Maestro Personas', u:'apps/bitacoras/catalogos/personas', d:''},
+        {n:'Maestro Empresas', u:'apps/bitacoras/catalogos/empresas', d:''},
+        {n:'Maestro Destinos', u:'apps/bitacoras/catalogos/destinos', d:''},
+        {n:'Maestro Motivos', u:'apps/bitacoras/catalogos/motivos', d:''},
+        {n:'Talento Humano (catálogo)', u:'apps/bitacoras/catalogos/funcionarios', d:'Funcionarios sincronizados desde TH.'},
+        {n:'Niveles de importancia', u:'apps/bitacoras/catalogos/niveles-incidente', d:''},
+      ]},
+      {titulo:'CCTV', items:[
+        {n:'Bitácora de Cámaras', u:'apps/bitacoras/camaras', d:'Registro de novedades por cámara.'},
+        {n:'Maestro de Cámaras', u:'apps/bitacoras/camaras/inventario', d:'Inventario de cámaras instaladas.'},
+        {n:'Motivos CCTV', u:'apps/bitacoras/camaras/motivos', d:'Catálogo de motivos de novedad.'},
+      ]},
+      {titulo:'Nodos de permiso puntual (sin pantalla propia)', items:[
+        {n:'Configurar Días de Bitácora', u:null, d:'Gatea una acción dentro de otra pantalla, no tiene URL directa.'},
+        {n:'Gestión de Catálogos (escritura)', u:null, d:'Habilita crear/editar dentro de los catálogos de arriba.'},
+        {n:'Gestión de Personas (escritura)', u:null, d:'Habilita crear/editar personas.'},
+        {n:'Asignar Cédula Guest', u:null, d:'Habilita la acción de asignar cédula temporal a un visitante.'},
+      ]},
+    ]
+  },
+];
+
+var ROLES = ["Abogado/a (ABOGADO)","Acceso Solo Lectura (LECTOR)","Administrador TI (ADMIN)","Analista Administrativo (ANALISTA_ADMIN)","Analista Financiero (ANALISTA_FIN)","Analista TH (ANALISTA_TH)","Asistente Gerencia (ASIST_GCIA)","Auditor de Bienes (BIENES_AUDITOR)","Auditor Interno (AUDITOR)","Delegación (DELEGACION)","Director Administrativo (DIR_ADMIN)","Director Financiero (DIR_FIN)","Director Infraestructura (DIR_INFRA)","Director Jurídico (DIR_JURIDICA)","Director Talento Humano (DIR_TH)","Gerente General (GERENTE)","Inspector Portuario (INSPECTOR)","Operador CCTV (OP_CCTV)","Operador de Bienes (BIENES_OPERADOR)","Operador Garita (OP_GARITA)","Planificación (PLANIFICACION)","Secretaria (SECRETARIA)","Supervisor Acceso (SUP_ACCESO)","Supervisor de Bienes (BIENES_SUPERVISOR)"];
+
+var STORE_KEY = 'apm_guia_progreso';
+var progreso = {};
+try { progreso = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { progreso = {}; }
+
+function slug(s){ return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-'); }
+
+function render(){
+  var host = document.getElementById('modulos');
+  var html = '';
+  var total = 0, checked = 0;
+
+  MODULOS.forEach(function(mod){
+    var count = 0;
+    mod.areas.forEach(function(a){ count += a.items.length; });
+    total += count;
+
+    html += '<details class="mod" id="'+mod.id+'" style="--mod-c:'+mod.color+'">';
+    html += '<summary><span class="mod-dot"></span>'+mod.nombre+'<span class="mod-count">'+count+' pantallas</span></summary>';
+    html += '<div class="mod-body"><p class="mod-desc">'+mod.desc+'</p>';
+
+    mod.areas.forEach(function(area){
+      html += '<div class="area-title">'+area.titulo+'</div>';
+      area.items.forEach(function(item){
+        var key = mod.id + ':' + slug(item.n);
+        var isChecked = !!progreso[key];
+        if (isChecked) checked++;
+        html += '<div class="row" data-name="'+item.n.toLowerCase()+'">';
+        html += '<input type="checkbox" data-key="'+key+'" '+(isChecked?'checked':'')+' onchange="toggle(this)">';
+        html += '<label class="row-main '+(isChecked?'checked':'')+'" onclick="this.previousElementSibling && this.previousElementSibling.click && this.previousElementSibling.click()">';
+        html += '<div class="row-title">'+item.n+'</div>';
+        if (item.d) html += '<div class="row-desc">'+item.d+'</div>';
+        html += '</label>';
+        if (item.u) {
+          html += '<a class="row-link" target="_blank" href="'+BASE+item.u+'">abrir →</a>';
+        } else {
+          html += '<span class="row-noscreen">sin pantalla</span>';
+        }
+        html += '</div>';
+      });
+    });
+    html += '</div></details>';
+  });
+
+  host.innerHTML = html;
+  updateProgress(total, checked);
+
+  var rg = document.getElementById('roles-grid');
+  rg.innerHTML = ROLES.map(function(r){
+    var parts = r.split(' (');
+    return '<div class="role-chip">'+parts[0]+'<code>'+parts[1].replace(')','')+'</code></div>';
+  }).join('');
+}
+
+window.toggle = function(cb){
+  var key = cb.getAttribute('data-key');
+  progreso[key] = cb.checked;
+  localStorage.setItem(STORE_KEY, JSON.stringify(progreso));
+  var label = cb.parentElement.querySelector('.row-main');
+  if (label) label.classList.toggle('checked', cb.checked);
+  var totalChecked = Object.keys(progreso).filter(function(k){ return progreso[k]; }).length;
+  var totalAll = document.querySelectorAll('#modulos input[type=checkbox]').length;
+  updateProgress(totalAll, totalChecked);
+};
+
+function updateProgress(total, checked){
+  document.getElementById('progLabel').textContent = checked + ' / ' + total + ' probado';
+  document.getElementById('progFill').style.width = (total ? (checked/total*100) : 0) + '%';
+}
+
+window.filtrar = function(q){
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('#modulos .row').forEach(function(row){
+    var hit = !q || row.getAttribute('data-name').indexOf(q) !== -1;
+    row.classList.toggle('hidden', !hit);
+  });
+  document.querySelectorAll('#modulos details.mod').forEach(function(det){
+    if (!q) { det.open = false; return; }
+    var anyVisible = det.querySelectorAll('.row:not(.hidden)').length > 0;
+    det.open = anyVisible;
+  });
+};
+
+render();
+</script>
+</body>
+</html>

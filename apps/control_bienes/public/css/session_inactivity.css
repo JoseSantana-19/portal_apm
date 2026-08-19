@@ -1,0 +1,90 @@
+.session-warning-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.56);
+    backdrop-filter: blur(7px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+
+.session-warning-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.session-warning-card {
+    width: min(460px, 100%);
+    padding: 30px;
+    border: 1px solid rgba(245, 158, 11, .24);
+    border-radius: 20px;
+    background: var(--panel-bg, #fff);
+    color: var(--text-color, #1e293b);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+    text-align: center;
+}
+
+.session-warning-icon {
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 16px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: rgba(245, 158, 11, .12);
+    color: #d97706;
+    font-size: 28px;
+}
+
+.session-warning-card h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+}
+
+.session-warning-card p {
+    margin: 0;
+    color: var(--text-muted, #64748b);
+    line-height: 1.55;
+}
+
+.session-warning-countdown {
+    margin: 20px 0;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(239, 68, 68, .08);
+    color: #dc2626;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.session-warning-countdown strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 28px;
+    font-variant-numeric: tabular-nums;
+}
+
+.session-warning-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.session-warning-actions button,
+.session-warning-actions a {
+    min-height: 42px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.session-warning-open {
+    overflow: hidden;
+}
+

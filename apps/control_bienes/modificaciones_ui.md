@@ -1,5 +1,87 @@
 # Bitácora de Modificaciones - Sistema de Inventario Portuario v3.0 PHP MVC + SQLite
 
+## Actualización 2026-08-08: abastecimiento, facturas y permisos granulares
+
+### Abastecimiento de Bodega
+
+- Se consolidó el proceso dentro de una sola opción del menú: **Abastecimiento de Bodega**.
+- Se eliminó la Nota de Pedido del flujo visible porque no pertenece al proceso requerido.
+- El proceso quedó organizado en Orden, Aprobación, Factura e Ingreso y movimiento.
+- La lista interna permite cambiar entre Órdenes, Facturas, Ingresos a bodega y Kardex sin duplicar opciones en el menú principal.
+- Se rediseñaron las pantallas conservando la información funcional del sistema anterior y mejorando legibilidad, distribución y adaptación a diferentes anchos.
+
+### Órdenes y facturas
+
+- Se implementó la creación de órdenes con proveedor, fecha, observaciones, productos, cantidades y precios estimados.
+- Se añadió la aprobación controlada de órdenes, registrando usuario y fecha.
+- Se implementó la factura vinculada a una orden aprobada y la validación de productos y cantidades.
+- Se añadió la factura directa sin orden previa; el sistema genera una orden interna aprobada para conservar trazabilidad.
+- Se incorporaron cálculos automáticos de base 0 %, base gravada, IVA, subtotal y total.
+- Se conserva el código presupuestario por cada línea de factura.
+
+### Documentos y OCR
+
+- Se añadió carga de facturas en PDF, JPG, PNG y WEBP, con límite de 10 MB.
+- Se incorporó lectura OCR para ayudar a detectar número, fecha, RUC, IVA y precios.
+- El proveedor puede identificarse automáticamente mediante el RUC.
+- Se conserva el documento original con nombre seguro, tipo MIME, texto OCR y fecha de escaneo.
+- Se añadió consulta protegida del documento sin exponer rutas internas.
+
+### Movimiento e ingreso a inventario
+
+- Se corrigió el botón **Movimiento** para abrir el detalle completo de la factura.
+- Se muestran productos, códigos, cantidades, precios, IVA, totales, referencias y resumen por grupo.
+- Ingreso a Bodega muestra el formulario y selecciona una factura pendiente cuando existe.
+- Al confirmar se actualizan existencias y costo promedio ponderado.
+- Se guardan existencia anterior, existencia nueva y costo actualizado.
+- Se genera una entrada de Kardex por cada producto.
+- La factura pasa a `INGRESADA` y la orden a `CERRADA` dentro de la misma transacción.
+- Se añadieron bloqueos compatibles con SQL Server, PostgreSQL y SQLite para evitar inconsistencias concurrentes.
+
+### Buscadores y experiencia de uso
+
+- Los productos pueden buscarse por código, descripción y grupo.
+- Los proveedores pueden buscarse por nombre, RUC o código.
+- Las listas se muestran como capas flotantes para evitar recortes dentro de tablas.
+- Los desplegables deciden si deben abrirse hacia arriba o hacia abajo según el espacio.
+- Los encabezados de las ventanas permanecen visibles durante el desplazamiento.
+- Se ajustaron formularios y tablas para reducir el desplazamiento horizontal.
+
+### Maestros
+
+- Grupo de productos y catálogo de productos se conservaron como listas.
+- Las demás opciones mantuvieron su comportamiento anterior.
+- DataTables se simplificó para conservar ordenamiento por columna e impresión.
+- Se ajustaron columnas para aprovechar mejor el ancho disponible.
+- Se modernizó la creación y consulta de proveedores.
+
+### Gestión granular de permisos
+
+- Solo el Administrador puede modificar permisos.
+- Se añadieron permisos por menú y subsección: lectura, creación, edición o proceso y control total.
+- La eliminación no forma parte de la matriz y queda reservada al Administrador.
+- Bodega se divide en Órdenes, Facturas, Ingresos y Kardex.
+- Maestros se divide en categorías, productos, proveedores, unidades, IVA y centros de consumo.
+- El servidor valida cada acción para impedir accesos mediante URL manual.
+- El menú dirige al usuario a su primera subsección autorizada.
+- Los permisos anteriores se migran inicialmente como control total para evitar bloqueos.
+- Se modernizó la pantalla con tarjetas, buscador de usuarios, interruptores y diseño adaptable.
+- Se corrigieron nombres cortados, tarjetas unidas y desbordamientos en el panel de usuarios.
+
+### Archivos añadidos o actualizados
+
+- `GUIA_FUNCIONAL_ABASTECIMIENTO_BODEGA.md`.
+- `modules/Control_Bines/views/monitoreo/egresos.php`.
+- `modules/Control_Bines/controllers/MonitoreoController.php`.
+- `modules/Control_Bines/models/InvAbastecimiento.php`.
+- `modules/Credenciales/views/credenciales/permisos.php`.
+- `modules/Credenciales/controllers/PermisoController.php`.
+- `modules/Credenciales/models/PermisoModel.php`.
+- `core/Router.php` y `modules/Central/views/layout.php`.
+- Migraciones `inv_20260808_abastecimiento_bodega.sql`, `inv_20260808_facturas_documentos.sql` e `inv_20260808_permisos_granulares.sql`.
+
+La explicación completa se encuentra en [GUIA_FUNCIONAL_ABASTECIMIENTO_BODEGA.md](GUIA_FUNCIONAL_ABASTECIMIENTO_BODEGA.md).
+
 ## Actualización 2026-07-27: grupos de ítems y centros de consumo
 
 - El filtro de grupo en Ítems del Sistema limita la lista y la navegación a los productos del grupo seleccionado.

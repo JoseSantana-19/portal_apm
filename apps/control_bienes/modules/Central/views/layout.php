@@ -17,51 +17,22 @@ $routeActiva = isset($_GET['route']) ? $_GET['route'] : 'inventario';
 if (session_status() === PHP_SESSION_NONE) session_start();
 $rolActual = isset($_SESSION['rol']) ? strtolower($_SESSION['rol']) : '';
 $esAdminActual = ($rolActual === 'administrador');
-
-// Menú de navegación mapeado
-$menuItems = [
-    'operaciones' => [
-        'titulo_seccion' => 'Operaciones de Terminal',
-        'items' => [
-            'busqueda_global' => ['label' => 'Búsqueda Global',   'icon' => 'fa-magnifying-glass', 'title' => 'Buscador Inteligente del Sistema'],
-            'inventario'    => ['label' => 'Inventario General',   'icon' => 'fa-ship',         'title' => 'Inventario General de Bienes'],
-            'items'         => ['label' => 'Catálogo de Ítems',    'icon' => 'fa-box',          'title' => 'Catálogo Visual por Grupos'],
-            'inv_items_sistema' => ['label' => 'Ítems del Sistema',    'icon' => 'fa-cubes',        'title' => 'Ítems del Sistema de Inventarios'],
-        ]
-    ],
-    'consultas' => [
-        'titulo_seccion' => 'Consulta Reportes',
-        'items' => [
-            'reportes' => ['label' => 'Reportes Varios', 'icon' => 'fa-chart-pie', 'title' => 'Listados y Reportes Varios de Control'],
-        ]
-    ],
-    'datos' => [
-        'titulo_seccion' => 'Arquitectura de Datos',
-        'items' => [
-            'inv_maestros'     => ['label' => 'Maestros',               'icon' => 'fa-layer-group',   'title' => 'Gestión de Grupos, Productos, Unidades e IVA'],
-            'inv_periodos'     => ['label' => 'Períodos e IVA',         'icon' => 'fa-calendar-days', 'title' => 'Gestión de Períodos e IVA Variable'],
-            'inv_secuenciales' => ['label' => 'Secuenciales de Índice', 'icon' => 'fa-list-ol',      'title' => 'Contadores Automáticos']
-        ]
-    ],
-    'rrhh' => [
-        'titulo_seccion' => 'Gestión de Personal',
-        'items' => [
-            'talento_directorio'      => ['label' => 'Directorio de Personal',  'icon' => 'fa-users',          'title' => 'Listado de Funcionarios'],
-        ]
-    ],
-    'sistema' => [
-        'titulo_seccion' => 'Sistema y Logs',
-        'items' => [
-            'inv_bitacora' => ['label' => 'Bitácora del Sistema', 'icon' => 'fa-clock-rotate-left', 'title' => 'Log de Auditoría Completo'],
-            'usuarios' => ['label' => 'Gestión de Usuarios',  'icon' => 'fa-user-shield',       'title' => 'Control de Acceso y Roles'],
-        ]
-    ]
-];
-
-// Solo el Administrador ve la opción de Permisos
-if ($esAdminActual) {
-    $menuItems['sistema']['items']['inv_permisos'] = ['label' => 'Gestión de Permisos', 'icon' => 'fa-key', 'title' => 'Asignar inv_permisos por usuario'];
+$assetVersion = static function (string $ruta): int {
+    $archivo = ROOT_PATH . ltrim($ruta, '/');
+    return is_file($archivo) ? (int)filemtime($archivo) : 1;
+};
+if (empty($_SESSION['perfil_foto_csrf'])) {
+    $_SESSION['perfil_foto_csrf'] = bin2hex(random_bytes(24));
 }
+
+// Una sola fuente alimenta el menú y la matriz de Gestión de Permisos.
+$menuItems = require ROOT_PATH . 'config/navigation.php';
+foreach ($menuItems as &$grupoMenu) {
+    foreach (($grupoMenu['items'] ?? []) as $routeMenu => $itemMenu) {
+        if (!empty($itemMenu['solo_admin']) && !$esAdminActual) unset($grupoMenu['items'][$routeMenu]);
+    }
+}
+unset($grupoMenu);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -77,23 +48,37 @@ if ($esAdminActual) {
     <!-- DataTables CSS & JS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="public/css/inv_estilos.css?v=<?= time() ?>">
+    <?php if (in_array($routeActiva, ['inv_maestros', 'items'], true)): ?>
+        <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+        <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+        <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <?php endif; ?>
+    <link rel="stylesheet" href="public/css/inv_estilos.css?v=<?= $assetVersion('public/css/inv_estilos.css') ?>">
     <?php if (defined('PORTAL_ROOT_URL')): ?>
-    <!-- SweetAlert2 CSS (aviso de inactividad) -->
+    <!-- SweetAlert2 CSS (aviso de inactividad centralizado del portal) -->
     <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
     <?php endif; ?>
 
     <!-- Assets de Talento Humano (Cargados de forma condicional) -->
     <?php if (strpos($routeActiva, 'talento') === 0): ?>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-        <link rel="stylesheet" href="public/css/talento_custom.css?v=<?= time() ?>">
-        <script src="public/js/talento_humano.js?v=<?= time() ?>"></script>
+        <link rel="stylesheet" href="public/css/talento_custom.css?v=<?= $assetVersion('public/css/talento_custom.css') ?>">
+        <script src="public/js/talento_humano.js?v=<?= $assetVersion('public/js/talento_humano.js') ?>"></script>
     <?php endif; ?>
 
     <script>
         // Pre-cargar tema para evitar parpadeos visuales en el renderizado
         if (localStorage.getItem('theme') === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        if (localStorage.getItem('sidebar_collapsed') === '1') {
+            document.documentElement.classList.add('sidebar-collapsed-preload');
         }
     </script>
     <style>
@@ -276,19 +261,23 @@ if ($esAdminActual) {
             </a>
             <?php endif; ?>
             <?php
-            // Nivel efectivo por route (MOIS opcion via POLITICAS de Router, cascada dual)
-            $nivelesPorRoute = [];
+            // Cargar permisos del usuario actual para filtrar el menú.
+            // Puenteada desde el portal: cross-DB fn_TienePermisoNodo por
+            // opción MOIS (POLITICAS de Router, pantalla completa — sin
+            // sub-alcance). Nativa: sistema propio granular del origen
+            // (inv_permisos / inv_permisos_detalle vía PermisoModel).
+            $permisosDelUsuario = [];
+            $matrizPermisosUsuario = [];
             if (!$esAdminActual) {
-                require_once ROOT_PATH . 'core/Controller.php';
-                require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
-                $rutaAOpcion = [
-                    'inventario' => 2, 'items' => 3, 'inv_items_sistema' => 4,
-                    'cabeceras' => 5, 'inv_maestros' => 6, 'ingresos' => 7, 'egresos' => 8,
-                    'talento_directorio' => 9, 'inv_bitacora' => 10, 'reportes' => 11,
-                    'inv_periodos' => 12, 'inv_secuenciales' => 13, 'usuarios' => 14, 'inv_permisos' => 15,
-                ];
-                $puenteada = !empty($_SESSION['user_id']);
-                if ($puenteada) {
+                $puenteadaMenu = !empty($_SESSION['user_id']);
+                if ($puenteadaMenu) {
+                    require_once ROOT_PATH . 'core/Controller.php';
+                    $rutaAOpcion = [
+                        'inventario' => 2, 'items' => 3, 'inv_items_sistema' => 4,
+                        'cabeceras' => 5, 'inv_maestros' => 6, 'ingresos' => 7, 'egresos' => 8,
+                        'talento_directorio' => 9, 'inv_bitacora' => 10, 'reportes' => 11,
+                        'inv_periodos' => 12, 'inv_secuenciales' => 13, 'usuarios' => 14, 'inv_permisos' => 15,
+                    ];
                     $probeLayout = new class extends Controller {
                         public function nivel(int $idUsuario, int $opcion): int {
                             for ($n = 4; $n >= 1; $n--) {
@@ -297,26 +286,36 @@ if ($esAdminActual) {
                             return 0;
                         }
                     };
-                    foreach ($rutaAOpcion as $rk => $op) {
-                        $nivelesPorRoute[$rk] = $probeLayout->nivel((int)$_SESSION['user_id'], $op);
+                    foreach ($menuItems as $infoSeccionProbe) {
+                        foreach (($infoSeccionProbe['items'] ?? []) as $routeKeyProbe => $itemProbe) {
+                            $permisoMenuProbe = $itemProbe['permission'] ?? $routeKeyProbe;
+                            // Ruta sin nodo MOIS mapeado todavía: se deja visible
+                            // (mismo criterio que Router::checkPermisosPuente).
+                            if (!isset($rutaAOpcion[$permisoMenuProbe])) {
+                                $permisosDelUsuario[] = $permisoMenuProbe;
+                                continue;
+                            }
+                            if ($probeLayout->nivel((int)$_SESSION['user_id'], $rutaAOpcion[$permisoMenuProbe]) >= 1) {
+                                $permisosDelUsuario[] = $permisoMenuProbe;
+                            }
+                        }
                     }
                 } else {
                     $usuarioIdActual = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 0;
-                    $rolIdActual = isset($_SESSION['usuario']['rol_id']) ? (int)$_SESSION['usuario']['rol_id'] : 0;
                     if ($usuarioIdActual > 0) {
-                        $_permisoModel = new PermisoModel();
-                        foreach ($rutaAOpcion as $rk => $op) {
-                            $nivelesPorRoute[$rk] = $_permisoModel->nivelEfectivoNativo($usuarioIdActual, $rolIdActual, $rk);
-                        }
+                        require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
+                        $_permisoModel = new InvPermiso();
+                        $permisosDelUsuario = $_permisoModel->obtenerPermisosUsuario($usuarioIdActual);
+                        $matrizPermisosUsuario = $_permisoModel->obtenerMatrizUsuario($usuarioIdActual);
                     }
                 }
             }
             foreach ($menuItems as $seccion => $info):
-                // Filtrar los items de esta sección según el nivel efectivo (>=1 = visible)
+                // Filtrar los items de esta sección según inv_permisos
                 $itemsVisibles = [];
                 foreach ($info['items'] as $routeKey => $item) {
-                    $rutaReal = ($routeKey === 'busqueda_global') ? 'inv_maestros' : $routeKey;
-                    if ($esAdminActual || ($nivelesPorRoute[$rutaReal] ?? 0) >= 1) {
+                    $permisoMenu = $item['permission'] ?? $routeKey;
+                    if ($esAdminActual || in_array($permisoMenu, $permisosDelUsuario)) {
                         $itemsVisibles[$routeKey] = $item;
                     }
                 }
@@ -327,11 +326,31 @@ if ($esAdminActual) {
                     $activeClass = ($routeActiva === $routeKey) ? 'active' : '';
                 ?>
                     <?php
-                    $url = "index.php?route=" . $routeKey;
+                    $routeDestino = $item['route'] ?? $routeKey;
+                    $url = "index.php?route=" . $routeDestino;
+                    if (!empty($item['vista'])) {
+                        $url .= '&vista=' . urlencode($item['vista']);
+                    }
                     if ($routeKey === 'busqueda_global') {
                         $url = "index.php?route=inv_maestros&tabla=busqueda_global";
                     }
-                    $activeClass = ($routeActiva === $routeKey) ? 'active' : '';
+                    if (!$esAdminActual && $routeKey === 'egresos' && !empty($matrizPermisosUsuario['egresos'])) {
+                        foreach (['ordenes','facturas','ingresos','kardex'] as $_scope) {
+                            $_regla = $matrizPermisosUsuario['egresos'][$_scope] ?? $matrizPermisosUsuario['egresos']['*'] ?? [];
+                            if (!empty($_regla['read']) || !empty($_regla['full'])) { $url = 'index.php?route=egresos&vista='.$_scope; break; }
+                        }
+                    }
+                    if (!$esAdminActual && $routeKey === 'inv_maestros' && !empty($matrizPermisosUsuario['inv_maestros'])) {
+                        foreach (['categorias','productos','proveedores','unidades','tipos_iva','grupo_centros_consumo','centros_consumo'] as $_scope) {
+                            $_regla = $matrizPermisosUsuario['inv_maestros'][$_scope] ?? $matrizPermisosUsuario['inv_maestros']['*'] ?? [];
+                            if (!empty($_regla['read']) || !empty($_regla['full'])) { $url = 'index.php?route=inv_maestros&tabla='.$_scope; break; }
+                        }
+                    }
+                    $activeClass = ($routeActiva === $routeDestino) ? 'active' : '';
+                    if (!empty($item['vista'])) {
+                        $vistaActualMenu = $_GET['vista'] ?? 'notas';
+                        $activeClass = ($routeActiva === $routeDestino && $vistaActualMenu === $item['vista']) ? 'active' : '';
+                    }
                     if ($routeKey === 'busqueda_global' && $routeActiva === 'inv_maestros' && isset($_GET['tabla']) && $_GET['tabla'] === 'busqueda_global') {
                         $activeClass = 'active';
                     }
@@ -360,10 +379,13 @@ if ($esAdminActual) {
         <!-- Header Unificado -->
         <header class="top-header">
             <div class="header-left">
-                <button id="hamburger-btn" class="hamburger-btn" title="Alternar Menú">
+                <button id="hamburger-btn" class="hamburger-btn" title="Alternar Menú" aria-controls="sidebar" aria-expanded="true">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <!-- Buscador removido por redundancia -->
+                <a class="header-institution" href="index.php?route=inventario" aria-label="Ir al inicio de Autoridad Portuaria de Manta">
+                    <img src="logoapm.png" alt="" width="38" height="38" decoding="async">
+                    <span>Autoridad Portuaria de Manta</span>
+                </a>
             </div>
             <div class="header-actions">
                 <!-- Botón de Modo Oscuro / Claro -->
@@ -451,14 +473,66 @@ if ($esAdminActual) {
                 <?php 
                 $nombreUsuario = isset($_SESSION['usuario']['nombre']) ? $_SESSION['usuario']['nombre'] : 'Admin Terminal';
                 $rolUsuario = isset($_SESSION['usuario']['rol']) ? $_SESSION['usuario']['rol'] : 'Administrador';
-                $siglasUsuario = strtoupper(substr($nombreUsuario, 0, 2));
+                if (!isset($_SESSION['usuario']['departamento']) && !empty($_SESSION['usuario']['id'])) {
+                    require_once ROOT_PATH . 'modules/Credenciales/models/UsuarioModel.php';
+                    $_usuarioPerfilModel = new UsuarioModel();
+                    $_contextoPerfil = $_usuarioPerfilModel->obtenerContextoPerfil($_SESSION['usuario']);
+                    $_SESSION['usuario']['departamento'] = $_contextoPerfil['departamento'];
+                    $_SESSION['usuario']['cargo'] = $_contextoPerfil['cargo'];
+                }
+                $departamentoUsuario = trim((string)($_SESSION['usuario']['departamento'] ?? ''))
+                    ?: (strtolower($rolUsuario) === 'administrador' ? 'Administración del Sistema' : 'Departamento no asignado');
+                $cargoUsuario = trim((string)($_SESSION['usuario']['cargo'] ?? '')) ?: $rolUsuario;
+                $partesNombre = preg_split('/\s+/u', trim($nombreUsuario), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $siglasUsuario = '';
+                foreach (array_slice($partesNombre, 0, 2) as $parteNombre) {
+                    $siglasUsuario .= function_exists('mb_substr') ? mb_substr($parteNombre, 0, 1, 'UTF-8') : substr($parteNombre, 0, 1);
+                }
+                $siglasUsuario = strtoupper($siglasUsuario ?: 'US');
+                $usuarioIdCabecera = (int)($_SESSION['usuario']['id'] ?? $_SESSION['usuario_id'] ?? 0);
+                $fotoPerfilUrl = '';
+                if ($usuarioIdCabecera > 0) {
+                    foreach (['webp', 'jpg', 'png'] as $extensionFoto) {
+                        $rutaFoto = 'public/uploads/perfiles/usuario-' . $usuarioIdCabecera . '.' . $extensionFoto;
+                        if (is_file(ROOT_PATH . $rutaFoto)) {
+                            $versionFoto = (int)($_SESSION['perfil_foto_version'] ?? filemtime(ROOT_PATH . $rutaFoto));
+                            $fotoPerfilUrl = $rutaFoto . '?v=' . $versionFoto;
+                            break;
+                        }
+                    }
+                }
                 ?>
-                <div class="user-profile" style="display:flex; align-items:center; gap:12px; border-left: 1px solid var(--border-color); padding-left: 15px;">
-                    <div class="user-info" style="text-align:right;">
-                        <h4 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-main);"><?= htmlspecialchars($nombreUsuario) ?></h4>
-                        <p style="margin: 0; font-size: 12px; color: var(--text-muted);"><?= htmlspecialchars($rolUsuario) ?></p>
+                <div class="user-profile">
+                    <div class="user-info">
+                        <h4><?= htmlspecialchars($nombreUsuario) ?></h4>
+                        <p><?= htmlspecialchars($rolUsuario) ?></p>
                     </div>
-                    <div class="user-avatar" title="<?= htmlspecialchars($nombreUsuario) ?>" style="border-radius:10px;font-weight:700;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,0.1);color:var(--primary-blue);width:36px;height:36px;font-size:13px; user-select: none;"><?= htmlspecialchars($siglasUsuario) ?></div>
+                    <button type="button" class="profile-photo-control" id="profile-photo-open" title="Cambiar foto de perfil" aria-haspopup="dialog" aria-controls="profile-photo-modal">
+                        <span class="user-avatar" id="header-user-avatar" aria-hidden="true">
+                            <?php if ($fotoPerfilUrl !== ''): ?>
+                                <img src="<?= htmlspecialchars($fotoPerfilUrl, ENT_QUOTES, 'UTF-8') ?>" alt="" width="40" height="40" decoding="async">
+                            <?php else: ?>
+                                <span class="user-avatar-initials"><?= htmlspecialchars($siglasUsuario) ?></span>
+                            <?php endif; ?>
+                            <span class="profile-photo-overlay"><i class="fa-solid fa-camera"></i></span>
+                        </span>
+                        <span class="profile-hover-card" role="tooltip">
+                            <span class="profile-hover-photo">
+                                <?php if ($fotoPerfilUrl !== ''): ?>
+                                    <img src="<?= htmlspecialchars($fotoPerfilUrl, ENT_QUOTES, 'UTF-8') ?>" alt="" width="68" height="68" decoding="async">
+                                <?php else: ?>
+                                    <span><?= htmlspecialchars($siglasUsuario) ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <span class="profile-hover-details">
+                                <strong><?= htmlspecialchars($nombreUsuario) ?></strong>
+                                <span class="profile-hover-department"><i class="fa-solid fa-building"></i><?= htmlspecialchars($departamentoUsuario) ?></span>
+                                <small><?= htmlspecialchars($cargoUsuario) ?></small>
+                                <em><i class="fa-solid fa-camera"></i> Clic para cambiar la foto</em>
+                            </span>
+                        </span>
+                        <span class="sr-only">Cambiar foto de perfil de <?= htmlspecialchars($nombreUsuario) ?></span>
+                    </button>
                 </div>
 
                 <a href="index.php?route=logout" class="icon-btn" title="Cerrar Sesión" style="color: var(--danger); background: rgba(239, 68, 68, 0.1); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; transition: all 0.3s; text-decoration:none;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
@@ -469,9 +543,77 @@ if ($esAdminActual) {
 
         <div class="content-area">
             <!-- Inyección de Contenido Específico -->
-            <?= $contenido ?>
+            <?php if (!empty($_permisoVista['readonly'])): ?>
+                <div class="permission-readonly-banner" role="status"><i class="fa-solid fa-eye"></i><span><strong>Modo de solo lectura.</strong> Puedes consultar la información, pero las opciones para crear, editar, procesar o eliminar están deshabilitadas.</span></div>
+            <?php endif; ?>
+            <div id="permission-content" class="<?= !empty($_permisoVista['readonly']) ? 'permission-readonly' : '' ?>">
+                <?= $contenido ?>
+            </div>
         </div>
     </main>
+
+    <div class="profile-editor-modal" id="profile-photo-modal" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" hidden>
+        <div class="profile-editor-backdrop" data-profile-close></div>
+        <section class="profile-editor-panel">
+            <header class="profile-editor-heading">
+                <div>
+                    <span class="profile-editor-kicker">Perfil de usuario</span>
+                    <h2 id="profile-editor-title">Ajustar foto de perfil</h2>
+                    <p>Selecciona, amplía y mueve la imagen hasta obtener el encuadre deseado.</p>
+                </div>
+                <button type="button" class="profile-editor-close" data-profile-close aria-label="Cerrar editor"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+
+            <div class="profile-editor-body">
+                <div class="profile-editor-workspace">
+                    <div class="profile-crop-stage" id="profile-crop-stage">
+                        <canvas id="profile-crop-canvas" width="320" height="320" aria-label="Área para ajustar la foto"></canvas>
+                        <div class="profile-crop-placeholder" id="profile-crop-placeholder">
+                            <i class="fa-regular fa-image"></i>
+                            <strong>Selecciona una imagen</strong>
+                            <span>JPG, PNG o WEBP · máximo 8 MB</span>
+                        </div>
+                        <div class="profile-crop-guide" aria-hidden="true"></div>
+                    </div>
+
+                    <div class="profile-editor-controls">
+                        <label class="profile-select-button" for="profile-photo-input"><i class="fa-solid fa-folder-open"></i> Elegir imagen</label>
+                        <input type="file" id="profile-photo-input" accept="image/jpeg,image/png,image/webp" data-csrf="<?= htmlspecialchars($_SESSION['perfil_foto_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+                        <label class="profile-zoom-control" for="profile-photo-zoom">
+                            <i class="fa-solid fa-image"></i>
+                            <input type="range" id="profile-photo-zoom" min="1" max="3" step="0.01" value="1" disabled>
+                            <i class="fa-solid fa-image"></i>
+                        </label>
+                        <small><i class="fa-solid fa-arrows-up-down-left-right"></i> Arrastra la imagen para cambiar el encuadre.</small>
+                    </div>
+                </div>
+
+                <aside class="profile-editor-preview">
+                    <span class="profile-editor-kicker">Vista previa</span>
+                    <h3>Así se verá en la cabecera</h3>
+                    <div class="profile-header-preview">
+                        <div class="profile-header-preview-info">
+                            <strong><?= htmlspecialchars($nombreUsuario) ?></strong>
+                            <span><?= htmlspecialchars($rolUsuario) ?></span>
+                        </div>
+                        <div class="profile-header-preview-avatar">
+                            <canvas id="profile-preview-canvas" width="160" height="160"></canvas>
+                            <span id="profile-preview-fallback"><?= htmlspecialchars($siglasUsuario) ?></span>
+                        </div>
+                    </div>
+                    <div class="profile-editor-note">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <div><strong>Optimizada automáticamente</strong><span>Se guardará a 160 × 160 px para cargar rápidamente.</span></div>
+                    </div>
+                </aside>
+            </div>
+
+            <footer class="profile-editor-actions">
+                <button type="button" class="btn-outline" data-profile-close>Cancelar</button>
+                <button type="button" class="btn-primary" id="profile-photo-save" disabled><i class="fa-solid fa-check"></i> Guardar foto</button>
+            </footer>
+        </section>
+    </div>
 
     <!-- Sistema de Toast Notifications (Mensajes temporales de sesión) -->
     <?php if (isset($_SESSION['toast'])): ?>
@@ -518,9 +660,48 @@ if ($esAdminActual) {
             const sidebar = document.getElementById('sidebar');
 
             if (hamburgerBtn && sidebar) {
+                const mediaMovil = window.matchMedia('(max-width: 768px)');
+                const aplicarEstadoMenu = () => {
+                    if (mediaMovil.matches) {
+                        sidebar.classList.remove('collapsed');
+                        sidebar.classList.remove('mobile-open');
+                        hamburgerBtn.setAttribute('aria-expanded', 'false');
+                    } else {
+                        const contraido = localStorage.getItem('sidebar_collapsed') === '1';
+                        sidebar.classList.toggle('collapsed', contraido);
+                        sidebar.classList.remove('mobile-open');
+                        hamburgerBtn.setAttribute('aria-expanded', contraido ? 'false' : 'true');
+                    }
+                    document.documentElement.classList.remove('sidebar-collapsed-preload');
+                };
+
+                aplicarEstadoMenu();
+
                 hamburgerBtn.addEventListener('click', () => {
-                    sidebar.classList.toggle('collapsed');
+                    if (mediaMovil.matches) {
+                        const abierto = sidebar.classList.toggle('mobile-open');
+                        hamburgerBtn.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+                    } else {
+                        const contraido = sidebar.classList.toggle('collapsed');
+                        localStorage.setItem('sidebar_collapsed', contraido ? '1' : '0');
+                        hamburgerBtn.setAttribute('aria-expanded', contraido ? 'false' : 'true');
+                    }
                 });
+
+                sidebar.querySelectorAll('.menu-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (mediaMovil.matches) {
+                            sidebar.classList.remove('mobile-open');
+                            hamburgerBtn.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                });
+
+                if (typeof mediaMovil.addEventListener === 'function') {
+                    mediaMovil.addEventListener('change', aplicarEstadoMenu);
+                } else {
+                    mediaMovil.addListener(aplicarEstadoMenu);
+                }
             }
 
             // Control de Dropdown de Notificaciones y AJAX para marcar vistas
@@ -677,7 +858,7 @@ if ($esAdminActual) {
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <h3>¿Confirmar Eliminación?</h3>
-            <p>Estás a punto de borrar por completo el historial de notificaciones y alertas. Esta acción no se puede deshacer y las alertas no volverán a mostrarse en esta sesión.</p>
+            <p>Ocultarás las notificaciones de tu bandeja. Esta acción solo afecta a tu usuario: no elimina alertas de otras personas ni registros de auditoría.</p>
             <div class="confirm-modal-actions">
                 <button id="confirm-cancel-btn" class="btn-confirm-cancel">Cancelar</button>
                 <button id="confirm-ok-btn" class="btn-confirm-ok">Vaciar Alertas</button>
@@ -686,6 +867,32 @@ if ($esAdminActual) {
     </div>
 
     <script src="public/js/app_ajax.js"></script>
+    <?php if (!empty($_permisoVista['readonly'])): ?>
+    <style>
+        .permission-readonly-banner{display:flex;align-items:flex-start;gap:11px;padding:13px 15px;margin-bottom:16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e40af;font-size:12px;line-height:1.5}.permission-readonly-banner i{margin-top:2px;font-size:15px}.permission-readonly .btn-editar,.permission-readonly .btn-eliminar,.permission-readonly [data-permission-action="create"],.permission-readonly [data-permission-action="edit"]{display:none!important}.permission-readonly form.permission-form-disabled{position:relative;opacity:.72}.permission-readonly form.permission-form-disabled :is(input,select,textarea,button){cursor:not-allowed}
+    </style>
+    <script>
+    (()=>{
+        const root=document.getElementById('permission-content');
+        if(!root)return;
+        const mutaciones=/(abrirmodal|editar|eliminar|borrar|guardar|registrar|aprobar|despachar|marcarsinexistencias|reiniciar|ejecutarcorte|ababriringreso)/i;
+        const accionesUrl=/(?:action=|route=)(?:[^&]*(?:crear|editar|eliminar|borrar|guardar|aprobar|ingresar|reiniciar|ejecutarcorte|test))/i;
+        const aplicar=()=>{
+            root.querySelectorAll('form').forEach(form=>{
+                if((form.getAttribute('method')||'get').toLowerCase()!=='post'||form.dataset.permissionReady)return;
+                form.dataset.permissionReady='1';form.classList.add('permission-form-disabled');form.setAttribute('aria-disabled','true');
+                form.querySelectorAll('input,select,textarea,button').forEach(control=>{control.disabled=true});
+            });
+            root.querySelectorAll('a[href],button[onclick],[role="button"][onclick]').forEach(control=>{
+                const href=control.getAttribute('href')||'',onclick=control.getAttribute('onclick')||'';
+                if(accionesUrl.test(href)||mutaciones.test(onclick)){control.hidden=true;control.style.setProperty('display','none','important');control.setAttribute('aria-hidden','true')}
+            });
+        };
+        aplicar();document.addEventListener('DOMContentLoaded',aplicar,{once:true});setTimeout(aplicar,800);setTimeout(aplicar,2200);
+    })();
+    </script>
+    <?php endif; ?>
+    <script src="public/js/perfil_header.js?v=<?= $assetVersion('public/js/perfil_header.js') ?>"></script>
 
     <?php if (defined('PORTAL_ROOT_URL')): ?>
     <!-- Aviso de inactividad — vendorizado desde el portal (PORTAL_ROOT_URL, ver config/globals.php) -->

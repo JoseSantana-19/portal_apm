@@ -27,12 +27,18 @@ class ReporteController extends Controller {
             $tabActivo = 'proveedores';
         }
 
-        $fechaInicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : date('Y-m-d', strtotime('-30 days'));
-        $fechaFin    = isset($_GET['fecha_fin'])    ? $_GET['fecha_fin']    : date('Y-m-d');
+        // No aplicar fechas implícitas: impedían encontrar compras antiguas por ID.
+        $fechaInicio = $this->normalizarFecha(isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : '');
+        $fechaFin    = $this->normalizarFecha(isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : '');
         $proveedor   = isset($_GET['proveedor'])   ? trim($_GET['proveedor']) : '';
         $termino     = isset($_GET['termino'])     ? trim($_GET['termino']) : '';
-        $idInicio    = isset($_GET['id_inicio'])    ? trim($_GET['id_inicio']) : '';
-        $idFin       = isset($_GET['id_fin'])       ? trim($_GET['id_fin']) : '';
+        $idExacto    = $this->normalizarId(isset($_GET['id_exacto']) ? $_GET['id_exacto'] : '');
+        $idInicio    = $this->normalizarId(isset($_GET['id_inicio']) ? $_GET['id_inicio'] : '');
+        $idFin       = $this->normalizarId(isset($_GET['id_fin']) ? $_GET['id_fin'] : '');
+        $this->normalizarRangos($idExacto, $idInicio, $idFin, $fechaInicio, $fechaFin);
+        if ($tabActivo === 'mensual') {
+            $idExacto = '';
+        }
 
         $generarReporte = isset($_GET['generar']) && (int)$_GET['generar'] === 1;
 
@@ -45,6 +51,10 @@ class ReporteController extends Controller {
                     case 'proveedores':
                         $sql = "SELECT * FROM inv_proveedores WHERE 1=1";
                         $params = [];
+                        if ($idExacto !== '') {
+                            $sql .= " AND id = :id_exacto";
+                            $params[':id_exacto'] = (int)$idExacto;
+                        }
                         if (!empty($idInicio)) {
                             $sql .= " AND id >= :id_ini";
                             $params[':id_ini'] = (int)$idInicio;
@@ -72,6 +82,10 @@ class ReporteController extends Controller {
                                 LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                                 WHERE 1=1";
                         $params = [];
+                        if ($idExacto !== '') {
+                            $sql .= " AND cc.id = :id_exacto";
+                            $params[':id_exacto'] = (int)$idExacto;
+                        }
                         if (!empty($idInicio)) {
                             $sql .= " AND cc.id >= :id_ini";
                             $params[':id_ini'] = (int)$idInicio;
@@ -81,7 +95,7 @@ class ReporteController extends Controller {
                             $params[':id_fin'] = (int)$idFin;
                         }
                         if (!empty($termino)) {
-                            $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term)";
+                            $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term OR gcc.codigo LIKE :term)";
                             $params[':term'] = '%' . $termino . '%';
                         }
                         $sql .= " ORDER BY cc.codigo ASC";
@@ -99,6 +113,10 @@ class ReporteController extends Controller {
                                 LEFT JOIN inv_unidades u ON p.unidad_id = u.id
                                 WHERE i.activo = 1";
                         $params = [];
+                        if ($idExacto !== '') {
+                            $sql .= " AND i.id = :id_exacto";
+                            $params[':id_exacto'] = (int)$idExacto;
+                        }
                         if (!empty($idInicio)) {
                             $sql .= " AND i.id >= :id_ini";
                             $params[':id_ini'] = (int)$idInicio;
@@ -107,8 +125,16 @@ class ReporteController extends Controller {
                             $sql .= " AND i.id <= :id_fin";
                             $params[':id_fin'] = (int)$idFin;
                         }
+                        if (!empty($fechaInicio)) {
+                            $sql .= " AND i.fecha_registro >= :fecha_ini";
+                            $params[':fecha_ini'] = $fechaInicio;
+                        }
+                        if (!empty($fechaFin)) {
+                            $sql .= " AND i.fecha_registro <= :fecha_fin";
+                            $params[':fecha_fin'] = $fechaFin;
+                        }
                         if (!empty($termino)) {
-                            $sql .= " AND (CAST(i.id AS VARCHAR(20)) LIKE :term OR i.nombre LIKE :term OR i.secuencial LIKE :term OR i.marca LIKE :term OR cat.nombre LIKE :term)";
+                            $sql .= " AND (CAST(i.id AS VARCHAR(20)) LIKE :term OR CAST(i.producto_id AS VARCHAR(20)) LIKE :term OR i.nombre LIKE :term OR i.secuencial LIKE :term OR p.codigo LIKE :term OR i.marca LIKE :term OR cat.nombre LIKE :term)";
                             $params[':term'] = '%' . $termino . '%';
                         }
                         $sql .= " ORDER BY i.secuencial ASC";
@@ -118,9 +144,11 @@ class ReporteController extends Controller {
                         break;
 
                     case 'compras':
-                        $sql = "SELECT ing.secuencial as ingreso_codigo, ing.proveedor, ing.fecha, 
+                        $sql = "SELECT ing.id as ingreso_id, det.id as detalle_id, det.item_id,
+                                       ing.secuencial as ingreso_codigo, ing.proveedor, ing.fecha, 
                                        det.cantidad, det.valor_unitario, (det.cantidad * det.valor_unitario) as subtotal,
-                                       inv.nombre as item_nombre, inv.secuencial as item_secuencial, u.extra as unidad
+                                       inv.nombre as item_nombre, inv.secuencial as item_secuencial,
+                                       p.codigo as producto_codigo, u.extra as unidad
                                 FROM inv_bod_ingresos ing
                                 JOIN inv_bod_ingresos_detalles det ON ing.id = det.ingreso_id
                                 JOIN inv_inventario inv ON det.item_id = inv.id
@@ -128,6 +156,11 @@ class ReporteController extends Controller {
                                 LEFT JOIN inv_unidades u ON p.unidad_id = u.id
                                 WHERE 1=1";
                         $params = [];
+
+                        if ($idExacto !== '') {
+                            $sql .= " AND ing.id = :id_exacto";
+                            $params[':id_exacto'] = (int)$idExacto;
+                        }
 
                         if (!empty($proveedor)) {
                             $sql .= " AND ing.proveedor = :proveedor";
@@ -150,7 +183,7 @@ class ReporteController extends Controller {
                             $params[':id_fin'] = (int)$idFin;
                         }
                         if (!empty($termino)) {
-                            $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR inv.nombre LIKE :term OR inv.secuencial LIKE :term OR ing.proveedor LIKE :term)";
+                            $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR CAST(det.id AS VARCHAR(20)) LIKE :term OR CAST(det.item_id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR inv.nombre LIKE :term OR inv.secuencial LIKE :term OR p.codigo LIKE :term OR ing.proveedor LIKE :term)";
                             $params[':term'] = '%' . $termino . '%';
                         }
 
@@ -187,14 +220,6 @@ class ReporteController extends Controller {
                             $sql .= " AND ing.fecha <= :fecha_fin";
                             $params[':fecha_fin'] = $fechaFin;
                         }
-                        if (!empty($idInicio)) {
-                            $sql .= " AND ing.id >= :id_ini";
-                            $params[':id_ini'] = (int)$idInicio;
-                        }
-                        if (!empty($idFin)) {
-                            $sql .= " AND ing.id <= :id_fin";
-                            $params[':id_fin'] = (int)$idFin;
-                        }
                         if (!empty($termino)) {
                             $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR ing.proveedor LIKE :term)";
                             $params[':term'] = '%' . $termino . '%';
@@ -217,6 +242,7 @@ class ReporteController extends Controller {
             'fechaFin'       => $fechaFin,
             'proveedor'      => $proveedor,
             'termino'        => $termino,
+            'idExacto'       => $idExacto,
             'idInicio'       => $idInicio,
             'idFin'          => $idFin,
             'datosReporte'   => $datosReporte,
@@ -231,12 +257,17 @@ class ReporteController extends Controller {
     public function imprimir() {
         $tabActivo = isset($_GET['tab']) ? trim($_GET['tab']) : 'proveedores';
 
-        $fechaInicio = isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : '';
-        $fechaFin    = isset($_GET['fecha_fin'])    ? $_GET['fecha_fin']    : '';
+        $fechaInicio = $this->normalizarFecha(isset($_GET['fecha_inicio']) ? $_GET['fecha_inicio'] : '');
+        $fechaFin    = $this->normalizarFecha(isset($_GET['fecha_fin']) ? $_GET['fecha_fin'] : '');
         $proveedor   = isset($_GET['proveedor'])   ? trim($_GET['proveedor']) : '';
         $termino     = isset($_GET['termino'])     ? trim($_GET['termino']) : '';
-        $idInicio    = isset($_GET['id_inicio'])    ? trim($_GET['id_inicio']) : '';
-        $idFin       = isset($_GET['id_fin'])       ? trim($_GET['id_fin']) : '';
+        $idExacto    = $this->normalizarId(isset($_GET['id_exacto']) ? $_GET['id_exacto'] : '');
+        $idInicio    = $this->normalizarId(isset($_GET['id_inicio']) ? $_GET['id_inicio'] : '');
+        $idFin       = $this->normalizarId(isset($_GET['id_fin']) ? $_GET['id_fin'] : '');
+        $this->normalizarRangos($idExacto, $idInicio, $idFin, $fechaInicio, $fechaFin);
+        if ($tabActivo === 'mensual') {
+            $idExacto = '';
+        }
 
         $datosReporte = [];
 
@@ -245,6 +276,10 @@ class ReporteController extends Controller {
                 case 'proveedores':
                     $sql = "SELECT * FROM inv_proveedores WHERE 1=1";
                     $params = [];
+                    if ($idExacto !== '') {
+                        $sql .= " AND id = :id_exacto";
+                        $params[':id_exacto'] = (int)$idExacto;
+                    }
                     if (!empty($idInicio)) {
                         $sql .= " AND id >= :id_ini";
                         $params[':id_ini'] = (int)$idInicio;
@@ -272,6 +307,10 @@ class ReporteController extends Controller {
                             LEFT JOIN inv_talento_personal p ON p.id = cc.funcionario_id
                             WHERE 1=1";
                     $params = [];
+                    if ($idExacto !== '') {
+                        $sql .= " AND cc.id = :id_exacto";
+                        $params[':id_exacto'] = (int)$idExacto;
+                    }
                     if (!empty($idInicio)) {
                         $sql .= " AND cc.id >= :id_ini";
                         $params[':id_ini'] = (int)$idInicio;
@@ -281,7 +320,7 @@ class ReporteController extends Controller {
                         $params[':id_fin'] = (int)$idFin;
                     }
                     if (!empty($termino)) {
-                        $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term)";
+                        $sql .= " AND (CAST(cc.id AS VARCHAR(20)) LIKE :term OR cc.nombre LIKE :term OR cc.codigo LIKE :term OR COALESCE(p.nombre, cc.funcionario) LIKE :term OR gcc.nombre LIKE :term OR gcc.codigo LIKE :term)";
                         $params[':term'] = '%' . $termino . '%';
                     }
                     $sql .= " ORDER BY cc.codigo ASC";
@@ -299,6 +338,10 @@ class ReporteController extends Controller {
                             LEFT JOIN inv_unidades u ON p.unidad_id = u.id
                             WHERE i.activo = 1";
                     $params = [];
+                    if ($idExacto !== '') {
+                        $sql .= " AND i.id = :id_exacto";
+                        $params[':id_exacto'] = (int)$idExacto;
+                    }
                     if (!empty($idInicio)) {
                         $sql .= " AND i.id >= :id_ini";
                         $params[':id_ini'] = (int)$idInicio;
@@ -307,8 +350,16 @@ class ReporteController extends Controller {
                         $sql .= " AND i.id <= :id_fin";
                         $params[':id_fin'] = (int)$idFin;
                     }
+                    if (!empty($fechaInicio)) {
+                        $sql .= " AND i.fecha_registro >= :fecha_ini";
+                        $params[':fecha_ini'] = $fechaInicio;
+                    }
+                    if (!empty($fechaFin)) {
+                        $sql .= " AND i.fecha_registro <= :fecha_fin";
+                        $params[':fecha_fin'] = $fechaFin;
+                    }
                     if (!empty($termino)) {
-                        $sql .= " AND (CAST(i.id AS VARCHAR(20)) LIKE :term OR i.nombre LIKE :term OR i.secuencial LIKE :term OR i.marca LIKE :term OR cat.nombre LIKE :term)";
+                        $sql .= " AND (CAST(i.id AS VARCHAR(20)) LIKE :term OR CAST(i.producto_id AS VARCHAR(20)) LIKE :term OR i.nombre LIKE :term OR i.secuencial LIKE :term OR p.codigo LIKE :term OR i.marca LIKE :term OR cat.nombre LIKE :term)";
                         $params[':term'] = '%' . $termino . '%';
                     }
                     $sql .= " ORDER BY i.secuencial ASC";
@@ -318,9 +369,11 @@ class ReporteController extends Controller {
                     break;
 
                 case 'compras':
-                    $sql = "SELECT ing.secuencial as ingreso_codigo, ing.proveedor, ing.fecha, 
+                    $sql = "SELECT ing.id as ingreso_id, det.id as detalle_id, det.item_id,
+                                   ing.secuencial as ingreso_codigo, ing.proveedor, ing.fecha, 
                                    det.cantidad, det.valor_unitario, (det.cantidad * det.valor_unitario) as subtotal,
-                                   inv.nombre as item_nombre, inv.secuencial as item_secuencial, u.extra as unidad
+                                   inv.nombre as item_nombre, inv.secuencial as item_secuencial,
+                                   p.codigo as producto_codigo, u.extra as unidad
                             FROM inv_bod_ingresos ing
                             JOIN inv_bod_ingresos_detalles det ON ing.id = det.ingreso_id
                             JOIN inv_inventario inv ON det.item_id = inv.id
@@ -328,6 +381,11 @@ class ReporteController extends Controller {
                             LEFT JOIN inv_unidades u ON p.unidad_id = u.id
                             WHERE 1=1";
                     $params = [];
+
+                    if ($idExacto !== '') {
+                        $sql .= " AND ing.id = :id_exacto";
+                        $params[':id_exacto'] = (int)$idExacto;
+                    }
 
                     if (!empty($proveedor)) {
                         $sql .= " AND ing.proveedor = :proveedor";
@@ -350,7 +408,7 @@ class ReporteController extends Controller {
                         $params[':id_fin'] = (int)$idFin;
                     }
                     if (!empty($termino)) {
-                        $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR inv.nombre LIKE :term OR inv.secuencial LIKE :term OR ing.proveedor LIKE :term)";
+                        $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR CAST(det.id AS VARCHAR(20)) LIKE :term OR CAST(det.item_id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR inv.nombre LIKE :term OR inv.secuencial LIKE :term OR p.codigo LIKE :term OR ing.proveedor LIKE :term)";
                         $params[':term'] = '%' . $termino . '%';
                     }
 
@@ -387,14 +445,6 @@ class ReporteController extends Controller {
                         $sql .= " AND ing.fecha <= :fecha_fin";
                         $params[':fecha_fin'] = $fechaFin;
                     }
-                    if (!empty($idInicio)) {
-                        $sql .= " AND ing.id >= :id_ini";
-                        $params[':id_ini'] = (int)$idInicio;
-                    }
-                    if (!empty($idFin)) {
-                        $sql .= " AND ing.id <= :id_fin";
-                        $params[':id_fin'] = (int)$idFin;
-                    }
                     if (!empty($termino)) {
                         $sql .= " AND (CAST(ing.id AS VARCHAR(20)) LIKE :term OR ing.secuencial LIKE :term OR ing.proveedor LIKE :term)";
                         $params[':term'] = '%' . $termino . '%';
@@ -410,16 +460,48 @@ class ReporteController extends Controller {
             $this->logger->inv_error("Error al imprimir reporte tab={$tabActivo}", $e, 'imprimir');
         }
 
-        $this->renderActa('inv_imprimir_reporte', [
+        $this->renderActa('bitacoras/inv_imprimir_reporte', [
             'tabActivo'    => $tabActivo,
             'fechaInicio'  => $fechaInicio,
             'fechaFin'     => $fechaFin,
             'proveedor'    => $proveedor,
             'termino'      => $termino,
+            'idExacto'     => $idExacto,
             'idInicio'     => $idInicio,
             'idFin'        => $idFin,
             'datosReporte' => $datosReporte
         ]);
+    }
+
+    private function normalizarId($valor) {
+        $valor = trim((string)$valor);
+        return ctype_digit($valor) && (int)$valor > 0 ? (string)(int)$valor : '';
+    }
+
+    private function normalizarFecha($valor) {
+        $valor = trim((string)$valor);
+        if ($valor === '') {
+            return '';
+        }
+        $fecha = DateTime::createFromFormat('!Y-m-d', $valor);
+        return ($fecha && $fecha->format('Y-m-d') === $valor) ? $valor : '';
+    }
+
+    private function normalizarRangos(&$idExacto, &$idInicio, &$idFin, &$fechaInicio, &$fechaFin) {
+        if ($idExacto !== '') {
+            $idInicio = '';
+            $idFin = '';
+        } elseif ($idInicio !== '' && $idFin !== '' && (int)$idInicio > (int)$idFin) {
+            $temporal = $idInicio;
+            $idInicio = $idFin;
+            $idFin = $temporal;
+        }
+
+        if ($fechaInicio !== '' && $fechaFin !== '' && $fechaInicio > $fechaFin) {
+            $temporal = $fechaInicio;
+            $fechaInicio = $fechaFin;
+            $fechaFin = $temporal;
+        }
     }
 }
 class_alias('ReporteController', 'InvReporteController');

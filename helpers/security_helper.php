@@ -9,13 +9,30 @@ class SecurityHelper {
         return $_SESSION['_csrf_token'];
     }
 
-    /** Verify CSRF token from POST. Aborts with 403 if invalid. */
+    /**
+     * Verify CSRF token from POST. Un mismatch casi siempre significa que
+     * la sesión real ya venció (se regeneró/vació el token) mientras el
+     * formulario seguía abierto -- antes esto tiraba un JSON crudo en
+     * pantalla incluso para un POST normal de formulario (sin fetch/AJAX
+     * detrás que lo maneje), dejando al usuario varado sin login. Ahora:
+     * AJAX real sigue recibiendo JSON (con 'redirect' para que el cliente
+     * navegue), cualquier otro POST se manda directo al login con el
+     * mismo mensaje de "sesión vencida" que ya usa requireAuth().
+     */
     public static function verifyCsrf(): void {
         $token = $_POST['_csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-        if (!hash_equals($_SESSION['_csrf_token'] ?? '', $token)) {
-            http_response_code(403);
-            die(json_encode(['error' => 'CSRF token mismatch']));
+        if (hash_equals($_SESSION['_csrf_token'] ?? '', $token)) {
+            return;
         }
+        http_response_code(419);
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            die(json_encode(['error' => 'La sesión venció.', 'redirect' => (defined('APP_URL') ? APP_URL : '') . '/login?timeout=1']));
+        }
+        header('Location: ' . (defined('APP_URL') ? APP_URL : '') . '/login?timeout=1');
+        exit;
     }
 
     /** Hidden CSRF input field HTML. */

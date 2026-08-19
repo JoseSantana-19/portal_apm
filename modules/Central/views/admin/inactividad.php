@@ -164,15 +164,8 @@ $presets = [30 => '30s (prueba)', 60 => '1 min', 300 => '5 min', 600 => '10 min'
 </div>
 
 <div class="card">
-    <div style="padding:var(--sp-4);border-bottom:1px solid var(--border-app);">
-        <div style="position:relative;max-width:380px;">
-            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;"></i>
-            <input type="text" id="inact-tabla-buscar" placeholder="Buscar por nombre, cédula o departamento…"
-                   class="form-control" style="padding-left:2.2rem;" oninput="filterInactUsuarios(this.value)" autocomplete="off">
-        </div>
-    </div>
-    <div style="overflow-x:auto;">
-        <table id="inact-tabla-usuarios">
+    <div class="table-responsive-wrapper">
+        <table id="inact-tabla-usuarios" data-dt data-dt-page-length="25">
             <thead>
                 <tr>
                     <th>Usuario</th>
@@ -191,56 +184,54 @@ $presets = [30 => '30s (prueba)', 60 => '1 min', 300 => '5 min', 600 => '10 min'
                 $initials = implode('', array_map(fn($w) => mb_strtoupper(mb_substr($w,0,1)), array_slice(explode(' ', trim($u['nombre_completo'])), 0, 2)));
                 $inactivo = (int)$u['estado'] === 0;
             ?>
-                <tr data-search="<?= strtolower($e($u['nombre_completo'].' '.($u['cedula']??'').' '.($u['departamento']??''))) ?>" style="<?= $inactivo ? 'opacity:.5;' : '' ?>">
+                <tr style="<?= $inactivo ? 'opacity:.5;' : '' ?>">
                     <td>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <div style="width:32px;height:32px;border-radius:var(--radius-full);background:color-mix(in srgb,var(--color-primary) 15%,transparent);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;"><?= $e($initials) ?></div>
                             <div>
-                                <div style="font-weight:600;font-size:.85rem;"><?= $e($u['nombre_completo']) ?><?php if ($inactivo): ?> <span class="badge badge-gray" style="font-size:.6rem;">Inactivo</span><?php endif; ?></div>
+                                <div style="font-weight:600;font-size:.85rem;"><?= $e($u['nombre_completo']) ?><?php if ($inactivo): ?> <span class="badge badge-gray" style="font-size:.65rem;">Inactivo</span><?php endif; ?></div>
                                 <div style="font-size:.7rem;color:var(--text-muted);"><code><?= $e($u['cedula']) ?></code></div>
                             </div>
                         </div>
                     </td>
-                    <td style="font-size:.82rem;color:var(--text-muted);"><?= $e($u['departamento'] ?: '—') ?></td>
-                    <td><span class="badge badge-gray" style="font-size:.7rem;"><?= $e($nivelLabels[(int)$u['nivel_jerarquia']] ?? $u['nivel_jerarquia']) ?></span></td>
+                    <td><span class="dt-truncate dt-truncate-sm" style="font-size:.82rem;color:var(--text-muted);" title="<?= $e($u['departamento'] ?: '—') ?>"><?= $e($u['departamento'] ?: '—') ?></span></td>
+                    <td><span class="badge badge-gray"><?= $e($nivelLabels[(int)$u['nivel_jerarquia']] ?? $u['nivel_jerarquia']) ?></span></td>
                     <td>
                         <?php if ($tieneOverride): ?>
-                        <span class="badge badge-warning" style="font-size:.7rem;">
+                        <span class="badge badge-warning">
                             <i class="fa-solid fa-user-pen" style="font-size:8px;"></i>
                             <?= $e($u['inactividad_segundos_override'] !== null ? $humano($u['inactividad_segundos_override']) : 'hereda') ?>
                             · aviso <?= $e($u['inactividad_aviso_segundos_override'] !== null ? $u['inactividad_aviso_segundos_override'] . 's' : 'hereda') ?>
                         </span>
                         <?php else: ?>
-                        <span class="badge badge-gray" style="font-size:.7rem;"><i class="fa-solid fa-link" style="font-size:8px;"></i> Hereda módulo/global</span>
+                        <span class="badge badge-gray"><i class="fa-solid fa-link" style="font-size:8px;"></i> Hereda módulo/global</span>
                         <?php endif; ?>
                     </td>
                     <td style="text-align:right;white-space:nowrap;">
-                        <button type="button" class="btn btn-ghost btn-sm" title="Fijar ajuste propio"
-                                onclick='editarOverrideUsuario(<?= json_encode([
-                                    "id" => (int)$u["id_usuario"], "nombre" => $u["nombre_completo"],
-                                    "segundos" => $u["inactividad_segundos_override"], "aviso" => $u["inactividad_aviso_segundos_override"],
-                                ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                        <?php if ($tieneOverride): ?>
-                        <form method="POST" action="<?= APP_URL ?>/admin/inactividad/usuario/<?= (int)$u['id_usuario'] ?>" style="display:inline;">
-                            <input type="hidden" name="_csrf_token" value="<?= $e($csrf) ?>">
-                            <input type="hidden" name="quitar_override" value="1">
-                            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Quitar ajuste (vuelve a heredar)"
-                                    onclick="PortalAlert.confirmAction('¿Quitar el ajuste individual de <?= $e($u['nombre_completo']) ?>? Volverá a heredar el valor del módulo o global.', this.form, {title:'¿Quitar ajuste?', confirmText:'Sí, quitar'})">
-                                <i class="fa-solid fa-trash"></i>
+                        <div class="dt-actions">
+                            <button type="button" class="btn btn-ghost btn-sm" title="Fijar ajuste propio"
+                                    onclick='editarOverrideUsuario(<?= json_encode([
+                                        "id" => (int)$u["id_usuario"], "nombre" => $u["nombre_completo"],
+                                        "segundos" => $u["inactividad_segundos_override"], "aviso" => $u["inactividad_aviso_segundos_override"],
+                                    ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'>
+                                <i class="fa-solid fa-pen"></i>
                             </button>
-                        </form>
-                        <?php endif; ?>
+                            <?php if ($tieneOverride): ?>
+                            <form method="POST" action="<?= APP_URL ?>/admin/inactividad/usuario/<?= (int)$u['id_usuario'] ?>">
+                                <input type="hidden" name="_csrf_token" value="<?= $e($csrf) ?>">
+                                <input type="hidden" name="quitar_override" value="1">
+                                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Quitar ajuste (vuelve a heredar)"
+                                        onclick="PortalAlert.confirmAction('¿Quitar el ajuste individual de <?= $e($u['nombre_completo']) ?>? Volverá a heredar el valor del módulo o global.', this.form, {title:'¿Quitar ajuste?', confirmText:'Sí, quitar'})">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; endif; ?>
             </tbody>
         </table>
-    </div>
-    <div id="inact-tabla-empty" style="display:none;padding:var(--sp-8);text-align:center;color:var(--text-muted);">
-        <i class="fa-solid fa-magnifying-glass" style="font-size:1.5rem;opacity:.3;margin-bottom:var(--sp-2);display:block;"></i>
-        Sin resultados para la búsqueda
     </div>
 </div>
 
@@ -289,18 +280,6 @@ document.getElementById('global-segundos')?.addEventListener('input', function (
 // "Identifier has already been declared" en la segunda visita y mata TODO
 // el bloque de script. var sí permite redeclararse sin error.
 var inactTablaBody = null;
-
-function filterInactUsuarios(q) {
-    q = q.toLowerCase().trim();
-    let visible = 0;
-    document.querySelectorAll('#inact-tabla-usuarios tbody tr[data-search]').forEach(tr => {
-        const match = !q || tr.dataset.search.includes(q);
-        tr.style.display = match ? '' : 'none';
-        if (match) visible++;
-    });
-    const empty = document.getElementById('inact-tabla-empty');
-    if (empty) empty.style.display = (q && visible === 0) ? 'block' : 'none';
-}
 
 // Modal de edición — un solo formulario reusado para cualquier fila,
 // consistente con el resto del panel (SweetAlert2 en vez de otra pantalla).

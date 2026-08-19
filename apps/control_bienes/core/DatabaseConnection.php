@@ -140,12 +140,19 @@ class DatabaseConnection {
             if (!$result) {
                 $errors = sqlsrv_errors();
                 $msg = "";
+                $hasRealError = false;
                 if ($errors) {
                     foreach ($errors as $err) {
+                        $sqlState = $err['SQLSTATE'] ?? '';
+                        if (substr($sqlState, 0, 2) !== '01') {
+                            $hasRealError = true;
+                        }
                         $msg .= $err['message'] . "\n";
                     }
                 }
-                throw new Exception("Error en exec (SQL Server): " . $msg);
+                if ($hasRealError) {
+                    throw new Exception("Error en exec (SQL Server): " . $msg);
+                }
             }
             return sqlsrv_rows_affected($result) ?? 0;
         } else {

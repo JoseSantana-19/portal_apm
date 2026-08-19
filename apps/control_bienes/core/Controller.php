@@ -7,6 +7,8 @@
 class Controller {
     protected string $module = 'Central';
     protected string $action = 'index';
+    private bool $auditoriaRegistrada = false;
+    private float $inicioSolicitud = 0.0;
 
     public function setModule(string $module) {
         $this->module = $module;
@@ -17,8 +19,25 @@ class Controller {
     }
 
     public function __construct() {
+        $this->inicioSolicitud = microtime(true);
         // Registrar handlers de errores
         $this->registrarHandlersError();
+        register_shutdown_function(function (): void {
+            if ($this->auditoriaRegistrada) return;
+            $route = (string)($_GET['route'] ?? 'inventario');
+            if (in_array($route, ['mantener_sesion', 'notificaciones_marcar_leidas'], true)) return;
+            $accion = (string)($_GET['action'] ?? $this->action ?? 'index');
+            $metodo = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'CLI'));
+            $estado = http_response_code();
+            $resultado = $estado >= 400 ? 'ERROR_' . $estado : 'OK';
+            require_once ROOT_PATH . 'modules/Bitacoras/models/BitacoraModel.php';
+            (new BitacoraModel())->registrar(
+                $metodo === 'GET' ? 'ACCESO' : 'ACCION',
+                strtolower((string)$this->module),
+                "Solicitud {$metodo} ejecutada en {$route} / {$accion}",
+                ['route' => $route, 'action' => $accion, 'resultado' => $resultado, 'duracion_ms' => (microtime(true) - $this->inicioSolicitud) * 1000]
+            );
+        });
     }
 
     private function registrarHandlersError() {
@@ -73,6 +92,7 @@ class Controller {
             session_start();
         }
 
+        $datos['_permisoVista'] = $this->obtenerPermisoVistaActual();
         extract($datos);
 
         // Compilar vista específica
@@ -114,6 +134,43 @@ class Controller {
         } else {
             echo $contenido;
         }
+    }
+
+    private function obtenerPermisoVistaActual(): array {
+        $rol = strtolower((string)($_SESSION['rol'] ?? $_SESSION['usuario']['rol'] ?? ''));
+        if ($rol === 'administrador') {
+            return ['read' => true, 'create' => true, 'edit' => true, 'full' => true, 'readonly' => false];
+        }
+
+        $usuarioId = (int)($_SESSION['usuario_id'] ?? $_SESSION['usuario']['id'] ?? 0);
+        $route = (string)($_GET['route'] ?? 'inventario');
+        $aliases = [
+            'talento' => 'talento_directorio', 'talento_crear' => 'talento_directorio',
+            'talento_guardar' => 'talento_directorio', 'talento_editar' => 'talento_directorio',
+            'talento_borrar' => 'talento_directorio', 'talento_eliminar' => 'talento_directorio',
+            'talento_imprimir_ficha' => 'talento_directorio', 'cabeceras' => 'inv_maestros',
+        ];
+        $route = $aliases[$route] ?? $route;
+        $scope = 'general';
+        if ($route === 'inv_maestros') {
+            $scope = (string)($_GET['tabla'] ?? $_POST['tabla'] ?? 'categorias');
+            if ($scope === 'busqueda_global') { $route = 'busqueda_global'; $scope = 'general'; }
+        } elseif ($route === 'egresos') {
+            $scope = (string)($_GET['vista'] ?? $_POST['vista'] ?? 'ordenes');
+            if (!in_array($scope, ['ordenes', 'facturas', 'ingresos', 'kardex'], true)) $scope = 'ordenes';
+        }
+
+        $regla = [];
+        if ($usuarioId > 0) {
+            require_once ROOT_PATH . 'modules/Credenciales/models/PermisoModel.php';
+            $matriz = (new PermisoModel())->obtenerMatrizUsuario($usuarioId);
+            $regla = $matriz[$route][$scope] ?? $matriz[$route]['*'] ?? [];
+        }
+        $full = !empty($regla['full']);
+        $read = $full || !empty($regla['read']);
+        $create = $full || !empty($regla['create']);
+        $edit = $full || !empty($regla['edit']);
+        return ['read' => $read, 'create' => $create, 'edit' => $edit, 'full' => $full, 'readonly' => $read && !$create && !$edit];
     }
 
     /**
@@ -168,9 +225,15 @@ class Controller {
      * Registra una auditoría en la bitácora
      */
     protected function registrarAuditoria($tipo, $modulo, $desc) {
+        $this->auditoriaRegistrada = true;
         require_once ROOT_PATH . 'modules/Bitacoras/models/BitacoraModel.php';
         $bitacora = new BitacoraModel();
-        return $bitacora->registrar($tipo, $modulo, $desc);
+        return $bitacora->registrar($tipo, $modulo, $desc, [
+            'route' => (string)($_GET['route'] ?? 'inventario'),
+            'action' => (string)($_GET['action'] ?? $this->action ?? 'index'),
+            'resultado' => 'OK',
+            'duracion_ms' => (microtime(true) - $this->inicioSolicitud) * 1000,
+        ]);
     }
 
     /**
@@ -184,6 +247,9 @@ class Controller {
             $dbConnection = Database::getInstance()->getConnection();
             $eliminadasIds = isset($_SESSION['notificaciones_eliminadas']) ? $_SESSION['notificaciones_eliminadas'] : [];
             $driver = DB_DRIVER;
+            $usuarioNotificaciones = (int)($_SESSION['usuario_id'] ?? $_SESSION['usuario']['id'] ?? 0);
+            $adminNotificaciones = strtolower((string)($_SESSION['rol'] ?? $_SESSION['usuario']['rol'] ?? '')) === 'administrador';
+            if ($adminNotificaciones) {
 
             // 1. Alertas de stock crítico (cantidad = 0) o bajo (cantidad <= 5)
             $sqlLimit = ($driver === 'sqlsrv') ? "TOP 8" : "";
@@ -246,10 +312,12 @@ class Controller {
                 ];
             }
 
+            }
+
             // 3. Alertas transaccionales persistentes
             require_once ROOT_PATH . 'modules/Central/models/NotificacionModel.php';
             $notifModel = new NotificacionModel();
-            $recentEvents = $notifModel->obtenerRecientes(15);
+            $recentEvents = $notifModel->obtenerRecientes(15, $usuarioNotificaciones, $adminNotificaciones);
             foreach ($recentEvents as $ev) {
                 $notifId = 'evt_' . $ev['id'];
                 if (in_array($notifId, $eliminadasIds)) continue;

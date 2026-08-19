@@ -64,6 +64,17 @@ final class Auth
         }
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
+            // Puente de identidad Portal APM -> TH, mismo camino que
+            // loginTrusted() usa para el super admin (admin_apm no tiene
+            // empleado_id, no se resuelve por cédula) pero disponible
+            // también desde el formulario de login PROPIO de TH -- igual
+            // que Control de Bienes acepta la cédula del portal en su
+            // login nativo. Solo para super admin (nivel_jerarquia>=4):
+            // el resto de empleados sí necesita su cuenta TH real.
+            $bridge = self::attemptPortalBridge($username, $password);
+            if ($bridge !== null) {
+                return $bridge; // true = sesión establecida, false = MFA pendiente (ver mfaPending())
+            }
             if ($user) {
                 $failed = $db->prepare(
                     'UPDATE dbo.th_usuarios_sistema
@@ -99,6 +110,76 @@ final class Auth
 
         self::establishSession($user,false);
         return true;
+    }
+
+    /**
+     * Login directo en TH con la cédula+clave del Portal APM, solo para
+     * super admin (nivel_jerarquia>=4 -- mismo umbral que loginTrusted()).
+     * No crea ni busca ninguna cuenta por cédula: resuelve siempre a la
+     * cuenta fija 'admin_apm' (sin empleado_id), igual que la SSO. Evita
+     * usleep/bloqueo por intentos propio de TH -- si la cédula ni siquiera
+     * existe en el portal o el nivel no alcanza, simplemente no aplica
+     * (null) y el flujo normal de "credenciales inválidas" sigue su curso.
+     *
+     * @return bool|null null = no aplica (seguir con el flujo normal de
+     *   fallo), true = sesión TH establecida, false = MFA pendiente (igual
+     *   convención que attempt(): revisar mfaPending() después).
+     */
+    private static function attemptPortalBridge(string $username, string $password): ?bool
+    {
+        if ($username === '' || $password === '') {
+            return null;
+        }
+        try {
+            $db = Conexion::conectar();
+            $portal = $db->prepare(
+                'SELECT hash_contrasena, nivel_jerarquia, estado
+                 FROM PORTAL_APM.dbo.CORE_Usuarios WHERE cedula = :cedula'
+            );
+            $portal->execute([':cedula' => $username]);
+            $row = $portal->fetch(PDO::FETCH_ASSOC);
+            if (!$row || !(bool)$row['estado'] || (int)$row['nivel_jerarquia'] < 4) {
+                return null;
+            }
+            if (!password_verify($password, (string)$row['hash_contrasena'])) {
+                return null;
+            }
+
+            $stmt = $db->prepare(
+                "SELECT TOP 1 u.usuario_id,u.usuario,u.password_hash,u.nombre,u.correo,u.rol_id,
+                        u.token_version,u.intentos_fallidos,u.bloqueado_hasta,u.debe_cambiar_clave,
+                        u.mfa_habilitado,u.mfa_secreto_enc,u.mfa_ultimo_paso,r.nombre_rol
+                 FROM dbo.th_usuarios_sistema u JOIN dbo.th_roles r ON r.rol_id=u.rol_id
+                 WHERE u.usuario='admin_apm' AND u.estado=1 AND r.estado=1"
+            );
+            $stmt->execute();
+            $adminApm = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$adminApm) {
+                return null;
+            }
+
+            unset($_SESSION['mfa_pending']);
+            if ((bool)($adminApm['mfa_habilitado'] ?? false) && !empty($adminApm['mfa_secreto_enc'])) {
+                session_regenerate_id(true);
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                $_SESSION['mfa_pending'] = [
+                    'user_id'   => (int)$adminApm['usuario_id'],
+                    'username'  => (string)$adminApm['usuario'],
+                    'expires'   => time() + self::MFA_TTL,
+                    'attempts'  => 0,
+                ];
+                self::audit((string)$adminApm['usuario'], 'MFA_SOLICITADO', "Credenciales válidas vía cédula del Portal APM ({$username}); se solicitó el segundo factor TOTP.");
+                return false;
+            }
+            self::establishSession($adminApm, false, true, 'LOGIN_PUENTE_PORTAL', "Acceso vía cédula del Portal APM ({$username}).");
+            // Puente inverso (botón "Volver al Portal APM") -- establishSession()
+            // solo lo hace sola con el audit por defecto, no con un $auditAction
+            // propio como el de arriba.
+            self::syncPortalSession((int)$adminApm['usuario_id'], (string)$adminApm['usuario']);
+            return true;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     public static function user(): ?array
@@ -227,10 +308,26 @@ final class Auth
 
     public static function requireCsrf(?string $token): void
     {
-        if (!self::validateCsrf($token)) {
-            http_response_code(419);
-            exit('La sesion del formulario vencio. Recargue la pagina e intente nuevamente.');
+        if (self::validateCsrf($token)) {
+            return;
         }
+        // Antes: exit() con un texto plano sin login ni forma de volver
+        // -- bug real reportado (usuario varado tras vencer la sesión a
+        // mitad de un formulario). El token normalmente solo deja de
+        // coincidir cuando la sesión de verdad ya venció (self::clear()
+        // la vació) o la BD/GC se la llevó -- en ambos casos lo correcto
+        // es mandar al login con el mismo aviso que expireSession(), no
+        // dejar al usuario en una pantalla muerta.
+        http_response_code(419);
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'La sesión venció.', 'redirect' => BASE_URL . '/login?expired=1']);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/login?expired=1');
+        exit;
     }
 
     public static function mfaPending(): bool

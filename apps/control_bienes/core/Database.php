@@ -674,12 +674,6 @@ class Database {
                 ultimo_numero INT NOT NULL DEFAULT 0
             );",
 
-            // 9. Roles nativos (permisos centrales Fase 2)
-            "CREATE TABLE inv_roles (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                nombre NVARCHAR(50) NOT NULL UNIQUE
-            );",
-
             // 9. Usuarios
             "CREATE TABLE inv_usuarios (
                 id INT IDENTITY(1,1) PRIMARY KEY,
@@ -688,9 +682,7 @@ class Database {
                 usuario NVARCHAR(255) NOT NULL UNIQUE,
                 contrasena NVARCHAR(MAX) NOT NULL,
                 rol NVARCHAR(50) NOT NULL,
-                rol_id INT NULL,
-                activo INT NOT NULL DEFAULT 1,
-                FOREIGN KEY (rol_id) REFERENCES inv_roles(id)
+                activo INT NOT NULL DEFAULT 1
             );",
 
             // 10. Bodega - Ingresos
@@ -823,21 +815,8 @@ class Database {
                 id INT IDENTITY(1,1) PRIMARY KEY,
                 usuario_id INT NOT NULL,
                 route_key NVARCHAR(255) NOT NULL,
-                nivel_crud TINYINT NOT NULL DEFAULT 1,
                 UNIQUE(usuario_id, route_key),
                 FOREIGN KEY (usuario_id) REFERENCES inv_usuarios(id) ON DELETE CASCADE
-            );",
-            // 22. Permisos por Rol (permisos centrales Fase 2)
-            "CREATE TABLE inv_permisos_rol (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                rol_id INT NOT NULL,
-                route_key NVARCHAR(255) NOT NULL,
-                puede_visualizar BIT NOT NULL DEFAULT 0,
-                puede_crear BIT NOT NULL DEFAULT 0,
-                puede_editar BIT NOT NULL DEFAULT 0,
-                puede_eliminar BIT NOT NULL DEFAULT 0,
-                UNIQUE(rol_id, route_key),
-                FOREIGN KEY (rol_id) REFERENCES inv_roles(id)
             );"
         ];
 
@@ -986,41 +965,23 @@ class Database {
             ('INV-00007', 'Contenedor Dry 20ft MSCU4521', 'MSC', 2, 3, 114, 2, 4200.0, '2026-05-16', 'Destino: Guayaquil', 1, 1, 7),
             ('INV-00008', 'Montacargas H250 HD', 'Hyster', 4, 5, 113, 4, 18500.0, '2026-05-17', 'Motor dañado', 1, 1, 8);");
 
-        // 9. Roles nativos (permisos centrales Fase 2) -- por ahora solo la
-        // ruta SQL Server tiene las tablas inv_roles/inv_permisos_rol; en
-        // Postgres/SQLite el usuario semilla se crea igual que antes, sin
-        // rol_id (queda NULL, la app sigue funcionando por el string 'rol').
-        $rolesSemilla = [];
-        if ($motor === 'SQL Server') {
-            $this->pdo->exec("INSERT INTO inv_roles (nombre) VALUES ('Administrador'), ('Supervisor'), ('Operador'), ('Auditor');");
-            foreach ($this->pdo->query("SELECT id, nombre FROM inv_roles")->fetchAll(PDO::FETCH_ASSOC) as $r) {
-                $rolesSemilla[$r['nombre']] = (int)$r['id'];
-            }
-        }
-
-        // 10. Cargar Usuarios
+        // 9. Cargar Usuarios
         $usuariosSemilla = [
             ['ACC-0001', 'Admin Terminal', 'admin', 'admin123', 'Administrador'],
             ['ACC-0002', 'Juan Operador', 'juan', 'juan123', 'Operador'],
             ['ACC-0003', 'María Supervisora', 'maria', 'maria123', 'Supervisor'],
             ['ACC-0004', 'Pedro Auditor', 'pedro', 'pedro123', 'Auditor']
         ];
-
-        $colRolId = $motor === 'SQL Server' ? ', rol_id' : '';
-        $valRolId = $motor === 'SQL Server' ? ', :rol_id' : '';
-        $stmtUsr = $this->pdo->prepare("INSERT INTO inv_usuarios (secuencial, nombre, usuario, contrasena, rol{$colRolId}, activo) VALUES (:sec, :nombre, :usuario, :pass, :rol{$valRolId}, 1)");
+        
+        $stmtUsr = $this->pdo->prepare("INSERT INTO inv_usuarios (secuencial, nombre, usuario, contrasena, rol, activo) VALUES (:sec, :nombre, :usuario, :pass, :rol, 1)");
         foreach ($usuariosSemilla as $u) {
-            $params = [
+            $stmtUsr->execute([
                 ':sec' => $u[0],
                 ':nombre' => $u[1],
                 ':usuario' => $u[2],
                 ':pass' => password_hash($u[3], PASSWORD_DEFAULT),
-                ':rol' => $u[4],
-            ];
-            if ($motor === 'SQL Server') {
-                $params[':rol_id'] = $rolesSemilla[$u[4]] ?? null;
-            }
-            $stmtUsr->execute($params);
+                ':rol' => $u[4]
+            ]);
         }
 
         // 10. Cargar Bitácora Inicial
@@ -1133,45 +1094,22 @@ class Database {
                 $this->pdo->exec("UPDATE inv_categorias SET codigo = '1.3.1.01.05.' WHERE id = 5;");
             }
 
-            // Permisos centrales Fase 2 (2026-08-11): roles nativos + permisos
-            // por rol/usuario con nivel_crud real (ver db/permisos_centrales_fase2_bienes_inventario.sql).
-            $checkRoles = $this->pdo->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'inv_roles'");
-            if ($checkRoles === false || $checkRoles->fetchColumn() === false) {
-                $this->pdo->exec("CREATE TABLE inv_roles (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    nombre NVARCHAR(50) NOT NULL UNIQUE
-                );");
-                $this->pdo->exec("INSERT INTO inv_roles (nombre) VALUES ('Administrador'), ('Supervisor'), ('Operador'), ('Auditor');");
+            // Las copias anteriores al 2026-08-05 no incluyen el tiempo de
+            // inactividad individual. Mantener esta migración aquí permite
+            // que una restauración antigua se actualice al abrir el sistema.
+            $checkUserInactivity = $this->pdo->query(
+                "SELECT COL_LENGTH('dbo.inv_usuarios', 'tiempo_inactividad')"
+            );
+            if ($checkUserInactivity === false || $checkUserInactivity->fetchColumn() === null) {
+                $this->pdo->exec("ALTER TABLE dbo.inv_usuarios ADD tiempo_inactividad INT NULL;");
             }
 
-            $checkPermRol = $this->pdo->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'inv_permisos_rol'");
-            if ($checkPermRol === false || $checkPermRol->fetchColumn() === false) {
-                $this->pdo->exec("CREATE TABLE inv_permisos_rol (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    rol_id INT NOT NULL,
-                    route_key NVARCHAR(255) NOT NULL,
-                    puede_visualizar BIT NOT NULL DEFAULT 0,
-                    puede_crear BIT NOT NULL DEFAULT 0,
-                    puede_editar BIT NOT NULL DEFAULT 0,
-                    puede_eliminar BIT NOT NULL DEFAULT 0,
-                    CONSTRAINT UQ_inv_permisos_rol UNIQUE (rol_id, route_key),
-                    FOREIGN KEY (rol_id) REFERENCES inv_roles(id)
-                );");
-            }
-
-            $checkPermCols = $this->pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'inv_permisos'");
-            $permCols = $checkPermCols->fetchAll(PDO::FETCH_COLUMN);
-            if (!in_array('nivel_crud', $permCols)) {
-                $this->pdo->exec("ALTER TABLE inv_permisos ADD nivel_crud TINYINT NOT NULL DEFAULT 1;");
-            }
-
-            $checkUsrCols = $this->pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'inv_usuarios'");
-            $usrCols = $checkUsrCols->fetchAll(PDO::FETCH_COLUMN);
-            if (!in_array('rol_id', $usrCols)) {
-                $this->pdo->exec("ALTER TABLE inv_usuarios ADD rol_id INT NULL;");
-                $this->pdo->exec("ALTER TABLE inv_usuarios ADD CONSTRAINT FK_inv_usuarios_rol FOREIGN KEY (rol_id) REFERENCES inv_roles(id);");
-                $this->pdo->exec("UPDATE u SET u.rol_id = r.id FROM inv_usuarios u JOIN inv_roles r ON r.nombre = u.rol;");
-            }
+            $this->pdo->exec("IF NOT EXISTS (
+                    SELECT 1 FROM sys.check_constraints
+                    WHERE name = 'CK_inv_usuarios_tiempo_inactividad'
+                )
+                ALTER TABLE dbo.inv_usuarios ADD CONSTRAINT CK_inv_usuarios_tiempo_inactividad
+                    CHECK (tiempo_inactividad IS NULL OR tiempo_inactividad BETWEEN 60 AND 14400);");
 
         } catch (Exception $e) {
             // Ignorar o registrar

@@ -25,7 +25,12 @@ class EventoController extends Controller {
         $filtros = [
             'modulo' => isset($_GET['modulo']) ? $_GET['modulo'] : '',
             'tipo' => isset($_GET['tipo']) ? $_GET['tipo'] : '',
-            'termino' => isset($_GET['termino']) ? $_GET['termino'] : ''
+            'termino' => isset($_GET['termino']) ? $_GET['termino'] : '',
+            'usuario' => isset($_GET['usuario']) ? trim($_GET['usuario']) : '',
+            'ip' => isset($_GET['ip']) ? trim($_GET['ip']) : '',
+            'resultado' => isset($_GET['resultado']) ? trim($_GET['resultado']) : '',
+            'desde' => isset($_GET['desde']) ? trim($_GET['desde']) : '',
+            'hasta' => isset($_GET['hasta']) ? trim($_GET['hasta']) : '',
         ];
 
         $logs = $this->bitacoraModel->filtrar($filtros);
@@ -45,7 +50,12 @@ class EventoController extends Controller {
         $filtros = [
             'modulo' => isset($_GET['modulo']) ? $_GET['modulo'] : '',
             'tipo' => isset($_GET['tipo']) ? $_GET['tipo'] : '',
-            'termino' => isset($_GET['termino']) ? $_GET['termino'] : ''
+            'termino' => isset($_GET['termino']) ? $_GET['termino'] : '',
+            'usuario' => isset($_GET['usuario']) ? trim($_GET['usuario']) : '',
+            'ip' => isset($_GET['ip']) ? trim($_GET['ip']) : '',
+            'resultado' => isset($_GET['resultado']) ? trim($_GET['resultado']) : '',
+            'desde' => isset($_GET['desde']) ? trim($_GET['desde']) : '',
+            'hasta' => isset($_GET['hasta']) ? trim($_GET['hasta']) : '',
         ];
 
         $csv = $this->bitacoraModel->exportarCSV($filtros);

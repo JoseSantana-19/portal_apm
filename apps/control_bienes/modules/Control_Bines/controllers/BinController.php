@@ -8,6 +8,7 @@ require_once ROOT_PATH . 'modules/Control_Bines/models/BinModel.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/EstacionModel.php';
 require_once ROOT_PATH . 'modules/Talento_Humano/models/EmpleadoModel.php';
 require_once ROOT_PATH . 'modules/Central/models/InvPeriodo.php';
+require_once ROOT_PATH . 'modules/Central/models/InvParametro.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/InvItemSistema.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/LogModel.php';
 
@@ -63,6 +64,33 @@ class BinController extends Controller {
         ];
 
         $stats         = $this->inventarioModel->obtenerEstadisticas();
+        $resumenOperativo = $this->inventarioModel->obtenerResumenOperativo();
+        $usuarioId = (int)($_SESSION['usuario_id'] ?? $_SESSION['usuario']['id'] ?? 0);
+        $usoPorRuta = $this->inventarioModel->obtenerRutasFrecuentesUsuario($usuarioId);
+        $catalogoAcciones = [
+            'ingresos' => ['url' => 'index.php?route=ingresos', 'icono' => 'fa-file-invoice-dollar', 'titulo' => 'Ingresos con factura', 'detalle' => 'Consultar o registrar compras'],
+            'egresos' => ['url' => 'index.php?route=egresos', 'icono' => 'fa-dolly', 'titulo' => 'Egresos de bodega', 'detalle' => 'Despachar solicitudes pendientes'],
+            'requisiciones' => ['url' => 'index.php?route=requisiciones', 'icono' => 'fa-clipboard-list', 'titulo' => 'Requisiciones', 'detalle' => 'Gestionar solicitudes internas'],
+            'ordenes_compra' => ['url' => 'index.php?route=ordenes_compra', 'icono' => 'fa-cart-shopping', 'titulo' => 'Órdenes de compra', 'detalle' => 'Preparar y aprobar órdenes'],
+            'items' => ['url' => 'index.php?route=items', 'icono' => 'fa-box', 'titulo' => 'Catálogo de ítems', 'detalle' => 'Consultar productos por categoría'],
+            'inv_items_sistema' => ['url' => 'index.php?route=inv_items_sistema', 'icono' => 'fa-cubes', 'titulo' => 'Maestro de ítems', 'detalle' => 'Crear, copiar o editar productos'],
+            'inv_maestros' => ['url' => 'index.php?route=inv_maestros', 'icono' => 'fa-layer-group', 'titulo' => 'Maestros', 'detalle' => 'Administrar datos principales'],
+            'reportes' => ['url' => 'index.php?route=reportes', 'icono' => 'fa-chart-pie', 'titulo' => 'Reportes', 'detalle' => 'Consultar e imprimir reportes'],
+            'busqueda_global' => ['url' => 'index.php?route=busqueda_global', 'icono' => 'fa-magnifying-glass', 'titulo' => 'Búsqueda global', 'detalle' => 'Encontrar información del sistema'],
+            'talento_directorio' => ['url' => 'index.php?route=talento_directorio', 'icono' => 'fa-users', 'titulo' => 'Directorio de personal', 'detalle' => 'Consultar funcionarios'],
+        ];
+        $accionesFrecuentes = [];
+        foreach (array_keys($usoPorRuta) as $rutaUsada) {
+            if (isset($catalogoAcciones[$rutaUsada])) {
+                $accionesFrecuentes[] = $catalogoAcciones[$rutaUsada];
+                unset($catalogoAcciones[$rutaUsada]);
+            }
+            if (count($accionesFrecuentes) === 4) break;
+        }
+        foreach ($catalogoAcciones as $accionAlterna) {
+            if (count($accionesFrecuentes) === 4) break;
+            $accionesFrecuentes[] = $accionAlterna;
+        }
         $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
         $tasaIva       = $periodoActivo ? $periodoActivo['tasa_iva'] : 15.0;
 
@@ -72,23 +100,12 @@ class BinController extends Controller {
         $personal   = $this->talentoModel->obtenerPersonal();
         $unidades   = $this->cabeceraModel->obtenerTodos('unidades');
 
-        // Obtener tipos de IVA
-        $db = Database::getInstance()->getConnection();
-        $ivasStmt = $db->query("SELECT * FROM inv_tipos_iva ORDER BY tasa_iva DESC");
-        $tiposIva = $ivasStmt->fetchAll();
-
-        // Obtener catálogo para el modal
-        $productosStmt = $db->query(
-            "SELECT p.id, p.nombre, p.codigo, p.grupo_id, p.precio_promedio,
-                    c.nombre as grupo_nombre, c.id as categoria_id
-             FROM inv_productos p
-             JOIN inv_categorias c ON p.grupo_id = c.id
-             ORDER BY c.nombre ASC, p.nombre ASC"
-        );
-        $catalogoProductos = $productosStmt->fetchAll();
+        $tiempoVigenciaInventario = max(60, min(3600, (int)(new InvParametro())->obtener('tiempo_vigencia_inventario', 600)));
 
         $this->render('bines/listar', [
             'stats'             => $stats,
+            'resumenOperativo'  => $resumenOperativo,
+            'accionesFrecuentes'=> $accionesFrecuentes,
             'tasaIva'           => $tasaIva,
             'categorias'        => $categorias,
             'zonas'             => $zonas,
@@ -97,8 +114,7 @@ class BinController extends Controller {
             'unidades'          => $unidades,
             'filtros'           => $filtros,
             'periodoActivo'     => $periodoActivo,
-            'catalogoProductos' => $catalogoProductos,
-            'tiposIva'          => $tiposIva,
+            'tiempoVigenciaInventario' => $tiempoVigenciaInventario,
         ], 'Inventario General - Sistema Portuario');
     }
 
@@ -140,6 +156,7 @@ class BinController extends Controller {
             'categoria' => isset($_GET['categoria']) ? $_GET['categoria'] : '',
             'unidad_id' => isset($_GET['unidad_id']) ? $_GET['unidad_id'] : '',
             'estado'    => isset($_GET['estado'])    ? $_GET['estado']    : '',
+            'segmento'  => isset($_GET['segmento'])  ? $_GET['segmento']  : '',
             'termino'   => isset($_GET['termino'])   ? $_GET['termino']   : '',
             'sort_by'   => isset($_GET['sort_by'])   ? $_GET['sort_by']   : '',
             'sort_dir'  => isset($_GET['sort_dir'])  ? $_GET['sort_dir']  : ''
@@ -177,9 +194,9 @@ class BinController extends Controller {
             $offset = ($page - 1) * $limit;
         }
 
-        // Obtener totales
-        $all_items = $this->inventarioModel->filtrar($filtros);
-        $total = count($all_items);
+        // Conteos optimizados: DataTables no necesita descargar todos los registros.
+        $total = $this->inventarioModel->contarFiltrados($filtros);
+        $totalGeneral = $this->inventarioModel->contarFiltrados();
 
         // Obtener página activa
         $items = $this->inventarioModel->filtrar($filtros, $limit, $offset);
@@ -217,7 +234,7 @@ class BinController extends Controller {
                        . '<div class="item-info"><strong>' . htmlspecialchars($item['nombre']) . '</strong>'
                        . '<span>Marca: ' . htmlspecialchars($item['marca']) . '</span></div></div>';
 
-                $accionesHtml = '<div class="acciones-cell">'
+                $accionesHtml = '<div class="acciones-cell columna-acciones">'
                        . '<button class="btn-accion btn-ver" onclick="verDetallesInventario(' . $item['id'] . ')" title="Ver Detalle"><i class="fa-solid fa-eye"></i></button>'
                        . '<button class="btn-accion btn-editar" onclick="editarRegistroInventario(' . $itemJson . ')" title="Editar"><i class="fa-solid fa-pen"></i></button>'
                        . '</div>';
@@ -237,7 +254,7 @@ class BinController extends Controller {
 
             $this->jsonResponse([
                 'draw'            => (int)$_GET['draw'],
-                'recordsTotal'    => $total,
+                'recordsTotal'    => $totalGeneral,
                 'recordsFiltered' => $total,
                 'data'            => $data
             ]);
@@ -274,7 +291,7 @@ class BinController extends Controller {
                 $html .= $ivaCellsHtml;
                 $html .= '<td><strong style="color:var(--primary); font-size:13px;">$' . number_format($valorTotal, 2) . '</strong></td>';
                 $html .= '<td><span class="status-badge ' . htmlspecialchars((string)($item['estadoClase'] ?? 'inactive')) . '">' . htmlspecialchars((string)($item['estado'] ?? 'Desconocido')) . '</span></td>';
-                $html .= '<td class="acciones-cell">'
+                $html .= '<td class="acciones-cell columna-acciones">'
                        . '<button class="btn-accion btn-ver" onclick="verDetallesInventario(' . $item['id'] . ')" title="Ver Detalle"><i class="fa-solid fa-eye"></i></button>'
                        . '<button class="btn-accion btn-editar" onclick="editarRegistroInventario(' . $itemJson . ')" title="Editar"><i class="fa-solid fa-pen"></i></button>'
                        . '</td>';
@@ -480,7 +497,7 @@ class BinController extends Controller {
      * Listado maestro de Ítems del Sistema (Productos)
      */
     public function itemsSistema() {
-        $this->registrarAuditoria('ACCESO', 'inv_items_sistema', 'Acceso al módulo Ítems del Sistema');
+        $this->registrarAuditoria('ACCESO', 'inv_items_sistema', 'Acceso al módulo Maestro de Ítems');
 
         $grupoId = isset($_GET['grupo_id']) ? (int)$_GET['grupo_id'] : 0;
         $termino = isset($_GET['termino'])  ? trim($_GET['termino'])  : '';
@@ -526,7 +543,7 @@ class BinController extends Controller {
             'grupoId'       => $grupoId,
             'termino'       => $termino,
             'tiposIva'      => $tiposIva,
-        ], 'Ítems del Sistema de Inventarios - SysPort');
+        ], 'Maestro de Ítems de Inventarios - SysPort');
     }
 
     /**
@@ -551,6 +568,10 @@ class BinController extends Controller {
         }
 
         $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $copiarDesdeId = isset($_POST['copiar_desde_id']) ? (int)$_POST['copiar_desde_id'] : 0;
+        // Copiar es siempre una creación. Aunque el navegador envíe por error
+        // el ID del registro cargado, nunca se permite actualizar la plantilla.
+        if ($copiarDesdeId > 0) $id = 0;
 
         $datos = [
             'nombre'           => trim($_POST['nombre']),
@@ -566,7 +587,7 @@ class BinController extends Controller {
             'existencia_actual'=> (float)($_POST['existencia_actual'] ?? 0),
             'tipo_bien'        => 'CC', // El modelo lo determina desde el código de la categoría.
             'responsable_id'   => !empty($_POST['responsable_id']) ? (int)$_POST['responsable_id'] : null,
-            'copiar_desde_id'  => isset($_POST['copiar_desde_id']) ? (int)$_POST['copiar_desde_id'] : 0,
+            'copiar_desde_id'  => $copiarDesdeId,
         ];
 
         try {

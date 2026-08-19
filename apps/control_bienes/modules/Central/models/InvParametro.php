@@ -34,7 +34,7 @@ class ParametroModel extends Model {
                 ':valor' => $valor,
                 ':descripcion' => $descripcion
             ]);
-            
+
             if ($stmt->rowCount() === 0) {
                 $stmtInsert = $this->db->prepare("INSERT INTO inv_parametros (clave, valor, descripcion) VALUES (:clave, :valor, :descripcion)");
                 return $stmtInsert->execute([
@@ -59,14 +59,33 @@ class ParametroModel extends Model {
     }
 
     /**
-     * Tiempo de inactividad centralizado — consulta PORTAL_APM (cascada
-     * usuario > módulo 'CONTROL_BIENES' > global, configurable desde
-     * /admin/inactividad del portal). Antes esta app solo miraba su propia
-     * tabla `inv_parametros`, desconectada de cualquier otro módulo. Si la
-     * conexión cruzada falla (BD del portal no disponible), cae al parámetro
-     * local `tiempo_inactividad` para no dejar el sistema sin control.
+     * Tiempo de inactividad efectivo para un usuario. Orden de prioridad:
+     * 1) override nativo propio de este módulo (inv_usuarios.tiempo_inactividad,
+     *    NULL = hereda — lo configura el admin desde Gestión de Usuarios).
+     *    Se omite para sesiones puenteadas desde el portal: ahí $idUsuario es
+     *    un id de PORTAL_APM.CORE_Usuarios, no de inv_usuarios — consultar esa
+     *    tabla igual arriesgaría pisar la config de un usuario NATIVO distinto
+     *    cuyo id coincida por casualidad con el id del portal.
+     * 2) cascada centralizada de PORTAL_APM (usuario > módulo > global,
+     *    configurable desde /admin/inactividad del portal);
+     * 3) el parámetro local `tiempo_inactividad` de esta app, como último
+     *    respaldo si ninguna de las dos anteriores está disponible.
+     * Antes esta app solo miraba su propia tabla `inv_parametros`, sin
+     * relación con ningún otro módulo del portal.
      */
-    public function obtenerInactividadSegundos(int $idUsuario, int $fallback = 600): int {
+    public function obtenerInactividadSegundos(int $idUsuario, int $fallback = 600, bool $puenteada = false): int {
+        if (!$puenteada) {
+            try {
+                $stmt = $this->db->prepare('SELECT tiempo_inactividad FROM inv_usuarios WHERE id = :id');
+                $stmt->execute([':id' => $idUsuario]);
+                $valor = $stmt->fetchColumn();
+                if ($valor !== false && $valor !== null) {
+                    return max(60, min(14400, (int)$valor));
+                }
+            } catch (\Throwable $e) {
+                // instalación previa a la migración: se sigue a la cascada del portal.
+            }
+        }
         try {
             $stmt = $this->db->prepare('SELECT PORTAL_APM.dbo.fn_InactividadSegundos(:id, :modulo) AS v');
             $stmt->execute([':id' => $idUsuario, ':modulo' => 'CONTROL_BIENES']);
