@@ -193,6 +193,12 @@ class PortUsuarioModel extends PortBaseModel
             return false;
         }
 
+        // Esquema nuevo compartido con todo el sistema (portal, TH, Bienes)
+        // -- pepper + bcrypt, ver SecurityHelper::hashPassword().
+        if (str_starts_with($storedHash, 'peppered:')) {
+            return SecurityHelper::verifyPassword($password, $storedHash);
+        }
+
         if (
             substr($storedHash, 0, 4) === '$2y$' ||
             substr($storedHash, 0, 4) === '$2a$' ||

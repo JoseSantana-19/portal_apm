@@ -405,6 +405,9 @@
             .nautical-mark.waves, .bubble-cluster { display: none; }
         }
     </style>
+    <?php if (defined('PORTAL_ROOT_URL')): ?>
+    <script src="<?= PORTAL_ROOT_URL ?>/js/password-hash.js?v=<?= @filemtime(dirname(rtrim(ROOT_PATH, '/'), 2) . '/js/password-hash.js') ?: time() ?>"></script>
+    <?php endif; ?>
 </head>
 <body>
 
@@ -492,13 +495,22 @@
                 event.preventDefault();
                 return;
             }
-            
+
             // Animación de carga para una excelente experiencia de usuario
             const label = document.getElementById('btn-lbl');
             const spinner = document.getElementById('btn-spinner');
-            
+
             label.style.display = 'none';
             spinner.style.display = 'block';
+
+            // Hash SHA-256 de la contraseña en el navegador (ver
+            // js/password-hash.js) -- el servidor combina ese hash con el
+            // pepper compartido de todo el sistema, ver AuthController::loginPost().
+            if (window.hashPasswordFieldsBeforeSubmit) {
+                event.preventDefault();
+                const form = event.target;
+                hashPasswordFieldsBeforeSubmit(form, ['contrasena']).then(function () { form.submit(); });
+            }
         }
     </script>
 </body>

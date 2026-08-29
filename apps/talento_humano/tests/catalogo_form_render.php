@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require dirname(__DIR__,2) . '/helpers/polyfills_php74.php';
 
 $mode = $argv[1] ?? 'allow';
 if (!in_array($mode, ['allow', 'deny'], true)) {

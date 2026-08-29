@@ -1,7 +1,7 @@
-# Portal APM — Documentación del Sistema v6.0
+# Portal APM — Documentación del Sistema v7.0
 
 **Portal de Gestión Integral — Autoridad Portuaria de Manta**
-PHP 8.0+ · SQL Server 2014+ · sqlsrv nativo · Sin PDO en el portal nativo · Sin Composer
+PHP 7.4 / 8.3 / 8.5 (compatible con las 3 versiones a la vez, ver §2 y §18 v7.0) · SQL Server 2014+ · sqlsrv nativo · Sin PDO en el portal nativo · Sin Composer
 
 ---
 
@@ -76,6 +76,14 @@ Características clave:
 - **Alertas unificadas con SweetAlert2** — reemplazan los `confirm()`/`alert()`
   nativos y los `<div class="alert">` estáticos en todo el panel admin. Ver
   nueva sección §12-bis.
+- **Contraseñas: híbrido cliente+servidor** — el navegador hashea con
+  SHA-256 antes de enviar (`js/password-hash.js`), el servidor combina eso
+  con un pepper compartido (`CORE_Config.PASSWORD_PEPPER`) y bcrypt. Mismo
+  esquema en las 4 apps. Ver §12 y `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+- **Notificaciones reales** — `CORE_Notificaciones` (dashboard, campana,
+  `/notificaciones`) ya no está vacía: un generador real (cross-DB) crea
+  alertas a partir de eventos genuinos de TH/Bienes/Bitácoras/seguridad.
+  Ver §7.1 y §18 v7.0.
 
 ---
 
@@ -84,12 +92,12 @@ Características clave:
 ### Backend
 | Componente | Versión / Detalle |
 |---|---|
-| PHP | 8.0+ (match expression, tipos union, spread operator) |
+| PHP | **7.4 / 8.3 / 8.5 simultáneo** (ver §18 v7.0) — sin `match`/`never`/`mixed`/`?->`/`enum`/`readonly`/constructor promotion en todo el código; `str_starts_with`/`str_contains`/`str_ends_with` vía polyfill propio (`helpers/polyfills_php74.php`, no-op en 8.0+) |
 | Driver DB (portal nativo) | `sqlsrv_*` nativo (Microsoft Drivers for PHP for SQL Server) |
 | Driver DB (apps embebidas) | PDO `sqlsrv:` (mismo driver, distinta API) |
 | SQL Server | 2014+ (Compatibility Level 120, collation `Modern_Spanish_CI_AS`) |
 | Sesiones | `$_SESSION` PHP nativo + tabla `CORE_Sesiones` |
-| Hashing | `password_hash(PASSWORD_BCRYPT, ['cost' => 12])` |
+| Hashing | Híbrido: SHA-256 en cliente (`js/password-hash.js`) + `hash_hmac('sha256', ., PASSWORD_PEPPER)` + `password_hash(PASSWORD_BCRYPT, cost=12)` en servidor, prefijo `peppered:`. Ver §12. |
 | CSRF | `bin2hex(random_bytes(32))` |
 
 ### Frontend
@@ -202,7 +210,9 @@ portal_apm/
 │
 ├── INDICACIONES/                     ← Guías paso a paso (instalación, integrar/actualizar módulos)
 │   ├── INSTALACION_MANUAL_WAMPSERVER.md          ← Instalación 100% manual en WampServer, sin SETUP_PROYECTO.ps1
-│   └── GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md  ← Contrato para integrar un módulo nuevo (Patrón B) o actualizar uno existente
+│   ├── GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md  ← Contrato para integrar un módulo nuevo (Patrón B) o actualizar uno existente
+│   ├── GUIA_SEGURIDAD_CONTRASENAS.html           ← Guía interactiva del esquema híbrido de contraseñas (v7.0)
+│   └── GUIA_SSO_LOGIN_ENTRE_MODULOS.md           ← Cómo usar sp_SSO_* / SsoClient.php para loguear un módulo nuevo (v7.0)
 │
 ├── config/
 │   ├── app.php                       ← Config del portal (APP_URL, DB_*, sesión…). DB_* se derivan
@@ -218,6 +228,7 @@ portal_apm/
 │   └── ModuleSecurity.php / SqlSrvStatement.php
 │
 ├── helpers/                          ← security_helper, session_helper, url_helper, form_helper
+│   └── polyfills_php74.php           ← str_starts_with/contains/ends_with, no-op en PHP 8.0+ (v7.0)
 │
 ├── modules/                          ← Patrón A únicamente (2 carpetas reales)
 │   ├── Central/                      ← Dashboard, paneles nativos, Admin, Landing pública, layouts (Patrón A)
@@ -235,7 +246,8 @@ portal_apm/
 │   ├── panel_th_bienes_menu.sql        ← Paneles nativos TH/Bienes + quita Dashboard duplicado
 │   ├── portuaria_menu_simplificar.sql  ← Menú Portuaria: solo header + Panel + "Sistema de Bitácoras"
 │   ├── apps_origen_integration.sql     ← Registra el nodo "Sistema Completo (Origen)" de TH/Bienes
-│   ├── sso_module_login.sql            ← SPs sp_SSO_* + tabla CORE_Aplicaciones
+│   ├── sso_module_login.sql            ← SPs sp_SSO_* + tabla CORE_Aplicaciones (documentado + verificado en v7.0)
+│   ├── notificaciones_reales.sql       ← CORE_Notificaciones.id_usuario NULL-able (v7.0)
 │   └── portuaria/                      ← Esquema y datos de PortuariaDemo/PortuariaExterna
 │
 ├── pendientes/                        ← Trabajo sin terminar, no integrado (ver README ahí)
@@ -348,7 +360,11 @@ Sin cambios de fondo respecto a versiones anteriores:
   (antes leían tablas `TH_Empleados`/`BIENES_Activos`/`BIT_Eventos` locales,
   ya eliminadas — ver §18): empleados desde `Talento_Humano.dbo.th_empleados`,
   bienes desde `inventario.dbo.inv_inventario`, visitas desde
-  `PortuariaDemo.dbo.bit_visitas`.
+  `PortuariaDemo.dbo.bit_visitas`. **v7.0:** ambos disparan
+  `NotificacionGeneradorModel::generarSiCorresponde()` antes de armar la
+  vista; el ejecutivo sumó KPIs reales que faltaban (valor total de
+  inventario, empleados nuevos del mes, bienes fuera de servicio) — antes
+  se calculaban en Control de Bienes pero no se mostraban acá.
 
 **`PanelController`** (nuevo) — panel nativo de un módulo integrado, con KPIs
 en vivo, **antes** de abrir su sistema completo externo. Mismo rol que
@@ -393,7 +409,14 @@ landing pública (`/admin/landing`, nodo MOIS `1,2,6,0`): carrusel de fondos
 imagen **obligatoria**) y consejos/novedades en texto
 (`CORE_Landing_Consejos`, sin imagen). Ver nueva sección §11-bis.
 
-**`NotificacionesController`** — sin cambios.
+**`NotificacionesController`** — `index()`/`recientes()` disparan
+`NotificacionGeneradorModel::generarSiCorresponde()` antes de leer
+`CORE_Notificaciones` (igual `DashboardController::executive()/operational()`).
+Hasta v7.0 esa tabla existía completa en el esquema pero **nunca tuvo una
+sola fila** — nada insertaba ahí. Ver `modules/Central/models/NotificacionGeneradorModel.php`
+y §18 v7.0 para el detalle de qué eventos reales generan alertas y el
+throttle (`CORE_Config.NOTIF_ULTIMO_SCAN`, no re-escanea más seguido que
+cada 15 min).
 
 #### Layouts (`modules/Central/views/layouts/`)
 
@@ -407,8 +430,27 @@ URLs que no están en el árbol (ej. `/apps/talento_humano/*`, `/panel/bienes`).
 ### 7.2 Credenciales (Patrón A)
 
 **`AuthController`** — login vía `sp_Login`, logout, tema, perfil, cambio de contraseña.
-**`ApiSsoController`** — `/api/sso/login|validate|logout`, usado por las apps
-embebidas (Patrón B) para validar sesión server-to-server. Ver `db/sso_module_login.sql`.
+`perfil()` **(mejorado v7.0)**: foto real desde Talento Humano
+(`vw_Usuarios_Identidad.foto` + `Talento_Humano.dbo.vw_th_directorio_empleados`,
+solo si la cuenta tiene `id_empleado_th` Y la foto no es el placeholder
+genérico `default_avatar.png` Y el archivo existe de verdad en disco —
+si no, cae al avatar de iniciales, no muestra una silueta genérica),
+cargo/dirección de área reales (antes solo mostraba `CORE_Departamentos.nombre`,
+el organigrama genérico), y últimas 6 acciones propias reales desde
+`CORE_Auditoria` (antes solo 2 fechas sueltas). Gotcha real encontrado acá:
+`vw_AuditoriaGlobal` identifica por `nombre_usuario`, pero las entradas
+`LOGIN`/`LOGOUT` nativas del portal **siempre** lo guardan `NULL` — para
+"mis propias acciones" hay que consultar `CORE_Auditoria` directo, filtrado
+por `id_usuario`.
+**`ApiSsoController`** — `/api/sso/login|validate|logout`, para módulos
+externos (no Patrón B — esos usan el puente de sesión, ver §3) que
+necesiten loguearse contra `CORE_Usuarios` sin compartir sesión PHP con el
+portal. Guía completa de uso para un módulo nuevo:
+`INDICACIONES/GUIA_SSO_LOGIN_ENTRE_MODULOS.md`. **Bug real corregido en
+v7.0:** `libs/SsoClient.php` nunca aplicaba el paso de SHA-256 de cliente
+del esquema híbrido (§12) — fallaba el login de cualquier cuenta real; el
+mecanismo entero nunca se había probado de punta a punta hasta entonces
+(`CORE_Aplicaciones` tenía 0 filas).
 
 ---
 
@@ -459,9 +501,14 @@ etc.). La reescritura nativa que existió (`modules/Inventario`,
 - `/panel/bienes` — panel nativo (KPIs, dentro del shell del portal).
 - `/apps/control_bienes/` — sistema completo, vía SSO.
 
-**Estados de un bien** (`inv_inventario.estado_id` → `inv_estados`):
-`111`=Operativo, `112`=En mantenimiento, `113`=Fuera de servicio,
-`114`=En tránsito, `115`=Despachado.
+**Estados de un bien** (`inv_inventario.estado_id` → `inv_estados.idestado`):
+`1`=Operativo, `2`=En Mantenimiento, `3`=Fuera de Servicio, `4`=En
+Tránsito, `5`=Despachado. **Corrección v7.0:** esta tabla decía
+`111`-`115` — nunca fue el valor real (`inv_estados` va de 1 a 5), un
+error heredado de versiones anteriores de este documento que se filtró a
+código nuevo escrito basándose en él (KPIs del dashboard, generador de
+notificaciones) hasta que se verificó contra la tabla real y se corrigió
+en todos los puntos.
 
 **Actualizado 2026-07-31** desde el proyecto origen (metodología completa en
 `INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` §2). Trajo: modelo
@@ -568,7 +615,7 @@ errores via `errors()/error()/errorHtml()`, `flashOld()/old()`).
 | `CORE_Formularios` / `CORE_Formularios_Permisos` | Permisos granulares sub-nodo. |
 | `CORE_Sesiones` | Token de sesión, IP, expiración. |
 | `CORE_Auditoria` | Log centralizado del sistema. |
-| `CORE_Notificaciones` | Notificaciones in-app. |
+| `CORE_Notificaciones` | Notificaciones in-app. `id_usuario` **NULL-able** desde v7.0 (era `NOT NULL`, bloqueaba las notificaciones globales que el propio código ya asumía posibles) — poblada por `NotificacionGeneradorModel`, antes siempre vacía. |
 | `CORE_Contrasenas_Hist` | Historial BCrypt (máx. 5). |
 | `CORE_Config` | Clave-valor por módulo. |
 | `CORE_Aplicaciones` | Apps registradas para SSO server-to-server (`sp_SSO_*`, ver §7.2). |
@@ -874,6 +921,16 @@ como relleno falso:
 - Solo consejos (sin imagen) → panel vertical de consejos ocupa el lugar del carrusel.
 - Ambos → carrusel arriba + franja de consejos abajo (diseño completo).
 
+**Fondo blanco en tema Institucional sin contenido (v7.0):** sin noticias
+ni consejos, el fondo (`.slideshow-bg`/`.slideshow-overlay`) pasaba a un
+overlay oscuro por defecto incluso bajo el tema Institucional (t1,
+pensado como claro) — se veía como un fondo casi negro detrás de una
+tarjeta blanca. Corregido con una clase `sin-contenido` en el `<body>`
+(calculada en `views/General/home/index.php`, `$sinContenido =
+!$tieneNoticias && !$tieneConsejos`) que fuerza `background:#ffffff
+!important` solo bajo `body.t1.sin-contenido` — t2/t3 (temas oscuros por
+diseño) y el caso con contenido real quedan sin tocar.
+
 **Vista previa 100% real:** `/admin/landing` no reimplementa una copia en
 miniatura de la landing — embebe un `<iframe>` apuntando a `/?preview=1`
 (mismo `HomeController@index`, con un flag que evita el redirect a
@@ -887,16 +944,50 @@ se refleja ahí automáticamente, sin mantener dos plantillas sincronizadas.
 ## 12. Seguridad
 
 ### Autenticación
+
+**Esquema de contraseña — híbrido cliente+servidor (v7.0).** Guía
+interactiva completa con demo en vivo: `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+Resumen:
+1. El navegador aplica SHA-256 a la contraseña **antes** de enviarla
+   (`js/password-hash.js`, `crypto.subtle`, sin librerías) — el servidor
+   nunca ve la contraseña real en texto plano, en ningún formulario del
+   sistema (login, cambio de clave, crear usuario, desactivar MFA).
+2. El servidor combina ese valor con `PASSWORD_PEPPER` (secreto de 32
+   bytes en `CORE_Config`, compartido por las 4 apps, autogenerado la
+   primera vez que hace falta — mismo mecanismo que `SSO_SECRET`/
+   `MFA_ENCRYPTION_KEY`) vía `hash_hmac('sha256', ...)`, y el resultado
+   pasa por `password_hash(..., PASSWORD_BCRYPT, cost=12)`. Se guarda con
+   prefijo `peppered:` para distinguirlo del bcrypt directo heredado
+   (fallback de compatibilidad: una cuenta con hash viejo sigue
+   funcionando, se re-hashea sola al esquema nuevo en su próximo login
+   exitoso — con el matiz real de que esa migración perezosa deja de
+   funcionar en cuanto el cliente ya manda SHA-256 en vez de la
+   contraseña real; ver el detalle en la guía interactiva).
+3. Por qué no es "solo SHA-256 con un token fijo" (la primera propuesta
+   que se evaluó y se descartó): SHA-256 es rápido a propósito — lo
+   opuesto de lo que hace falta para una contraseña — y un pepper sin sal
+   por usuario facilita, no dificulta, un ataque por diccionario si se
+   filtra la base. bcrypt es lento a propósito (cost=12 ≈ 250ms/intento).
+
+**Flujo de login:**
 1. El usuario ingresa su **número de cédula** (campo único, sin "usuario"
    separado — ver §11) + contraseña en `/login`.
-2. `sp_Login` recibe ese valor como `@nombre_usuario` (el nombre del
-   parámetro no cambió por compatibilidad con SSO — pero como
+2. `sp_Login` recibe el hash-de-cliente como `@nombre_usuario` (el nombre
+   del parámetro no cambió por compatibilidad con SSO — pero como
    `CORE_Usuarios.nombre_usuario` siempre es igual a la cédula, matchea
-   directo) — verifica usuario/estado/bloqueo, retorna hash BCrypt.
-3. PHP `password_verify()`.
+   directo) — verifica usuario/estado/bloqueo, retorna el hash guardado.
+3. PHP `SecurityHelper::verifyPassword()` (pepper + bcrypt, ver arriba).
 4. `$_SESSION` con `user_id`, `nombre_completo`, `nivel_jerarquia`, `id_departamento`.
 5. `session_regenerate_id(true)` contra session fixation.
 6. `sp_RegistrarFalloLogin` bloquea tras N fallos (config en `CORE_Config`).
+
+**SSO entre módulos (login sin compartir sesión PHP):** `sp_SSO_*` +
+`libs/SsoClient.php` / `/api/sso/*` — guía completa, con verificación real
+end-to-end, en `INDICACIONES/GUIA_SSO_LOGIN_ENTRE_MODULOS.md`. La lista
+blanca de IP por aplicación (`CORE_Aplicaciones.ip_permitidas`) es
+**opcional y así debe quedar por defecto** — la red de la Autoridad
+Portuaria de Manta es mayormente DHCP, solo un puñado de equipos tiene IP
+fija por seguridad/necesidad operativa real.
 
 ### CSRF / XSS
 CSRF: `bin2hex(random_bytes(32))` en `$_SESSION['_csrf_token']`, verificado con `hash_equals()`.
@@ -1433,6 +1524,116 @@ datos) aplicados a `PortuariaDemo`/`PortuariaExterna` con backup previo.
 Se portó `bit_consulta.php` (detalle de ronda desde Dashboard Jefatura,
 roto tras la migración a `apps/bitacoras`) a ruta+controller+vista reales.
 
+### v7.0 (2026-08-23 a 2026-08-27) — Contraseñas híbridas, compatibilidad multi-PHP, SSO verificado, notificaciones reales
+
+Sesión larga en 6 frentes independientes. Resumen:
+
+**1. Esquema de contraseñas híbrido cliente+servidor.** Se descartó a
+propósito la propuesta original ("SHA-256 + token fijo, guardado tal
+cual") por insegura — ver §12 para el porqué — y se implementó en su
+lugar: SHA-256 en cliente (`js/password-hash.js`, nuevo, compartido por
+las 4 apps) + pepper (`CORE_Config.PASSWORD_PEPPER`) + bcrypt en servidor,
+prefijo `peppered:`. Cableado en el login y en todo formulario que toque
+una contraseña (cambio de clave, crear usuario, desactivar MFA) de Portal,
+Talento Humano y Control de Bienes; Bitácoras actualizado por completitud
+aunque su `PortUsuarioModel` no tiene caller real hoy. Guía interactiva
+completa con demo en vivo (calculadora de fuerza bruta, línea de tiempo,
+diagrama de arquitectura, mapa de archivos): `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+
+- **Consecuencia real descubierta a mitad de la implementación:** el
+  cliente mandando SHA-256 en vez de la contraseña real rompe la
+  migración perezosa para cualquier cuenta cuyo hash actual siga sin el
+  prefijo `peppered:` — el servidor ya no puede volver a comparar contra
+  un hash calculado sobre texto plano. Afectó a las ~620 cuentas reales de
+  Talento Humano, incluida `admin_apm` (única super-admin nativa de TH).
+  Portal y Control de Bienes se re-provisionaron con su clave real
+  conocida; `admin_apm` recibió clave temporal con cambio forzado en el
+  próximo login (su clave real no estaba documentada en ningún lado del
+  repo, se buscó exhaustivamente antes de resetearla).
+- **Bug real cazado y corregido:** el login-puente de Talento Humano
+  (cédula del portal tecleada en el login nativo de TH) fallaba de forma
+  consistente pese a que servidor y cliente probaban correctos por
+  separado. Causa: Chrome servía `login.js` desde caché de disco
+  (`transferSize:0` en `performance.getEntriesByType`) sin volver a
+  pedirlo por red — Apache no mandaba `Cache-Control` y el `<script src>`
+  no tenía versión. Se agregó `?v=filemtime(...)` a todos los scripts de
+  hasheo de contraseña del sistema (mismo patrón que ya usaba el sidebar).
+
+**2. Compatibilidad simultánea PHP 7.4 / 8.3 / 8.5.** Escaneo de los 349
+archivos `.php` del proyecto (PHPCompatibility 9.3.5 vía Composer en un
+scratchpad — nunca en el proyecto — resultó tener sus tablas de datos
+topadas en 7.4, sin conocimiento de nada agregado en 8.0+; el hallazgo
+real se hizo con grep dirigido, no con la herramienta). Encontrado y
+corregido en todo el proyecto:
+- `str_starts_with`/`str_contains`/`str_ends_with` (172 llamadas, 40
+  archivos) — resuelto con un polyfill centralizado
+  (`helpers/polyfills_php74.php`, no-op en 8.0+) requerido lo antes
+  posible en cada punto de entrada real (4 front controllers + 2 scripts
+  CLI de TH + 10 tests estáticos de TH + 2 guards de APIs legacy de
+  Bitácoras — 17 puntos de `require` en total), en vez de tocar los 172
+  sitios de llamada uno por uno.
+- `match()` (~24 sitios, ~20 archivos) → reescrito a `switch` o lookup por
+  array literal, según la complejidad de cada caso.
+- `: never` (13 sitios, 9 archivos) → removido, reemplazado por `: void`.
+- `mixed` como tipo de parámetro/retorno (12 sitios reales, 10 archivos
+  contando `core/Model.php::outParam()` y su copia en `apps/bitacoras`,
+  encontrado en una segunda pasada — el patrón `mixed &$var` con
+  referencia se había escapado del primer grep) → tipo removido.
+- `?->` nullsafe (3 sitios) → reescrito a chequeo explícito `!== null`.
+- Cero enums, `readonly`, constructor promotion o first-class callables
+  en todo el proyecto — nada que tocar ahí.
+
+Verificado con `php -l` sobre los 349 archivos (0 errores) y en vivo con
+clic real de navegador: login del portal, dashboard, puente a TH, Control
+de Bienes y Bitácoras cargan las 4 sin error. **Limitación real:** esta
+máquina de desarrollo solo tiene PHP 8.2.4 instalado — no se pudo correr
+el proyecto bajo un runtime 7.4 u 8.5 real, la verificación fue estática
+(grep + `php -l`) más pruebas funcionales bajo 8.2.4.
+
+**3. SSO entre módulos — documentado y verificado por primera vez.**
+`db/sso_module_login.sql` (`sp_SSO_Login`/`ConfirmarLogin`/`RegistrarFallo`/
+`ValidarToken`/`Logout`/`RegistrarApp` + `CORE_Aplicaciones`) existía
+completo desde antes pero **nunca se había usado ni probado** — 0
+aplicaciones registradas, 0 sesiones SSO en toda la base. Se probó de
+punta a punta con una app desechable (creada, usada, borrada) por SQL
+directo (`libs/SsoClient.php`) y por los 3 endpoints HTTP
+(`/api/sso/login|validate|logout`). Encontró y corrigió el mismo bug de
+fondo que en el punto 1: `SsoClient::verifyPassword()` nunca aplicaba el
+paso de SHA-256 de cliente, fallaba el login de cualquier cuenta real.
+Guía completa para módulos nuevos: `INDICACIONES/GUIA_SSO_LOGIN_ENTRE_MODULOS.md`
+(incluye la aclaración de que `ip_permitidas` debe quedar `NULL` por
+defecto — la red de la APM es mayormente DHCP).
+
+**4. Notificaciones reales.** `CORE_Notificaciones` existía completa en el
+esquema (tipo/prioridad/leída/url_accion) pero tenía 0 filas — nada en
+todo el código insertaba ahí. Se corrigió `id_usuario` a `NULL`-able
+(bloqueaba las notificaciones globales que el propio PHP ya asumía
+posibles) y se agregó `NotificacionGeneradorModel` (nuevo,
+`modules/Central/models/`), que escanea eventos reales cross-DB —
+empleados nuevos y cumpleaños de hoy (TH), bienes en mantenimiento
+(Bienes), visitas sin registro de salida hace 12+ horas (Bitácoras),
+cuentas bloqueadas (portal) — con deduplicación (no repite el mismo
+título+mensaje dentro de 24h) y throttle (no re-escanea más seguido que
+cada 15 min, vía `CORE_Config.NOTIF_ULTIMO_SCAN`). Disparado desde
+`DashboardController` y `NotificacionesController`. Verificado en vivo:
+generó 3 alertas reales de datos reales (18 visitas sin salida, un
+cumpleaños real, un ingreso real) en el primer escaneo.
+
+**5. Dashboards enriquecidos.** `DashboardModel` sumó KPIs reales que
+faltaban: valor total de inventario (ya se calculaba en Control de
+Bienes, no se mostraba en el portal), empleados nuevos del mes, bienes
+fuera de servicio, visitas del día. Ejecutivo sumó una 5ta tarjeta ("Valor
+de Inventario"); Operativo sumó el ítem de pendientes correspondiente.
+
+**6. Perfil mejorado con datos reales.** Foto real desde Talento Humano
+(con fallback correcto al avatar de iniciales cuando es el placeholder
+genérico o no hay archivo), cargo/dirección de área reales (antes solo el
+organigrama genérico), y las últimas 6 acciones propias reales desde
+`CORE_Auditoria` (antes solo 2 fechas sueltas). Gotcha real encontrado:
+`vw_AuditoriaGlobal` identifica por `nombre_usuario`, que las entradas
+`LOGIN`/`LOGOUT` nativas del portal siempre guardan `NULL` — hubo que
+consultar `CORE_Auditoria` directo por `id_usuario` en su lugar.
+
 ### v3.1 (2026-07-01) y anteriores
 
 Ver historial de git para el detalle de las correcciones de exactitud contra
@@ -1442,4 +1643,4 @@ de v4.0 y no se repiten acá.
 
 ---
 
-*Portal APM v6.0 — Autoridad Portuaria de Manta*
+*Portal APM v7.0 — Autoridad Portuaria de Manta*

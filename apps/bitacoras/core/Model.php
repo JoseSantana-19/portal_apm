@@ -40,7 +40,7 @@ abstract class Model {
     protected function free($stmt): void        { self::db()->free($stmt); }
 
     /** Build sqlsrv OUTPUT param array (pass variable by ref). */
-    protected function outParam(mixed &$var, ?int $phpType = null, ?int $sqlType = null): array {
+    protected function outParam(&$var, ?int $phpType = null, ?int $sqlType = null): array {
         $phpType = $phpType ?? SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR);
         $sqlType = $sqlType ?? SQLSRV_SQLTYPE_NVARCHAR('max');
         return [&$var, SQLSRV_PARAM_INOUT, $phpType, $sqlType];

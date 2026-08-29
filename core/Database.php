@@ -96,13 +96,13 @@ class Database {
     public function rollback(): void         { sqlsrv_rollback($this->conn); }
     public function free($stmt): void        { if ($stmt) sqlsrv_free_stmt($stmt); }
 
-    private function throwError(string $msg): never {
+    private function throwError(string $msg): void {
         $err = sqlsrv_errors(SQLSRV_ERR_ALL);
         throw new RuntimeException($msg . ': ' . ($err[0]['message'] ?? 'unknown'));
     }
 
     public static function reset(): void {
-        if (self::$instance?->conn) sqlsrv_close(self::$instance->conn);
+        if (self::$instance !== null && self::$instance->conn) sqlsrv_close(self::$instance->conn);
         self::$instance = null;
     }
 }

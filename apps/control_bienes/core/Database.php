@@ -979,7 +979,10 @@ class Database {
                 ':sec' => $u[0],
                 ':nombre' => $u[1],
                 ':usuario' => $u[2],
-                ':pass' => password_hash($u[3], PASSWORD_DEFAULT),
+                // hash('sha256', ...) primero: simula el hash que
+                // js/password-hash.js va a calcular en el navegador cuando
+                // alguien escriba esta clave demo en el login real.
+                ':pass' => hash_password_secure(hash('sha256', $u[3])),
                 ':rol' => $u[4]
             ]);
         }

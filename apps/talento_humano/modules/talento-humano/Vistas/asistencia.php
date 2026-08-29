@@ -170,20 +170,18 @@
                                         </td>
                                         <td>
                                             <?php
-                                            $claseEstado = match($r['estado']) {
+                                            $claseEstado = [
                                                 'Normal'     => 'estado-normal',
                                                 'Atraso'     => 'estado-atraso',
                                                 'Ausente'    => 'estado-ausente',
                                                 'Horas Extra'=> 'estado-extra',
-                                                default      => ''
-                                            };
-                                            $iconoEstado = match($r['estado']) {
+                                            ][$r['estado']] ?? '';
+                                            $iconoEstado = [
                                                 'Normal'     => 'bi-check-circle',
                                                 'Atraso'     => 'bi-clock-history',
                                                 'Ausente'    => 'bi-x-circle',
                                                 'Horas Extra'=> 'bi-lightning-charge',
-                                                default      => 'bi-circle'
-                                            };
+                                            ][$r['estado']] ?? 'bi-circle';
                                             ?>
                                             <span class="estado-pill <?= $claseEstado ?>">
                                                 <i class="bi <?= $iconoEstado ?>"></i>

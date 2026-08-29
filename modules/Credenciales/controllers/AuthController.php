@@ -187,12 +187,24 @@ class AuthController extends Controller {
         $id = SessionHelper::userId();
         $db = Database::getInstance();
 
+        // vw_Usuarios_Identidad trae nombre/cédula/foto EN VIVO desde Talento
+        // Humano cuando la cuenta está vinculada (id_empleado_th) -- mismo
+        // patrón que ya usa el resto del sistema (ver §11 de
+        // DOCUMENTACION_SISTEMA.md). Se suma cargo/dirección de área reales
+        // vía la vista de directorio de TH -- antes el perfil solo mostraba
+        // CORE_Departamentos.nombre (el organigrama genérico), nunca el
+        // cargo real de la persona.
         $usuario = $db->fetch($db->query(
-            'SELECT u.id_usuario, u.nombre_usuario, u.correo, u.nombre_completo, u.cedula,
-                    u.nivel_jerarquia, u.estado, u.requiere_mfa, u.mfa_activado_en,
-                    u.fecha_creacion, u.tema_preferido, d.nombre AS departamento
+            'SELECT u.id_usuario, u.nombre_usuario, u.correo, u.nivel_jerarquia, u.estado,
+                    u.requiere_mfa, u.mfa_activado_en, u.fecha_creacion, u.tema_preferido,
+                    u.id_empleado_th,
+                    vi.nombre_completo, vi.cedula, vi.foto,
+                    e.cargo,
+                    COALESCE(e.direccion_area, d.nombre) AS departamento
              FROM CORE_Usuarios u
+             LEFT JOIN vw_Usuarios_Identidad vi ON vi.id_usuario = u.id_usuario
              LEFT JOIN CORE_Departamentos d ON d.id_departamento = u.id_departamento
+             LEFT JOIN Talento_Humano.dbo.vw_th_directorio_empleados e ON e.empleado_id = u.id_empleado_th
              WHERE u.id_usuario=?',
             [[$id, SQLSRV_PARAM_IN]]
         ));
@@ -211,9 +223,39 @@ class AuthController extends Controller {
             [[$id, SQLSRV_PARAM_IN]]
         ));
 
+        // Últimas acciones propias -- antes el perfil no mostraba nada de
+        // esto, solo dos fechas sueltas (creación + última sesión previa).
+        // Directo a CORE_Auditoria (no vw_AuditoriaGlobal): la vista global
+        // identifica por nombre_usuario, pero las entradas LOGIN/LOGOUT
+        // nativas del portal SIEMPRE lo guardan NULL ahí -- id_usuario sí
+        // está poblado, es la columna real a usar para "mis propias
+        // acciones" del portal.
+        $actividadPropia = $db->fetchAll($db->query(
+            "SELECT TOP 6 modulo, operacion, resultado, fecha_registro
+             FROM CORE_Auditoria
+             WHERE id_usuario=?
+             ORDER BY fecha_registro DESC",
+            [[$id, SQLSRV_PARAM_IN]]
+        ));
+
+        // Foto real de Talento Humano -- se descarta el placeholder genérico
+        // (default_avatar.png, lo que TH pone por defecto a toda cuenta sin
+        // foto propia subida) para no mostrar una silueta genérica en vez
+        // del avatar con iniciales, que ya se ve mejor cuando no hay foto real.
+        $fotoUrl = null;
+        $rutaFoto = trim((string)($usuario['foto'] ?? ''));
+        if ($rutaFoto !== '' && !str_ends_with($rutaFoto, 'default_avatar.png')) {
+            $rutaAbsoluta = ROOT_PATH . '/apps/talento_humano/' . ltrim($rutaFoto, '/');
+            if (is_file($rutaAbsoluta)) {
+                $fotoUrl = APP_URL . '/apps/talento_humano/' . ltrim($rutaFoto, '/');
+            }
+        }
+
         $this->render('Credenciales/perfil/index', [
-            'pageTitle'     => 'Mi Perfil',
-            'usuario'       => $usuario,
+            'pageTitle'       => 'Mi Perfil',
+            'usuario'         => $usuario,
+            'actividadPropia' => $actividadPropia,
+            'fotoUrl'         => $fotoUrl,
             'roles'         => $roles,
             'ultimoAcceso'  => $ultimoAcceso['fecha_registro'] ?? null,
             'csrf'          => $this->csrfToken(),
@@ -257,15 +299,15 @@ class AuthController extends Controller {
             SessionHelper::flash('pass_error', 'Las contraseñas no coinciden.');
             $this->redirect('/cambiar-contrasena');
         }
-        // Mismos requisitos que el checklist visual del formulario -- si se
-        // cambia uno, cambiar el otro (ver cambiar_contrasena.php).
-        $cumpleRequisitos = strlen($nueva) >= 8
-            && preg_match('/[a-z]/', $nueva)
-            && preg_match('/[A-Z]/', $nueva)
-            && preg_match('/[0-9]/', $nueva)
-            && preg_match('/[^a-zA-Z0-9]/', $nueva);
-        if (!$cumpleRequisitos) {
-            SessionHelper::flash('pass_error', 'La contraseña no cumple los requisitos mínimos de seguridad.');
+        // El navegador hashea la clave (SHA-256, ver js/password-hash.js)
+        // ANTES de que este POST exista -- acá ya no llega texto plano, así
+        // que ya no se puede revisar mayúscula/minúscula/número/símbolo del
+        // lado servidor (un hash hex siempre es minúsculas). El checklist
+        // visual de cambiar_contrasena.php (pwChecarRequisitos) exige eso
+        // mismo del lado cliente y bloquea el botón hasta cumplirlo -- lo
+        // único verificable acá es que de verdad llegó un hash SHA-256 real.
+        if (!preg_match('/^[a-f0-9]{64}$/', $nueva)) {
+            SessionHelper::flash('pass_error', 'La contraseña no llegó correctamente. Recarga la página e intenta de nuevo.');
             $this->redirect('/cambiar-contrasena');
         }
 

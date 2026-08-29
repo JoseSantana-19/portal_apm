@@ -7,6 +7,9 @@
  */
 ?>
 <div id="toastContainer" class="toast-container"></div>
+<?php if (defined('PORTAL_ROOT_URL')): ?>
+<script src="<?= PORTAL_ROOT_URL ?>/js/password-hash.js?v=<?= @filemtime(dirname(ROOT, 2) . '/js/password-hash.js') ?: time() ?>"></script>
+<?php endif; ?>
 <script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
 <script src="<?= BASE_URL ?>/public/js/toast.js"></script>
 <script src="<?= BASE_URL ?>/public/js/topbar.js"></script>

@@ -420,4 +420,21 @@ function pwChecarTodo() {
 pwNueva.addEventListener('input', pwChecarTodo);
 pwConfirma.addEventListener('input', pwChecarTodo);
 document.getElementById('pass-actual')?.addEventListener('input', pwChecarTodo);
+
+// Hash SHA-256 de las 3 claves en el navegador antes de enviarlas (ver
+// js/password-hash.js) -- el servidor combina ese hash con el pepper
+// compartido de todo el sistema. contrasena_confirma también se hashea:
+// si nueva===confirma en texto plano, sus hashes siguen siendo iguales
+// (SHA-256 es determinístico), así que la verificación de "coinciden" que
+// hace el servidor sigue funcionando igual sobre los hashes.
+var formPass = document.getElementById('form-pass');
+if (formPass) {
+    formPass.addEventListener('submit', function (e) {
+        if (!window.hashPasswordFieldsBeforeSubmit) return;
+        e.preventDefault();
+        hashPasswordFieldsBeforeSubmit(formPass, ['contrasena_actual', 'contrasena_nueva', 'contrasena_confirma']).then(function () {
+            formPass.submit();
+        });
+    });
+}
 </script>

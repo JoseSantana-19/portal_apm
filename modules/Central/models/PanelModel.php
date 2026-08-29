@@ -41,11 +41,11 @@ class PanelModel extends Model {
 
         $resumen = $db->fetch($db->query(
             "SELECT
-                COUNT(*)                                          AS total,
-                SUM(CASE WHEN estado_id=111 THEN 1 ELSE 0 END)     AS operativos,
-                SUM(CASE WHEN estado_id=112 THEN 1 ELSE 0 END)     AS mantenimiento,
-                SUM(CASE WHEN estado_id=113 THEN 1 ELSE 0 END)     AS fuera_servicio,
-                SUM(ISNULL(valor,0))                                AS valor_total
+                COUNT(*)                                              AS total,
+                SUM(CASE WHEN estado_id = 1 THEN 1 ELSE 0 END)        AS operativos,
+                SUM(CASE WHEN estado_id = 2 THEN 1 ELSE 0 END)        AS mantenimiento,
+                SUM(CASE WHEN estado_id IN (3, 5) THEN 1 ELSE 0 END)  AS fuera_servicio,
+                SUM(ISNULL(valor,0))                                  AS valor_total
              FROM inventario.dbo.inv_inventario WHERE activo=1"
         ));
 

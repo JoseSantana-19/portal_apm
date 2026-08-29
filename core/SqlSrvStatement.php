@@ -70,7 +70,7 @@ class SqlSrvStatement {
      * @param int $columnIndex Índice de la columna (base 0).
      * @return mixed|false Valor de la columna, o false si no hay más filas.
      */
-    public function fetchColumn(int $columnIndex = 0): mixed {
+    public function fetchColumn(int $columnIndex = 0) {
         $row = sqlsrv_fetch_array($this->stmt, SQLSRV_FETCH_NUMERIC);
         if ($row === null || $row === false) {
             return false;

@@ -9,4 +9,4 @@
 <div class="login-field"><label for="clave">CONTRASEÑA</label><div class="login-input-wrap"><i class="bi bi-lock-fill"></i><input id="clave" name="clave" type="password" required autocomplete="current-password" placeholder="Contraseña de acceso"><button class="password-toggle" type="button" data-password-toggle aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button></div></div>
 <button class="login-submit" type="submit"><i class="bi bi-box-arrow-in-right"></i> Acceder al sistema</button></form>
 <p class="login-security"><i class="bi bi-shield-lock-fill"></i> Conexión segura · Sesión cifrada · Acceso auditado</p>
-</section></main><script src="<?= BASE_URL ?>/public/js/login.js"></script></body></html>
+</section></main><script src="<?= PORTAL_ROOT_URL ?>/js/password-hash.js?v=<?= @filemtime(dirname(ROOT, 2) . '/js/password-hash.js') ?: time() ?>"></script><script src="<?= BASE_URL ?>/public/js/login.js?v=<?= @filemtime(ROOT . '/public/js/login.js') ?: time() ?>"></script></body></html>

@@ -4,6 +4,7 @@
 // Guard de sesión para las APIs legacy del módulo Portuaria. En el proyecto
 // origen estos endpoints eran públicos; en el portal integrador exigen sesión
 // activa del portal (cookie compartida) y responden 401 JSON si no la hay.
+require_once __DIR__ . '/../../../helpers/polyfills_php74.php';
 require_once __DIR__ . '/bit_auth_session.php';
 require_once __DIR__ . '/bit_dev_auto_login.php';
 

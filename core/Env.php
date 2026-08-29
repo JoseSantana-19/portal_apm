@@ -18,7 +18,7 @@ class Env {
         self::$loaded = true;
     }
 
-    public static function get(string $key, mixed $default = null): mixed {
+    public static function get(string $key, $default = null) {
         return self::$vars[$key] ?? $_ENV[$key] ?? $default;
     }
 

@@ -237,14 +237,13 @@
                             <?php foreach ($usuarios as $u): ?>
                                 <?php
                                 $iniciales = implode('', array_map(fn($p) => strtoupper(substr($p,0,1)), array_slice(explode(' ', $u['nombre']), 0, 2)));
-                                $rolCls = match($u['rol']) {
+                                $rolCls = [
                                     'Super Administrador' => 'rol-superadmin',
                                     'Administrador TH'    => 'rol-admin',
                                     'Analista RRHH'       => 'rol-analista',
                                     'Consultor'           => 'rol-consultor',
                                     'Supervisor'          => 'rol-supervisor',
-                                    default               => ''
-                                };
+                                ][$u['rol']] ?? '';
                                 ?>
                                 <tr class="table-row" data-search="<?= strtolower($u['usuario'].' '.$u['nombre'].' '.$u['rol']) ?>">
                                     <td>

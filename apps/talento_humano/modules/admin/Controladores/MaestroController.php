@@ -42,7 +42,7 @@ final class MaestroController extends Controller
         Auth::requireCsrf($_POST['_csrf'] ?? null);
     }
 
-    private function redirect(array $result): never
+    private function redirect(array $result): void
     {
         $ok = (int)($result['exito'] ?? 0) === 1;
         header('Location: ' . BASE_URL . '/admin/maestros?msg=' . urlencode((string)($result['mensaje'] ?? 'Operacion finalizada.')) . '&ok=' . ($ok ? '1' : '0'));

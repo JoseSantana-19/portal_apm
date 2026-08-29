@@ -41,18 +41,97 @@ class SecurityHelper {
     }
 
     /** XSS-safe output. */
-    public static function e(mixed $val): string {
+    public static function e($val): string {
         return htmlspecialchars((string)$val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    /** Hash password with bcrypt. */
-    public static function hashPassword(string $password): string {
-        return password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    /**
+     * PASSWORD_PEPPER — secreto de aplicación compartido por TODO el
+     * sistema (portal + apps/talento_humano + apps/control_bienes +
+     * apps/bitacoras + cualquier módulo futuro vía libs/SsoClient.php),
+     * autogenerado con random_bytes(32) real y persistido en
+     * PORTAL_APM.CORE_Config -- mismo mecanismo ya establecido para
+     * SSO_SECRET (ModuleSecurity) y MFA_ENCRYPTION_KEY (MfaHelper), NUNCA
+     * un valor hardcodeado en el código fuente.
+     *
+     * Uso: hash_hmac('sha256', $password, PEPPER) ANTES de password_hash()
+     * -- un "pepper" real (RFC/OWASP: server-side secret adicional a la
+     * sal por-hash que ya trae bcrypt). Aunque la BD de contraseñas se
+     * filtre completa, un atacante sin este secreto no puede ni verificar
+     * ni fuerza-bruta las contraseñas reales, porque el valor que bcrypt
+     * termina hasheando ni siquiera es la contraseña en texto plano.
+     *
+     * Prefijo 'peppered:' en el hash guardado: marca inequívoca de qué
+     * esquema produjo ese valor, sin ambigüedad con un hash bcrypt viejo
+     * (pre-peppering) que luce idéntico en formato ($2y$12$...). Permite
+     * migración perezosa: verifyPassword() acepta AMBOS esquemas, y
+     * passwordNeedsRehash() le dice al caller cuándo regrabar con el
+     * nuevo tras un login exitoso -- ningún usuario existente queda
+     * bloqueado por este cambio.
+     */
+    private static ?string $pepper = null;
+
+    private static function passwordPepper(): string {
+        if (self::$pepper !== null) {
+            return self::$pepper;
+        }
+        try {
+            $db   = Database::getInstance();
+            $stmt = sqlsrv_query(
+                $db->getConn(),
+                "SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER' AND estado=1"
+            );
+            if ($stmt !== false) {
+                $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+                sqlsrv_free_stmt($stmt);
+                if (!empty($row['valor'])) {
+                    self::$pepper = $row['valor'];
+                    return self::$pepper;
+                }
+            }
+            $nuevo = bin2hex(random_bytes(32));
+            sqlsrv_query(
+                $db->getConn(),
+                "IF NOT EXISTS (SELECT 1 FROM CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER')
+                 INSERT INTO CORE_Config (modulo, clave, valor, descripcion, estado)
+                 VALUES ('CORE', 'PASSWORD_PEPPER', ?, 'Secreto compartido (hex) para peppering de contraseñas en TODO el sistema -- autogenerado, no editar a mano.', 1)",
+                [[$nuevo, SQLSRV_PARAM_IN]]
+            );
+            self::$pepper = $nuevo;
+            return self::$pepper;
+        } catch (Exception $e) {
+            // BD no disponible: sin pepper no se puede ni hashear ni verificar
+            // -- fallar aquí es más seguro que degradar silenciosamente a un
+            // esquema sin pepper.
+            throw new RuntimeException('No se pudo resolver PASSWORD_PEPPER: ' . $e->getMessage());
+        }
     }
 
-    /** Verify password against bcrypt hash. */
+    private const PEPPER_PREFIX = 'peppered:';
+
+    /** Hash password: HMAC-SHA256 con pepper compartido, luego bcrypt. */
+    public static function hashPassword(string $password): string {
+        $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+        return self::PEPPER_PREFIX . password_hash($peppered, PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+
+    /**
+     * Verify password. Acepta el esquema nuevo (prefijo 'peppered:') Y el
+     * esquema viejo (bcrypt directo sobre la contraseña, sin pepper) para
+     * no romper ninguna cuenta existente -- usar passwordNeedsRehash()
+     * después de un true para saber si conviene regrabar con el nuevo.
+     */
     public static function verifyPassword(string $password, string $hash): bool {
+        if (str_starts_with($hash, self::PEPPER_PREFIX)) {
+            $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+            return password_verify($peppered, substr($hash, strlen(self::PEPPER_PREFIX)));
+        }
         return password_verify($password, $hash);
+    }
+
+    /** true si el hash guardado todavía usa el esquema viejo (sin pepper). */
+    public static function passwordNeedsRehash(string $hash): bool {
+        return !str_starts_with($hash, self::PEPPER_PREFIX);
     }
 
     /** Generate cryptographically-secure random token. */

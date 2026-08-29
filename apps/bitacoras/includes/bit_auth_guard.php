@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../helpers/polyfills_php74.php';
 require_once __DIR__ . '/bit_auth_session.php';
 require_once __DIR__ . '/bit_dev_auto_login.php';
 

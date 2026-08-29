@@ -12,6 +12,7 @@ class AppsController extends Controller
     private const APPS = [
         'talento_humano' => '/apps/talento_humano/',
         'control_bienes' => '/apps/control_bienes/',
+        'bitacoras'      => '/apps/bitacoras/',
     ];
 
     public function abrir(string $app = ''): void

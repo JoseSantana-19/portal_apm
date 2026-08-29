@@ -14,6 +14,10 @@ $isLoggedIn = isset($_SESSION['user_id']) && !isset($_GET['preview']);
 // carrusel de noticias reusaba las fotos de fondo cuando estaba vacío).
 $tieneNoticias = !empty($noticias);
 $tieneConsejos = !empty($consejos);
+// Sin noticias ni consejos publicados: bajo el tema institucional (t1) el
+// fondo pasa a blanco liso en vez del overlay oscuro por defecto -- ese
+// overlay está pensado para cuando SÍ hay contenido/fotos de fondo detrás.
+$sinContenido = !$tieneNoticias && !$tieneConsejos;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -1240,6 +1244,15 @@ $tieneConsejos = !empty($consejos);
             background: radial-gradient(circle at center, rgba(12, 74, 110, 0.35) 0%, rgba(7, 29, 58, 0.95) 100%);
         }
 
+        /* Tema Institucional (t1) sin noticias ni consejos publicados: fondo
+           blanco liso en vez del overlay oscuro (ese overlay es para cuando
+           hay fotos de fondo/contenido detrás que conviene oscurecer). */
+        body.t1.sin-contenido .slideshow-bg,
+        body.t1.sin-contenido .slide-img,
+        body.t1.sin-contenido .slideshow-overlay {
+            background: #ffffff !important;
+        }
+
         /* Ensure all other content has a higher z-index and body background is transparent so the slideshow is visible */
         .portal-layout-body {
             background: transparent !important;
@@ -1423,7 +1436,7 @@ $tieneConsejos = !empty($consejos);
         }
     </style>
 </head>
-<body class="portal-layout-body t1">
+<body class="portal-layout-body t1<?= $sinContenido ? ' sin-contenido' : '' ?>">
     <script>
         (function() {
             var savedTheme = localStorage.getItem('apm_theme') || '1';

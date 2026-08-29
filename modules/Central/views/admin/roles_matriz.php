@@ -1,177 +1,181 @@
 <?php
+/**
+ * Matriz de Permisos — Central Portal APM
+ * Vista consolidada de acceso de roles a cada módulo institucional.
+ */
 $e = fn($v) => htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8');
-$nivelColor = [1 => '#6c757d', 2 => '#0d6efd', 3 => '#fd7e14', 4 => '#198754'];
+$nivelColor = [1 => '#6c757d', 2 => '#0284C7', 3 => '#F59E0B', 4 => '#10B981'];
 ?>
-<div style="animation:pageFadeIn .35s ease-out;">
 
-<div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-2);">
-    <a href="<?= APP_URL ?>/admin/roles" class="btn btn-ghost btn-sm" data-spa>
-        <i class="fa-solid fa-arrow-left"></i> Roles
-    </a>
-</div>
+<div class="dashboard-wrapper anim-up anim-d0">
 
-<!-- Header -->
-<div class="page-header" style="margin-bottom:var(--sp-4);">
-    <div>
-        <h2 class="page-title">
-            <i class="fa-solid fa-table-cells" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
-            Matriz de Permisos
-        </h2>
-        <p class="page-subtitle">Qué rol tiene acceso a qué módulo, y con qué nivel — de un vistazo, sin abrir rol por rol.</p>
+    <!-- ══════════════════════════════════════════════════════════════
+         PREMIUM ADMIN HEADER
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-page-header">
+        <div class="admin-header-title-group">
+            <div class="admin-header-icon" style="background:linear-gradient(135deg, #0284C7, #0369A1);">
+                <i class="fa-solid fa-table-cells"></i>
+            </div>
+            <div>
+                <div class="admin-header-eyebrow">
+                    <i class="fa-solid fa-shield-halved"></i> Administración &bull; Matriz de Seguridad
+                </div>
+                <h1 class="admin-header-title">Matriz Global de Permisos</h1>
+                <div class="admin-header-subtitle">
+                    Resumen consolidado de cobertura y nivel de acceso por rol en cada subsistema
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+            <a href="<?= APP_URL ?>/admin/roles" class="btn-dash" data-spa>
+                <i class="fa-solid fa-arrow-left"></i> Volver a Roles
+            </a>
+        </div>
     </div>
-</div>
 
-<!-- Explicación del modelo -->
-<div class="alert alert-info" style="margin-bottom:var(--sp-4);align-items:flex-start;">
-    <i class="fa-solid fa-circle-info" style="margin-top:2px;"></i>
-    <div>
-        <strong>El Departamento es solo informativo.</strong> Viene sincronizado desde Talento Humano y agrupa
-        usuarios, pero <u>no</u> otorga acceso a ningún módulo por sí solo. El acceso real siempre sigue esta
-        cadena: <strong>Usuario → Rol(es) → Permisos por módulo</strong>. Esta matriz resume ese último paso.
-        Para el detalle fino (qué opción exacta dentro de cada módulo), abrí el ícono de escudo 🛡️ del rol en
-        <a href="<?= APP_URL ?>/admin/roles" data-spa>Gestión de Roles</a>.
+    <!-- ══════════════════════════════════════════════════════════════
+         STATISTICS GRID
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #0284C7 15%, transparent);color:#0284C7;">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= (int)$totalRoles ?></div>
+                <div class="admin-stat-label">Roles Totales</div>
+            </div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #10B981 15%, transparent);color:#10B981;">
+                <i class="fa-solid fa-cubes"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= count($modulos) ?></div>
+                <div class="admin-stat-label">Módulos Auditados</div>
+            </div>
+        </div>
+
+        <?php if ($sinPermisos > 0): ?>
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #EF4444 15%, transparent);color:#EF4444;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num" style="color:#EF4444;"><?= (int)$sinPermisos ?></div>
+                <div class="admin-stat-label">Roles sin Permisos</div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
-</div>
 
-<!-- Stats -->
-<div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-4);flex-wrap:wrap;">
-    <div class="card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
-        <i class="fa-solid fa-key" style="font-size:1.3rem;color:var(--color-primary);"></i>
-        <div><div style="font-size:1.3rem;font-weight:800;line-height:1;"><?= (int)$totalRoles ?></div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Roles totales</div></div>
-    </div></div>
-    <div class="card"><div class="card-body" style="display:flex;align-items:center;gap:12px;">
-        <i class="fa-solid fa-shapes" style="font-size:1.3rem;color:#0d6efd;"></i>
-        <div><div style="font-size:1.3rem;font-weight:800;line-height:1;"><?= count($modulos) ?></div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Módulos con contenido</div></div>
-    </div></div>
-    <?php if ($sinPermisos > 0): ?>
-    <div class="card" style="border-color:color-mix(in srgb,#dc3545 35%,var(--border-app));">
-        <div class="card-body" style="display:flex;align-items:center;gap:12px;">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size:1.3rem;color:#dc3545;"></i>
-        <div><div style="font-size:1.3rem;font-weight:800;line-height:1;color:#dc3545;"><?= (int)$sinPermisos ?></div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Roles sin ningún permiso</div></div>
-    </div></div>
-    <?php endif; ?>
-</div>
+    <!-- ══════════════════════════════════════════════════════════════
+         LEYENDA & EXPLICACIÓN
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="dash-card" style="margin-bottom:var(--sp-4);padding:var(--sp-4);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:0.78rem;">
+                <strong style="color:var(--text-app);"><i class="fa-solid fa-circle-info" style="color:var(--primary-hover);margin-right:4px;"></i> Leyenda de Acceso:</strong>
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:12px;height:12px;border-radius:3px;background:#10B981;display:inline-block;"></span> Acceso Total
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:12px;height:12px;border-radius:3px;background:#F59E0B;display:inline-block;"></span> Acceso Parcial
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="width:12px;height:12px;border-radius:3px;background:var(--border-app);display:inline-block;"></span> Sin Acceso
+                </span>
+            </div>
+        </div>
+    </div>
 
-<!-- Leyenda -->
-<div style="display:flex;gap:var(--sp-4);flex-wrap:wrap;margin-bottom:var(--sp-3);font-size:.78rem;color:var(--text-muted);align-items:center;">
-    <strong style="color:var(--text-app);">Leyenda:</strong>
-    <span style="display:flex;align-items:center;gap:5px;"><span style="width:11px;height:11px;border-radius:3px;background:#198754;display:inline-block;"></span> Acceso completo (todas las opciones)</span>
-    <span style="display:flex;align-items:center;gap:5px;"><span style="width:11px;height:11px;border-radius:3px;background:#fd7e14;display:inline-block;"></span> Acceso parcial</span>
-    <span style="display:flex;align-items:center;gap:5px;"><span style="width:11px;height:11px;border-radius:3px;background:var(--border-app);display:inline-block;"></span> Sin acceso</span>
-</div>
+    <!-- ══════════════════════════════════════════════════════════════
+         MATRIX TABLE
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <div>
+                <div class="dash-card-title">
+                    <i class="fa-solid fa-table-cells-large" style="color:var(--primary-hover);"></i>
+                    Matriz de Cobertura de Permisos
+                </div>
+                <div class="dash-card-subtitle">Relación cruzada de perfiles de usuario frente a subsistemas</div>
+            </div>
+        </div>
 
-<!-- Matriz -->
-<div class="card">
-    <div class="table-responsive-wrapper">
-        <table id="matriz-table" style="min-width:640px;" data-dt data-dt-page-length="25">
-            <thead>
-                <tr>
-                    <th style="min-width:220px;">Rol</th>
-                    <?php foreach ($modulos as $idMod): $meta = $moduleMeta[$idMod] ?? ['label'=>"Módulo $idMod",'icon'=>'fa-folder','color'=>'#6c757d']; ?>
-                    <th style="text-align:center;min-width:150px;">
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-                            <i class="fa-solid <?= $e($meta['icon']) ?>" style="color:<?= $e($meta['color']) ?>;font-size:1rem;"></i>
-                            <span style="font-size:.72rem;font-weight:700;"><?= $e($meta['label']) ?></span>
-                        </div>
-                    </th>
-                    <?php endforeach; ?>
-                </tr>
-            </thead>
-            <tbody>
-            <?php if (empty($matriz)): ?>
-                <tr><td colspan="<?= count($modulos) + 1 ?>" style="text-align:center;color:var(--text-muted);padding:var(--sp-8);">Sin roles configurados.</td></tr>
-            <?php else: foreach ($matriz as $fila):
-                $rol = $fila['rol'];
-                $inactivo = (int)$rol['estado'] === 0;
-                $sinNingunPermiso = true;
-                foreach ($fila['celdas'] as $c) { if ($c['con_acceso'] > 0) { $sinNingunPermiso = false; break; } }
-            ?>
-                <tr style="<?= $inactivo ? 'opacity:.55;' : '' ?>">
-                    <td>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <?php if ($sinNingunPermiso): ?>
-                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--color-danger);font-size:.75rem;" title="Este rol no tiene ningún permiso configurado"></i>
-                            <?php endif; ?>
-                            <div>
-                                <div style="font-weight:600;font-size:.85rem;"><?= $e($rol['nombre']) ?><?php if ($inactivo): ?> <span class="badge badge-gray" style="font-size:.65rem;">Inactivo</span><?php endif; ?></div>
-                                <div style="font-size:.7rem;color:var(--text-muted);">
-                                    <code><?= $e($rol['codigo']) ?></code>
-                                    · <?= $e($rol['departamento'] ?: 'Sin departamento') ?>
-                                    · <?= (int)$fila['usuarios'] ?> usuario<?= (int)$fila['usuarios'] === 1 ? '' : 's' ?>
+        <div class="dash-table-wrap">
+            <table id="matriz-table" class="dash-table" style="min-width:680px;" data-dt data-dt-page-length="25">
+                <thead>
+                    <tr>
+                        <th style="min-width:240px;">Rol Institucional</th>
+                        <?php foreach ($modulos as $idMod): 
+                            $meta = $moduleMeta[$idMod] ?? ['label'=>"Módulo $idMod", 'icon'=>'fa-folder', 'color'=>'#0284C7'];
+                        ?>
+                        <th style="text-align:center;min-width:160px;">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                                <i class="fa-solid <?= $e($meta['icon']) ?>" style="color:<?= $e($meta['color']) ?>;font-size:1.1rem;"></i>
+                                <span style="font-size:0.75rem;font-weight:700;"><?= $e($meta['label']) ?></span>
+                            </div>
+                        </th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if (empty($matriz)): ?>
+                    <tr><td colspan="<?= count($modulos) + 1 ?>" style="text-align:center;color:var(--text-muted);padding:var(--sp-8);">Sin roles configurados.</td></tr>
+                <?php else: foreach ($matriz as $fila):
+                    $rol = $fila['rol'];
+                    $inactivo = (int)($rol['estado'] ?? 1) === 0;
+                    $sinNingunPermiso = true;
+                    foreach ($fila['celdas'] as $c) { if ($c['con_acceso'] > 0) { $sinNingunPermiso = false; break; } }
+                ?>
+                    <tr style="<?= $inactivo ? 'opacity:.55;' : '' ?>">
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <?php if ($sinNingunPermiso): ?>
+                                <i class="fa-solid fa-triangle-exclamation" style="color:#EF4444;font-size:0.85rem;" title="Este rol no tiene ningún permiso configurado"></i>
+                                <?php else: ?>
+                                <i class="fa-solid fa-shield-check" style="color:#10B981;font-size:0.85rem;"></i>
+                                <?php endif; ?>
+                                <div>
+                                    <div style="font-weight:700;font-size:0.85rem;color:var(--text-app);">
+                                        <?= $e($rol['nombre']) ?>
+                                        <?php if ($inactivo): ?>
+                                        <span class="badge badge-gray" style="font-size:0.6rem;">Inactivo</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div style="font-size:0.7rem;color:var(--text-muted);">
+                                        <code style="font-size:0.68rem;"><?= $e($rol['codigo']) ?></code> &bull; <?= $e($rol['departamento'] ?: 'Global') ?>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </td>
-                    <?php foreach ($modulos as $idMod):
-                        $c = $fila['celdas'][$idMod];
-                        $meta = $moduleMeta[$idMod] ?? ['label' => "Módulo $idMod"];
-                        if ($c['con_acceso'] === 0) {
-                            $bg = 'transparent'; $fg = 'var(--text-muted)'; $bd = 'var(--border-app)'; $txt = '—';
-                        } elseif ($c['con_acceso'] === $c['total']) {
-                            $bg = 'color-mix(in srgb, var(--color-success) 14%, transparent)'; $fg = 'var(--color-success)'; $bd = 'color-mix(in srgb, var(--color-success) 35%, transparent)';
-                            $txt = $nivelLabels[$c['nivel_max']] ?? '';
-                        } else {
-                            $bg = 'color-mix(in srgb, var(--color-warning) 14%, transparent)'; $fg = 'var(--color-warning)'; $bd = 'color-mix(in srgb, var(--color-warning) 35%, transparent)';
-                            $txt = $c['con_acceso'] . '/' . $c['total'];
-                        }
-                    ?>
-                    <td style="text-align:center;">
-                        <?php if ($c['con_acceso'] > 0): ?>
-                        <button type="button" onclick='verDetalleMatriz(<?= json_encode([
-                            'rol' => $rol['nombre'], 'modulo' => $meta['label'], 'detalle' => $c['detalle'],
-                        ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'
-                            style="background:<?= $bg ?>;color:<?= $fg ?>;border:1px solid <?= $bd ?>;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer;min-width:64px;transition:var(--transition);"
-                            title="Ver desglose de permisos">
-                            <?= $e($txt) ?>
-                        </button>
-                        <?php else: ?>
-                        <span style="color:<?= $fg ?>;font-size:.8rem;"><?= $e($txt) ?></span>
-                        <?php endif; ?>
-                    </td>
-                    <?php endforeach; ?>
-                </tr>
-            <?php endforeach; endif; ?>
-            </tbody>
-        </table>
+                        </td>
+                        <?php foreach ($fila['celdas'] as $celda):
+                            $tot = (int)$celda['total_nodos'];
+                            $con = (int)$celda['con_acceso'];
+                            $pct = $tot > 0 ? round(($con / $tot) * 100) : 0;
+                            $colorPill = $con === 0 ? 'var(--border-app)' : ($con === $tot ? '#10B981' : '#F59E0B');
+                            $textColor = $con === 0 ? 'var(--text-muted)' : '#ffffff';
+                        ?>
+                        <td style="text-align:center;">
+                            <div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;">
+                                <span style="font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:99px;background:<?= $colorPill ?>;color:<?= $textColor ?>;">
+                                    <?= $con ?> / <?= $tot ?> (<?= $pct ?>%)
+                                </span>
+                                <a href="<?= APP_URL ?>/admin/roles/<?= $rol['id_rol'] ?>/permisos" class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:0.65rem;" data-spa title="Configurar permisos de este rol">
+                                    Editar
+                                </a>
+                            </div>
+                        </td>
+                        <?php endforeach; ?>
+                    </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
 
 </div>
-
-<script>
-function verDetalleMatriz(info) {
-    const nivelNombre = {0:'Sin acceso',1:'Ver',2:'Crear',3:'Editar',4:'Total'};
-    const nivelColor  = {0:'#adb5bd',1:'#6c757d',2:'#0d6efd',3:'#fd7e14',4:'#198754'};
-    let filas = '';
-    for (const d of info.detalle) {
-        const activo = d.nivel > 0;
-        filas += `<tr>
-            <td style="padding:6px 10px;${activo ? '' : 'color:#adb5bd;'}">${portalAlertEscape(d.nombre || '(sin nombre)')}</td>
-            <td style="padding:6px 10px;text-align:right;">
-                <span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:700;
-                             background:color-mix(in srgb, ${nivelColor[d.nivel]} 16%, transparent);color:${nivelColor[d.nivel]};">
-                    ${nivelNombre[d.nivel]}
-                </span>
-            </td>
-        </tr>`;
-    }
-    Swal.fire({
-        title: portalAlertEscape(info.rol),
-        html: `
-            <div style="text-align:left;font-size:.8rem;color:var(--text-muted,#666);margin-bottom:10px;">
-                Detalle de acceso en <strong>${portalAlertEscape(info.modulo)}</strong>
-            </div>
-            <div style="max-height:360px;overflow:auto;border:1px solid rgba(128,128,128,.25);border-radius:8px;">
-                <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
-                    <tbody>${filas}</tbody>
-                </table>
-            </div>
-        `,
-        width: 480,
-        confirmButtonText: 'Cerrar',
-    });
-}
-</script>

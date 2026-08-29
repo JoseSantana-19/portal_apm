@@ -164,12 +164,11 @@
                                     <td style="font-size:.82rem; max-width:320px;"><?= htmlspecialchars($log['descripcion']) ?></td>
                                     <td>
                                         <?php
-                                        $nivelIco = match($log['nivel']) {
+                                        $nivelIco = [
                                             'danger'  => ['bi-exclamation-triangle-fill', 'nivel-danger'],
                                             'warning' => ['bi-exclamation-circle-fill',   'nivel-warning'],
                                             'success' => ['bi-check-circle-fill',          'nivel-success'],
-                                            default   => ['bi-info-circle-fill',            'nivel-info'],
-                                        };
+                                        ][$log['nivel']] ?? ['bi-info-circle-fill', 'nivel-info'];
                                         ?>
                                         <i class="bi <?= $nivelIco[0] ?> <?= $nivelIco[1] ?>" style="font-size:1.1rem;" title="<?= ucfirst($log['nivel']) ?>"></i>
                                     </td>

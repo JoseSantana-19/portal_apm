@@ -63,6 +63,7 @@ unset($grupoMenu);
     <?php if (defined('PORTAL_ROOT_URL')): ?>
     <!-- SweetAlert2 CSS (aviso de inactividad centralizado del portal) -->
     <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
+    <script src="<?= PORTAL_ROOT_URL ?>/js/password-hash.js?v=<?= @filemtime(dirname(rtrim(ROOT_PATH, '/'), 2) . '/js/password-hash.js') ?: time() ?>"></script>
     <?php endif; ?>
 
     <!-- Assets de Talento Humano (Cargados de forma condicional) -->

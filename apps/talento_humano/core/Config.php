@@ -75,15 +75,22 @@ final class Config
             if ($portalConn === null) {
                 return null;
             }
-            return match ($key) {
-                'server' => $portalConn['databases']['talento']['server'] ?? $portalConn['server_default'] ?? null,
-                'database' => $portalConn['databases']['talento']['name'] ?? null,
-                'user' => $portalConn['credentials']['user'] ?? null,
-                'password' => $portalConn['credentials']['pass'] ?? null,
-                'trust_server_certificate' => isset($portalConn['options']['trust_cert']) ? ($portalConn['options']['trust_cert'] ? '1' : '0') : null,
-                'encrypt' => isset($portalConn['options']['encrypt']) ? ($portalConn['options']['encrypt'] ? '1' : '0') : null,
-                default => null,
-            };
+            switch ($key) {
+                case 'server':
+                    return $portalConn['databases']['talento']['server'] ?? $portalConn['server_default'] ?? null;
+                case 'database':
+                    return $portalConn['databases']['talento']['name'] ?? null;
+                case 'user':
+                    return $portalConn['credentials']['user'] ?? null;
+                case 'password':
+                    return $portalConn['credentials']['pass'] ?? null;
+                case 'trust_server_certificate':
+                    return isset($portalConn['options']['trust_cert']) ? ($portalConn['options']['trust_cert'] ? '1' : '0') : null;
+                case 'encrypt':
+                    return isset($portalConn['options']['encrypt']) ? ($portalConn['options']['encrypt'] ? '1' : '0') : null;
+                default:
+                    return null;
+            }
         };
 
         $config = [

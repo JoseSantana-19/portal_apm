@@ -40,18 +40,69 @@ class SecurityHelper {
     }
 
     /** XSS-safe output. */
-    public static function e(mixed $val): string {
+    public static function e($val): string {
         return htmlspecialchars((string)$val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    /** Hash password with bcrypt. */
-    public static function hashPassword(string $password): string {
-        return password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    /**
+     * PASSWORD_PEPPER compartido con TODO el sistema (portal, Talento
+     * Humano, Control de Bienes, cualquier módulo futuro) -- mismo
+     * secreto único en PORTAL_APM.CORE_Config, autogenerado. DB_NAME de
+     * esta app ya apunta a PORTAL_APM directamente (ver config/app.php),
+     * así que acá no hace falta prefijo cross-DB. Ver
+     * helpers/security_helper.php del portal para el detalle completo del
+     * esquema.
+     */
+    private static ?string $pepper = null;
+    private const PEPPER_PREFIX = 'peppered:';
+
+    private static function passwordPepper(): string {
+        if (self::$pepper !== null) {
+            return self::$pepper;
+        }
+        $db   = Database::getInstance();
+        $stmt = sqlsrv_query($db->getConn(), "SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER' AND estado=1");
+        if ($stmt !== false) {
+            $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            sqlsrv_free_stmt($stmt);
+            if (!empty($row['valor'])) {
+                self::$pepper = $row['valor'];
+                return self::$pepper;
+            }
+        }
+        $nuevo = bin2hex(random_bytes(32));
+        sqlsrv_query($db->getConn(),
+            "IF NOT EXISTS (SELECT 1 FROM CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER')
+             INSERT INTO CORE_Config (modulo, clave, valor, descripcion, estado)
+             VALUES ('CORE', 'PASSWORD_PEPPER', ?, 'Secreto compartido (hex) para peppering de contraseñas en TODO el sistema -- autogenerado, no editar a mano.', 1)",
+            [[$nuevo, SQLSRV_PARAM_IN]]
+        );
+        self::$pepper = $nuevo;
+        return self::$pepper;
     }
 
-    /** Verify password against bcrypt hash. */
+    /** Hash password: HMAC-SHA256 con pepper compartido, luego bcrypt. */
+    public static function hashPassword(string $password): string {
+        $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+        return self::PEPPER_PREFIX . password_hash($peppered, PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+
+    /**
+     * Verify password. Acepta esquema nuevo ('peppered:' + bcrypt sobre
+     * HMAC) Y el esquema viejo (bcrypt directo, sin pepper) para no
+     * romper ninguna cuenta existente.
+     */
     public static function verifyPassword(string $password, string $hash): bool {
+        if (str_starts_with($hash, self::PEPPER_PREFIX)) {
+            $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+            return password_verify($peppered, substr($hash, strlen(self::PEPPER_PREFIX)));
+        }
         return password_verify($password, $hash);
+    }
+
+    /** true si el hash guardado todavía usa el esquema viejo (sin pepper). */
+    public static function passwordNeedsRehash(string $hash): bool {
+        return !str_starts_with($hash, self::PEPPER_PREFIX);
     }
 
     /** Generate cryptographically-secure random token. */

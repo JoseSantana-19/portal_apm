@@ -171,11 +171,7 @@ $empleadosListado   = $modoMovimiento
                                 $estadoMotivo = trim((string)($emp['estado_motivo'] ?? ($estado_num === 1 ? 'Relación laboral vigente' : 'Registro inactivo')));
                                 $estadoDetalle = $estadoMotivo . ($estadoFecha !== '' ? ' · Fecha efectiva: ' . substr($estadoFecha,0,10) : '');
 
-                                $statusClass = match($estado) {
-                                    'Activo'  => 'status-active',
-                                    'Permiso' => 'status-leave',
-                                    default   => 'status-inactive'
-                                };
+                                $statusClass = ['Activo' => 'status-active', 'Permiso' => 'status-leave'][$estado] ?? 'status-inactive';
                             ?>
                                 <tr class="table-row" style="opacity:1;animation:none"
                                     data-id="<?= $id ?>"

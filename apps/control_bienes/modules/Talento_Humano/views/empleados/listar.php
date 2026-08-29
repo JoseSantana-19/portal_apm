@@ -118,11 +118,7 @@
                     $estado_num = (int)($emp['estado'] ?? 1);
                     $estado     = ($estado_num === 1) ? 'Activo' : 'Inactivo';
 
-                    $statusClass = match($estado) {
-                        'Activo'  => 'status-active',
-                        'Permiso' => 'status-leave',
-                        default   => 'status-inactive'
-                    };
+                    $statusClass = ['Activo' => 'status-active', 'Permiso' => 'status-leave'][$estado] ?? 'status-inactive';
                 ?>
                     <tr class="table-row" style="animation-delay:<?= $i * 0.04 ?>s"
                         data-nombre="<?= strtolower(htmlspecialchars($nombre)) ?>"

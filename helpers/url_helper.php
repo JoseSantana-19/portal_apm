@@ -15,16 +15,16 @@ class UrlHelper {
     }
 
     public static function isActive(string $path): bool {
-        $current = parse_url(self::current(), PHP_URL_PATH);
+        $current = parse_url(self::current(), PHP_URL_PATH) ?? '';
         return str_starts_with($current, $path);
     }
 
-    public static function redirect(string $path): never {
+    public static function redirect(string $path): void {
         header('Location: ' . self::base($path));
         exit;
     }
 
-    public static function back(string $fallback = '/'): never {
+    public static function back(string $fallback = '/'): void {
         $ref = $_SERVER['HTTP_REFERER'] ?? '';
         header('Location: ' . ($ref ?: self::base($fallback)));
         exit;

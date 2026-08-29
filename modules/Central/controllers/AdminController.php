@@ -1141,7 +1141,7 @@ class AdminController extends Controller {
         if (is_string($v) && $v !== '') return date('d/m/Y H:i', strtotime($v));
         return '';
     }
-    private function descargarExcel(XlsxWriter $x, string $base): never {
+    private function descargarExcel(XlsxWriter $x, string $base): void {
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $base . '_' . date('Ymd_His') . '.xlsx"');
         header('Cache-Control: max-age=0');

@@ -50,15 +50,18 @@ final class AdminModel extends Model
         $clave = (string)($d['password'] ?? '');
         $rol = (int)($d['rol_id'] ?? 0);
         $empleado = (int)($d['empleado_id'] ?? 0) ?: null;
-        $claveSegura = strlen($clave)>=12 && preg_match('/[A-Z]/',$clave) && preg_match('/[a-z]/',$clave)
-            && preg_match('/\d/',$clave) && preg_match('/[^A-Za-z0-9]/',$clave);
+        // El navegador hashea la clave (SHA-256) antes de enviarla -- el
+        // atributo pattern del <input> ya exige mayúscula/minúscula/número/
+        // símbolo/12+ caracteres del lado cliente, ANTES de hashear. Acá solo
+        // queda confirmar que sí llegó un hash real, no revisar su "forma".
+        $claveSegura = (bool)preg_match('/^[a-f0-9]{64}$/', $clave);
         if (!preg_match('/^[a-z0-9._-]{4,50}$/',$usuario) || !filter_var($correo,FILTER_VALIDATE_EMAIL)
             || $nombre==='' || !$claveSegura || $rol<=0) {
-            return ['exito'=>0,'mensaje'=>'Revise usuario, correo y rol. La clave requiere 12 caracteres, mayúscula, minúscula, número y símbolo.'];
+            return ['exito'=>0,'mensaje'=>'Revise usuario, correo, rol y clave. La clave no llegó correctamente -- recargue la página e intente de nuevo.'];
         }
         try {
             $stmt=$this->db->prepare('EXEC dbo.sp_th_crear_usuario_sistema :usuario,:hash,:correo,:nombre,:empleado,:rol');
-            $stmt->execute([':usuario'=>$usuario,':hash'=>password_hash($clave,PASSWORD_DEFAULT),':correo'=>$correo,':nombre'=>$nombre,':empleado'=>$empleado,':rol'=>$rol]);
+            $stmt->execute([':usuario'=>$usuario,':hash'=>Auth::hashPasswordSecure($clave),':correo'=>$correo,':nombre'=>$nombre,':empleado'=>$empleado,':rol'=>$rol]);
             $this->auditarCambio('Usuarios','CREAR',"Creo la cuenta {$usuario}.");
             return ['exito'=>1,'mensaje'=>'Cuenta creada. El usuario debe cambiar la clave inicial.'];
         } catch(PDOException $e) {
@@ -79,8 +82,13 @@ final class AdminModel extends Model
     public function restablecerClave(int $id): array
     {
         $clave='Apm!'.bin2hex(random_bytes(6));
+        // hash('sha256', $clave) primero: esta clave temporal NUNCA pasa por
+        // el navegador antes de guardarse (el admin la lee de $claveTemporal
+        // y se la comunica al usuario), pero cuando ESE usuario la escriba
+        // en el login, js/password-hash.js SÍ la va a hashear en cliente --
+        // hay que simular ese mismo paso acá para que el hash final calce.
         $stmt=$this->db->prepare('UPDATE dbo.th_usuarios_sistema SET password_hash=:hash,debe_cambiar_clave=1,token_version=token_version+1,intentos_fallidos=0,bloqueado_hasta=NULL WHERE usuario_id=:id');
-        $stmt->execute([':hash'=>password_hash($clave,PASSWORD_DEFAULT),':id'=>$id]);
+        $stmt->execute([':hash'=>Auth::hashPasswordSecure(hash('sha256', $clave)),':id'=>$id]);
         $this->auditarCambio('Usuarios','RESTABLECER_CLAVE',"Restablecio credenciales de la cuenta #{$id}.");
         return ['exito'=>$stmt->rowCount()>0?1:0,'mensaje'=>'Clave temporal generada.','clave_temporal'=>$clave];
     }

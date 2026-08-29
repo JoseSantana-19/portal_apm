@@ -120,14 +120,13 @@
                                     <div style="display:flex; align-items:center; gap:12px;">
                                         <div class="role-icon <?= $rol['color'] ?>">
                                             <?php
-                                            $icono = match($rol['nombre']) {
+                                            $icono = [
                                                 'Super Administrador' => '<i class="bi bi-patch-check-fill"></i>',
                                                 'Administrador TH'    => '<i class="bi bi-person-gear"></i>',
                                                 'Analista RRHH'       => '<i class="bi bi-file-person"></i>',
                                                 'Consultor'           => '<i class="bi bi-eye"></i>',
                                                 'Supervisor'          => '<i class="bi bi-person-check"></i>',
-                                                default               => '<i class="bi bi-shield"></i>',
-                                            };
+                                            ][$rol['nombre']] ?? '<i class="bi bi-shield"></i>';
                                             echo $icono;
                                             ?>
                                         </div>

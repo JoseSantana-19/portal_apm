@@ -66,7 +66,12 @@ class UsuarioModel extends Model {
                     ':secuencial' => 'TH-' . str_pad((string)$persona['empleado_id'], 6, '0', STR_PAD_LEFT),
                     ':nombre' => $persona['nombre'],
                     ':usuario' => $cedula,
-                    ':contrasena' => password_hash($cedula, PASSWORD_DEFAULT)
+                    // hash('sha256', $cedula) primero: la clave inicial de
+                    // estas cuentas auto-provisionadas ES la propia cédula, y
+                    // cuando la escriban en el login, js/password-hash.js la
+                    // va a hashear en el navegador antes de mandarla -- hay
+                    // que simular ese mismo paso acá para que calce.
+                    ':contrasena' => hash_password_secure(hash('sha256', $cedula))
                 ]);
             }
 
@@ -196,7 +201,7 @@ class UsuarioModel extends Model {
         $secuencialObj = new InvSecuencial();
         $secuencial = $secuencialObj->generarSiguiente('acc');
 
-        $hash = password_hash($datos['contrasena'], PASSWORD_DEFAULT);
+        $hash = hash_password_secure($datos['contrasena']);
 
         $stmt = $this->db->prepare("INSERT INTO inv_usuarios (secuencial, nombre, usuario, contrasena, rol, activo, tiempo_inactividad) VALUES (:sec, :nombre, :usuario, :pass, :rol, 1, :tiempo_inactividad)");
         $stmt->execute([
@@ -213,7 +218,7 @@ class UsuarioModel extends Model {
 
     public function actualizar($id, $datos) {
         if (!empty($datos['contrasena'])) {
-            $hash = password_hash($datos['contrasena'], PASSWORD_DEFAULT);
+            $hash = hash_password_secure($datos['contrasena']);
             $stmt = $this->db->prepare("UPDATE inv_usuarios SET nombre = :nombre, usuario = :usuario, contrasena = :pass, rol = :rol, activo = :activo, tiempo_inactividad = :tiempo_inactividad WHERE id = :id");
             $stmt->execute([
                 ':nombre' => $datos['nombre'],

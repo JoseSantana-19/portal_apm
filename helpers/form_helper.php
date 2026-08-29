@@ -21,18 +21,27 @@ class FormHelper {
         return empty(self::$errors);
     }
 
-    private static function applyRule(string $rule, string $field, mixed $val, ?string $param, array $data): ?string {
-        return match ($rule) {
-            'required'  => (trim((string)$val) === '') ? "El campo {$field} es requerido." : null,
-            'min'       => (mb_strlen((string)$val) < (int)$param) ? "Mínimo {$param} caracteres." : null,
-            'max'       => (mb_strlen((string)$val) > (int)$param) ? "Máximo {$param} caracteres." : null,
-            'email'     => (!filter_var($val, FILTER_VALIDATE_EMAIL)) ? "Correo inválido." : null,
-            'numeric'   => (!is_numeric($val)) ? "Debe ser numérico." : null,
-            'in'        => (!in_array($val, explode(',', $param ?? ''), true)) ? "Valor no permitido." : null,
-            'confirmed' => ($val !== ($data[$field . '_confirmation'] ?? '')) ? "Los campos no coinciden." : null,
-            'alpha_num' => (!ctype_alnum(str_replace(['_','-'], '', (string)$val))) ? "Solo letras, números, _ y -." : null,
-            default     => null,
-        };
+    private static function applyRule(string $rule, string $field, $val, ?string $param, array $data): ?string {
+        switch ($rule) {
+            case 'required':
+                return (trim((string)$val) === '') ? "El campo {$field} es requerido." : null;
+            case 'min':
+                return (mb_strlen((string)$val) < (int)$param) ? "Mínimo {$param} caracteres." : null;
+            case 'max':
+                return (mb_strlen((string)$val) > (int)$param) ? "Máximo {$param} caracteres." : null;
+            case 'email':
+                return (!filter_var($val, FILTER_VALIDATE_EMAIL)) ? "Correo inválido." : null;
+            case 'numeric':
+                return (!is_numeric($val)) ? "Debe ser numérico." : null;
+            case 'in':
+                return (!in_array($val, explode(',', $param ?? ''), true)) ? "Valor no permitido." : null;
+            case 'confirmed':
+                return ($val !== ($data[$field . '_confirmation'] ?? '')) ? "Los campos no coinciden." : null;
+            case 'alpha_num':
+                return (!ctype_alnum(str_replace(['_','-'], '', (string)$val))) ? "Solo letras, números, _ y -." : null;
+            default:
+                return null;
+        }
     }
 
     public static function errors(): array   { return self::$errors; }
@@ -46,7 +55,7 @@ class FormHelper {
     }
 
     /** Old input value (after validation failure). */
-    public static function old(string $key, mixed $default = ''): mixed {
+    public static function old(string $key, $default = '') {
         return SessionHelper::getFlash("old_{$key}") ?? $default;
     }
 

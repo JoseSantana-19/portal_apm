@@ -11,7 +11,7 @@ if (!extension_loaded('intl')) {
 }
 
 $bundle = ResourceBundle::create('es', 'ICUDATA-region');
-$countries = $bundle?->get('Countries');
+$countries = $bundle !== null ? $bundle->get('Countries') : null;
 if (!$countries instanceof ResourceBundle) {
     fwrite(STDERR, "ICU no entrego el catalogo de paises.\n");
     exit(1);

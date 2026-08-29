@@ -23,9 +23,7 @@
     </div>
     <?php else: ?>
     <?php foreach ($notifs as $n):
-        $prioClass = match((int)($n['prioridad'] ?? 0)) {
-            3 => 'high', 2 => 'medium', default => 'low',
-        };
+        $prioClass = [3 => 'high', 2 => 'medium'][(int)($n['prioridad'] ?? 0)] ?? 'low';
         $fecha = $n['fecha_creacion'];
         if ($fecha instanceof DateTime) { $fecha = $fecha->format('d/m/Y H:i'); }
         elseif (is_string($fecha)) { $fecha = date('d/m/Y H:i', strtotime($fecha)); }
@@ -40,8 +38,14 @@
                 &mdash; <span style="color:var(--color-text-muted);"><?= htmlspecialchars($fecha, ENT_QUOTES, 'UTF-8') ?></span>
             </div>
         </div>
-        <?php if (!empty($n['url_accion'])): ?>
-        <a href="<?= htmlspecialchars($n['url_accion'], ENT_QUOTES, 'UTF-8') ?>" class="alert-action-link" data-spa>Ver</a>
+        <?php if (!empty($n['url_accion'])): 
+            $rawUrl = $n['url_accion'];
+            $linkHref = (strpos($rawUrl, 'http://') === 0 || strpos($rawUrl, 'https://') === 0) 
+                ? $rawUrl 
+                : APP_URL . '/' . ltrim($rawUrl, '/');
+            $isExternalApp = strpos($rawUrl, '/apps/') !== false;
+        ?>
+        <a href="<?= htmlspecialchars($linkHref, ENT_QUOTES, 'UTF-8') ?>" class="alert-action-link" <?= $isExternalApp ? 'data-no-spa target="_blank"' : 'data-spa' ?>>Ver</a>
         <?php endif; ?>
     </div>
     <?php endforeach; ?>

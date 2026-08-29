@@ -14,6 +14,7 @@ if (PHP_SAPI === 'cli-server') {
     }
 }
 
+require_once dirname(__DIR__, 2) . '/helpers/polyfills_php74.php';
 require_once __DIR__ . '/config/app.php';
 
 date_default_timezone_set(DEFAULT_TIMEZONE);

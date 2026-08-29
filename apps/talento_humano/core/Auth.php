@@ -16,6 +16,65 @@ final class Auth
     private const MFA_MAX_ATTEMPTS = 5;
     private static ?array $currentUser = null;
     private static array $permissionCache = [];
+    private static ?string $pepper = null;
+    private const PEPPER_PREFIX = 'peppered:';
+
+    /**
+     * PASSWORD_PEPPER compartido con TODO el sistema (portal, Bienes,
+     * Bitácoras, cualquier módulo futuro) -- mismo secreto, mismo lugar
+     * (PORTAL_APM.CORE_Config, cross-DB), mismo mecanismo de auto-creación
+     * ya establecido para SSO_SECRET/MFA_ENCRYPTION_KEY del portal. Ver
+     * helpers/security_helper.php del portal para el detalle completo del
+     * esquema (hash_hmac('sha256',...) antes de bcrypt, prefijo
+     * 'peppered:' para distinguir del hash viejo sin pepper).
+     */
+    private static function passwordPepper(): string {
+        if (self::$pepper !== null) {
+            return self::$pepper;
+        }
+        $db  = Conexion::conectar();
+        $row = $db->query("SELECT valor FROM PORTAL_APM.dbo.CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER' AND estado=1")->fetch(PDO::FETCH_ASSOC);
+        if ($row && !empty($row['valor'])) {
+            self::$pepper = $row['valor'];
+            return self::$pepper;
+        }
+        $nuevo = bin2hex(random_bytes(32));
+        $db->exec(
+            "IF NOT EXISTS (SELECT 1 FROM PORTAL_APM.dbo.CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER')
+             INSERT INTO PORTAL_APM.dbo.CORE_Config (modulo, clave, valor, descripcion, estado)
+             VALUES ('CORE', 'PASSWORD_PEPPER', '{$nuevo}', 'Secreto compartido (hex) para peppering de contraseñas en TODO el sistema -- autogenerado, no editar a mano.', 1)"
+        );
+        self::$pepper = $nuevo;
+        return self::$pepper;
+    }
+
+    /** Hash password: HMAC-SHA256 con pepper compartido, luego bcrypt. */
+    public static function hashPasswordSecure(string $password): string {
+        $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+        return self::PEPPER_PREFIX . password_hash($peppered, PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+
+    /**
+     * Verify password. Acepta esquema nuevo ('peppered:' + bcrypt sobre
+     * HMAC) Y el esquema viejo (bcrypt directo, sin pepper) para no romper
+     * ninguna cuenta existente -- usar passwordNeedsRehashSecure() después
+     * de un true para saber si conviene regrabar con el nuevo.
+     */
+    public static function verifyPasswordSecure(string $password, ?string $hash): bool {
+        if ($hash === null || $hash === '') {
+            return false;
+        }
+        if (str_starts_with($hash, self::PEPPER_PREFIX)) {
+            $peppered = hash_hmac('sha256', $password, self::passwordPepper());
+            return password_verify($peppered, substr($hash, strlen(self::PEPPER_PREFIX)));
+        }
+        return password_verify($password, $hash);
+    }
+
+    /** true si el hash guardado todavía usa el esquema viejo (sin pepper). */
+    public static function passwordNeedsRehashSecure(string $hash): bool {
+        return !str_starts_with($hash, self::PEPPER_PREFIX);
+    }
 
     public static function sessionName(): string
     {
@@ -63,7 +122,7 @@ final class Auth
             return false;
         }
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
+        if (!$user || !self::verifyPasswordSecure($password, $user['password_hash'])) {
             // Puente de identidad Portal APM -> TH, mismo camino que
             // loginTrusted() usa para el super admin (admin_apm no tiene
             // empleado_id, no se resuelve por cédula) pero disponible
@@ -92,6 +151,13 @@ final class Auth
             self::audit($username !== '' ? $username : 'ANONIMO', 'LOGIN_FALLIDO', 'Credenciales invalidas.');
             usleep(250000);
             return false;
+        }
+
+        // Migración perezosa al esquema con pepper -- transparente, ninguna
+        // cuenta existente se bloquea por este cambio.
+        if (self::passwordNeedsRehashSecure((string)$user['password_hash'])) {
+            $db->prepare('UPDATE dbo.th_usuarios_sistema SET password_hash=:hash WHERE usuario_id=:id')
+               ->execute([':hash' => self::hashPasswordSecure($password), ':id' => $user['usuario_id']]);
         }
 
         unset($_SESSION['mfa_pending']);
@@ -141,8 +207,16 @@ final class Auth
             if (!$row || !(bool)$row['estado'] || (int)$row['nivel_jerarquia'] < 4) {
                 return null;
             }
-            if (!password_verify($password, (string)$row['hash_contrasena'])) {
+            if (!self::verifyPasswordSecure($password, (string)$row['hash_contrasena'])) {
                 return null;
+            }
+            // Mismo pepper compartido que el portal -- si su hash todavía es
+            // el esquema viejo, se aprovecha este login (por el que sea que
+            // haya entrado) para migrarlo también, aunque la cuenta nunca
+            // se loguee directo en el portal nativo.
+            if (self::passwordNeedsRehashSecure((string)$row['hash_contrasena'])) {
+                $db->prepare('UPDATE PORTAL_APM.dbo.CORE_Usuarios SET hash_contrasena=:hash WHERE cedula=:cedula')
+                   ->execute([':hash' => self::hashPasswordSecure($password), ':cedula' => $username]);
             }
 
             $stmt = $db->prepare(
@@ -418,7 +492,7 @@ final class Auth
         $user=self::user();if(!$user)return ['success'=>false,'message'=>'Sesión no disponible.'];
         $s=Conexion::conectar()->prepare('SELECT password_hash,mfa_habilitado,mfa_secreto_enc FROM dbo.th_usuarios_sistema WHERE usuario_id=:id AND estado=1');
         $s->execute([':id'=>(int)$user['sub']]);$r=$s->fetch(PDO::FETCH_ASSOC);
-        if(!$r||!password_verify($password,(string)$r['password_hash']))return ['success'=>false,'message'=>'La contraseña actual no es correcta.'];
+        if(!$r||!self::verifyPasswordSecure($password,(string)$r['password_hash']))return ['success'=>false,'message'=>'La contraseña actual no es correcta.'];
         $step=null;if(!(bool)$r['mfa_habilitado']||!self::verifyTotp(self::decryptMfaSecret((string)$r['mfa_secreto_enc']),$code,$step))return ['success'=>false,'message'=>'El código de autenticación no es correcto.'];
         Conexion::conectar()->prepare('UPDATE dbo.th_usuarios_sistema SET mfa_habilitado=0,mfa_secreto_enc=NULL,mfa_activado_en=NULL,mfa_ultimo_paso=NULL WHERE usuario_id=:id')->execute([':id'=>(int)$user['sub']]);
         self::audit((string)$user['usr'],'MFA_DESACTIVADO','El usuario desactivó el segundo factor TOTP.');
@@ -562,16 +636,19 @@ final class Auth
     {
         $user=self::user();
         if(!$user)return ['success'=>false,'message'=>'La sesión no está disponible.'];
-        if(strlen($newPassword)<12 || !preg_match('/[A-Z]/',$newPassword) || !preg_match('/[a-z]/',$newPassword)
-            || !preg_match('/\d/',$newPassword) || !preg_match('/[^A-Za-z0-9]/',$newPassword)) {
-            return ['success'=>false,'message'=>'La nueva clave debe tener 12 caracteres, mayúscula, minúscula, número y símbolo.'];
+        // El navegador hashea la clave (SHA-256, ver js/password-hash.js) antes
+        // de que este POST exista -- un hash hex nunca tiene mayúscula/símbolo,
+        // así que esa validación ahora vive en cambiar_clave.php (client-side,
+        // bloquea el envío). Acá solo queda confirmar que sí llegó un hash real.
+        if (!preg_match('/^[a-f0-9]{64}$/', $newPassword)) {
+            return ['success'=>false,'message'=>'La nueva clave no llegó correctamente. Recargue la página e intente de nuevo.'];
         }
         $db=Conexion::conectar();$stmt=$db->prepare('SELECT password_hash FROM dbo.th_usuarios_sistema WHERE usuario_id=:id AND estado=1');
         $stmt->execute([':id'=>(int)$user['sub']]);$hash=$stmt->fetchColumn();
-        if(!$hash || !password_verify($currentPassword,(string)$hash))return ['success'=>false,'message'=>'La clave actual no es correcta.'];
-        if(password_verify($newPassword,(string)$hash))return ['success'=>false,'message'=>'La nueva clave debe ser diferente de la actual.'];
+        if(!$hash || !self::verifyPasswordSecure($currentPassword,(string)$hash))return ['success'=>false,'message'=>'La clave actual no es correcta.'];
+        if(self::verifyPasswordSecure($newPassword,(string)$hash))return ['success'=>false,'message'=>'La nueva clave debe ser diferente de la actual.'];
         $update=$db->prepare('UPDATE dbo.th_usuarios_sistema SET password_hash=:hash,debe_cambiar_clave=0,token_version=token_version+1 WHERE usuario_id=:id');
-        $update->execute([':hash'=>password_hash($newPassword,PASSWORD_DEFAULT),':id'=>(int)$user['sub']]);
+        $update->execute([':hash'=>self::hashPasswordSecure($newPassword),':id'=>(int)$user['sub']]);
         $username=(string)$user['usr'];self::audit($username,'CAMBIAR_CLAVE','El usuario actualizó su clave.');
         $fresh=$db->prepare("SELECT u.usuario_id,u.usuario,u.nombre,u.correo,u.rol_id,u.token_version,u.debe_cambiar_clave,r.nombre_rol
             FROM dbo.th_usuarios_sistema u JOIN dbo.th_roles r ON r.rol_id=u.rol_id WHERE u.usuario_id=:id");

@@ -217,12 +217,7 @@ class EmpleadoController extends Controller
         if (!in_array($mime, $tiposPermitidos, true)) return $rutaAnterior;
 
         // Determinar extensión segura
-        $ext = match ($mime) {
-            'image/jpeg' => 'jpg',
-            'image/png'  => 'png',
-            'image/webp' => 'webp',
-            default      => 'jpg',
-        };
+        $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? 'jpg';
 
         // Nombre único para evitar colisiones
         $nombreArchivo = 'emp_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;

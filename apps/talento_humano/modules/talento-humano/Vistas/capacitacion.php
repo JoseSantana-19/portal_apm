@@ -174,24 +174,21 @@
                 <div class="cap-grid" id="capGrid">
                 <?php foreach ($capacitaciones as $cap): ?>
                     <?php
-                    $estadoCls = match($cap['estado']) {
+                    $estadoCls = [
                         'Completado'  => 'estado-completado',
                         'En Curso'    => 'estado-en-curso',
                         'Planificado' => 'estado-planificado',
-                        default       => ''
-                    };
-                    $tipoCls = match($cap['tipo']) {
+                    ][$cap['estado']] ?? '';
+                    $tipoCls = [
                         'Taller'       => 'tipo-taller',
                         'Curso'        => 'tipo-curso',
                         'Certificación'=> 'tipo-cert',
-                        default        => ''
-                    };
-                    $iconoEstado = match($cap['estado']) {
+                    ][$cap['tipo']] ?? '';
+                    $iconoEstado = [
                         'Completado'  => 'bi-check-circle-fill',
                         'En Curso'    => 'bi-play-circle-fill',
                         'Planificado' => 'bi-calendar-event-fill',
-                        default       => 'bi-circle'
-                    };
+                    ][$cap['estado']] ?? 'bi-circle';
                     ?>
                     <div class="cap-card" data-estado="<?= $cap['estado'] ?>">
                         <div class="cap-head">

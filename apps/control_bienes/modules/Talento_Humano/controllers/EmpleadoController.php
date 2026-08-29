@@ -143,12 +143,7 @@ class EmpleadoController extends Controller
         $tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
         if (!in_array($mime, $tiposPermitidos, true)) return $rutaDefault;
 
-        $ext = match ($mime) {
-            'image/jpeg' => 'jpg',
-            'image/png'  => 'png',
-            'image/webp' => 'webp',
-            default      => 'jpg',
-        };
+        $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? 'jpg';
 
         $nombreArchivo = 'emp_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         $dirDestino    = ROOT_PATH . 'public/img/empleados/';

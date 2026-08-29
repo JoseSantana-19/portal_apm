@@ -82,6 +82,7 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
 <script src="<?= APP_URL ?>/js/alerts.js"></script>
+<script src="<?= APP_URL ?>/js/password-hash.js?v=<?= @filemtime(ROOT_PATH . '/js/password-hash.js') ?: time() ?>"></script>
 <script src="<?= APP_URL ?>/public/librerias/datatables-core/dataTables.min.js"></script>
 <script src="<?= APP_URL ?>/js/datatables-init.js?v=<?= @filemtime(ROOT_PATH . '/js/datatables-init.js') ?: time() ?>"></script>
 <!-- ?v=filemtime: cache-busting — sin esto, un navegador que ya tenía este

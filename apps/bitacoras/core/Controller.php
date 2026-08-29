@@ -18,14 +18,14 @@ abstract class Controller {
         View::render($view, $data, $useLayout);
     }
 
-    protected function json(mixed $data, int $status = 200): never {
+    protected function json($data, int $status = 200): void {
         header('Content-Type: application/json; charset=utf-8');
         http_response_code($status);
         echo json_encode($data);
         exit;
     }
 
-    protected function redirect(string $path): never {
+    protected function redirect(string $path): void {
         // Rutas internas ('/login') se anclan a APP_URL para que funcionen
         // igual en raiz (php -S) y en subcarpeta (XAMPP/Wamp: /portal_apm)
         if (!preg_match('#^https?://#i', $path)) {
@@ -110,7 +110,7 @@ abstract class Controller {
         }
     }
 
-    private function denyAccess(): never {
+    private function denyAccess(): void {
         if ($this->isAjax()) {
             $this->json(['error' => 'Acceso denegado'], 403);
         }
@@ -162,12 +162,14 @@ abstract class Controller {
     /**
      * @param string $source  'post' | 'get' | 'both' (default both)
      */
-    protected function input(string $key, string $source = 'both', mixed $default = null): mixed {
-        $val = match ($source) {
-            'get'  => $_GET[$key]  ?? $default,
-            'post' => $_POST[$key] ?? $default,
-            default => $_POST[$key] ?? $_GET[$key] ?? $default,
-        };
+    protected function input(string $key, string $source = 'both', $default = null) {
+        if ($source === 'get') {
+            $val = $_GET[$key] ?? $default;
+        } elseif ($source === 'post') {
+            $val = $_POST[$key] ?? $default;
+        } else {
+            $val = $_POST[$key] ?? $_GET[$key] ?? $default;
+        }
         return is_string($val) ? trim($val) : $val;
     }
 

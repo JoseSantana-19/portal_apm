@@ -760,6 +760,7 @@ body.dark-mode .login-error {
 
 </div>
 
+<script src="<?= APP_URL ?>/js/password-hash.js?v=<?= @filemtime(ROOT_PATH . '/js/password-hash.js') ?: time() ?>"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Default theme mode (Light Mode default)
@@ -783,16 +784,26 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // Form submit loading
+    // Form submit loading + hash de la clave en el navegador antes de
+    // enviarla (ver js/password-hash.js): el servidor combina ese hash con
+    // el pepper compartido de todo el sistema y recién ahí aplica bcrypt --
+    // la contraseña real nunca sale del navegador tal cual.
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
-        loginForm.addEventListener('submit', function() {
+        loginForm.addEventListener('submit', function(e) {
             const btnTxt = document.getElementById('btn-text');
             const btnLoad = document.getElementById('btn-loading');
             const btn = document.getElementById('login-btn');
             if (btnTxt) btnTxt.style.display = 'none';
             if (btnLoad) btnLoad.style.display = 'flex';
             if (btn) btn.disabled = true;
+
+            if (window.hashPasswordFieldsBeforeSubmit) {
+                e.preventDefault();
+                hashPasswordFieldsBeforeSubmit(loginForm, ['password']).then(function () {
+                    loginForm.submit();
+                });
+            }
         });
     }
 });

@@ -14,10 +14,14 @@ $router->post('/set-theme',         'AuthController@setTheme');
 $router->get('/',                   'HomeController@index');
 
 /* ── Dashboard ──────────────────────────────────── */
-$router->get('/dashboard',          'DashboardController@index');
-$router->get('/dashboard/ejecutivo','DashboardController@executive');
-$router->get('/dashboard/operativo','DashboardController@operational');
-$router->get('/reportes',           'DashboardController@reportes');
+$router->get('/dashboard',              'DashboardController@index');
+$router->get('/dashboard/ejecutivo',    'DashboardController@executive');
+$router->get('/dashboard/operativo',    'DashboardController@operational');
+$router->get('/dashboard/exportar-excel','DashboardController@exportarExcel');
+$router->get('/api/dashboard/ejecutivo','DashboardController@apiEjecutivo');
+$router->get('/api/dashboard/operativo','DashboardController@apiOperativo');
+$router->get('/api/dashboard/drilldown','DashboardController@apiDrilldown');
+$router->get('/reportes',               'DashboardController@reportes');
 
 /* ── Paneles nativos de módulos integrados (KPIs en vivo, cross-DB) ── */
 $router->get('/panel/talento-humano', 'PanelController@talentoHumano');

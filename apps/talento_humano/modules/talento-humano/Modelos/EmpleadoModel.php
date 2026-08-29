@@ -322,7 +322,7 @@ class EmpleadoModel extends Model
             ':condicion' => $d['condicion_especial'] ?? 'Ninguna',
             ':tipo_disc' => ($d['tipo_discapacidad'] ?? null) ?: null,
             ':porcentaje_disc' => ($d['porcentaje_discapacidad'] ?? null) ?: null,
-            ':sexo' => match ($d['genero'] ?? null) {'Masculino','M'=>'M','Femenino','F'=>'F',default=>null},
+            ':sexo' => ['Masculino' => 'M', 'M' => 'M', 'Femenino' => 'F', 'F' => 'F'][$d['genero'] ?? ''] ?? null,
             ':estado_civil' => ($d['estado_civil'] ?? null) ?: null,
             ':nacionalidad' => ($d['nacionalidad'] ?? null) ?: null,
             ':tipo_sangre' => ($d['sangre'] ?? null) ?: null,

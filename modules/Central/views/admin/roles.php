@@ -1,148 +1,208 @@
 <?php
+/**
+ * Gestión de Roles y Permisos — Central Portal APM
+ * Administración de roles del sistema, jerarquías y matriz de autorización por módulos.
+ */
 $success    = SessionHelper::getFlash('success');
-$nivelLabels = [0=>'Operativo',1=>'Analista',2=>'Jefatura',3=>'Director',4=>'Super Admin'];
-$nivelColors = [0=>'badge-gray',1=>'badge-info',2=>'badge-primary',3=>'badge-warning',4=>'badge-danger'];
+$nivelLabels = [0=>'Operativo', 1=>'Analista', 2=>'Jefatura', 3=>'Director', 4=>'Super Admin'];
+$nivelClasses = [
+    0 => 'admin-badge-operativo',
+    1 => 'admin-badge-analista',
+    2 => 'admin-badge-jefe',
+    3 => 'admin-badge-director',
+    4 => 'admin-badge-super'
+];
 
 $total   = count($roles);
-$activos = count(array_filter($roles, fn($r) => $r['estado']));
+$activos = count(array_filter($roles, fn($r) => !empty($r['estado'])));
+$inactivos = $total - $activos;
 ?>
 
 <?php if ($success): ?>
 <script>document.addEventListener('DOMContentLoaded', () => PortalAlert.success(<?= json_encode($success) ?>));</script>
 <?php endif; ?>
 
-<!-- Header -->
-<div class="page-header">
-    <div>
-        <h2 class="page-title">
-            <i class="fa-solid fa-key" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
-            Gestión de Roles
-        </h2>
-        <p class="page-subtitle">Define roles y configura los permisos de acceso por módulo</p>
-    </div>
-    <div style="display:flex;gap:var(--sp-2);">
-        <a href="<?= APP_URL ?>/admin/roles/matriz" class="btn btn-ghost" data-spa title="Ver quién tiene acceso a cada módulo">
-            <i class="fa-solid fa-table-cells"></i> Matriz de Permisos
-        </a>
-        <a href="<?= APP_URL ?>/admin/roles/nuevo" class="btn btn-primary" data-spa>
-            <i class="fa-solid fa-plus"></i> Nuevo Rol
-        </a>
-    </div>
-</div>
+<div class="dashboard-wrapper anim-up anim-d0">
 
-<!-- Stats -->
-<div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-5);flex-wrap:wrap;">
-    <div style="background:var(--card-bg);border:1px solid var(--color-border-light);border-radius:var(--radius-md);
-                padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);box-shadow:var(--shadow-xs);">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-primary) 12%,transparent);
-                    display:flex;align-items:center;justify-content:center;color:var(--color-primary);">
-            <i class="fa-solid fa-layer-group" style="font-size:0.9rem;"></i>
-        </div>
-        <div>
-            <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);line-height:1;"><?= $total ?></div>
-            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Roles totales</div>
-        </div>
-    </div>
-    <div style="background:var(--card-bg);border:1px solid var(--color-border-light);border-radius:var(--radius-md);
-                padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);box-shadow:var(--shadow-xs);">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-success) 12%,transparent);
-                    display:flex;align-items:center;justify-content:center;color:var(--color-success);">
-            <i class="fa-solid fa-shield-check" style="font-size:0.9rem;"></i>
-        </div>
-        <div>
-            <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);line-height:1;"><?= $activos ?></div>
-            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Activos</div>
-        </div>
-    </div>
-</div>
-
-<!-- Table -->
-<div class="card">
-    <div class="table-responsive-wrapper">
-        <table id="roles-table" data-dt data-dt-page-length="25">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre del Rol</th>
-                    <th>Departamento</th>
-                    <th>Nivel mín.</th>
-                    <th>Estado</th>
-                    <th style="text-align:right;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php if (empty($roles)): ?>
-            <tr><td colspan="6">
-                <div class="empty-state">
-                    <i class="fa-solid fa-key"></i>
-                    <h3>Sin roles configurados</h3>
-                    <p>Crea el primer rol con el botón de arriba.</p>
+    <!-- ══════════════════════════════════════════════════════════════
+         PREMIUM ADMIN HEADER
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-page-header">
+        <div class="admin-header-title-group">
+            <div class="admin-header-icon" style="background:linear-gradient(135deg, #0284C7, #0369A1);">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <div>
+                <div class="admin-header-eyebrow">
+                    <i class="fa-solid fa-shield-halved"></i> Administración &bull; Seguridad y Autorización
                 </div>
-            </td></tr>
-            <?php else: ?>
-            <?php foreach ($roles as $r):
-                $nivel      = (int)($r['nivel_jerarquia'] ?? 0);
-                $nivelLbl   = $nivelLabels[$nivel] ?? $nivel;
-                $nivelColor = $nivelColors[$nivel] ?? 'badge-gray';
-            ?>
-            <tr>
-                <td>
-                    <code style="background:color-mix(in srgb,var(--color-primary) 8%,transparent);
-                                 color:var(--color-primary);padding:2px 6px;border-radius:var(--radius-sm);
-                                 font-size:var(--font-size-xs);">
-                        <?= htmlspecialchars($r['codigo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                    </code>
-                </td>
-                <td>
-                    <div style="font-weight:var(--font-weight-medium);"><?= htmlspecialchars($r['nombre'], ENT_QUOTES, 'UTF-8') ?></div>
-                    <?php if (!empty($r['descripcion'])): ?>
-                    <div class="dt-truncate dt-truncate-md" style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-top:2px;" title="<?= htmlspecialchars($r['descripcion'], ENT_QUOTES, 'UTF-8') ?>">
-                        <?= htmlspecialchars(mb_substr($r['descripcion'], 0, 80), ENT_QUOTES, 'UTF-8') ?>
-                    </div>
-                    <?php endif; ?>
-                </td>
-                <td><span class="dt-truncate dt-truncate-sm" title="<?= htmlspecialchars($r['departamento'] ?? 'Global', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($r['departamento'] ?? 'Global', ENT_QUOTES, 'UTF-8') ?></span></td>
-                <td><span class="badge <?= $nivelColor ?>"><?= $nivelLbl ?></span></td>
-                <td>
-                    <span class="badge <?= $r['estado'] ? 'badge-success' : 'badge-gray' ?>">
-                        <i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i>
-                        <?= $r['estado'] ? 'Activo' : 'Inactivo' ?>
-                    </span>
-                </td>
-                <td style="text-align:right;white-space:nowrap;">
-                    <div class="dt-actions">
-                        <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/editar"
-                           class="btn btn-ghost btn-sm" data-spa title="Editar rol">
-                            <i class="fa-solid fa-pencil"></i>
-                        </a>
-                        <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/permisos"
-                           class="btn btn-ghost btn-sm" data-spa title="Configurar permisos"
-                           style="color:var(--color-primary);">
-                            <i class="fa-solid fa-shield-halved"></i>
-                        </a>
-                        <?php if ($r['estado']): ?>
-                        <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/eliminar">
-                            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-danger);" title="Desactivar rol"
-                                    onclick="PortalAlert.confirmAction('¿Desactivar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Desactivar rol?', confirmText:'Sí, desactivar'})">
-                                <i class="fa-solid fa-ban"></i>
-                            </button>
-                        </form>
-                        <?php else: ?>
-                        <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/activar">
-                            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="button" class="btn btn-ghost btn-sm" style="color:var(--color-success);" title="Activar rol"
-                                    onclick="PortalAlert.confirmAction('¿Activar el rol «<?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>»?', this.form, {title:'¿Activar rol?', confirmText:'Sí, activar'})">
-                                <i class="fa-solid fa-circle-check"></i>
-                            </button>
-                        </form>
-                        <?php endif; ?>
-                    </div>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-            <?php endif; ?>
-            </tbody>
-        </table>
+                <h1 class="admin-header-title">Gestión de Roles</h1>
+                <div class="admin-header-subtitle">
+                    Define roles institucionales y configura los permisos de acceso y niveles CRUD por módulo
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+            <a href="<?= APP_URL ?>/admin/roles/matriz" class="btn-dash" data-spa title="Ver matriz comparativa de permisos por rol">
+                <i class="fa-solid fa-table-cells" style="color:var(--primary-hover);"></i> Matriz de Permisos
+            </a>
+            <a href="<?= APP_URL ?>/admin/roles/nuevo" class="btn-dash btn-dash-primary" data-spa title="Crear nuevo rol de sistema">
+                <i class="fa-solid fa-plus"></i> Nuevo Rol
+            </a>
+        </div>
     </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         STATISTICS GRID
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #0284C7 15%, transparent);color:#0284C7;">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $total ?></div>
+                <div class="admin-stat-label">Roles Totales</div>
+            </div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #10B981 15%, transparent);color:#10B981;">
+                <i class="fa-solid fa-shield-check"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $activos ?></div>
+                <div class="admin-stat-label">Roles Activos</div>
+            </div>
+        </div>
+
+        <?php if ($inactivos > 0): ?>
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #EF4444 15%, transparent);color:#EF4444;">
+                <i class="fa-solid fa-shield-slash"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $inactivos ?></div>
+                <div class="admin-stat-label">Inactivos</div>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         ROLES DATATABLE
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <div>
+                <div class="dash-card-title">
+                    <i class="fa-solid fa-user-shield" style="color:var(--primary-hover);"></i>
+                    Catálogo de Roles y Privilegios
+                </div>
+                <div class="dash-card-subtitle">Perfiles configurados para control de acceso basado en roles (RBAC)</div>
+            </div>
+        </div>
+
+        <div class="dash-table-wrap">
+            <table id="roles-table" class="dash-table" data-dt data-dt-page-length="25">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre del Rol</th>
+                        <th>Departamento</th>
+                        <th>Nivel Jerárquico Mínimo</th>
+                        <th>Estado</th>
+                        <th style="text-align:right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if (empty($roles)): ?>
+                <tr>
+                    <td colspan="6" style="text-align:center;padding:var(--sp-8);color:var(--text-muted);">
+                        <i class="fa-solid fa-key" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+                        Sin roles configurados en el portal
+                    </td>
+                </tr>
+                <?php else: ?>
+                <?php foreach ($roles as $r):
+                    $nivel      = (int)($r['nivel_jerarquia'] ?? 0);
+                    $nivelLbl   = $nivelLabels[$nivel] ?? $nivel;
+                    $badgeClass = $nivelClasses[$nivel] ?? 'admin-badge-operativo';
+                ?>
+                <tr>
+                    <td>
+                        <code style="background:color-mix(in srgb, var(--primary-hover) 10%, transparent);color:var(--primary-hover);padding:3px 8px;border-radius:var(--radius-sm);font-weight:700;font-size:0.75rem;">
+                            <?= htmlspecialchars($r['codigo'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+                        </code>
+                    </td>
+                    <td>
+                        <div style="font-weight:700;color:var(--text-app);line-height:1.2;">
+                            <?= htmlspecialchars($r['nombre'], ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                        <?php if (!empty($r['descripcion'])): ?>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">
+                            <?= htmlspecialchars(mb_substr($r['descripcion'], 0, 80), ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <span style="font-size:0.78rem;font-weight:600;color:var(--text-app);">
+                            <?= htmlspecialchars($r['departamento'] ?? 'Global / Todos', ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge <?= $badgeClass ?>" style="font-size:0.72rem;font-weight:700;">
+                            <?= $nivelLbl ?>
+                        </span>
+                    </td>
+                    <td>
+                        <?php if (!empty($r['estado'])): ?>
+                        <span class="badge badge-success" style="font-size:0.72rem;">
+                            <i class="fa-solid fa-circle-check" style="margin-right:3px;"></i> Activo
+                        </span>
+                        <?php else: ?>
+                        <span class="badge badge-danger" style="font-size:0.72rem;">
+                            <i class="fa-solid fa-ban" style="margin-right:3px;"></i> Inactivo
+                        </span>
+                        <?php endif; ?>
+                    </td>
+                    <td style="text-align:right;white-space:nowrap;">
+                        <div class="dt-actions">
+                            <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/permisos"
+                               class="btn btn-ghost btn-sm" data-spa title="Configurar permisos por nodo y módulo">
+                                <i class="fa-solid fa-shield-halved" style="color:var(--primary-hover);"></i>
+                            </a>
+                            <a href="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/editar"
+                               class="btn btn-ghost btn-sm" data-spa title="Editar datos del rol">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+
+                            <?php if (!empty($r['estado'])): ?>
+                            <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/eliminar" style="display:inline;">
+                                <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger);" title="Desactivar rol"
+                                        onclick="PortalAlert.confirmAction('¿Desactivar el rol <?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>?', this.form, {title:'¿Desactivar rol?', confirmText:'Sí, desactivar'})">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            </form>
+                            <?php else: ?>
+                            <form method="POST" action="<?= APP_URL ?>/admin/roles/<?= $r['id_rol'] ?>/activar" style="display:inline;">
+                                <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="button" class="btn btn-ghost btn-sm" style="color:var(--success);" title="Activar rol"
+                                        onclick="PortalAlert.confirmAction('¿Reactivar el rol <?= htmlspecialchars($r['nombre'], ENT_QUOTES) ?>?', this.form, {title:'¿Activar rol?', confirmText:'Sí, activar'})">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>

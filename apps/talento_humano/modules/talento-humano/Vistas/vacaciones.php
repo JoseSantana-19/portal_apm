@@ -178,18 +178,16 @@
                                         <td style="text-align:center; font-weight:700;"><?= $s['dias_solicitados'] ?></td>
                                         <td>
                                             <?php
-                                            $cls = match($s['estado']) {
+                                            $cls = [
                                                 'Pendiente' => 'estado-pendiente',
                                                 'Aprobada'  => 'estado-aprobada',
                                                 'Rechazada' => 'estado-rechazada',
-                                                default     => ''
-                                            };
-                                            $ico = match($s['estado']) {
+                                            ][$s['estado']] ?? '';
+                                            $ico = [
                                                 'Pendiente' => 'bi-hourglass-split',
                                                 'Aprobada'  => 'bi-check-circle',
                                                 'Rechazada' => 'bi-x-circle',
-                                                default     => 'bi-circle'
-                                            };
+                                            ][$s['estado']] ?? 'bi-circle';
                                             ?>
                                             <span class="estado-pill <?= $cls ?>">
                                                 <i class="bi <?= $ico ?>"></i><?= $s['estado'] ?>

@@ -1,7 +1,16 @@
 <?php
+/**
+ * Catálogo de Módulos — Central Portal APM
+ * Registro unificado de subsistemas institucionales (nativos y embebidos).
+ */
 $success = SessionHelper::getFlash('success');
 $error   = SessionHelper::getFlash('error');
 $h = fn($val) => htmlspecialchars((string)($val ?? ''), ENT_QUOTES, 'UTF-8');
+
+$total = count($modulos);
+$activos = count(array_filter($modulos, fn($m) => !empty($m['estado'])));
+$embebidos = count(array_filter($modulos, fn($m) => ($m['tipo'] ?? '') === 'embebido'));
+$nativos = $total - $embebidos;
 ?>
 
 <?php if ($success): ?>
@@ -11,122 +20,192 @@ $h = fn($val) => htmlspecialchars((string)($val ?? ''), ENT_QUOTES, 'UTF-8');
 <script>document.addEventListener('DOMContentLoaded', () => PortalAlert.error(<?= json_encode($error) ?>));</script>
 <?php endif; ?>
 
-<div class="page-header" style="margin-bottom:var(--sp-5);">
-    <div>
-        <h2 class="page-title">
-            <i class="fa-solid fa-layer-group" style="color:var(--color-primary);margin-right:var(--sp-2);"></i>
-            Módulos del Portal
-        </h2>
-        <p class="page-subtitle">Registro central de módulos — nativos y embebidos. Un módulo nuevo queda disponible en Estructura del Menú y Roles y Permisos sin tocar código.</p>
-    </div>
-    <a href="<?= APP_URL ?>/admin/modulos/nuevo" class="btn btn-primary" data-spa>
-        <i class="fa-solid fa-plus"></i> Nuevo Módulo
-    </a>
-</div>
+<div class="dashboard-wrapper anim-up anim-d0">
 
-<div style="display:flex;gap:var(--sp-3);margin-bottom:var(--sp-5);flex-wrap:wrap;">
-    <div style="background:var(--card-bg);border:1px solid var(--color-border-light);border-radius:var(--radius-md);
-                padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);box-shadow:var(--shadow-xs);">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-primary) 12%,transparent);
-                    display:flex;align-items:center;justify-content:center;color:var(--color-primary);">
-            <i class="fa-solid fa-layer-group" style="font-size:0.9rem;"></i>
+    <!-- ══════════════════════════════════════════════════════════════
+         PREMIUM ADMIN HEADER
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-page-header">
+        <div class="admin-header-title-group">
+            <div class="admin-header-icon" style="background:linear-gradient(135deg, #0284C7, #0369A1);">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+                <div class="admin-header-eyebrow">
+                    <i class="fa-solid fa-shield-halved"></i> Administración &bull; Ecosistema SysPort
+                </div>
+                <h1 class="admin-header-title">Módulos del Portal</h1>
+                <div class="admin-header-subtitle">
+                    Registro central de módulos nativos y embebidos integrados al ecosistema APM
+                </div>
+            </div>
         </div>
-        <div>
-            <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);line-height:1;"><?= $total ?></div>
-            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Módulos totales</div>
-        </div>
-    </div>
-    <div style="background:var(--card-bg);border:1px solid var(--color-border-light);border-radius:var(--radius-md);
-                padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);box-shadow:var(--shadow-xs);">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-success) 12%,transparent);
-                    display:flex;align-items:center;justify-content:center;color:var(--color-success);">
-            <i class="fa-solid fa-circle-check" style="font-size:0.9rem;"></i>
-        </div>
-        <div>
-            <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);line-height:1;"><?= $activos ?></div>
-            <div style="font-size:var(--font-size-xs);color:var(--color-text-muted);">Activos</div>
-        </div>
-    </div>
-</div>
 
-<div class="card">
-    <div class="table-responsive-wrapper">
-        <table id="modulos-table" data-dt data-dt-cols-noorder="6" data-dt-page-length="25">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Módulo</th>
-                    <th>Código</th>
-                    <th>Tipo</th>
-                    <th>Base URL / Conexión</th>
-                    <th>Estado</th>
-                    <th style="text-align:right;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($modulos as $m): ?>
-            <tr data-modulo-row="<?= (int)$m['id_modulo'] ?>">
-                <td><code style="color:var(--color-text-muted);font-size:var(--font-size-xs);"><?= (int)$m['id_modulo'] ?></code></td>
-                <td>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
-                                     background:color-mix(in srgb,<?= $h($m['color']) ?> 15%,transparent);color:<?= $h($m['color']) ?>;flex-shrink:0;">
-                            <i class="fa-solid <?= $h($m['icono']) ?>" style="font-size:0.8rem;"></i>
+        <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;">
+            <a href="<?= APP_URL ?>/admin/modulos/nuevo" class="btn-dash btn-dash-primary" data-spa title="Registrar nuevo subsistema">
+                <i class="fa-solid fa-plus"></i> Nuevo Módulo
+            </a>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         STATISTICS GRID
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #0284C7 15%, transparent);color:#0284C7;">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $total ?></div>
+                <div class="admin-stat-label">Módulos Totales</div>
+            </div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #10B981 15%, transparent);color:#10B981;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $activos ?></div>
+                <div class="admin-stat-label">Módulos Activos</div>
+            </div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #8B5CF6 15%, transparent);color:#8B5CF6;">
+                <i class="fa-solid fa-cube"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $nativos ?></div>
+                <div class="admin-stat-label">Módulos Nativos</div>
+            </div>
+        </div>
+
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon" style="background:color-mix(in srgb, #F59E0B 15%, transparent);color:#F59E0B;">
+                <i class="fa-solid fa-network-wired"></i>
+            </div>
+            <div>
+                <div class="admin-stat-num"><?= $embebidos ?></div>
+                <div class="admin-stat-label">Embebidos (SSO)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         MODULES DATATABLE
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <div>
+                <div class="dash-card-title">
+                    <i class="fa-solid fa-cubes-stacked" style="color:var(--primary-hover);"></i>
+                    Catálogo de Subsistemas Registrados
+                </div>
+                <div class="dash-card-subtitle">Control de conexión a bases de datos y activación en menú</div>
+            </div>
+        </div>
+
+        <div class="dash-table-wrap">
+            <table id="modulos-table" class="dash-table" data-dt data-dt-cols-noorder="6" data-dt-page-length="25">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre del Módulo</th>
+                        <th>Código</th>
+                        <th>Tipo de Integración</th>
+                        <th>Conexión / Base URL</th>
+                        <th>Estado</th>
+                        <th style="text-align:right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($modulos as $m): 
+                    $mColor = !empty($m['color']) ? $m['color'] : '#0284C7';
+                    $mIcon = !empty($m['icono']) ? $m['icono'] : 'fa-cube';
+                ?>
+                <tr data-modulo-row="<?= (int)$m['id_modulo'] ?>">
+                    <td>
+                        <code style="color:var(--text-muted);font-size:0.75rem;"><?= (int)$m['id_modulo'] ?></code>
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="width:34px;height:34px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
+                                         background:color-mix(in srgb, <?= $h($mColor) ?> 15%, transparent);color:<?= $h($mColor) ?>;flex-shrink:0;font-size:0.95rem;">
+                                <i class="fa-solid <?= $h($mIcon) ?>"></i>
+                            </span>
+                            <span style="font-weight:700;color:var(--text-app);"><?= $h($m['nombre']) ?></span>
+                        </div>
+                    </td>
+                    <td>
+                        <code style="background:color-mix(in srgb, var(--primary-hover) 10%, transparent);
+                                     color:var(--primary-hover);padding:3px 8px;border-radius:var(--radius-sm);
+                                     font-size:0.75rem;font-weight:700;"><?= $h($m['codigo']) ?></code>
+                    </td>
+                    <td>
+                        <span class="badge <?= $m['tipo'] === 'embebido' ? 'badge-info' : 'badge-gray' ?>" style="font-size:0.7rem;font-weight:700;">
+                            <?= $m['tipo'] === 'embebido' ? 'Embebido (Patrón B / SSO)' : 'Nativo Central' ?>
                         </span>
-                        <span style="font-weight:var(--font-weight-medium);"><?= $h($m['nombre']) ?></span>
-                    </div>
-                </td>
-                <td>
-                    <code style="background:color-mix(in srgb,var(--color-primary) 8%,transparent);
-                                 color:var(--color-primary);padding:2px 6px;border-radius:var(--radius-sm);
-                                 font-size:var(--font-size-xs);"><?= $h($m['codigo']) ?></code>
-                </td>
-                <td>
-                    <span class="badge <?= $m['tipo'] === 'embebido' ? 'badge-info' : 'badge-gray' ?>">
-                        <?= $m['tipo'] === 'embebido' ? 'Embebido (Patrón B)' : 'Nativo' ?>
-                    </span>
-                </td>
-                <td style="font-size:var(--font-size-xs);color:var(--color-text-muted);">
-                    <?php if ($m['base_url']): ?><div class="dt-truncate dt-truncate-sm" title="<?= $h($m['base_url']) ?>"><i class="fa-solid fa-link" style="font-size:9px;"></i> <?= $h($m['base_url']) ?></div><?php endif; ?>
-                    <?php if ($m['conexion_bd']): ?><div class="dt-truncate dt-truncate-sm" title="<?= $h($m['conexion_bd']) ?>"><i class="fa-solid fa-database" style="font-size:9px;"></i> <?= $h($m['conexion_bd']) ?></div><?php endif; ?>
-                    <?php if (!$m['base_url'] && !$m['conexion_bd']): ?>&mdash;<?php endif; ?>
-                </td>
-                <td>
-                    <button type="button" class="badge <?= $m['estado'] ? 'badge-success' : 'badge-gray' ?>"
-                            data-toggle-modulo="<?= (int)$m['id_modulo'] ?>" title="Clic para alternar estado">
-                        <i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i>
-                        <?= $m['estado'] ? 'Activo' : 'Inactivo' ?>
-                    </button>
-                </td>
-                <td style="text-align:right;white-space:nowrap;">
-                    <div class="dt-actions">
-                        <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/editar"
-                           class="btn btn-ghost btn-sm" data-spa title="Editar módulo">
-                            <i class="fa-solid fa-pencil"></i>
-                        </a>
-                    </div>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+                    </td>
+                    <td style="font-size:0.75rem;color:var(--text-muted);">
+                        <?php if ($m['base_url']): ?>
+                        <div style="display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-link" style="color:var(--primary-hover);font-size:9px;"></i> <?= $h($m['base_url']) ?></div>
+                        <?php endif; ?>
+                        <?php if ($m['conexion_bd']): ?>
+                        <div style="display:flex;align-items:center;gap:4px;margin-top:2px;"><i class="fa-solid fa-database" style="color:#10B981;font-size:9px;"></i> <?= $h($m['conexion_bd']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!$m['base_url'] && !$m['conexion_bd']): ?>&mdash;<?php endif; ?>
+                    </td>
+                    <td>
+                        <button type="button" class="badge <?= $m['estado'] ? 'badge-success' : 'badge-gray' ?>"
+                                data-toggle-modulo="<?= (int)$m['id_modulo'] ?>" title="Clic para alternar estado" style="cursor:pointer;border:none;">
+                            <i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i>
+                            <?= $m['estado'] ? 'Activo' : 'Inactivo' ?>
+                        </button>
+                    </td>
+                    <td style="text-align:right;white-space:nowrap;">
+                        <div class="dt-actions">
+                            <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/editar"
+                               class="btn btn-ghost btn-sm" data-spa title="Editar módulo">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
+
 </div>
 
 <script>
-(function () {
-    var csrf = <?= json_encode($csrf) ?>;
-    document.querySelectorAll('[data-toggle-modulo]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var id = btn.getAttribute('data-toggle-modulo');
-            fetch(<?= json_encode(APP_URL) ?> + '/admin/modulos/' + id + '/toggle', {
+document.querySelectorAll('[data-toggle-modulo]').forEach(btn => {
+    btn.addEventListener('click', async function () {
+        const id = this.dataset.toggleModulo;
+        const row = document.querySelector(`[data-modulo-row="${id}"]`);
+        this.disabled = true;
+        try {
+            const res = await fetch(`<?= APP_URL ?>/admin/modulos/${id}/toggle`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-                body: '_csrf_token=' + encodeURIComponent(csrf),
-            }).then(function (r) { return r.json(); }).then(function (data) {
-                if (data.ok) { location.reload(); }
-            }).catch(function () { location.reload(); });
-        });
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json();
+            if (data.ok) {
+                const activo = data.estado === 1;
+                this.className = `badge ${activo ? 'badge-success' : 'badge-gray'}`;
+                this.innerHTML = `<i class="fa-solid fa-circle" style="font-size:5px;vertical-align:middle;margin-right:3px;"></i> ${activo ? 'Activo' : 'Inactivo'}`;
+                PortalAlert.success(data.mensaje || 'Estado actualizado.');
+            } else {
+                PortalAlert.error(data.error || 'No se pudo cambiar el estado.');
+            }
+        } catch (e) {
+            PortalAlert.error('Error de comunicación con el servidor.');
+        } finally {
+            this.disabled = false;
+        }
     });
-})();
+});
 </script>

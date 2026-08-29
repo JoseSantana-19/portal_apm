@@ -25,11 +25,16 @@ class PortDatabase
             return self::$instances[$name];
         }
 
-        $dbName = match ($name) {
-            'principal' => defined('DB_PORTUARIA_NAME') ? DB_PORTUARIA_NAME : 'PortuariaDemo',
-            'externa'   => defined('DB_PORTUARIA_EXT_NAME') ? DB_PORTUARIA_EXT_NAME : 'PortuariaExterna',
-            default     => throw new RuntimeException("Conexión Portuaria desconocida: {$name}"),
-        };
+        switch ($name) {
+            case 'principal':
+                $dbName = defined('DB_PORTUARIA_NAME') ? DB_PORTUARIA_NAME : 'PortuariaDemo';
+                break;
+            case 'externa':
+                $dbName = defined('DB_PORTUARIA_EXT_NAME') ? DB_PORTUARIA_EXT_NAME : 'PortuariaExterna';
+                break;
+            default:
+                throw new RuntimeException("Conexión Portuaria desconocida: {$name}");
+        }
 
         $server = defined('DB_SERVER') ? DB_SERVER : '.\\VICTUS';
         $user   = defined('DB_USER')   ? DB_USER   : '';

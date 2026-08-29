@@ -24,9 +24,16 @@ $mfaActivo = !empty($usuario['requiere_mfa']);
 <div class="uform">
 
 <div class="gx uform-hero">
+    <?php if (!empty($fotoUrl)): ?>
+    <div class="uform-avatar uform-avatar-photo" style="background-image:url('<?= htmlspecialchars($fotoUrl, ENT_QUOTES, 'UTF-8') ?>');"></div>
+    <?php else: ?>
     <div class="uform-avatar"><?= htmlspecialchars($init ?: '?', ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
     <div class="uform-hero-body">
         <div class="uform-hero-name"><?= htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8') ?></div>
+        <?php if (!empty($usuario['cargo'])): ?>
+        <div class="uform-hero-cargo"><?= htmlspecialchars($usuario['cargo'], ENT_QUOTES, 'UTF-8') ?></div>
+        <?php endif; ?>
         <div class="uform-hero-meta">
             <code><i class="fa-regular fa-id-card" style="margin-right:4px;opacity:0.7;"></i><?= htmlspecialchars($usuario['cedula'] ?? '', ENT_QUOTES, 'UTF-8') ?></code>
             <span class="sep"></span>
@@ -164,6 +171,31 @@ $mfaActivo = !empty($usuario['requiere_mfa']);
                 </div>
             </div>
         </div>
+
+        <!-- Mis últimas acciones -->
+        <div class="gx uform-card">
+            <div class="uform-card-head"><i class="fa-solid fa-list-check"></i> Mis Últimas Acciones</div>
+            <div class="uform-card-body" style="padding-top:var(--sp-2);padding-bottom:var(--sp-2);">
+                <?php if (empty($actividadPropia)): ?>
+                <p style="font-size:.8rem;color:var(--color-text-muted);padding:8px 0;margin:0;">Sin actividad registrada todavía.</p>
+                <?php else: foreach ($actividadPropia as $act):
+                    $fa = $act['fecha_registro'];
+                    if ($fa instanceof DateTime) { $fa = $fa->format('d/m/Y H:i'); }
+                    elseif (is_string($fa)) { $fa = date('d/m/Y H:i', strtotime($fa)); }
+                    else { $fa = '—'; }
+                    $ok = ($act['resultado'] ?? '') === 'EXITO';
+                ?>
+                <div class="uform-mini-activity">
+                    <i class="fa-solid <?= $ok ? 'fa-circle-check' : 'fa-circle-xmark' ?>" style="color:var(--color-<?= $ok ? 'success' : 'danger' ?>);font-size:11px;"></i>
+                    <div style="flex:1;min-width:0;">
+                        <span style="font-weight:600;"><?= htmlspecialchars($act['operacion'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                        <span style="color:var(--color-text-muted);"> en <?= htmlspecialchars($act['modulo'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                    </div>
+                    <span style="color:var(--color-text-muted);font-size:.72rem;white-space:nowrap;"><?= htmlspecialchars($fa, ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <?php endforeach; endif; ?>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -208,11 +240,33 @@ $mfaActivo = !empty($usuario['requiere_mfa']);
     flex: 1;
     min-width: 0;
 }
+.uform-avatar-photo {
+    background-size: cover;
+    background-position: center;
+    background-color: var(--g-bg-soft);
+}
 .uform-hero-name {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     color: var(--color-text);
     letter-spacing: -0.01em;
+}
+.uform-hero-cargo {
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+    font-weight: 600;
+    margin-top: 2px;
+}
+.uform-mini-activity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--g-bd);
+    font-size: .78rem;
+}
+.uform-mini-activity:last-child {
+    border-bottom: none;
 }
 .uform-hero-meta {
     display: flex;

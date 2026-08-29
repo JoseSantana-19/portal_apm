@@ -261,7 +261,7 @@ class EstudioSeguridadModel extends Model
         }
     }
 
-    private function validarFecha(mixed $valor, string $campo): void
+    private function validarFecha($valor, string $campo): void
     {
         if ($valor === null || trim((string)$valor) === '') return;
         $fecha=DateTimeImmutable::createFromFormat('!Y-m-d', (string)$valor);

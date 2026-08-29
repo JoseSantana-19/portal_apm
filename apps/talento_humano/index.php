@@ -6,6 +6,8 @@
 
 define('ROOT', __DIR__);
 
+require_once dirname(ROOT, 2) . '/helpers/polyfills_php74.php';
+
 // BASE_URL autodetectada — app embebida en el Portal APM (subcarpeta
 // /portal_apm/apps/talento_humano en Apache; vacía en php -S), misma
 // técnica que Control de Bienes y Bitácoras.

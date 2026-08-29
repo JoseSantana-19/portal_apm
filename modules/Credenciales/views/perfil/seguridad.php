@@ -90,7 +90,7 @@ $secretoFormateado = $enrollment ? trim(chunk_split($enrollment['secret'], 4, ' 
                 Pide tu contraseña actual y un código vigente de tu aplicación autenticadora.
             </p>
             <form method="POST" action="<?= APP_URL ?>/perfil/seguridad/desactivar"
-                  onsubmit="return confirm('¿Seguro que querés desactivar la verificación en dos pasos?')">
+                  onsubmit="return handleDesactivarMfaSubmit(event)">
                 <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8') ?>">
                 <div class="uform-2col">
                     <div class="form-group">
@@ -133,3 +133,17 @@ $secretoFormateado = $enrollment ? trim(chunk_split($enrollment['secret'], 4, ' 
 .mfa-tip { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--radius-md); background:var(--g-bg-soft); font-size:.78rem; color:var(--color-text-muted); line-height:1.5; }
 @media (max-width:600px) { .uform-2col { grid-template-columns:1fr; } }
 </style>
+
+<script>
+// function, no const/let: esta vista puede re-ejecutar su <script> inline
+// en navegación SPA sin reload completo -- mismo gotcha documentado varias
+// veces en este proyecto. Hash SHA-256 de la clave (ver js/password-hash.js,
+// cargado por shell.php) recién DESPUÉS del confirm() nativo, no antes.
+function handleDesactivarMfaSubmit(e) {
+    if (!confirm('¿Seguro que querés desactivar la verificación en dos pasos?')) return false;
+    if (!window.hashPasswordFieldsBeforeSubmit) return true;
+    e.preventDefault();
+    hashPasswordFieldsBeforeSubmit(e.target, ['clave']).then(function () { e.target.submit(); });
+    return false;
+}
+</script>

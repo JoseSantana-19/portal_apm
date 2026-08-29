@@ -77,17 +77,16 @@ class SsoClient
                     'error' => 'Aplicación no autorizada para SSO.'];
         }
         if ($row['res'] !== 'OK') {
-            $msg = match ($row['res']) {
+            $msg = [
                 'NO_ENCONTRADO' => 'Usuario o contraseña incorrectos.',
                 'INACTIVO'      => 'La cuenta está inactiva.',
                 'BLOQUEADO'     => 'Cuenta bloqueada temporalmente por intentos fallidos.',
-                default         => 'No fue posible iniciar sesión.',
-            };
+            ][$row['res']] ?? 'No fue posible iniciar sesión.';
             // Genérico hacia el usuario; el código exacto va en 'resultado'.
             return ['ok' => false, 'resultado' => $row['res'], 'error' => $msg];
         }
 
-        if (!password_verify($password, (string)$row['hash'])) {
+        if (!$this->verifyPassword($password, (string)$row['hash'])) {
             $this->execRow(
                 'EXEC dbo.sp_SSO_RegistrarFallo ?, ?, ?, ?',
                 [$this->app, $this->apiKey, $username, $this->ip]
@@ -160,6 +159,56 @@ class SsoClient
         $this->execRow('EXEC dbo.sp_SSO_Logout ?, ?, ?, ?',
             [$this->app, $this->apiKey, $token, $this->ip]);
         return true;
+    }
+
+    /**
+     * Verifica la contraseña contra el hash de CORE_Usuarios. Acepta el
+     * esquema compartido de todo el sistema (SHA-256 en cliente + HMAC-SHA256
+     * con PASSWORD_PEPPER + bcrypt, prefijo 'peppered:' -- ver
+     * helpers/security_helper.php del portal e INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html)
+     * y, para cuentas todavía no migradas, bcrypt directo sobre la
+     * contraseña real. Esta clase es standalone (la usan apps externas que
+     * solo tienen acceso SQL a PORTAL_APM, sin el resto del código del
+     * portal), por eso replica el algoritmo en vez de depender de
+     * SecurityHelper.
+     *
+     * $password acá es SIEMPRE la contraseña real tal cual la escribió el
+     * usuario (este cliente la recibe así, ver login() más arriba) -- el
+     * paso de SHA-256 "del navegador" se simula acá mismo antes de aplicar
+     * el pepper, para que el resultado final sea idéntico al que produce
+     * cualquier formulario web del sistema (todos pasan por
+     * js/password-hash.js antes de llegar al servidor).
+     */
+    private function verifyPassword(string $password, string $hash): bool
+    {
+        if ($hash === '') {
+            return false;
+        }
+        if (str_starts_with($hash, 'peppered:')) {
+            $clientHash = hash('sha256', $password);
+            $peppered   = hash_hmac('sha256', $clientHash, $this->passwordPepper());
+            return password_verify($peppered, substr($hash, 9));
+        }
+        // Esquema legado (cuenta nunca migrada al esquema nuevo): bcrypt
+        // directo sobre la contraseña real, sin el paso de SHA-256 -- así
+        // se guardó antes de que existiera el hasheo en cliente.
+        return password_verify($password, $hash);
+    }
+
+    /** Mismo PASSWORD_PEPPER que usa TODO el sistema (CORE_Config, autogenerado). */
+    private function passwordPepper(): string
+    {
+        $row = $this->execRow(
+            "SELECT valor FROM CORE_Config WHERE modulo='CORE' AND clave='PASSWORD_PEPPER' AND estado=1"
+        );
+        if ($row && !empty($row['valor'])) {
+            return $row['valor'];
+        }
+        // No se autogenera desde acá a propósito: si este cliente externo
+        // llega primero (antes que el portal/algún módulo ya arrancado),
+        // más vale fallar la verificación que operar con un pepper propio
+        // que nadie más comparte.
+        return '';
     }
 
     /** Ejecuta y devuelve la última fila del último resultset (o null). */

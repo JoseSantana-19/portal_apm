@@ -142,6 +142,6 @@ final class PdfFormularioPrincipal
     private function fecha(string $campo): string{$v=$this->v($campo);return $v!==''&&strtotime($v)?date('d/m/Y',strtotime($v)):'';}
     private function dinero(string $campo): string{$v=$this->v($campo);return $v===''?'':'$ '.number_format((float)$v,2,'.',',');}
     private function porcentaje(): string{$v=$this->v('porcentaje_discapacidad');return $v===''?'':number_format((float)$v,2).'%';}
-    private function sexo(): string{return match(strtoupper($this->v('sexo'))){'M'=>'MASCULINO','F'=>'FEMENINO',default=>$this->v('sexo')};}
+    private function sexo(): string{$s=strtoupper($this->v('sexo'));return ['M'=>'MASCULINO','F'=>'FEMENINO'][$s]??$this->v('sexo');}
     private function t(string $texto): string{return iconv('UTF-8','windows-1252//TRANSLIT',$texto)?:$texto;}
 }

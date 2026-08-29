@@ -3,6 +3,7 @@ class NotificacionesController extends Controller {
 
     public function index(): void {
         $this->requireAuth();
+        (new NotificacionGeneradorModel())->generarSiCorresponde();
         $id    = (int)($_SESSION['user_id'] ?? 0);
         $db    = Database::getInstance();
         $notifs = $db->fetchAll($db->query(
@@ -21,6 +22,7 @@ class NotificacionesController extends Controller {
 
     public function recientes(): void {
         $this->requireAuth();
+        (new NotificacionGeneradorModel())->generarSiCorresponde();
         $id   = (int)($_SESSION['user_id'] ?? 0);
         $stmt = (new DashboardModel())->getAlertasPendientes(20);
 
@@ -42,14 +44,21 @@ class NotificacionesController extends Controller {
         $this->requireAuth();
         $id = (int)($_SESSION['user_id'] ?? 0);
         $db = Database::getInstance();
+        // (id_usuario = ? OR id_usuario IS NULL): mismo criterio "propia o
+        // global" que ya usan index()/getAlertasPendientes() para decidir
+        // qué se le muestra a este usuario -- antes solo cubría id_usuario=?,
+        // así que nunca marcaba como leída una notificación global (todas
+        // las que genera NotificacionGeneradorModel lo son), quedaban
+        // "leída=0" para siempre pese a que el endpoint respondía ok:true.
         $db->query(
-            'UPDATE CORE_Notificaciones SET leida=1 WHERE id_usuario=? AND leida=0',
+            'UPDATE CORE_Notificaciones SET leida=1, fecha_lectura=GETDATE()
+             WHERE (id_usuario=? OR id_usuario IS NULL) AND leida=0',
             [[$id, SQLSRV_PARAM_IN]]
         );
         $this->json(['ok' => true]);
     }
 
-    private function relativa(mixed $fecha): string {
+    private function relativa($fecha): string {
         if ($fecha instanceof DateTime) { $ts = $fecha->getTimestamp(); }
         elseif (is_string($fecha) && $fecha) { $ts = strtotime($fecha); }
         else { return '—'; }

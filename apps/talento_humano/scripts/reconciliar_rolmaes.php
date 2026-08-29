@@ -18,6 +18,7 @@ declare(strict_types=1);
  */
 
 define('ROOT', dirname(__DIR__));
+require dirname(ROOT, 2) . '/helpers/polyfills_php74.php';
 require ROOT . '/core/Config.php';
 require ROOT . '/core/Database.php';
 

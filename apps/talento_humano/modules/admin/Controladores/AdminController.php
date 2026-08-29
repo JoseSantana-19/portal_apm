@@ -134,7 +134,7 @@ final class AdminController extends Controller
         Auth::requireCsrf($_POST['_csrf']??null);
     }
 
-    private function redirect(string $ruta,array $resultado,array $extra=[]): never
+    private function redirect(string $ruta,array $resultado,array $extra=[]): void
     {
         $ok=(int)($resultado['exito']??0)===1;$msg=(string)($resultado['mensaje']??'Operación finalizada.');
         $query=http_build_query(array_merge(['ok'=>$ok?'1':'0','msg'=>$msg],$extra));

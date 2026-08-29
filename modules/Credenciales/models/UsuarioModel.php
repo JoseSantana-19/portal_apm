@@ -105,14 +105,24 @@ class UsuarioModel extends Model {
             return ['error' => $messages[$resultado] ?? 'Error de autenticación.'];
         }
 
-        // PHP verifica bcrypt
-        if (!password_verify($password, $hash)) {
+        // PHP verifica bcrypt (con pepper compartido -- ver SecurityHelper)
+        if (!SecurityHelper::verifyPassword($password, $hash)) {
             // Registrar fallo
             sqlsrv_query($conn, '{CALL sp_RegistrarFalloLogin(?,?)}', [
                 [$username, SQLSRV_PARAM_IN],
                 [SecurityHelper::getClientIp(), SQLSRV_PARAM_IN],
             ]);
             return ['error' => 'Usuario o contraseña incorrectos.'];
+        }
+        // Migración perezosa: si el hash guardado todavía es del esquema
+        // viejo (sin pepper), se regraba con el nuevo ahora que ya se
+        // verificó la contraseña real -- transparente para el usuario,
+        // ninguna cuenta se bloquea por este cambio.
+        if (SecurityHelper::passwordNeedsRehash($hash)) {
+            sqlsrv_query($conn, 'UPDATE CORE_Usuarios SET hash_contrasena=? WHERE id_usuario=?', [
+                [SecurityHelper::hashPassword($password), SQLSRV_PARAM_IN],
+                [$idUsuario, SQLSRV_PARAM_IN],
+            ]);
         }
 
         // MFA: si el usuario lo tiene activo, la sesión NO se crea todavía acá

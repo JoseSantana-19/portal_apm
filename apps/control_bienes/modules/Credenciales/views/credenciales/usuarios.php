@@ -368,5 +368,15 @@
         document.getElementById('usr-inp-activo').value = usr.activo;
         document.getElementById('usuario-modal').classList.add('active');
     }
+
+    // Hash SHA-256 de la contraseña (ver js/password-hash.js, cargado por
+    // layout.php) -- si el campo queda vacío (editar sin cambiar clave) NO
+    // se toca, hashPasswordFieldsBeforeSubmit ya salta los campos vacíos.
+    document.querySelector('#usuario-modal form')?.addEventListener('submit', function (e) {
+        if (!window.hashPasswordFieldsBeforeSubmit) return;
+        e.preventDefault();
+        var form = e.target;
+        hashPasswordFieldsBeforeSubmit(form, ['contrasena']).then(function () { form.submit(); });
+    });
 <?php endif; ?>
 </script>

@@ -362,7 +362,16 @@ function confirmarCreacion() {
         confirmButtonColor: '#0284C7',
         reverseButtons: true,
     }).then((result) => {
-        if (result.isConfirmed) form.submit();
+        if (!result.isConfirmed) return;
+        // Hash SHA-256 de la clave temporal ANTES de enviarla (ver
+        // js/password-hash.js) -- el admin la vio/copió en texto plano
+        // arriba, pero lo que viaja al servidor es el hash, igual que
+        // cualquier otro formulario de contraseña del sistema.
+        if (window.hashPasswordFieldsBeforeSubmit) {
+            hashPasswordFieldsBeforeSubmit(form, ['contrasena']).then(() => form.submit());
+        } else {
+            form.submit();
+        }
     });
 }
 function pintarPreview() {

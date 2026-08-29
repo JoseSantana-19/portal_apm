@@ -2,8 +2,10 @@
 /**
  * INDEX.PHP - Punto de Entrada Principal (Router)
  * Inicializa la sesión, carga constantes globales, inicializa la BD y despacha las rutas modulares.
- * Compatible con PHP 7.4, 8.3 y 8.4
+ * Compatible con PHP 7.4, 8.3 y 8.5
  */
+
+require_once dirname(__DIR__, 2) . '/helpers/polyfills_php74.php';
 
 // Iniciar sesión global
 if (session_status() === PHP_SESSION_NONE) {

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require dirname(__DIR__,2) . '/helpers/polyfills_php74.php';
 $root=dirname(__DIR__);$fail=[];
 $assert=function(bool $ok,string $message)use(&$fail){if(!$ok)$fail[]=$message;};
 $ht=(string)file_get_contents($root.'/.htaccess');foreach(['database','SQL','core','tmp','output','.git'] as $path)$assert(str_contains($ht,$path),".htaccess no bloquea {$path}");

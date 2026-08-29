@@ -1,8 +1,10 @@
 <?php
 /**
  * Portal APM — Front Controller
- * PHP 8.0+ | sqlsrv native | NO PDO | NO Composer required
+ * Compatible con PHP 7.4, 8.3 y 8.5 | sqlsrv native | NO PDO | NO Composer required
  */
+
+require_once __DIR__ . '/helpers/polyfills_php74.php';
 
 // php -S (servidor embebido): servir archivos reales directamente (apis/*.php,
 // páginas legacy bit_*.php del módulo Portuaria, assets). En Apache esto lo

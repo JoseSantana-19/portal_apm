@@ -41,6 +41,17 @@
 </section></div>
 <script>
 document.getElementById('empleadoCuenta')?.addEventListener('change',e=>{const o=e.target.selectedOptions[0];document.getElementById('nombreCuenta').value=o?.dataset.nombre||'';document.getElementById('correoCuenta').value=o?.dataset.correo||''});
+// Hash SHA-256 de la clave inicial (ver js/password-hash.js, cargado por
+// footer_scripts.php) -- el atributo pattern del <input> ya exigió
+// mayúscula/minúscula/número/símbolo del lado del navegador ANTES de que
+// este listener corra (la validación nativa de formulario bloquea el
+// evento submit si el pattern no matchea).
+document.querySelector('form[action$="/admin/usuarios/crear"]')?.addEventListener('submit', function (e) {
+    if (!window.hashPasswordFieldsBeforeSubmit) return;
+    e.preventDefault();
+    var form = e.target;
+    hashPasswordFieldsBeforeSubmit(form, ['password']).then(function () { form.submit(); });
+});
 <?php if(!empty($_GET['msg'])): ?>addEventListener('DOMContentLoaded',()=>showToast(<?= json_encode($_GET['msg']) ?>,<?= ($_GET['ok']??'0')==='1'?"'success'":"'error'" ?>));<?php endif; ?>
 </script>
 <?php require ROOT.'/shared/footer_scripts.php'; ?>

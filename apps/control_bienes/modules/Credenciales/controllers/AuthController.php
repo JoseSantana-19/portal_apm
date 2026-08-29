@@ -56,9 +56,16 @@ class AuthController extends Controller {
 
         $usuario = $this->usuarioModel->buscarPorUsuario($usuarioInput);
 
-        if ($usuario && (int)$usuario['activo'] === 1 && password_verify($contrasenaInput, $usuario['contrasena'])) {
+        if ($usuario && (int)$usuario['activo'] === 1 && verify_password_secure($contrasenaInput, $usuario['contrasena'])) {
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
+            }
+            // Migración perezosa al esquema con pepper -- transparente,
+            // ninguna cuenta existente se bloquea por este cambio.
+            if (password_needs_rehash_secure((string)$usuario['contrasena'])) {
+                Database::getInstance()->getConnection()
+                    ->prepare('UPDATE inv_usuarios SET contrasena = :hash WHERE id = :id')
+                    ->execute([':hash' => hash_password_secure($contrasenaInput), ':id' => $usuario['id']]);
             }
 
             session_regenerate_id(true);

@@ -171,12 +171,11 @@
                     <div class="eval-grid">
                     <?php foreach ($evaluaciones as $ev): ?>
                         <?php
-                        $nivelCls = match($ev['nivel']) {
+                        $nivelCls = [
                             'Excelente'     => 'nivel-excelente',
                             'Satisfactorio' => 'nivel-satisfactorio',
                             'En proceso'    => 'nivel-proceso',
-                            default         => 'nivel-pendiente'
-                        };
+                        ][$ev['nivel']] ?? 'nivel-pendiente';
                         $scoreCls = $ev['calificacion'] >= 90 ? 'excelente' : ($ev['calificacion'] >= 70 ? 'satisfactorio' : 'bajo');
                         $iniciales = implode('', array_map(fn($p) => strtoupper(substr($p,0,1)), array_slice(explode(' ', $ev['nombre']), 0, 2)));
                         ?>
