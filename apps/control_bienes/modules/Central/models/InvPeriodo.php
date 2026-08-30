@@ -42,11 +42,22 @@ class PeriodoModel extends Model {
         return $stmt->fetch();
     }
 
+    /** Cierra con respaldo el período cuya fecha final ya transcurrió. */
+    public function cerrarVencidoSiCorresponde(): ?array {
+        $periodo = $this->obtenerPeriodoActivo();
+        if (!$periodo || empty($periodo['fecha_fin']) || $periodo['fecha_fin'] >= date('Y-m-d')) {
+            return null;
+        }
+        $this->ejecutarCorteYRespaldo((int)$periodo['id']);
+        return $periodo;
+    }
+
     /**
      * Crea un nuevo período y le asigna su tasa de IVA (15%, 8%, 5%)
      */
     public function crear($nombre, $fechaInicio, $fechaFin, $tasaIva) {
-        if ($fechaInicio > $fechaFin) {
+        $fechaFin = trim((string)$fechaFin) !== '' ? $fechaFin : null;
+        if ($fechaFin !== null && $fechaInicio > $fechaFin) {
             throw new InvalidArgumentException("La fecha de inicio no puede ser posterior a la fecha de fin.");
         }
 

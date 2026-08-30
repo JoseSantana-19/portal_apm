@@ -492,6 +492,9 @@ try {
         'inv_20260810_notificaciones_auditoria_contexto.sql',
         'inv_20260813_clasificacion_items.sql',
         'inv_20260813_ingresos_factura_v2.sql',
+        'inv_20260823_periodos_fecha_fin_opcional.sql',
+        'inv_20260824_ordenes_compra_campos_modernos.sql',
+        'inv_20260827_precision_monetaria.sql',
     ];
     foreach ($migraciones as $migracion) {
         $pdoInv->exec('USE [inventario]');

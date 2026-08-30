@@ -14,8 +14,7 @@ class Controller
         $rutaVista = ROOT . '/' . ltrim($vista, '/') . '.php';
 
         if (!file_exists($rutaVista)) {
-            http_response_code(500);
-            die("<h3>Vista no encontrada: {$rutaVista}</h3>");
+            throw new RuntimeException('La vista solicitada no está disponible.');
         }
 
         require_once $rutaVista;

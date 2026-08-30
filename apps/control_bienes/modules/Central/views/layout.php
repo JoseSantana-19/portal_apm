@@ -48,7 +48,7 @@ unset($grupoMenu);
     <!-- DataTables CSS & JS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <?php if (in_array($routeActiva, ['inv_maestros', 'items'], true)): ?>
+    <?php if (in_array($routeActiva, ['inventario', 'items', 'inv_items_sistema', 'inv_maestros', 'requisiciones', 'ordenes_compra', 'ingresos', 'egresos'], true)): ?>
         <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
         <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -60,6 +60,7 @@ unset($grupoMenu);
         <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
     <?php endif; ?>
     <link rel="stylesheet" href="public/css/inv_estilos.css?v=<?= $assetVersion('public/css/inv_estilos.css') ?>">
+    <link rel="stylesheet" href="public/css/inv_search_helpers.css?v=<?= $assetVersion('public/css/inv_search_helpers.css') ?>">
     <?php if (defined('PORTAL_ROOT_URL')): ?>
     <!-- SweetAlert2 CSS (aviso de inactividad centralizado del portal) -->
     <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
@@ -234,6 +235,9 @@ unset($grupoMenu);
         .toast-inv_error i { color: #ef4444; }
         .toast-info i { color: #3b82f6; }
     </style>
+    <?php $configMonetaria = CommonHelper::configuracionMonetaria(); ?>
+    <script>window.INV_PRICE_CONFIG=<?= json_encode($configMonetaria, JSON_UNESCAPED_SLASHES) ?>;</script>
+    <script src="public/js/inv_money.js?v=<?= $assetVersion('public/js/inv_money.js') ?>"></script>
 </head>
 <body>
 
@@ -868,6 +872,8 @@ unset($grupoMenu);
     </div>
 
     <script src="public/js/app_ajax.js"></script>
+    <script src="public/js/inv_searchable_select.js?v=<?= $assetVersion('public/js/inv_searchable_select.js') ?>"></script>
+    <script src="public/js/inv_list_search.js?v=<?= $assetVersion('public/js/inv_list_search.js') ?>"></script>
     <?php if (!empty($_permisoVista['readonly'])): ?>
     <style>
         .permission-readonly-banner{display:flex;align-items:flex-start;gap:11px;padding:13px 15px;margin-bottom:16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e40af;font-size:12px;line-height:1.5}.permission-readonly-banner i{margin-top:2px;font-size:15px}.permission-readonly .btn-editar,.permission-readonly .btn-eliminar,.permission-readonly [data-permission-action="create"],.permission-readonly [data-permission-action="edit"]{display:none!important}.permission-readonly form.permission-form-disabled{position:relative;opacity:.72}.permission-readonly form.permission-form-disabled :is(input,select,textarea,button){cursor:not-allowed}
@@ -914,9 +920,11 @@ unset($grupoMenu);
         };
     </script>
     <script src="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+    <script src="<?= PORTAL_ROOT_URL ?>/js/alerts.js"></script>
     <!-- ?v=time(): cache-busting real — evita que el navegador siga usando
          una copia vieja de este archivo cacheada de una visita anterior. -->
     <script src="<?= PORTAL_ROOT_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>
     <?php endif; ?>
+    <script src="public/js/form_draft_recovery.js?v=<?= $assetVersion('public/js/form_draft_recovery.js') ?>" data-user-id="<?= (int)($_SESSION['usuario']['id'] ?? $_SESSION['usuario_id'] ?? 0) ?>"></script>
 </body>
 </html>

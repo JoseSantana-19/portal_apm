@@ -51,7 +51,8 @@ class AccionPersonalController extends Controller
         }
 
         // Secuencial real desde la BD (APM-TH-YYYY-NNN)
-        $nroAccion = $this->modelo->generarSiguienteSecuencial();
+        $tipoPreseleccionado=mb_strtoupper(trim((string)($_GET['tipo']??'INGRESO')),'UTF-8');
+        $nroAccion = $this->modelo->generarSiguienteSecuencial($tipoPreseleccionado);
 
         // Catálogos para los <select> de situación propuesta
         $areas   = $this->modeloEmp->listarAreas();
@@ -65,6 +66,7 @@ class AccionPersonalController extends Controller
             'areas'         => $areas,
             'cargos'        => $cargos,
             'selectorPersonal' => $this->modeloEmp->listarSelectorPersonal(),
+            'tipoPreseleccionado' => $tipoPreseleccionado,
         ];
 
         $this->cargarVista('talento-humano', 'accion_personal', $datos);
@@ -149,7 +151,9 @@ class AccionPersonalController extends Controller
             'numero_accion'            => trim($_POST['numero_accion']      ?? ''),
             'empleado_id'              => (int)($_POST['empleado_id']       ?? 0),
             'tipo_accion'              => trim($_POST['tipo_accion']         ?? ''),
-            'fecha_rige_desde'         => $_POST['rige_desde']              ?? date('Y-m-d'),
+            'modo_captura'             => strtoupper(trim($_POST['modo_captura'] ?? 'CAMBIO_LABORAL')),
+            'modalidad_vigencia'       => strtoupper(trim($_POST['modalidad_vigencia'] ?? 'PERMANENTE')),
+            'fecha_rige_desde'         => $_POST['rige_desde']              ?? InstitutionalClock::todayIso(),
             'fecha_rige_hasta'         => !empty($_POST['rige_hasta'])
                                             ? $_POST['rige_hasta'] : null,
 
@@ -170,6 +174,9 @@ class AccionPersonalController extends Controller
             'actual_grupo_ocupacional' => trim($_POST['actual_grupo_ocupacional'] ?? ''),
             'actual_grado'             => trim($_POST['actual_grado'] ?? ''),
             'actual_partida_presupuestaria' => trim($_POST['actual_partida_presupuestaria'] ?? ''),
+            'actual_jornada'           => trim($_POST['actual_jornada'] ?? ''),
+            'actual_horas_jornada'     => (float)($_POST['actual_horas_jornada'] ?? 0),
+            'actual_tipo_contrato'     => trim($_POST['actual_tipo_contrato'] ?? ''),
 
             // Situación Propuesta — elegida por el analista en los <select>
             'propuesta_unidad_id'      => (int)($_POST['propuesta_unidad_id'] ?? 0),
@@ -182,6 +189,14 @@ class AccionPersonalController extends Controller
             'propuesta_grupo_ocupacional' => trim($_POST['propuesta_grupo_ocupacional'] ?? ''),
             'propuesta_grado'          => trim($_POST['propuesta_grado'] ?? ''),
             'propuesta_partida_presupuestaria' => trim($_POST['propuesta_partida_presupuestaria'] ?? ''),
+            'propuesta_jornada'        => trim($_POST['propuesta_jornada'] ?? ''),
+            'propuesta_horas_jornada'  => (float)($_POST['propuesta_horas_jornada'] ?? 0),
+            'tipo_novedad_jornada'     => trim($_POST['tipo_novedad_jornada'] ?? ''),
+            'hora_entrada_propuesta'   => trim($_POST['hora_entrada_propuesta'] ?? ''),
+            'hora_salida_propuesta'    => trim($_POST['hora_salida_propuesta'] ?? ''),
+            'dias_jornada_propuesta'   => trim($_POST['dias_jornada_propuesta'] ?? ''),
+            'documento_jornada'        => trim($_POST['documento_jornada'] ?? ''),
+            'propuesta_tipo_contrato'  => trim($_POST['propuesta_contrato'] ?? ''),
 
             'notificacion_electronica' => isset($_POST['notificacion_electronica']) ? 1 : 0,
             'correo_notificacion'      => trim($_POST['correo_notificacion'] ?? ''),
@@ -216,15 +231,38 @@ class AccionPersonalController extends Controller
             $payload['actual_unidad_id'] = (int)($empleadoActual['unidad_id'] ?? 0);
             $payload['actual_puesto_id'] = (int)($empleadoActual['puesto_id'] ?? 0);
             $payload['actual_remuneracion'] = number_format((float)($empleadoActual['remuneracion_mensual'] ?? 0),2,'.','');
+            $payload['actual_proceso'] = trim((string)($empleadoActual['proceso_institucional'] ?? ''));
+            $payload['actual_nivel_gestion'] = trim((string)($empleadoActual['nivel_gestion'] ?? ''));
+            $payload['actual_lugar_trabajo'] = trim((string)($empleadoActual['lugar_trabajo'] ?? 'Manta'));
+            $payload['actual_grupo_ocupacional'] = trim((string)($empleadoActual['grupo_ocupacional'] ?? ''));
+            $payload['actual_grado'] = trim((string)($empleadoActual['grado_laboral'] ?? ''));
+            $payload['actual_partida_presupuestaria'] = trim((string)($empleadoActual['partida_individual'] ?? ''));
+            $payload['actual_jornada'] = trim((string)($empleadoActual['jornada'] ?? 'Completa'));
+            $payload['actual_horas_jornada'] = (float)($empleadoActual['horas_jornada'] ?? 8);
+            $payload['actual_tipo_contrato'] = trim((string)($empleadoActual['tipo_contrato'] ?? ''));
         }
 
         // ── Validación mínima antes de persistir ──────────────────────────
         $fechaDesde = DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_desde']);
         $fechaHasta = $payload['fecha_rige_hasta'] ? DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_hasta']) : null;
+        $modalidadValida = in_array($payload['modalidad_vigencia'],['PERMANENTE','TEMPORAL'],true);
+        $modoValido = in_array($payload['modo_captura'],['CAMBIO_LABORAL','JORNADA_TEMPORAL'],true);
+        $vigenciaValida = $fechaDesde && ($payload['modalidad_vigencia']==='PERMANENTE'
+            ? $fechaHasta===null
+            : ($fechaHasta!==null && $fechaHasta >= $fechaDesde));
+        $esLicenciaParental = in_array(strtoupper($payload['tipo_novedad_jornada']),['MATERNIDAD','PATERNIDAD'],true);
+        $jornadaValida = $payload['tipo_novedad_jornada']===''
+            || ($payload['modalidad_vigencia']==='TEMPORAL' && $fechaHasta
+                && (($esLicenciaParental && $payload['propuesta_jornada']==='Licencia' && abs($payload['propuesta_horas_jornada'])<0.001)
+                    || (!$esLicenciaParental && $payload['propuesta_horas_jornada']>0 && $payload['propuesta_horas_jornada']<=24)));
+        $capturaValida = $payload['modo_captura']!=='JORNADA_TEMPORAL'
+            || ($payload['modalidad_vigencia']==='TEMPORAL' && $payload['tipo_novedad_jornada']!=='');
+        $vacacionValida=$payload['tipo_accion']!=='VACACIONES' || ($payload['modalidad_vigencia']==='TEMPORAL' && $fechaHasta!==null);
         if (!$empleadoActual || !in_array($payload['tipo_accion'],$tiposOficiales,true) || empty($payload['explicacion_legal'])
-            || !$fechaDesde || ($fechaHasta && $fechaHasta<$fechaDesde)
-            || (str_starts_with($payload['tipo_accion'],'OTRO') && empty($payload['detalle_otro']))) {
-            $msg = 'Datos incompletos: verifique el empleado, tipo de acción y la motivación legal.';
+            || !$fechaDesde || !$modalidadValida || !$modoValido || !$vigenciaValida || !$capturaValida
+            || (str_starts_with($payload['tipo_accion'],'OTRO') && empty($payload['detalle_otro']))
+            || !$jornadaValida || !$vacacionValida) {
+            $msg = 'Datos incompletos: revise empleado, modalidad, fechas, tipo de acción, jornada y motivación legal.';
             header('Location: ' . BASE_URL . '/talento-humano/accion-personal?msg=' . urlencode($msg) . '&ok=0');
             exit;
         }
@@ -232,6 +270,7 @@ class AccionPersonalController extends Controller
         // ── Persistencia en BD ────────────────────────────────────────────
         $nroAsignado = $this->modelo->registrarAccion($payload);
         $exito = $nroAsignado !== null;
+        if ($exito) DraftService::deleteCurrent((string)($_POST['_draft_context'] ?? ''));
         $nro   = $nroAsignado ?? '';
 
         $msg = $exito
@@ -289,8 +328,7 @@ class AccionPersonalController extends Controller
     private function resolverAccion(string $accion): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit('Metodo no permitido.');
+            ErrorHandler::abort(405);
         }
         Auth::requireCsrf($_POST['_csrf'] ?? null);
         $id = (int)($_POST['accion_id'] ?? 0);
@@ -345,13 +383,13 @@ class AccionPersonalController extends Controller
         $id = (int)($_GET['id'] ?? 0);
 
         if ($id <= 0) {
-            die('Error: Debe especificar un número de acción válido (?id=X).');
+            ErrorHandler::abort(400, 'Debe especificar un número de acción válido.');
         }
 
         $datos = $this->modelo->obtenerAccionCruzada($id);
 
         if (!$datos) {
-            die('Error: El documento de Acción de Personal no existe o fue eliminado.');
+            ErrorHandler::abort(404, 'El documento de Acción de Personal no existe o fue eliminado.');
         }
 
         $this->modelo->auditarImpresion($id);
@@ -377,7 +415,7 @@ class AccionPersonalController extends Controller
     private function generarPdfAccionOficial(array $d, string $destino='I', ?string $archivo=null): void
     {
         // ── Helpers ────────────────────────────────────────────────────────
-        $utf = fn($s) => utf8_decode((string)($s ?? ''));
+        $utf = static fn($s): string => mb_convert_encoding((string)($s ?? ''), 'Windows-1252', 'UTF-8');
 
         // Traducción de meses al español para date()
         $meses = [
@@ -551,7 +589,11 @@ class AccionPersonalController extends Controller
         $pdf->Cell(190, 5, $utf('MOTIVACIÓN: (adjuntar anexo si lo posee)'), 'LTR', 1, 'L');
         $pdf->SetFont('Arial', '', 8);
         $yMotStart = $pdf->GetY();
-        $pdf->MultiCell(190, 4, $utf($d['explicacion_legal'] ?? ''), 'LR', 'J');
+        $motivacion=(string)($d['explicacion_legal'] ?? '');
+        if(!empty($d['tipo_novedad_jornada'])){
+            $motivacion.="\nJornada temporal: {$d['tipo_novedad_jornada']} | ".($d['propuesta_horas_jornada']??'').' horas diarias | '.($d['fecha_rige_desde']??'').' a '.($d['fecha_rige_hasta']??'').'. Horario: '.($d['hora_entrada_propuesta']??'').' - '.($d['hora_salida_propuesta']??'').'. Documento: '.($d['documento_jornada']??'').'.';
+        }
+        $pdf->MultiCell(190, 4, $utf($motivacion), 'LR', 'J');
         $yMotEnd = $pdf->GetY();
         // Mínimo 20 mm de caja
         if (($yMotEnd - $yMotStart) < 20) {

@@ -38,6 +38,7 @@
         .total-banner { background:linear-gradient(135deg,var(--navy-900),var(--ocean-600)); color:#fff; border-radius:var(--radius-md); padding:20px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
         .total-banner-num { font-size:2.8rem; font-weight:900; font-family:var(--font-display); }
         .total-banner-label { font-size:.8rem; text-transform:uppercase; letter-spacing:.2em; opacity:.8; }
+        .stats-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(420px,2fr);gap:18px;margin:20px 0}.stats-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius-md);padding:18px}.gender-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #eef2f7}.gender-row:last-child{border:0}.gender-value{text-align:right}.gender-value strong,.gender-value small{display:block}.gender-value small{margin-top:2px;color:var(--ink-600);font-size:.7rem}.gender-bar{height:7px;background:#e8eef4;border-radius:99px;overflow:hidden;grid-column:1/-1}.gender-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--ocean-700),var(--teal-500))}.stats-empty{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:12px;background:#f8fbff;color:var(--ink-600);font-size:.82rem;line-height:1.45}.stats-empty i{color:var(--ocean-700);font-size:1rem}@media(max-width:900px){.stats-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
@@ -62,15 +63,12 @@
                         <h2>Reportes Generales</h2>
                         <p>Personal agrupado jerárquicamente por Procesos Gobernantes, Sustantivos y Adjetivos. Exporte en PDF o Excel para auditorías institucionales y planificación.</p>
                         <div class="hero-actions">
-                            <button class="btn btn-primary" id="btn-export-pdf" onclick="exportar('PDF')">
+                            <a class="btn btn-primary" id="btn-export-pdf" href="<?= BASE_URL ?>/reportes/exportar-pdf">
                                 <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                            </button>
-                            <button class="btn btn-outline" id="btn-export-excel" onclick="exportar('Excel')">
+                            </a>
+                            <a class="btn btn-outline" id="btn-export-excel" href="<?= BASE_URL ?>/reportes/exportar-excel">
                                 <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                            </button>
-                            <button class="btn btn-ghost" id="btn-imprimir" onclick="window.print()">
-                                <i class="bi bi-printer"></i> Imprimir
-                            </button>
+                            </a>
                             <?php if(Auth::can('auditoria','visualizar')): ?><a class="btn btn-ghost" href="<?= BASE_URL ?>/auditoria/reportes"><i class="bi bi-shield-check"></i> Auditoría por usuario</a><?php endif; ?>
                         </div>
                     </div>
@@ -98,6 +96,31 @@
                     <div style="opacity:.3; font-size:4rem;">
                         <i class="bi bi-building-fill"></i>
                     </div>
+                </div>
+
+                <div class="stats-grid">
+                    <section class="stats-card">
+                        <h3><i class="bi bi-gender-ambiguous"></i> Distribución por género</h3>
+                        <?php if (!empty($estadisticasGenero)): ?>
+                            <?php foreach ($estadisticasGenero as $g): $pct=$totales['empleados']?round(((int)$g['total']/$totales['empleados'])*100,1):0; ?>
+                                <div class="gender-row">
+                                    <span><?= htmlspecialchars($g['genero']) ?></span>
+                                    <div class="gender-value"><strong><?= (int)$g['total'] ?> · <?= $pct ?>%</strong><small><?= (int)$g['activos'] ?> activos</small></div>
+                                    <div class="gender-bar"><span style="width:<?= $pct ?>%"></span></div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="stats-empty" role="status"><i class="bi bi-info-circle"></i><span><?= !empty($erroresEstadisticas['genero']) ? 'No fue posible consultar la distribución por género. El incidente quedó registrado para revisión.' : 'No existen datos de género registrados.' ?></span></div>
+                        <?php endif; ?>
+                    </section>
+                    <section class="stats-card">
+                        <h3><i class="bi bi-award"></i> Hitos de servicio del año</h3>
+                        <?php if (!empty($erroresEstadisticas['hitos'])): ?>
+                            <div class="stats-empty" role="status"><i class="bi bi-info-circle"></i><span>No fue posible consultar los hitos de servicio. El incidente quedó registrado para revisión.</span></div>
+                        <?php else: ?>
+                            <div class="table-wrap"><table><thead><tr><th>Funcionario</th><th>Hito</th><th>Fecha</th><th>Área</th></tr></thead><tbody><?php if(empty($hitosServicio)): ?><tr><td colspan="4">Sin hitos para el año actual.</td></tr><?php endif; ?><?php foreach(($hitosServicio??[]) as $h): ?><tr><td><?= htmlspecialchars(trim($h['apellidos'].' '.$h['nombres'])) ?></td><td><strong><?= (int)$h['hito_anios'] ?> años</strong></td><td><?= date('d/m/Y',strtotime($h['fecha_hito'])) ?></td><td><?= htmlspecialchars($h['area']??'') ?></td></tr><?php endforeach; ?></tbody></table></div>
+                        <?php endif; ?>
+                    </section>
                 </div>
 
                 <!-- GRUPOS JERÁRQUICOS -->
@@ -163,10 +186,10 @@
                             <strong>Reporte PDF</strong>
                             <small style="color:var(--ink-600);">Formato imprimible, con encabezado institucional y firmas</small>
                         </a>
-                        <a class="export-card excel" href="<?= BASE_URL ?>/talento-humano/empleado/exportar">
+                        <a class="export-card excel" href="<?= BASE_URL ?>/reportes/exportar-excel">
                             <i class="bi bi-file-earmark-spreadsheet-fill"></i>
-                            <strong>Directorio CSV</strong>
-                            <small style="color:var(--ink-600);">Directorio completo para análisis institucional</small>
+                            <strong>Libro Excel XLSX</strong>
+                            <small style="color:var(--ink-600);">Funcionarios, historial, acciones, vacaciones, hitos y Paz y Salvo</small>
                         </a>
                         <a class="export-card csv" href="<?= BASE_URL ?>/reportes/exportar-csv">
                             <i class="bi bi-filetype-csv"></i>

@@ -19,6 +19,9 @@ $assert(str_contains($vista, 'appearance: textfield') && str_contains($vista, '-
 $assert(str_contains($controlador, "'contacto_nombre'=>\$e['contacto_emergencia']") && str_contains($controlador, "'contacto_tel_cel'=>\$e['tel_emergencia']"), 'El contacto de emergencia no se precarga desde el expediente.');
 $assert(str_contains($controlador, "\$_SESSION['socio_flash']") && str_contains($controlador, "'errorFormulario'"), 'El formulario pierde los datos cuando ocurre un error al guardar.');
 $assert(str_contains($modelo, 'validarDatos($datos, $entrada)') && str_contains($modelo, 'beginTransaction()'), 'El guardado no valida o no es transaccional.');
+$assert(str_contains($modelo, "'genero'") && !str_contains($modelo, "'provincia_ciudad_nac','sexo'"), 'El modelo socioeconómico no coincide con la columna genero de su tabla.');
+$assert(str_contains($vista, 'id="genero" name="genero"') && str_contains($controlador, "'genero'=>\$e['genero'] ?? \$e['sexo']"), 'La precarga y el formulario socioeconómico no conservan el contrato genero/sexo correcto.');
+$assert(str_contains($pdf, "'GENERO','genero'"), 'El PDF socioeconómico no imprime el género guardado.');
 $assert(str_contains($modelo, 'for($i=1;$i<=3;$i++)') || str_contains($modelo, 'for ($i=1;$i<=3;$i++)'), 'Las colecciones no respetan las tres filas del formato autorizado.');
 $assert(str_contains($pdf, 'celdaTablaMultilinea') && str_contains($pdf, 'envolverTexto'), 'La experiencia laboral del PDF puede superponer textos largos.');
 $assert(str_contains($migracion, 'UX_th_estudios_empleado_vigente'), 'La base no impide más de un estudio vigente por funcionario.');

@@ -14,12 +14,8 @@ $routes = (string)file_get_contents($root . '/index.php');
 $migration = (string)file_get_contents($root . '/database/migracion_seguridad_auditoria_20260810.sql');
 $auditController = (string)file_get_contents($root . '/modules/auditoria/Controladores/AuditoriaController.php');
 $auditView = (string)file_get_contents($root . '/modules/auditoria/Vistas/reporte_auditoria.php');
-// El aviso de inactividad propio (session_guard.js) fue reemplazado por el
-// SweetAlert2 compartido con el resto del Portal APM (Portal, Control de
-// Bienes, Bitácoras) -- decisión explícita del usuario al integrar esta
-// app; el backend (Auth::renewSession()/expireForInactivity()) es el mismo
-// de siempre. Ver js/inactivity-warning.js en la raíz del portal.
-$sessionJs = (string)file_get_contents(dirname($root, 2) . '/js/inactivity-warning.js');
+$logsView = (string)file_get_contents($root . '/modules/auditoria/Vistas/logs.php');
+$sessionJs = (string)file_get_contents($root . '/public/js/session_guard.js');
 $sessionView = (string)file_get_contents($root . '/shared/footer_scripts.php');
 $loginView = (string)file_get_contents($root . '/core/Vistas/login.php');
 
@@ -45,10 +41,11 @@ $assert(str_contains($routes, "auditoria/reportes/exportar"), 'Falta la exportac
 $assert(str_contains($auditController, 'reporteAuditoria') && str_contains($auditController, 'exportarReporteAuditoria'), 'Falta reporte general o por usuario.');
 $assert(str_contains($auditController, 'usuario=:usuario'), 'El reporte no filtra por usuario con parámetro enlazado.');
 $assert(str_contains($auditView, 'Auditoría por usuario') && str_contains($auditView, 'Reporte general de auditoría'), 'La vista no diferencia reporte general y detalle por usuario.');
+$assert(str_contains($logsView, 'class="logs-filters"') && str_contains($logsView, 'class="logs-filter-row"'), 'Los filtros de logs no conservan la distribución compacta y responsiva.');
+$assert(str_contains($logsView, 'name="desde"') && str_contains($logsView, 'name="hasta"') && str_contains($logsView, 'name="modulo"'), 'Los filtros de fecha o módulo dejaron de enviarse al servidor.');
 
-$assert(str_contains($sessionView, 'APP_INACTIVIDAD') && str_contains($sessionView, 'sweetalert2'), 'Falta el aviso accesible de inactividad.');
-$assert(str_contains($sessionView, '/sesion/renovar') && str_contains($sessionView, '/sesion/expirar'), 'El aviso no renueva o cierra la sesión realmente.');
-$assert(str_contains($sessionJs, 'Swal.fire') && str_contains($sessionJs, 'keepaliveUrl'), 'El script de aviso no muestra el diálogo ni renueva la sesión.');
+$assert(str_contains($sessionView, 'sessionWarning') && str_contains($sessionView, 'sessionCountdown'), 'Falta el aviso accesible de inactividad.');
+$assert(str_contains($sessionJs, '/sesion/renovar') && str_contains($sessionView, '/sesion/expirar'), 'El aviso no renueva o cierra la sesión realmente.');
 $assert(str_contains($auth, 'SESSION_RENOVADA') && str_contains($auth, 'SESSION_EXPIRADA'), 'La renovación o expiración no queda auditada.');
 $assert(str_contains($loginView, 'Acceder al sistema') && str_contains($loginView, 'data-password-toggle'), 'El acceso no conserva el nuevo orden o control de contraseña.');
 

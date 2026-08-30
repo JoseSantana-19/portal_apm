@@ -11,6 +11,7 @@ require_once ROOT_PATH . 'modules/Central/models/InvPeriodo.php';
 require_once ROOT_PATH . 'modules/Central/models/InvParametro.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/InvItemSistema.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/LogModel.php';
+require_once ROOT_PATH . 'helpers/excel_export_helper.php';
 
 class BinController extends Controller {
     private $inventarioModel;
@@ -49,19 +50,10 @@ class BinController extends Controller {
     }
 
     /**
-     * Dashboard Principal de Inventario (Tabla y Stats)
+     * Dashboard general de inventario y operación.
      */
     public function index() {
-        $this->registrarAuditoria('ACCESO', 'inv', 'Acceso al módulo de Inventario General');
-        
-        $filtros = [
-            'categoria' => isset($_GET['categoria']) ? $_GET['categoria'] : '',
-            'unidad_id' => isset($_GET['unidad_id']) ? $_GET['unidad_id'] : '',
-            'estado'    => isset($_GET['estado'])    ? $_GET['estado']    : '',
-            'termino'   => isset($_GET['termino'])   ? $_GET['termino']   : '',
-            'sort_by'   => isset($_GET['sort_by'])   ? $_GET['sort_by']   : '',
-            'sort_dir'  => isset($_GET['sort_dir'])  ? $_GET['sort_dir']  : ''
-        ];
+        $this->registrarAuditoria('ACCESO', 'inv', 'Acceso al Dashboard General');
 
         $stats         = $this->inventarioModel->obtenerEstadisticas();
         $resumenOperativo = $this->inventarioModel->obtenerResumenOperativo();
@@ -94,28 +86,13 @@ class BinController extends Controller {
         $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
         $tasaIva       = $periodoActivo ? $periodoActivo['tasa_iva'] : 15.0;
 
-        $categorias = $this->categoriasAsignables($this->cabeceraModel->obtenerTodos('categorias'));
-        $zonas      = $this->cabeceraModel->obtenerTodos('zonas');
-        $estados    = $this->cabeceraModel->obtenerTodos('estados');
-        $personal   = $this->talentoModel->obtenerPersonal();
-        $unidades   = $this->cabeceraModel->obtenerTodos('unidades');
-
-        $tiempoVigenciaInventario = max(60, min(3600, (int)(new InvParametro())->obtener('tiempo_vigencia_inventario', 600)));
-
         $this->render('bines/listar', [
             'stats'             => $stats,
             'resumenOperativo'  => $resumenOperativo,
             'accionesFrecuentes'=> $accionesFrecuentes,
             'tasaIva'           => $tasaIva,
-            'categorias'        => $categorias,
-            'zonas'             => $zonas,
-            'estados'           => $estados,
-            'personal'          => $personal,
-            'unidades'          => $unidades,
-            'filtros'           => $filtros,
             'periodoActivo'     => $periodoActivo,
-            'tiempoVigenciaInventario' => $tiempoVigenciaInventario,
-        ], 'Inventario General - Sistema Portuario');
+        ], 'Dashboard General - Sistema Portuario');
     }
 
     /**
@@ -166,7 +143,7 @@ class BinController extends Controller {
         if ($isDatatable && isset($_GET['order'][0])) {
             $colIdx = (int)$_GET['order'][0]['column'];
             $dir = $_GET['order'][0]['dir'];
-            $colNameMap = ['secuencial', 'nombre', 'categoria', 'unidad', 'valor', 'iva', 'total', 'estado'];
+            $colNameMap = ['secuencial', 'nombre', 'categoria', 'unidad', 'existencia', 'valor', 'iva', 'total', 'estado'];
             if (isset($colNameMap[$colIdx])) {
                 $filtros['sort_by'] = $colNameMap[$colIdx];
                 $filtros['sort_dir'] = $dir;
@@ -240,13 +217,14 @@ class BinController extends Controller {
                        . '</div>';
 
                 $data[] = [
-                    'secuencial' => '<span class="secuencial-cell">' . htmlspecialchars($item['secuencial']) . '</span>',
+                    'secuencial' => '<code class="secuencial-cell">' . htmlspecialchars($item['producto_codigo'] ?? $item['secuencial']) . '</code>',
                     'nombre'     => $nombreHtml,
                     'categoria'  => '<span class="cat-badge" style="--cat-color:' . $catColor . '">' . htmlspecialchars($cat) . '</span>',
                     'unidad'     => '<span style="font-weight:600;color:var(--text-muted);font-size:12.5px;">' . htmlspecialchars($unidad) . '</span>',
-                    'valor'      => '<span style="font-weight:600; font-size:12.5px;">$' . number_format($valorBase, 2) . '</span>',
+                    'existencia' => '<strong class="stock-value">' . number_format((float)($item['cantidad'] ?? 0), 2) . '</strong>',
+                    'valor'      => '<span style="font-weight:600; font-size:12.5px;">' . CommonHelper::formatearPrecio($valorBase) . '</span>',
                     'iva'        => $ivaHtml,
-                    'total'      => '<strong style="color:var(--primary); font-size:13px;">$' . number_format($valorTotal, 2) . '</strong>',
+                    'total'      => '<strong style="color:var(--primary); font-size:13px;">' . CommonHelper::formatearImporte($valorTotal) . '</strong>',
                     'estado'     => '<span class="status-badge ' . htmlspecialchars((string)($item['estadoClase'] ?? 'inactive')) . '">' . htmlspecialchars((string)($item['estado'] ?? 'Desconocido')) . '</span>',
                     'acciones'   => $accionesHtml
                 ];
@@ -280,16 +258,17 @@ class BinController extends Controller {
                 $unidad = !empty($item['unidad_abrev']) ? $item['unidad_abrev'] : (!empty($item['unidad_nombre']) ? $item['unidad_nombre'] : 'u.');
 
                 $html .= '<tr>';
-                $html .= '<td class="secuencial-cell">' . htmlspecialchars($item['secuencial']) . '</td>';
+                $html .= '<td><code class="secuencial-cell">' . htmlspecialchars($item['producto_codigo'] ?? $item['secuencial']) . '</code></td>';
                 $html .= '<td><div class="item-name">'
                        . '<div class="item-img" style="color:' . $catColor . '; background: ' . $catColor . '15;"><i class="fa-solid ' . $icono . '"></i></div>'
                        . '<div class="item-info"><strong>' . htmlspecialchars($item['nombre']) . '</strong>'
                        . '<span>Marca: ' . htmlspecialchars($item['marca']) . '</span></div></div></td>';
                 $html .= '<td><span class="cat-badge" style="--cat-color:' . $catColor . '">' . htmlspecialchars($cat) . '</span></td>';
                 $html .= '<td style="font-weight:600;color:var(--text-muted);font-size:12.5px;">' . htmlspecialchars($unidad) . '</td>';
-                $html .= '<td style="font-weight:600; font-size:12.5px;">$' . number_format($valorBase, 2) . '</td>';
+                $html .= '<td><strong class="stock-value">' . number_format((float)($item['cantidad'] ?? 0), 2) . '</strong></td>';
+                $html .= '<td style="font-weight:600; font-size:12.5px;">' . CommonHelper::formatearPrecio($valorBase) . '</td>';
                 $html .= $ivaCellsHtml;
-                $html .= '<td><strong style="color:var(--primary); font-size:13px;">$' . number_format($valorTotal, 2) . '</strong></td>';
+                $html .= '<td><strong style="color:var(--primary); font-size:13px;">' . CommonHelper::formatearImporte($valorTotal) . '</strong></td>';
                 $html .= '<td><span class="status-badge ' . htmlspecialchars((string)($item['estadoClase'] ?? 'inactive')) . '">' . htmlspecialchars((string)($item['estado'] ?? 'Desconocido')) . '</span></td>';
                 $html .= '<td class="acciones-cell columna-acciones">'
                        . '<button class="btn-accion btn-ver" onclick="verDetallesInventario(' . $item['id'] . ')" title="Ver Detalle"><i class="fa-solid fa-eye"></i></button>'
@@ -300,6 +279,53 @@ class BinController extends Controller {
 
             $this->jsonResponse(['rows' => $html, 'total' => $total, 'page' => $page, 'limit' => $limit]);
         }
+    }
+
+    /** Exportación completa o resumida compatible con Microsoft Excel. */
+    public function exportarInventarioExcel(): void {
+        $modo = (isset($_GET['modo']) && $_GET['modo'] === 'resumido') ? 'resumido' : 'completo';
+        $filtros = [
+            'categoria' => trim((string)($_GET['categoria'] ?? '')),
+            'unidad_id' => trim((string)($_GET['unidad_id'] ?? '')),
+            'estado' => trim((string)($_GET['estado'] ?? '')),
+            'segmento' => trim((string)($_GET['segmento'] ?? '')),
+            'termino' => trim((string)($_GET['termino'] ?? '')),
+            'sort_by' => 'nombre',
+            'sort_dir' => 'ASC'
+        ];
+        $items = $this->inventarioModel->filtrar($filtros, null, null);
+        $periodo = $this->periodoModel->obtenerPeriodoActivo();
+        $tasaIva = $periodo ? (float)$periodo['tasa_iva'] : 0.0;
+        $archivo = 'inventario_' . $modo . '_' . date('Ymd_His') . '.xls';
+        $columnas = $modo === 'resumido' ? [
+            ['titulo'=>'Código','tipo'=>'text','ancho'=>15], ['titulo'=>'Producto','tipo'=>'text','ancho'=>34],
+            ['titulo'=>'Categoría','tipo'=>'text','ancho'=>28], ['titulo'=>'Unidad','tipo'=>'text','ancho'=>14],
+            ['titulo'=>'Existencia','tipo'=>'decimal','ancho'=>13], ['titulo'=>'Valor total','tipo'=>'currency','ancho'=>16]
+        ] : [
+            ['titulo'=>'ID','tipo'=>'integer','ancho'=>9], ['titulo'=>'Código','tipo'=>'text','ancho'=>15],
+            ['titulo'=>'Código clasificación','tipo'=>'text','ancho'=>20], ['titulo'=>'Producto','tipo'=>'text','ancho'=>34],
+            ['titulo'=>'Marca','tipo'=>'text','ancho'=>20], ['titulo'=>'Categoría','tipo'=>'text','ancho'=>28],
+            ['titulo'=>'Tipo','tipo'=>'text','ancho'=>10], ['titulo'=>'Unidad','tipo'=>'text','ancho'=>14],
+            ['titulo'=>'Existencia','tipo'=>'decimal','ancho'=>13], ['titulo'=>'Precio unitario','tipo'=>'price','ancho'=>20],
+            ['titulo'=>'IVA','tipo'=>'text','ancho'=>12], ['titulo'=>'Valor total','tipo'=>'currency','ancho'=>16],
+            ['titulo'=>'Zona','tipo'=>'text','ancho'=>20], ['titulo'=>'Estado','tipo'=>'text','ancho'=>16],
+            ['titulo'=>'Responsable','tipo'=>'text','ancho'=>28], ['titulo'=>'Fecha de registro','tipo'=>'date','ancho'=>16],
+            ['titulo'=>'Observaciones','tipo'=>'text','ancho'=>42]
+        ];
+        $filas = [];
+        foreach ($items as $item) {
+            $valor = (float)($item['valor'] ?? 0);
+            $cantidad = (float)($item['cantidad'] ?? 0);
+            $aplicaIva = (int)($item['producto_aplica_iva'] ?? 0) === 1;
+            $total = $valor + ($aplicaIva ? $valor * $tasaIva / 100 : 0);
+            $unidad = $item['unidad_abrev'] ?? ($item['unidad_nombre'] ?? 'u.');
+            $filas[] = $modo === 'resumido'
+                ? [$item['producto_codigo'] ?? $item['secuencial'] ?? '', $item['nombre'] ?? '', $item['categoria'] ?? '', $unidad, $cantidad, $total]
+                : [$item['id'] ?? '', $item['secuencial'] ?? '', $item['producto_codigo'] ?? '', $item['nombre'] ?? '', $item['marca'] ?? '', $item['categoria'] ?? '', $item['tipo_bien'] ?? '', $unidad, $cantidad, $valor, $aplicaIva ? $tasaIva . '%' : 'No aplica', $total, $item['zona'] ?? '', $item['estado'] ?? '', $item['responsable'] ?? '', $item['fecha_registro'] ?? '', $item['observaciones'] ?? ''];
+        }
+        $filtrosAplicados = array_filter([$filtros['categoria'], $filtros['estado'], $filtros['segmento'], $filtros['termino']], static fn($v) => $v !== '');
+        $subtitulo = ucfirst($modo) . ' · ' . ($filtrosAplicados ? 'Filtros: ' . implode(' · ', $filtrosAplicados) : 'Inventario general sin filtros');
+        exportarExcelEstilizado($archivo, 'Inventario General', $subtitulo, $columnas, $filas);
     }
 
     /**
@@ -329,9 +355,9 @@ class BinController extends Controller {
         
         foreach ($items as &$item) {
             $valorBase = (float)$item['valor'];
-            $item['valor_formateado'] = number_format($valorBase, 2);
+            $item['valor_formateado'] = CommonHelper::formatearPrecio($valorBase, false);
             $item['cantidad'] = max(1, (int)($item['cantidad'] ?? 1));
-            $item['total_formateado'] = number_format($valorBase * $item['cantidad'], 2);
+            $item['total_formateado'] = CommonHelper::formatearImporte($valorBase * $item['cantidad'], false);
         }
 
         $this->jsonResponse($items);
@@ -385,7 +411,7 @@ class BinController extends Controller {
             'zona_id'        => (int)$_POST['zona_id'],
             'estado_id'      => (int)$_POST['estado_id'],
             'responsable_id' => !empty($_POST['responsable_id']) ? (int)$_POST['responsable_id'] : null,
-            'valor'          => (float)$_POST['valor'],
+            'valor'          => CommonHelper::redondearPrecio($_POST['valor'] ?? 0),
             'observaciones'  => trim($_POST['observaciones']),
             'fecha_registro' => !empty($_POST['fecha_registro']) ? $_POST['fecha_registro'] : date('Y-m-d')
         ];
@@ -583,7 +609,7 @@ class BinController extends Controller {
             'ubicacion'        => trim($_POST['ubicacion'] ?? ''),
             'existencia_min'   => (float)($_POST['existencia_min'] ?? 0),
             'existencia_max'   => (float)($_POST['existencia_max'] ?? 0),
-            'precio_promedio'  => (float)($_POST['precio_promedio'] ?? 0),
+            'precio_promedio'  => CommonHelper::redondearPrecio($_POST['precio_promedio'] ?? 0),
             'existencia_actual'=> (float)($_POST['existencia_actual'] ?? 0),
             'tipo_bien'        => 'CC', // El modelo lo determina desde el código de la categoría.
             'responsable_id'   => !empty($_POST['responsable_id']) ? (int)$_POST['responsable_id'] : null,

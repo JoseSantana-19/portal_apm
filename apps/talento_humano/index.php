@@ -35,6 +35,15 @@ define('PORTAL_SESSION_NAME', session_name());
 define('PORTAL_SESSION_SAVE_PATH', session_save_path());
 
 require_once ROOT . '/core/Config.php';
+date_default_timezone_set(Config::timezone());
+require_once ROOT . '/core/InstitutionalClock.php';
+// Red de seguridad global para excepciones/errores fatales NO capturados en
+// ningún otro punto (equivalente PHP 7.4 -- sin match()/never de origen).
+// Los caminos ya establecidos (Auth::requireCsrf/requirePermission,
+// Conexion::registrarErrorLog) siguen manejando sus propios casos tal cual
+// estaban -- este solo cubre lo que se escape de ahí.
+require_once ROOT . '/core/ErrorHandler.php';
+ErrorHandler::register();
 require_once ROOT . '/config/Catalogos.php';
 require_once ROOT . '/core/Database.php'; // Conexion -- Auth (loginTrusted/syncPortalSession) la necesita antes del puente
 require_once ROOT . '/core/Auth.php';
@@ -92,7 +101,8 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
-header("Content-Security-Policy: default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline'; connect-src 'self'");
+$__mapTileOrigin = Config::mapTileOrigin();
+header("Content-Security-Policy: default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; img-src 'self' data: {$__mapTileOrigin}; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline'; connect-src 'self'");
 if ((!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
     || (Config::trustProxyHeaders() && strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https')) {
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
@@ -104,7 +114,10 @@ require_once ROOT . '/core/Router.php';
 require_once ROOT . '/core/Controller.php';
 require_once ROOT . '/core/Model.php';
 require_once ROOT . '/core/Database.php';
+require_once ROOT . '/core/XlsxWriter.php';
 require_once ROOT . '/core/TopbarService.php';
+require_once ROOT . '/core/DraftService.php';
+require_once ROOT . '/core/DraftController.php';
 require_once ROOT . '/core/AuthController.php';
 
 // ── Controladores del módulo Talento Humano ───────────────────────────────────
@@ -117,6 +130,7 @@ require_once ROOT . '/modules/talento-humano/Controladores/AccionPersonalControl
 require_once ROOT . '/modules/talento-humano/Modelos/AccionPersonalModel.php';
 require_once ROOT . '/modules/talento-humano/Controladores/BibliotecaController.php';
 require_once ROOT . '/modules/talento-humano/Controladores/EstudioSeguridadController.php';
+require_once ROOT . '/modules/talento-humano/Controladores/PazSalvoController.php';
 
 // ── Controladores del módulo Administración ───────────────────────────────────
 require_once ROOT . '/modules/admin/Controladores/AdminController.php';
@@ -149,6 +163,7 @@ $router->add('talento-humano/inicio',             'EmpleadoController', 'inicio'
 $router->add('talento-humano/directorio',         'EmpleadoController', 'directorio');
 $router->add('talento-humano/empleado/crear',     'EmpleadoController', 'crear');
 $router->add('talento-humano/empleado/guardar',   'EmpleadoController', 'guardar');
+$router->add('talento-humano/empleado/verificar-cedula', 'EmpleadoController', 'verificarCedula');
 $router->add('talento-humano/empleado/editar',    'EmpleadoController', 'editar');
 $router->add('talento-humano/empleado/borrar',    'EmpleadoController', 'borrar');
 $router->add('talento-humano/empleado/eliminar',  'EmpleadoController', 'eliminar');
@@ -169,11 +184,20 @@ $router->add('talento-humano/asistencia',          'AsistenciaController',  'ind
 $router->add('talento-humano/vacaciones',          'VacacionesController',  'index');
 $router->add('talento-humano/desempeno',           'DesempenoController',   'index');
 $router->add('talento-humano/capacitacion',        'CapacitacionController','index');
+$router->add('talento-humano/paz-salvo',           'PazSalvoController','index');
+$router->add('talento-humano/paz-salvo/crear',     'PazSalvoController','crear');
+$router->add('talento-humano/paz-salvo/guardar',   'PazSalvoController','guardar');
+$router->add('talento-humano/paz-salvo/ver',       'PazSalvoController','ver');
+$router->add('talento-humano/paz-salvo/guardar-seccion','PazSalvoController','guardarSeccion');
+$router->add('talento-humano/paz-salvo/cerrar',    'PazSalvoController','cerrar');
+$router->add('talento-humano/paz-salvo/imprimir',  'PazSalvoController','imprimir');
+$router->add('talento-humano/paz-salvo/formato-blanco','PazSalvoController','formatoBlanco');
 
 // Rutas del módulo Talento Humano – Estudio de Seguridad Socioeconómico
 $router->add('talento-humano/estudio-seguridad',          'EstudioSeguridadController', 'index');
 $router->add('talento-humano/estudio-seguridad/guardar',  'EstudioSeguridadController', 'guardar');
 $router->add('talento-humano/estudio-seguridad/imprimir', 'EstudioSeguridadController', 'imprimir');
+$router->add('talento-humano/estudio-seguridad/resolver-mapa', 'EstudioSeguridadController', 'resolverMapa');
 
 // Rutas del módulo Talento Humano – Fase 2: Acción de Personal
 $router->add('talento-humano/accion-personal',                  'AccionPersonalController', 'index');
@@ -212,10 +236,14 @@ $router->add('admin/maestros/puesto/guardar',     'MaestroController', 'guardarP
 $router->add('reportes',                          'AuditoriaController', 'reportes');
 $router->add('reportes/exportar-csv',             'AuditoriaController', 'exportarCsv');
 $router->add('reportes/exportar-pdf',             'AuditoriaController', 'exportarPdf');
+$router->add('reportes/exportar-excel',           'AuditoriaController', 'exportarExcel');
 $router->add('auditoria/logs',                    'AuditoriaController', 'logs');
 $router->add('auditoria/logs/exportar',           'AuditoriaController', 'exportarLogs');
 $router->add('auditoria/reportes',                'AuditoriaController', 'reporteAuditoria');
 $router->add('auditoria/reportes/exportar',       'AuditoriaController', 'exportarReporteAuditoria');
+$router->add('borradores/obtener',                'DraftController', 'load');
+$router->add('borradores/guardar',                'DraftController', 'save');
+$router->add('borradores/eliminar',               'DraftController', 'delete');
 
 // Ruta por defecto
 $router->add('', 'EmpleadoController', 'index');
@@ -256,6 +284,7 @@ if (!$esRecursoEstatico && !in_array($_rutaSolicitada, $_rutasPublicas, true)) {
         ['#^auditoria/(?:logs|reportes)(?:/|$)#', 'auditoria', 'visualizar'],
         ['#^reportes(?:/|$)#', 'reportes', 'visualizar'],
         ['#^talento-humano/empleado/eliminar$#', 'directorio', 'eliminar'],
+        ['#^talento-humano/empleado/verificar-cedula$#', 'directorio', 'visualizar'],
         ['#^talento-humano/empleado/crear$#', 'empleados', 'crear'],
         ['#^talento-humano/empleado/editar$#', 'empleados', 'editar'],
         ['#^talento-humano/empleado/guardar$#', 'empleados', empty($_POST['empId']) ? 'crear' : 'editar'],
@@ -270,9 +299,14 @@ if (!$esRecursoEstatico && !in_array($_rutaSolicitada, $_rutasPublicas, true)) {
         ['#^talento-humano/accion-personal/catalogo/(?:unidad|puesto)$#', 'maestros', 'crear'],
         ['#^talento-humano/accion-personal(?:/|$)#', 'acciones', $method === 'GET' ? 'visualizar' : 'crear'],
         ['#^talento-humano/estudio-seguridad/guardar$#', 'socioeconomico', empty($_POST['estudio_id']) ? 'crear' : 'editar'],
+        ['#^talento-humano/estudio-seguridad/resolver-mapa$#', 'socioeconomico', empty($_POST['estudio_id']) ? 'crear' : 'editar'],
         ['#^talento-humano/estudio-seguridad(?:/|$)#', 'socioeconomico', 'visualizar'],
         ['#^talento-humano/biblioteca(?:/|$)#', 'biblioteca', 'visualizar'],
-        ['#^talento-humano/(?:asistencia|vacaciones|desempeno|capacitacion)(?:/|$)#', 'prototipos', 'visualizar'],
+        ['#^talento-humano/vacaciones(?:/|$)#', 'vacaciones', 'visualizar'],
+        ['#^talento-humano/paz-salvo/(?:guardar|guardar-seccion)$#', 'paz_salvo', 'crear'],
+        ['#^talento-humano/paz-salvo/cerrar$#', 'paz_salvo', 'editar'],
+        ['#^talento-humano/paz-salvo(?:/|$)#', 'paz_salvo', 'visualizar'],
+        ['#^talento-humano/(?:asistencia|desempeno|capacitacion)(?:/|$)#', 'prototipos', 'visualizar'],
         ['#^(?:talento-humano(?:/inicio)?|)$#', 'dashboard', 'visualizar'],
     ];
     foreach ($routePolicies as [$pattern, $module, $action]) {

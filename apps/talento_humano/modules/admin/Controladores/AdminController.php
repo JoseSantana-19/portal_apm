@@ -12,12 +12,17 @@ final class AdminController extends Controller
 
     public function usuarios(): void
     {
-        $usuarios=$this->modelo->usuarios();
+        $usuarios  = $this->modelo->usuarios();
+        $empleados = $this->modelo->empleadosDisponibles();
         $this->cargarVista('admin','usuarios_reales',[
-            'usuarios'=>$usuarios,'roles'=>$this->modelo->roles(),'empleados'=>$this->modelo->empleadosDisponibles(),
-            'total'=>count($usuarios),'activos'=>count(array_filter($usuarios,fn($u)=>(bool)$u['estado'])),
-            'inactivos'=>count(array_filter($usuarios,fn($u)=>!(bool)$u['estado'])),
-            'claveTemporal'=>$_SESSION['flash_secret']??null,
+            'usuarios'        => $usuarios,
+            'roles'           => $this->modelo->roles(),
+            'empleados'       => $empleados,
+            'rolesPorPuesto'  => $this->modelo->mapaRolesPorPuesto(),
+            'total'           => count($usuarios),
+            'activos'         => count(array_filter($usuarios, fn($u) => (bool)$u['estado'])),
+            'inactivos'       => count(array_filter($usuarios, fn($u) => !(bool)$u['estado'])),
+            'claveTemporal'   => $_SESSION['flash_secret'] ?? null,
         ]);
         unset($_SESSION['flash_secret']);
     }
@@ -121,7 +126,7 @@ final class AdminController extends Controller
     public function descargarDocumento(): void
     {
         $id=(int)($_GET['id']??0);$doc=$this->modelo->documento($id);
-        if(!$doc || !is_file($doc['ruta_privada'])){http_response_code(404);exit('Documento no encontrado.');}
+        if(!$doc || !is_file($doc['ruta_privada'])){ErrorHandler::abort(404, 'Documento no encontrado.');}
         $this->modelo->registrarDescarga($id);
         header('Content-Type: '.$doc['mime_type']);header('Content-Length: '.filesize($doc['ruta_privada']));
         header('Content-Disposition: attachment; filename="'.str_replace('"','',basename($doc['nombre_archivo'])).'"');
@@ -130,7 +135,7 @@ final class AdminController extends Controller
 
     private function post(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Metodo no permitido.');}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_POST['_csrf']??null);
     }
 

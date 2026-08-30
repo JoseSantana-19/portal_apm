@@ -7,6 +7,7 @@ require_once ROOT_PATH . 'modules/Control_Bines/models/EstacionModel.php';
 require_once ROOT_PATH . 'modules/Talento_Humano/models/EmpleadoModel.php';
 require_once ROOT_PATH . 'modules/Central/models/NotificacionModel.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/LogModel.php';
+require_once ROOT_PATH . 'helpers/excel_export_helper.php';
 
 class EstacionController extends Controller {
     private $cabeceraModel;
@@ -94,14 +95,10 @@ class EstacionController extends Controller {
 
             if ($tablaActiva !== 'busqueda_global') {
                 if ($tablaActiva === 'productos') {
-                    $paginacion = $this->cabeceraModel->obtenerPaginaMaestros(
-                        $tablaActiva,
-                        $tipoBien,
-                        $busquedaMaestro,
-                        $paginaMaestro,
-                        $porPaginaMaestro
-                    );
-                    $items = $paginacion['items'];
+                    // Carga completa para que DataTables filtre al instante sin
+                    // formulario, botón ni recargas del servidor.
+                    $items = $this->cabeceraModel->obtenerTodos($tablaActiva, $tipoBien, true);
+                    $paginacion = null;
                 } else {
                     $items = $this->cabeceraModel->obtenerTodos($tablaActiva, $tipoBien, true);
                 }
@@ -160,6 +157,39 @@ class EstacionController extends Controller {
         } catch (Exception $e) {
             $this->jsonResponse(['error' => $e->getMessage()], 400);
         }
+    }
+
+    /** Exporta todo el catálogo de productos, no solo la página visible. */
+    public function exportarProductosExcel(): void {
+        $tipoBien = isset($_GET['tipo']) && $_GET['tipo'] === 'AF' ? 'AF' : 'CC';
+        $modo = isset($_GET['modo']) && $_GET['modo'] === 'resumido' ? 'resumido' : 'completo';
+        $termino = mb_strtolower(trim((string)($_GET['buscar'] ?? '')), 'UTF-8');
+        $items = $this->cabeceraModel->obtenerTodos('productos', $tipoBien, true);
+        if ($termino !== '') {
+            $items = array_values(array_filter($items, static function ($item) use ($termino) {
+                return mb_strpos(mb_strtolower(implode(' ', array_map('strval', $item)), 'UTF-8'), $termino) !== false;
+            }));
+        }
+
+        $campos = $modo === 'resumido'
+            ? ['codigo', 'nombre', 'grupo_nombre', 'unidad_nombre', $tipoBien === 'AF' ? 'unidades_registradas' : 'existencia_actual']
+            : ['id', 'codigo', 'nombre', 'descripcion', 'grupo_nombre', 'unidad_nombre', 'existencia_actual', 'existencia_min', 'existencia_max', 'precio_promedio', 'aplica_iva', 'ubicacion', 'tipo_bien', 'unidades_registradas'];
+        $titulos = [
+            'id'=>'ID','codigo'=>'Código','nombre'=>'Producto','descripcion'=>'Descripción','grupo_nombre'=>'Grupo / Categoría',
+            'unidad_nombre'=>'Unidad','existencia_actual'=>'Existencia actual','existencia_min'=>'Existencia mínima',
+            'existencia_max'=>'Existencia máxima','precio_promedio'=>'Precio promedio','aplica_iva'=>'Tipo de IVA',
+            'ubicacion'=>'Ubicación','tipo_bien'=>'Tipo de bien','unidades_registradas'=>'Unidades registradas'
+        ];
+        $tipos = ['id'=>'integer','existencia_actual'=>'decimal','existencia_min'=>'decimal','existencia_max'=>'decimal','precio_promedio'=>'price','unidades_registradas'=>'integer'];
+        $anchos = ['id'=>9,'codigo'=>15,'nombre'=>34,'descripcion'=>42,'grupo_nombre'=>30,'unidad_nombre'=>16,'ubicacion'=>22,'tipo_bien'=>12];
+        $columnas = array_map(static fn($campo) => ['titulo'=>$titulos[$campo], 'tipo'=>$tipos[$campo]??'text', 'ancho'=>$anchos[$campo]??16], $campos);
+        $archivo = 'catalogo_productos_' . strtolower($tipoBien) . '_' . $modo . '_' . date('Ymd_His') . '.xls';
+        $filas = array_map(static function ($item) use ($campos) {
+            return array_map(static fn($campo) => $item[$campo] ?? '', $campos);
+        }, $items);
+        $subtitulo = ($tipoBien === 'AF' ? 'Activos fijos' : 'Consumo corriente') . ' · ' . ucfirst($modo)
+            . ($termino !== '' ? ' · Búsqueda: ' . $termino : '');
+        exportarExcelEstilizado($archivo, 'Catálogo de Productos', $subtitulo, $columnas, $filas);
     }
 
     /**

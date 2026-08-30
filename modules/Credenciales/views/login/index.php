@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -760,7 +761,12 @@ body.dark-mode .login-error {
 
 </div>
 
+<script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+<script src="<?= APP_URL ?>/js/alerts.js"></script>
 <script src="<?= APP_URL ?>/js/password-hash.js?v=<?= @filemtime(ROOT_PATH . '/js/password-hash.js') ?: time() ?>"></script>
+<?php if (!empty($error)): ?>
+<script>document.addEventListener('DOMContentLoaded', () => PortalAlert.error(<?= json_encode($error) ?>));</script>
+<?php endif; ?>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // Default theme mode (Light Mode default)

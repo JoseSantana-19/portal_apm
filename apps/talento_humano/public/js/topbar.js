@@ -2,7 +2,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     const date = document.getElementById('currentDate');
     if (date) {
-        date.textContent = new Date().toLocaleDateString('es-EC', {
+        const iso = date.dataset.institutionalDate || '';
+        const parts = iso.split('-').map(Number);
+        const institutionalDate = parts.length === 3 && parts.every(Number.isFinite)
+            ? new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0)
+            : new Date();
+        date.textContent = institutionalDate.toLocaleDateString('es-EC', {
             day: '2-digit', month: 'long', year: 'numeric'
         });
     }

@@ -1,7 +1,7 @@
 <?php
 /* estudio_seguridad.php – Vista: Formato Estudio de Seguridad Socioeconómico
    Código: APM-BASC-TH-FO-002 | Fecha: 01/04/2019
-   Formulario completo en 3 partes correspondientes a las páginas 1, 2 y 3 del documento oficial. */
+   Formulario completo en 4 partes, incluida ubicación domiciliaria georreferenciada. */
 
 $e              = $empleado      ?? [];
 $codigoFormato  = $codigoFormato ?? 'APM-BASC-TH-FO-002';
@@ -16,6 +16,7 @@ $modoImpresion  = $modoImpresion ?? false;
     <title>Estudio de Seguridad Socioeconómico | Talento Humano APM</title>
     <meta name="description" content="Formato Estudio de Seguridad Socioeconómico — Autoridad Portuaria de Manta. Código APM-BASC-TH-FO-002.">
     <?php require ROOT . '/shared/head_assets.php'; ?>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/vendor/leaflet/leaflet.css">
     <style>
         /* ── Estilos exclusivos Estudio Seguridad ──────────────────────────── */
 
@@ -57,6 +58,23 @@ $modoImpresion  = $modoImpresion ?? false;
 
         .parte-panel { display: none; animation: floatIn .35s ease both; }
         .parte-panel.active { display: block; }
+
+        .geo-layout { display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:18px;align-items:start; }
+        .geo-card { border:1px solid #dbe4f2;border-radius:14px;background:#f8fbff;padding:15px; }
+        .geo-url-row { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px; }
+        .geo-map { position:relative;height:390px;margin-top:14px;border:1px solid #cbd5e1;border-radius:13px;background:#e8eef4;overflow:hidden; }
+        .geo-map-load-error { position:absolute;z-index:500;inset:auto 14px 14px;display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid #fecaca;border-radius:10px;background:rgba(255,247,247,.96);color:#b91c1c;font-size:.75rem;box-shadow:0 8px 20px rgba(127,29,29,.12); }
+        .geo-coordinates { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px; }
+        .geo-status { display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:9px;background:#eef2ff;color:#475569;font-size:.74rem;line-height:1.4; }
+        .geo-actions { display:flex;flex-wrap:wrap;gap:8px;margin-top:11px; }
+        .geo-qr-card { position:sticky;top:180px;text-align:center;border:1px solid #c7d2fe;border-radius:14px;background:#fff;padding:18px; }
+        .geo-qr-card h4 { margin:0 0 5px;color:#1e1b4b;font-size:.92rem; }
+        .geo-qr-card p { margin:0 0 14px;color:#64748b;font-size:.72rem;line-height:1.45; }
+        .geo-qr { width:190px;min-height:190px;display:grid;place-items:center;margin:0 auto 14px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;background:#fff; }
+        .geo-qr img,.geo-qr canvas { max-width:174px!important;max-height:174px!important; }
+        .geo-empty { color:#94a3b8;font-size:.75rem;line-height:1.4; }
+        .leaflet-container { font-family:var(--font-sans); }
+        @media(max-width:900px){.geo-layout{grid-template-columns:1fr}.geo-qr-card{position:static}.geo-map{height:330px}}
 
         /* Encabezado del formulario */
         .seg-header {
@@ -340,6 +358,11 @@ $modoImpresion  = $modoImpresion ?? false;
                                 Parte 3 – Laboral y Bienes
                                 <span class="parte-num">3</span>
                             </button>
+                            <button class="parte-btn" id="parte-btn-4" onclick="switchParte(4)" role="tab" aria-selected="false">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                Parte 4 - Ubicación
+                                <span class="parte-num">4</span>
+                            </button>
                         </div>
 
                         <!-- Encabezado del formulario (modo creación) -->
@@ -360,7 +383,7 @@ $modoImpresion  = $modoImpresion ?? false;
                             <?php endif; ?>
                         </div>
 
-                        <form method="POST" action="<?= BASE_URL ?>/talento-humano/estudio-seguridad/guardar" id="formEstudioSeguridad">
+                        <form method="POST" action="<?= BASE_URL ?>/talento-humano/estudio-seguridad/guardar" id="formEstudioSeguridad" data-draft-context="socioeconomico:<?= (int)($e['estudio_id'] ?? 0) ?: 'nuevo' ?>">
                             <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
                             <input type="hidden" name="estudio_id" value="<?= (int)($e['estudio_id'] ?? 0) ?>">
                             <input type="hidden" name="empleado_id" value="<?= (int)($e['empleado_id'] ?? $e['id'] ?? 0) ?>">
@@ -1108,7 +1131,7 @@ $modoImpresion  = $modoImpresion ?? false;
                                     <strong>Nota:</strong> Certifico que la información aquí suministrada es verdadera y podrá ser verificada en cualquier momento por la institución. Así mismo estoy dispuesto a brindar una ampliación de cualquier aspecto de los datos registrados.
                                 </div>
 
-                                <!-- FOOTER DEL FORMULARIO -->
+                                <!-- NAVEGACION PARTE 3 -->
                                 <div class="seg-footer">
                                     <div style="font-size:.82rem;color:var(--ink-600);display:flex;align-items:center;gap:8px;">
                                         <i class="bi bi-shield-lock-fill" style="color:#6366f1;"></i>
@@ -1118,24 +1141,74 @@ $modoImpresion  = $modoImpresion ?? false;
                                         <button type="button" class="btn-seg btn-seg--ghost" onclick="switchParte(2)">
                                             <i class="bi bi-arrow-left"></i> Parte 2
                                         </button>
-                                        <?php if (empty($e['estudio_id'])): ?>
-                                        <button type="button" class="btn-seg btn-seg--ghost" onclick="showToast('Guarde el formulario para generar las 4 páginas oficiales.','info')">
-                                            <i class="bi bi-eye"></i> Vista previa oficial
-                                        </button>
-                                        <?php endif; ?>
-                                        <?php if (!empty($e['estudio_id'])): ?>
-                                        <a class="btn-seg btn-seg--outline-red" target="_blank"
-                                           href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>">
-                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF oficial (4 páginas)
-                                        </a>
-                                        <?php endif; ?>
-                                        <button type="submit" class="btn-seg btn-seg--primary" id="btnGuardarEstudio">
-                                            <i class="bi bi-save"></i> Guardar formulario
+                                        <button type="button" class="btn-seg btn-seg--primary" onclick="switchParte(4)">
+                                            Parte 4: Ubicación <i class="bi bi-arrow-right"></i>
                                         </button>
                                     </div>
                                 </div>
 
                             </div><!-- /parte-panel-3 -->
+
+                            <div class="parte-panel" id="parte-panel-4" role="tabpanel">
+                                <div class="seg-section">
+                                    <div class="seg-section-header"><i class="bi bi-geo-alt-fill"></i> V. Ubicación domiciliaria y referencia</div>
+                                    <div class="seg-section-body">
+                                        <div class="geo-layout">
+                                            <div class="geo-card">
+                                                <div class="seg-field">
+                                                    <label for="mapa_url_original">Enlace de Google Maps</label>
+                                                    <div class="geo-url-row">
+                                                        <input type="url" id="mapa_url_original" name="mapa_url_original" maxlength="2048" placeholder="Pegue un enlace HTTPS de Google Maps">
+                                                        <button type="button" class="btn-seg btn-seg--primary" id="btnUbicarMapa"><i class="bi bi-crosshair"></i> Ubicar</button>
+                                                    </div>
+                                                    <small>Admite enlaces completos y enlaces cortos oficiales de Google Maps.</small>
+                                                </div>
+                                                <div id="mapaSocioeconomico" class="geo-map" aria-label="Mapa para seleccionar la ubicación domiciliaria"></div>
+                                                <div class="geo-coordinates">
+                                                    <div class="seg-field"><label for="latitud">Latitud</label><input type="text" inputmode="decimal" id="latitud" name="latitud" placeholder="-0.000000" autocomplete="off"></div>
+                                                    <div class="seg-field"><label for="longitud">Longitud</label><input type="text" inputmode="decimal" id="longitud" name="longitud" placeholder="-80.000000" autocomplete="off"></div>
+                                                </div>
+                                                <input type="hidden" id="origen_geolocalizacion" name="origen_geolocalizacion">
+                                                <input type="hidden" id="mapa_png_data" name="mapa_png_data" data-no-draft="true">
+                                                <input type="hidden" id="qr_png_data" name="qr_png_data" data-no-draft="true">
+                                                <div class="geo-status" id="estadoGeolocalizacion" role="status"><i class="bi bi-info-circle"></i><span>Pegue el enlace, pulse el mapa o escriba las coordenadas. El punto solo se guardará cuando ambas coordenadas sean válidas.</span></div>
+                                                <div class="geo-actions">
+                                                    <button type="button" class="btn-seg btn-seg--ghost" id="btnAbrirMaps" disabled><i class="bi bi-box-arrow-up-right"></i> Abrir en Maps</button>
+                                                    <button type="button" class="btn-seg btn-seg--ghost" id="btnCopiarMaps" disabled><i class="bi bi-copy"></i> Copiar enlace</button>
+                                                    <button type="button" class="btn-seg btn-seg--ghost" id="btnLimpiarMapa"><i class="bi bi-arrow-counterclockwise"></i> Restablecer</button>
+                                                </div>
+                                                <div class="seg-grid-2" style="margin-top:14px">
+                                                    <div class="seg-field">
+                                                        <label for="referencia_ubicacion_espejo">Referencia domiciliaria</label>
+                                                        <textarea id="referencia_ubicacion_espejo" rows="4" maxlength="500" placeholder="Punto de referencia cercano"></textarea>
+                                                        <small>Se sincroniza con la referencia oficial registrada en la página 1.</small>
+                                                    </div>
+                                                    <div class="seg-field">
+                                                        <label for="indicaciones_llegada">Indicaciones para llegar</label>
+                                                        <textarea id="indicaciones_llegada" name="indicaciones_llegada" rows="4" maxlength="750" placeholder="Describa rutas de acceso, calles y observaciones"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <aside class="geo-qr-card">
+                                                <h4><i class="bi bi-qr-code"></i> Acceso móvil</h4>
+                                                <p>El QR abrirá exactamente las coordenadas registradas en Google Maps.</p>
+                                                <div class="geo-qr" id="qrUbicacion"><span class="geo-empty">Seleccione una ubicación para generar el código QR.</span></div>
+                                                <button type="button" class="btn-seg btn-seg--primary" id="btnDescargarQr" disabled><i class="bi bi-download"></i> Descargar QR</button>
+                                            </aside>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="seg-nota"><i class="bi bi-shield-lock-fill" style="color:#6366f1"></i> <strong>Dato confidencial:</strong> la ubicación se almacena en el expediente socioeconómico y su consulta, modificación e impresión quedan auditadas.</div>
+                                <div class="seg-footer">
+                                    <div style="font-size:.82rem;color:var(--ink-600);display:flex;align-items:center;gap:8px;"><i class="bi bi-shield-lock-fill" style="color:#6366f1;"></i> Código: <?= $codigoFormato ?> | Página 4 de 4</div>
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                        <button type="button" class="btn-seg btn-seg--ghost" onclick="switchParte(3)"><i class="bi bi-arrow-left"></i> Parte 3</button>
+                                        <?php if (!empty($e['estudio_id'])): ?><a class="btn-seg btn-seg--outline-red" target="_blank" href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>"><i class="bi bi-file-earmark-pdf-fill"></i> PDF oficial (4 páginas)</a><?php endif; ?>
+                                        <button type="submit" class="btn-seg btn-seg--primary" id="btnGuardarEstudio"><i class="bi bi-save"></i> Guardar formulario</button>
+                                    </div>
+                                </div>
+                            </div><!-- /parte-panel-4 -->
 
                         </form>
                     </section>
@@ -1168,6 +1241,9 @@ $modoImpresion  = $modoImpresion ?? false;
         </div>
     </div>
 
+    <script src="<?= BASE_URL ?>/public/vendor/leaflet/leaflet.js"></script>
+    <script src="<?= BASE_URL ?>/public/vendor/leaflet/leaflet-image.js"></script>
+    <script src="<?= BASE_URL ?>/public/vendor/qrcode/qrcode.min.js"></script>
     <script>
         const PERSONAL_SOCIO = <?= json_encode($selectorPersonal ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const SOCIO_BASE_URL = '<?= BASE_URL ?>';
@@ -1240,7 +1316,150 @@ $modoImpresion  = $modoImpresion ?? false;
             document.querySelectorAll('.parte-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('parte-btn-' + n).classList.add('active');
             document.getElementById('parte-panel-' + n).classList.add('active');
+            document.querySelectorAll('.parte-btn').forEach(b => b.setAttribute('aria-selected',b.id === 'parte-btn-' + n ? 'true' : 'false'));
+            if (n === 4 && mapaSocio) setTimeout(() => mapaSocio.invalidateSize(),80);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        const MAP_TILE_URL = <?= json_encode(Config::mapTileUrl(),JSON_UNESCAPED_SLASHES) ?>;
+        const MAP_ATTRIBUTION = <?= json_encode(Config::mapAttribution(),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+        const MAP_CENTRO_INICIAL = [-0.967653, -80.708910];
+        let mapaSocio = null;
+        let marcadorSocio = null;
+        let qrSocio = null;
+
+        function numeroCoordenada(valor) {
+            if (String(valor ?? '').trim() === '') return null;
+            const numero = Number(String(valor).replace(',', '.'));
+            return Number.isFinite(numero) ? numero : null;
+        }
+
+        function coordenadasValidas() {
+            const lat = numeroCoordenada(document.getElementById('latitud').value);
+            const lng = numeroCoordenada(document.getElementById('longitud').value);
+            return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? [lat,lng] : null;
+        }
+
+        function urlMapsCanonica(coordenadas = coordenadasValidas()) {
+            return coordenadas ? `https://www.google.com/maps/search/?api=1&query=${coordenadas[0].toFixed(6)}%2C${coordenadas[1].toFixed(6)}` : '';
+        }
+
+        function mostrarEstadoGeo(mensaje,tipo='info') {
+            const iconos={info:'bi-info-circle',success:'bi-check-circle-fill',error:'bi-exclamation-triangle-fill'};
+            const colores={info:'#475569',success:'#047857',error:'#b91c1c'};
+            const estado=document.getElementById('estadoGeolocalizacion');
+            estado.style.color=colores[tipo]||colores.info;
+            estado.innerHTML=`<i class="bi ${iconos[tipo]||iconos.info}"></i><span>${escaparPersonalSocio(mensaje)}</span>`;
+        }
+
+        function actualizarQrUbicacion() {
+            const contenedor=document.getElementById('qrUbicacion');
+            const url=urlMapsCanonica();
+            contenedor.innerHTML='';
+            document.getElementById('qr_png_data').value='';
+            document.getElementById('btnDescargarQr').disabled=!url;
+            document.getElementById('btnAbrirMaps').disabled=!url;
+            document.getElementById('btnCopiarMaps').disabled=!url;
+            if (!url) {
+                contenedor.innerHTML='<span class="geo-empty">Seleccione una ubicación para generar el código QR.</span>';
+                qrSocio=null;return;
+            }
+            qrSocio=new QRCode(contenedor,{text:url,width:174,height:174,colorDark:'#0f2740',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+            requestAnimationFrame(()=>{
+                const canvas=contenedor.querySelector('canvas');
+                if(canvas) document.getElementById('qr_png_data').value=canvas.toDataURL('image/png');
+            });
+        }
+
+        function establecerUbicacion(lat,lng,origen='MAPA',centrar=true) {
+            if (!Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90||lat > 90||lng < -180||lng > 180) {
+                mostrarEstadoGeo('Las coordenadas ingresadas no son válidas.','error');return false;
+            }
+            document.getElementById('latitud').value=lat.toFixed(6);
+            document.getElementById('longitud').value=lng.toFixed(6);
+            document.getElementById('origen_geolocalizacion').value=origen;
+            if (mapaSocio) {
+                if (!marcadorSocio) {
+                    marcadorSocio=L.marker([lat,lng],{draggable:true,title:'Ubicación domiciliaria'}).addTo(mapaSocio);
+                    marcadorSocio.on('dragend',evento=>{const punto=evento.target.getLatLng();establecerUbicacion(punto.lat,punto.lng,'MAPA',false);});
+                } else marcadorSocio.setLatLng([lat,lng]);
+                if (centrar) mapaSocio.setView([lat,lng],16);
+            }
+            actualizarQrUbicacion();
+            mostrarEstadoGeo(`Ubicación lista: ${lat.toFixed(6)}, ${lng.toFixed(6)}.`,'success');
+            return true;
+        }
+
+        function extraerCoordenadasUrl(url) {
+            let texto='';try{texto=decodeURIComponent(url);}catch(_){texto=url;}
+            for (const patron of [
+                /@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/,
+                /[?&](?:q|query|ll)=(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,
+                /\/(?:maps\/)?(?:search|place)\/(-?\d{1,2}(?:\.\d+)?),[+\s]*(-?\d{1,3}(?:\.\d+)?)/i
+            ]) {
+                const m=texto.match(patron);if(m){const c=[Number(m[1]),Number(m[2])];if(c[0]>=-90&&c[0]<=90&&c[1]>=-180&&c[1]<=180)return c;}
+            }
+            return null;
+        }
+
+        async function ubicarDesdeUrl() {
+            const input=document.getElementById('mapa_url_original');const url=input.value.trim();
+            if(!url){mostrarEstadoGeo('Pegue primero un enlace de Google Maps.','error');input.focus();return;}
+            const directas=extraerCoordenadasUrl(url);
+            if(directas){establecerUbicacion(directas[0],directas[1],'URL');return;}
+            mostrarEstadoGeo('Resolviendo el enlace corto de Google Maps...');
+            try{
+                const csrf=document.querySelector('#formEstudioSeguridad [name="_csrf"]').value;
+                const estudioId=document.querySelector('#formEstudioSeguridad [name="estudio_id"]')?.value||'';
+                const cuerpo=new URLSearchParams({_csrf:csrf,estudio_id:estudioId,url:url});
+                const respuesta=await fetch(`${SOCIO_BASE_URL}/talento-humano/estudio-seguridad/resolver-mapa`,{
+                    method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                    body:cuerpo.toString(),credentials:'same-origin'
+                });
+                const json=await respuesta.json();if(!respuesta.ok||!json.success)throw new Error(json.message||'No se pudo resolver el enlace.');
+                establecerUbicacion(Number(json.latitud),Number(json.longitud),'URL');
+            }catch(error){mostrarEstadoGeo(error.message,'error');}
+        }
+
+        function limpiarUbicacion() {
+            ['mapa_url_original','latitud','longitud','origen_geolocalizacion','mapa_png_data','qr_png_data'].forEach(id=>document.getElementById(id).value='');
+            if(marcadorSocio){mapaSocio.removeLayer(marcadorSocio);marcadorSocio=null;}
+            if(mapaSocio)mapaSocio.setView(MAP_CENTRO_INICIAL,13);
+            actualizarQrUbicacion();mostrarEstadoGeo('Ubicación restablecida. Seleccione un nuevo punto.');
+        }
+
+        function inicializarGeolocalizacion() {
+            mapaSocio=L.map('mapaSocioeconomico',{zoomControl:true}).setView(MAP_CENTRO_INICIAL,13);
+            const capaBase=L.tileLayer(MAP_TILE_URL,{maxZoom:19,crossOrigin:true,attribution:MAP_ATTRIBUTION}).addTo(mapaSocio);
+            let mosaicoCargado=false;
+            const temporizadorMapa=setTimeout(()=>{
+                if(mosaicoCargado)return;
+                const aviso=document.createElement('div');
+                aviso.className='geo-map-load-error';
+                aviso.innerHTML='<i class="bi bi-wifi-off"></i><span>No fue posible cargar la cartografía. Verifique la conexión e intente nuevamente.</span>';
+                document.getElementById('mapaSocioeconomico').append(aviso);
+            },6500);
+            capaBase.once('tileload',()=>{mosaicoCargado=true;clearTimeout(temporizadorMapa);document.querySelector('.geo-map-load-error')?.remove();});
+            mapaSocio.on('click',evento=>establecerUbicacion(evento.latlng.lat,evento.latlng.lng,'MAPA',false));
+            document.getElementById('btnUbicarMapa').addEventListener('click',ubicarDesdeUrl);
+            document.getElementById('mapa_url_original').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ubicarDesdeUrl();}});
+            ['latitud','longitud'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{const c=coordenadasValidas();if(c)establecerUbicacion(c[0],c[1],'MANUAL');else mostrarEstadoGeo('Complete latitud y longitud con valores válidos.','error');}));
+            document.getElementById('btnLimpiarMapa').addEventListener('click',limpiarUbicacion);
+            document.getElementById('btnAbrirMaps').addEventListener('click',()=>{const url=urlMapsCanonica();if(url)window.open(url,'_blank','noopener,noreferrer');});
+            document.getElementById('btnCopiarMaps').addEventListener('click',async()=>{const url=urlMapsCanonica();if(url){await navigator.clipboard.writeText(url);showToast('Enlace de ubicación copiado.','success');}});
+            document.getElementById('btnDescargarQr').addEventListener('click',()=>{const data=document.getElementById('qr_png_data').value;if(!data)return;const a=document.createElement('a');a.href=data;a.download='QR_Ubicacion_APM.png';a.click();});
+            const referencia=document.getElementById('referencia_domiciliaria');const espejo=document.getElementById('referencia_ubicacion_espejo');
+            espejo.value=referencia?.value||'';espejo.addEventListener('input',()=>{if(referencia){referencia.value=espejo.value;referencia.dispatchEvent(new Event('input',{bubbles:true}));}});referencia?.addEventListener('input',()=>{if(document.activeElement!==espejo)espejo.value=referencia.value;});
+            const c=coordenadasValidas();if(c)establecerUbicacion(c[0],c[1],document.getElementById('origen_geolocalizacion').value||'MANUAL');else actualizarQrUbicacion();
+        }
+
+        function capturarMapaParaPdf() {
+            return new Promise(resolve=>{
+                if(!mapaSocio||!coordenadasValidas()||typeof leafletImage!=='function'){resolve('');return;}
+                let terminado=false;const finalizar=data=>{if(terminado)return;terminado=true;resolve(data||'');};
+                const timer=setTimeout(()=>finalizar(''),5000);
+                leafletImage(mapaSocio,(error,canvas)=>{clearTimeout(timer);if(error||!canvas){finalizar('');return;}try{finalizar(canvas.toDataURL('image/png'));}catch(_){finalizar('');}});
+            });
         }
 
         /* Mostrar/ocultar campos de discapacidad */
@@ -1429,21 +1648,38 @@ $modoImpresion  = $modoImpresion ?? false;
                 }
             });
         });
+        inicializarGeolocalizacion();
 
-        document.getElementById('formEstudioSeguridad').addEventListener('submit', event => {
+        document.getElementById('formEstudioSeguridad').addEventListener('submit', async event => {
+            event.preventDefault();
+            const formulario=event.currentTarget;
+            if(formulario.dataset.envioPreparado==='true')return;
             const empleadoId = Number(event.currentTarget.elements.empleado_id?.value || 0);
             if (empleadoId <= 0) {
-                event.preventDefault();
                 switchParte(1);
                 document.getElementById('busquedaPersonalSocio').focus();
                 showToast('Seleccione un servidor público antes de guardar.','error');
                 return;
+            }
+            const hayLat=document.getElementById('latitud').value.trim()!=='';
+            const hayLng=document.getElementById('longitud').value.trim()!=='';
+            if(hayLat!==hayLng||(hayLat&&!coordenadasValidas())){
+                switchParte(4);mostrarEstadoGeo('Corrija las coordenadas antes de guardar.','error');return;
             }
             const boton=document.getElementById('btnGuardarEstudio');
             if (boton) {
                 boton.disabled=true;
                 boton.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...';
             }
+            if(coordenadasValidas()){
+                actualizarQrUbicacion();
+                await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+                const canvasQr=document.querySelector('#qrUbicacion canvas');
+                if(canvasQr)document.getElementById('qr_png_data').value=canvasQr.toDataURL('image/png');
+                document.getElementById('mapa_png_data').value=await capturarMapaParaPdf();
+            }
+            formulario.dataset.envioPreparado='true';
+            formulario.submit();
         });
     </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>

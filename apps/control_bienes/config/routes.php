@@ -127,6 +127,11 @@ return [
         'controller' => 'ConfigController',
         'action'     => 'secuenciales'
     ],
+    'inv_parametros' => [
+        'module'     => 'Central',
+        'controller' => 'ConfigController',
+        'action'     => 'parametros'
+    ],
     'notificaciones_marcar_leidas' => [
         'module'     => 'Central',
         'controller' => 'NotificacionesController',

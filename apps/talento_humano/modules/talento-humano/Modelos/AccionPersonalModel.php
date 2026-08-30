@@ -2,23 +2,19 @@
 
 class AccionPersonalModel extends Model
 {
-    public function generarSiguienteSecuencial(): string
+    public function generarSiguienteSecuencial(string $tipoAccion = 'INGRESO'): string
     {
-        $anio = date('Y');
-        $prefijo = "APM-TH-{$anio}-";
+        $anio = (int)InstitutionalClock::today()->format('Y');
+        $fallback=['CAMBIO ADMINISTRATIVO'=>'CA','LICENCIA'=>'LI','SANCIONES'=>'RD','VACACIONES'=>'VAC'];
+        $serie=$fallback[mb_strtoupper(trim($tipoAccion),'UTF-8')]??'MP';
         try {
             $this->auditarLectura('Accion de Personal', 'Consulta del siguiente secuencial documental.');
-            $stmt = $this->db->prepare(
-                'SELECT TOP 1 numero_accion FROM dbo.th_acciones_personal
-                 WHERE numero_accion LIKE :prefijo ORDER BY accion_id DESC'
-            );
-            $stmt->execute([':prefijo' => $prefijo . '%']);
-            $actual = $stmt->fetchColumn();
-            $numero = $actual ? ((int)substr((string)$actual, strrpos((string)$actual, '-') + 1) + 1) : 1;
-            return $prefijo . str_pad((string)$numero, 3, '0', STR_PAD_LEFT);
+            $stmt=$this->db->prepare('SELECT dbo.fn_th_serie_accion(:tipo) serie,COALESCE((SELECT ultimo_numero+1 FROM dbo.th_contadores_series_accion WHERE serie=dbo.fn_th_serie_accion(:tipo2) AND anio=:anio),1) siguiente');
+            $stmt->execute([':tipo'=>$tipoAccion,':tipo2'=>$tipoAccion,':anio'=>$anio]);$r=$stmt->fetch(PDO::FETCH_ASSOC);$serie=(string)($r['serie']??$serie);$numero=(int)($r['siguiente']??1);
+            return $serie.'-'.str_pad((string)$numero,3,'0',STR_PAD_LEFT).'-'.$anio;
         } catch (PDOException $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
-            return $prefijo . '001';
+            return $serie.'-001-'.$anio;
         }
     }
 
@@ -26,8 +22,9 @@ class AccionPersonalModel extends Model
     {
         try {
             $stmt = $this->db->prepare(
-                'EXEC dbo.sp_th_registrar_accion_personal
+                'EXEC dbo.sp_th_registrar_accion_personal_v3
                  @numero_accion=:numero,@empleado_id=:empleado,@tipo_accion=:tipo,
+                 @modalidad_vigencia=:modalidad,
                  @fecha_rige_desde=:desde,@fecha_rige_hasta=:hasta,@explicacion_legal=:explicacion,
                  @detalle_otro=:detalle_otro,@presento_declaracion=:declaracion,
                  @actual_unidad_id=:unidad_actual,@actual_puesto_id=:puesto_actual,
@@ -40,6 +37,12 @@ class AccionPersonalModel extends Model
                  @propuesta_proceso=:proceso_propuesto,@propuesta_nivel_gestion=:nivel_propuesto,
                  @propuesta_grupo_ocupacional=:grupo_propuesto,@propuesta_grado=:grado_propuesto,
                  @propuesta_partida_presupuestaria=:partida_propuesta,
+                 @actual_jornada=:jornada_actual,@actual_horas_jornada=:horas_actual,
+                 @propuesta_jornada=:jornada_propuesta,@propuesta_horas_jornada=:horas_propuesta,
+                 @tipo_novedad_jornada=:novedad_jornada,@hora_entrada_propuesta=:hora_entrada,
+                 @hora_salida_propuesta=:hora_salida,@dias_jornada_propuesta=:dias_jornada,
+                 @documento_jornada=:documento_jornada,
+                 @actual_tipo_contrato=:contrato_actual,@propuesta_tipo_contrato=:contrato_propuesto,
                  @notificacion_electronica=:notificacion,@correo_notificacion=:correo,
                  @medio_notificacion=:medio,@documento_notificacion=:documento,@fecha_notificacion=:fecha_notificacion,
                  @responsable_th_nombre=:responsable_th_nombre,@responsable_th_puesto=:responsable_th_puesto,
@@ -54,6 +57,7 @@ class AccionPersonalModel extends Model
                 ':numero' => $d['numero_accion'],
                 ':empleado' => $d['empleado_id'],
                 ':tipo' => $d['tipo_accion'],
+                ':modalidad' => $d['modalidad_vigencia'],
                 ':desde' => $d['fecha_rige_desde'],
                 ':hasta' => $d['fecha_rige_hasta'] ?: null,
                 ':explicacion' => $d['explicacion_legal'],
@@ -77,6 +81,21 @@ class AccionPersonalModel extends Model
                 ':grupo_propuesto' => $d['propuesta_grupo_ocupacional'] ?: null,
                 ':grado_propuesto' => $d['propuesta_grado'] ?: null,
                 ':partida_propuesta' => $d['propuesta_partida_presupuestaria'] ?: null,
+                ':jornada_actual' => $d['actual_jornada'] ?: null,
+                ':horas_actual' => $d['actual_horas_jornada'] ?: null,
+                ':jornada_propuesta' => $d['propuesta_jornada'] ?: null,
+                // Cero es un valor funcional para licencia por maternidad; en los
+                // demás casos, cero significa que el operador no propuso un cambio.
+                ':horas_propuesta' => in_array(strtoupper((string)$d['tipo_novedad_jornada']), ['MATERNIDAD','PATERNIDAD'], true)
+                    ? 0.0
+                    : ((float)$d['propuesta_horas_jornada'] > 0 ? (float)$d['propuesta_horas_jornada'] : null),
+                ':novedad_jornada' => $d['tipo_novedad_jornada'] ?: null,
+                ':hora_entrada' => $d['hora_entrada_propuesta'] ?: null,
+                ':hora_salida' => $d['hora_salida_propuesta'] ?: null,
+                ':dias_jornada' => $d['dias_jornada_propuesta'] ?: null,
+                ':documento_jornada' => $d['documento_jornada'] ?: null,
+                ':contrato_actual' => $d['actual_tipo_contrato'] ?: null,
+                ':contrato_propuesto' => $d['propuesta_tipo_contrato'] ?: null,
                 ':notificacion' => $d['notificacion_electronica'],
                 ':correo' => $d['correo_notificacion'] ?: null,
                 ':medio' => $d['medio_notificacion'] ?: null,
@@ -98,9 +117,10 @@ class AccionPersonalModel extends Model
                 ':ip' => $d['direccion_ip'],
             ]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return (int)($result['exito'] ?? 0) === 1
-                ? (string)($result['numero_accion'] ?? '')
-                : null;
+            if((int)($result['exito']??0)!==1)return null;
+            $accionId=(int)($result['accion_id']??0);$real=$this->db->prepare('SELECT numero_accion FROM dbo.th_acciones_personal WHERE accion_id=:id');$real->execute([':id'=>$accionId]);$numero=(string)($real->fetchColumn()?:$result['numero_accion']??'');
+            $audit=$this->db->prepare("EXEC dbo.sp_th_registrar_auditoria :usuario,'Accion de Personal','ASIGNAR_SERIE',:detalle,:ip");$audit->execute([':usuario'=>$d['usuario_crea'],':detalle'=>"Serie documental definitiva {$numero} asignada a la acción #{$accionId}.",':ip'=>$d['direccion_ip']]);while($audit->nextRowset()){}
+            return $numero;
         } catch (PDOException $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
             return null;
@@ -170,7 +190,7 @@ class AccionPersonalModel extends Model
 
     public function aprobar(int $id): array
     {
-        return $this->resolver('sp_th_aprobar_accion_personal', $id, null);
+        return $this->resolver('sp_th_aprobar_accion_personal_v3', $id, null);
     }
 
     public function anular(int $id, string $motivo): array

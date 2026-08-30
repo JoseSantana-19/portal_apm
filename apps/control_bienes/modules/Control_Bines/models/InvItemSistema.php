@@ -44,9 +44,9 @@ class ItemSistemaModel extends Model {
         return strpos($codigo, '1.4.') === 0 ? 'AF' : 'CC';
     }
 
-    public function __construct() {
+    public function __construct(bool $migrar = true) {
         parent::__construct();
-        $this->migrarCamposExtendidos();
+        if ($migrar) $this->migrarCamposExtendidos();
     }
 
     private function migrarCamposExtendidos(): void {
@@ -62,7 +62,7 @@ class ItemSistemaModel extends Model {
                 'ubicacion'        => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN ubicacion TEXT DEFAULT ''" : "ALTER TABLE inv_productos ADD ubicacion NVARCHAR(MAX) DEFAULT ''",
                 'existencia_min'   => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN existencia_min DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD existencia_min FLOAT DEFAULT 0",
                 'existencia_max'   => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN existencia_max DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD existencia_max FLOAT DEFAULT 0",
-                'precio_promedio'  => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN precio_promedio DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD precio_promedio FLOAT DEFAULT 0",
+                'precio_promedio'  => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN precio_promedio NUMERIC(28,12) DEFAULT 0" : "ALTER TABLE inv_productos ADD precio_promedio DECIMAL(28,12) DEFAULT 0",
                 'existencia_actual'=> $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN existencia_actual DOUBLE PRECISION DEFAULT 0" : "ALTER TABLE inv_productos ADD existencia_actual FLOAT DEFAULT 0",
                 'tipo_bien'        => $driver === 'pgsql' ? "ALTER TABLE inv_productos ADD COLUMN tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'" : "ALTER TABLE inv_productos ADD tipo_bien CHAR(2) NOT NULL DEFAULT 'CC'",
             ];
@@ -76,7 +76,7 @@ class ItemSistemaModel extends Model {
                 'ubicacion'        => "ALTER TABLE inv_productos ADD COLUMN ubicacion TEXT DEFAULT ''",
                 'existencia_min'   => "ALTER TABLE inv_productos ADD COLUMN existencia_min REAL DEFAULT 0",
                 'existencia_max'   => "ALTER TABLE inv_productos ADD COLUMN existencia_max REAL DEFAULT 0",
-                'precio_promedio'  => "ALTER TABLE inv_productos ADD COLUMN precio_promedio REAL DEFAULT 0",
+                'precio_promedio'  => "ALTER TABLE inv_productos ADD COLUMN precio_promedio NUMERIC DEFAULT 0",
                 'existencia_actual'=> "ALTER TABLE inv_productos ADD COLUMN existencia_actual REAL DEFAULT 0",
                 'tipo_bien'        => "ALTER TABLE inv_productos ADD COLUMN tipo_bien TEXT NOT NULL DEFAULT 'CC'",
             ];
@@ -273,12 +273,12 @@ class ItemSistemaModel extends Model {
             ':tipo_bien' => $datos['tipo_bien'] ?? 'CC',
             ':exmin'     => (float)($datos['existencia_min'] ?? 0),
             ':exmax'     => (float)($datos['existencia_max'] ?? 0),
-            ':precio'    => (float)($datos['precio_promedio'] ?? 0),
+            ':precio'    => CommonHelper::redondearPrecio($datos['precio_promedio'] ?? 0),
             ':exactu'    => (float)($datos['existencia_actual'] ?? 0),
         ]);
 
         $id = (int)$this->db->lastInsertId();
-        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
+        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), CommonHelper::redondearPrecio($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
         return $this->buscarPorId($id);
     }
 
@@ -307,11 +307,11 @@ class ItemSistemaModel extends Model {
             ':tipo_bien' => $datos['tipo_bien'] ?? 'CC',
             ':exmin'     => (float)($datos['existencia_min'] ?? 0),
             ':exmax'     => (float)($datos['existencia_max'] ?? 0),
-            ':precio'    => (float)($datos['precio_promedio'] ?? 0),
+            ':precio'    => CommonHelper::redondearPrecio($datos['precio_promedio'] ?? 0),
             ':exactu'    => (float)($datos['existencia_actual'] ?? 0),
             ':id'        => $id,
         ]);
-        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), (float)($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
+        self::syncProductToInventory($this->db, $id, $datos['nombre'], (int)$datos['grupo_id'], (int)($datos['aplica_iva'] ?? 1), CommonHelper::redondearPrecio($datos['precio_promedio'] ?? 0), (float)($datos['existencia_actual'] ?? 1), $datos['tipo_bien'] ?? 'CC', $datos['responsable_id'] ?? null);
         return $this->buscarPorId($id);
     }
 
@@ -393,7 +393,7 @@ class ItemSistemaModel extends Model {
     }
 
     public static function calcularTotal(float $precio, float $existencia): float {
-        return round($precio * $existencia, 4);
+        return CommonHelper::redondearImporte($precio * $existencia);
     }
 }
 

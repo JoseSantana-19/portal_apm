@@ -14,6 +14,7 @@
     var warningVisible = false;
     var lastPingAt = Date.now();
     var pingInProgress = false;
+    var sessionConfirmedExpired = false;
 
     function formatTime(milliseconds) {
         var seconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -41,6 +42,8 @@
     }
 
     function goToLogin() {
+        if (sessionConfirmedExpired) return;
+        sessionConfirmedExpired = true;
         window.location.href = 'index.php?route=logout&timeout=1';
     }
 
@@ -57,16 +60,19 @@
             cache: 'no-store',
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function (response) {
-            if (!response.ok || response.redirected || (response.url && response.url.indexOf('route=inv_login') !== -1)) {
+            if (response.status === 401 || response.status === 403 || response.redirected || (response.url && response.url.indexOf('route=inv_login') !== -1)) {
                 throw new Error('session-expired');
             }
+            if (!response.ok) throw new Error('temporary-session-check-failure');
             return response.json();
         }).then(function (data) {
             if (!data || !data.success) throw new Error('session-expired');
             lastPingAt = Date.now();
             return true;
-        }).catch(function () {
-            goToLogin();
+        }).catch(function (error) {
+            // Una pérdida de red o un error temporal no significa que la sesión haya
+            // expirado. Conservamos la pantalla y reintentamos al recuperar conexión.
+            if (error && error.message === 'session-expired') goToLogin();
             return false;
         }).finally(function () {
             pingInProgress = false;
@@ -83,14 +89,23 @@
         document.addEventListener(eventName, registerActivity, { passive: true });
     });
 
+    window.addEventListener('online', function () {
+        pingSession(true).then(function (success) {
+            if (success) {
+                lastActivity = Date.now();
+                hideWarning();
+            }
+        });
+    });
+
     if (continueButton) {
         continueButton.addEventListener('click', function () {
             continueButton.disabled = true;
             pingSession(true).then(function (success) {
+                continueButton.disabled = false;
                 if (!success) return;
                 lastActivity = Date.now();
                 hideWarning();
-                continueButton.disabled = false;
             });
         });
     }
@@ -104,7 +119,11 @@
         if (warningVisible) {
             var remaining = graceMs - (now - warningStartedAt);
             if (countdown) countdown.textContent = formatTime(remaining);
-            if (remaining <= 0) goToLogin();
+            if (remaining <= 0 && navigator.onLine && !pingInProgress) {
+                // El servidor es la fuente de verdad. Solo se redirige cuando este
+                // confirma 401/403; una desconexión no debe destruir el trabajo.
+                pingSession(true);
+            }
         }
     }, 1000);
 })();

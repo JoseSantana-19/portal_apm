@@ -24,13 +24,12 @@ BEGIN TRAN;
 DECLARE @ids TABLE(id INT PRIMARY KEY,unidad INT,puesto INT);
 INSERT @ids SELECT TOP 2 empleado_id,unidad_id,puesto_id FROM dbo.th_empleados WHERE estado=1 AND unidad_id IS NOT NULL AND puesto_id IS NOT NULL ORDER BY empleado_id;
 DECLARE @unidadDestino INT=(SELECT TOP 1 unidad_id FROM dbo.th_unidades_organizacionales u WHERE activo=1 AND NOT EXISTS(SELECT 1 FROM @ids i WHERE i.unidad=u.unidad_id) ORDER BY unidad_id);
-DECLARE @puestoDestino INT=(SELECT TOP 1 puesto_id FROM dbo.th_puestos p WHERE activo=1 AND NOT EXISTS(SELECT 1 FROM @ids i WHERE i.puesto=p.puesto_id) ORDER BY puesto_id);
 DECLARE @json NVARCHAR(MAX)=(SELECT '['+STRING_AGG(CONVERT(VARCHAR(20),id),',')+']' FROM @ids);
 DECLARE @fecha DATE=CONVERT(date,GETDATE());
-EXEC dbo.sp_th_mover_empleados_lote @json,@unidadDestino,@puestoDestino,@fecha,'Prueba grupal con rollback','QA','127.0.0.1';
+EXEC dbo.sp_th_mover_empleados_lote @json,@unidadDestino,@fecha,'Prueba grupal con rollback','QA','127.0.0.1';
 DECLARE @lote INT=(SELECT MAX(lote_id) FROM dbo.th_movimientos_lote WHERE usuario_crea='QA');
 IF @lote IS NULL OR (SELECT COUNT(*) FROM dbo.th_movimientos_personal WHERE lote_id=@lote)<>2 THROW 52506,'El lote no genero dos movimientos.',1;
-IF EXISTS(SELECT 1 FROM @ids i JOIN dbo.th_empleados e ON e.empleado_id=i.id WHERE e.unidad_id<>@unidadDestino OR e.puesto_id<>@puestoDestino) THROW 52507,'El lote no actualizo todos los empleados.',1;
+IF EXISTS(SELECT 1 FROM @ids i JOIN dbo.th_empleados e ON e.empleado_id=i.id WHERE e.unidad_id<>@unidadDestino OR e.puesto_id<>i.puesto) THROW 52507,'El lote no cambio el area conservando cada cargo.',1;
 ROLLBACK;
 
 DECLARE @empleadoEstado INT=(SELECT TOP 1 empleado_id FROM dbo.th_empleados WHERE estado=1 ORDER BY empleado_id);

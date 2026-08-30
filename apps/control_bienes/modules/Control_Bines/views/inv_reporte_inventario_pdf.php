@@ -516,7 +516,7 @@
                         $valTotal = $valBase + $valIva;
                     ?>
                         <tr>
-                            <td class="secuencial-cell"><?= htmlspecialchars($item['secuencial']) ?></td>
+                            <td class="secuencial-cell"><?= htmlspecialchars($item['producto_codigo'] ?? $item['secuencial']) ?></td>
                             <td>
                                 <span class="item-title"><?= htmlspecialchars($item['nombre']) ?></span>
                                 <span class="item-brand">Marca: <?= htmlspecialchars($item['marca']) ?></span>
@@ -525,9 +525,9 @@
                             <td><?= htmlspecialchars($item['zona']) ?></td>
                             <td><?= htmlspecialchars($item['responsable'] ?: 'Sin Responsable Asignado') ?></td>
                             <td><span class="status-badge <?= htmlspecialchars((string)($item['estadoClase'] ?? 'inactive')) ?>"><?= htmlspecialchars((string)($item['estado'] ?? 'Desconocido')) ?></span></td>
-                            <td style="text-align: right; font-weight: 500;">$<?= number_format($valBase, 2) ?></td>
-                            <td style="text-align: right; color: var(--text-muted);">$<?= number_format($valIva, 2) ?></td>
-                            <td style="text-align: right; font-weight: 700; color: var(--primary-blue);">$<?= number_format($valTotal, 2) ?></td>
+                            <td style="text-align: right; font-weight: 500;"><?= htmlspecialchars(CommonHelper::formatearPrecio($valBase)) ?></td>
+                            <td style="text-align: right; color: var(--text-muted);"><?= htmlspecialchars(CommonHelper::formatearImporte($valIva)) ?></td>
+                            <td style="text-align: right; font-weight: 700; color: var(--primary-blue);"><?= htmlspecialchars(CommonHelper::formatearImporte($valTotal)) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -536,9 +536,9 @@
                 <tfoot>
                     <tr>
                         <td colspan="6" style="text-align: right; font-weight: 700; letter-spacing: 0.5px;">VALORES TOTALES ACUMULADOS:</td>
-                        <td style="text-align: right; font-weight: 700;">$<?= number_format($valorBaseSuma, 2) ?></td>
-                        <td style="text-align: right; font-weight: 700; color: var(--text-muted);">$<?= number_format($ivaCalculadoSuma, 2) ?></td>
-                        <td style="text-align: right; font-weight: 800; color: var(--primary-blue); font-size: 11.5px;">$<?= number_format($valorTotalSuma, 2) ?></td>
+                        <td style="text-align: right; font-weight: 700;"><?= htmlspecialchars(CommonHelper::formatearImporte($valorBaseSuma)) ?></td>
+                        <td style="text-align: right; font-weight: 700; color: var(--text-muted);"><?= htmlspecialchars(CommonHelper::formatearImporte($ivaCalculadoSuma)) ?></td>
+                        <td style="text-align: right; font-weight: 800; color: var(--primary-blue); font-size: 11.5px;"><?= htmlspecialchars(CommonHelper::formatearImporte($valorTotalSuma)) ?></td>
                     </tr>
                 </tfoot>
             <?php endif; ?>

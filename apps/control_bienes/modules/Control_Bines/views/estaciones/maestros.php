@@ -208,7 +208,9 @@ $totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
         <?php endif; ?>
         <div class="maestro-table-toolbar">
             <div class="maestro-table-search">
-                <?php if ($paginacion !== null): ?>
+                <?php if ($tablaActiva === 'productos'): ?>
+                <!-- DataTables inserta aquí su buscador nativo al inicializar. -->
+                <?php elseif ($paginacion !== null): ?>
                 <form method="GET" action="index.php" class="maestro-server-search">
                     <input type="hidden" name="route" value="inv_maestros">
                     <input type="hidden" name="tabla" value="<?= htmlspecialchars($tablaActiva) ?>">
@@ -1077,10 +1079,11 @@ $totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
         if (window.jQuery && $.fn.DataTable && document.getElementById('tabla-maestros')) {
             const tieneBotones = !!($.fn.dataTable && $.fn.dataTable.Buttons);
             const tieneResponsive = !!($.fn.dataTable && $.fn.dataTable.Responsive);
-            const paginacionLocal = tablaActiva === 'centros_consumo';
+            const paginacionLocal = tablaActiva === 'centros_consumo' || tablaActiva === 'productos';
+            const buscadorDataTable = tablaActiva === 'productos' ? 'f' : '';
             const tituloExportacion = 'Maestros - ' + document.querySelector('.panel-header h3').innerText.trim();
             tablaMaestrosDT = $('#tabla-maestros').DataTable({
-                dom: (tieneBotones ? '<"dt-maestros-buttons"B>' : '') + 't' + (paginacionLocal ? '<"dt-maestros-footer"ip>' : ''),
+                dom: (tieneBotones ? '<"dt-maestros-buttons"B>' : '') + buscadorDataTable + 't' + (paginacionLocal ? '<"dt-maestros-footer"lip>' : ''),
                 responsive: tieneResponsive ? { details: { type: 'inline', target: 'tr' } } : false,
                 autoWidth: false,
                 paging: paginacionLocal,
@@ -1094,10 +1097,15 @@ $totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
                     { targets: 1, responsivePriority: 2 },
                     { targets: 2, responsivePriority: 1 }
                 ],
-                buttons: tieneBotones ? [
+                buttons: tieneBotones ? (tablaActiva === 'productos' ? [
+                    { text: '<i class="fa-solid fa-file-excel"></i> Excel completo', action: function () { exportarCatalogoMaestro('completo'); } },
+                    { text: '<i class="fa-regular fa-file-excel"></i> Excel resumido', action: function () { exportarCatalogoMaestro('resumido'); } },
                     { extend: 'print', text: '<i class="fa-solid fa-print"></i> Imprimir', title: tituloExportacion, exportOptions: { columns: ':not(.columna-acciones)' } }
-                ] : [],
+                ] : [
+                    { extend: 'print', text: '<i class="fa-solid fa-print"></i> Imprimir', title: tituloExportacion, exportOptions: { columns: ':not(.columna-acciones)' } }
+                ]) : [],
                 language: {
+                    search: 'Buscar productos:',
                     zeroRecords: 'No se encontraron coincidencias',
                     emptyTable: 'No hay registros en este maestro',
                     info: 'Mostrando _START_ a _END_ de _TOTAL_ funcionarios',
@@ -1106,6 +1114,13 @@ $totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
                 }
             });
             if (tieneBotones) tablaMaestrosDT.buttons().container().appendTo('#maestro-export-actions');
+            if (tablaActiva === 'productos') {
+                const filtroDataTable = document.getElementById('tabla-maestros_filter');
+                const zonaBusqueda = document.querySelector('.maestro-table-search');
+                if (filtroDataTable && zonaBusqueda) zonaBusqueda.appendChild(filtroDataTable);
+                const entradaDataTable = filtroDataTable ? filtroDataTable.querySelector('input') : null;
+                if (entradaDataTable) entradaDataTable.placeholder = 'Código, nombre, grupo o unidad…';
+            }
             const filtroInicial = document.getElementById('buscador-individual');
             if (filtroInicial && filtroInicial.value.trim()) tablaMaestrosDT.search(filtroInicial.value).draw();
         }
@@ -1144,6 +1159,18 @@ $totalColumnasMaestro = $columnasMaestro[$tablaActiva] ?? 5;
             }, 300);
         }
     });
+
+    function exportarCatalogoMaestro(modo) {
+        const buscador = document.querySelector('[name="buscar_maestro"]') || document.getElementById('buscador-individual');
+        const params = new URLSearchParams({
+            route: 'inv_maestros',
+            action: 'exportarProductosExcel',
+            tipo: tipoBienActivo,
+            modo: modo,
+            buscar: buscador ? buscador.value.trim() : (tablaMaestrosDT ? tablaMaestrosDT.search() : '')
+        });
+        window.location.href = 'index.php?' + params.toString();
+    }
 </script>
 <?php if ($tablaActiva === 'proveedores' && !empty($_GET['nuevo']) && !$soloLectura): ?>
 <script>

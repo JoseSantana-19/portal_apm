@@ -128,8 +128,8 @@ $conMfa   = count(array_filter($usuarios, fn($u) => !empty($u['mfa_activado_en']
                         <th>Usuario / Identificación</th>
                         <th>Nombre Completo</th>
                         <th>Correo Institucional</th>
-                        <th>Nivel Jerárquico</th>
-                        <th>Departamento</th>
+                        <th>Módulos Asignados</th>
+                        <th>Departamento / Unidad</th>
                         <th>Estado</th>
                         <th style="text-align:right;">Acciones</th>
                     </tr>
@@ -151,8 +151,10 @@ $conMfa   = count(array_filter($usuarios, fn($u) => !empty($u['mfa_activado_en']
                                     array_slice(explode(' ', $u['nombre_completo'] ?? ($u['cedula'] ?? 'US')), 0, 2)));
                     $avatarColors = ['#0284C7', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
                     $avatarBg     = $avatarColors[$nivel % count($avatarColors)];
-                    $isSelf       = (int)($u['id_usuario'] ?? 0) === (int)($_SESSION['user_id'] ?? 0);
+                    $isSelf       = !empty($u['id_usuario']) && (int)$u['id_usuario'] === (int)($_SESSION['user_id'] ?? 0);
                     $hasMfa       = !empty($u['mfa_activado_en']) || !empty($u['requiere_mfa']);
+                    $esCentral    = !empty($u['es_central']);
+                    $modulos      = (array)($u['modulos'] ?? ['Portal Central']);
                 ?>
                 <tr>
                     <td>
@@ -187,9 +189,27 @@ $conMfa   = count(array_filter($usuarios, fn($u) => !empty($u['mfa_activado_en']
                         </span>
                     </td>
                     <td>
-                        <span class="badge <?= $badgeClass ?>" style="font-size:0.72rem;font-weight:700;">
-                            <?= $nivelLbl ?>
-                        </span>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                            <?php foreach ($modulos as $mod): ?>
+                                <?php if ($mod === 'Portal Central'): ?>
+                                <span class="badge admin-badge-super" style="font-size:0.68rem;padding:2px 6px;">
+                                    <i class="fa-solid fa-anchor" style="font-size:8px;"></i> Central
+                                </span>
+                                <?php elseif ($mod === 'Talento Humano'): ?>
+                                <span class="badge admin-badge-jefe" style="font-size:0.68rem;padding:2px 6px;">
+                                    <i class="fa-solid fa-users" style="font-size:8px;"></i> Talento Humano
+                                </span>
+                                <?php elseif ($mod === 'Control de Bienes'): ?>
+                                <span class="badge admin-badge-analista" style="font-size:0.68rem;padding:2px 6px;">
+                                    <i class="fa-solid fa-box" style="font-size:8px;"></i> Bienes
+                                </span>
+                                <?php elseif ($mod === 'Bitácoras Portuarias'): ?>
+                                <span class="badge admin-badge-director" style="font-size:0.68rem;padding:2px 6px;">
+                                    <i class="fa-solid fa-clipboard-list" style="font-size:8px;"></i> Bitácoras
+                                </span>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
                     </td>
                     <td>
                         <span style="font-size:0.78rem;font-weight:600;color:var(--text-app);">
@@ -209,12 +229,13 @@ $conMfa   = count(array_filter($usuarios, fn($u) => !empty($u['mfa_activado_en']
                     </td>
                     <td style="text-align:right;white-space:nowrap;">
                         <div class="dt-actions">
+                            <?php if ($esCentral): ?>
                             <a href="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/editar"
-                               class="btn btn-ghost btn-sm" data-spa title="Editar usuario y credenciales">
+                               class="btn btn-ghost btn-sm" data-spa title="Editar usuario y permisos">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                             <a href="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/export/pdf"
-                               class="btn btn-ghost btn-sm" target="_blank" rel="noopener" title="Descargar Ficha PDF">
+                               class="btn btn-ghost btn-sm" target="_blank" rel="noopener" title="Visualizar Ficha Completa PDF">
                                 <i class="fa-solid fa-file-pdf" style="color:#EF4444;"></i>
                             </a>
                             <a href="<?= APP_URL ?>/admin/usuarios/<?= $u['id_usuario'] ?>/export/excel"
@@ -238,6 +259,13 @@ $conMfa   = count(array_filter($usuarios, fn($u) => !empty($u['mfa_activado_en']
                                     <i class="fa-solid fa-user-check"></i>
                                 </button>
                             </form>
+                            <?php endif; ?>
+                            <?php else: ?>
+                            <!-- Usuario satélite sin cuenta en Central: Ofrecer vincular -->
+                            <a href="<?= APP_URL ?>/admin/usuarios/desde-th<?= !empty($u['id_empleado_th']) ? '/' . $u['id_empleado_th'] . '/nuevo' : '' ?>"
+                               class="btn btn-ghost btn-sm" data-spa style="color:var(--primary-hover);background:color-mix(in srgb, var(--primary) 14%, transparent);border:1px solid color-mix(in srgb, var(--primary) 28%, transparent);" title="Vincular y crear credenciales en Portal Central">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </a>
                             <?php endif; ?>
                         </div>
                     </td>

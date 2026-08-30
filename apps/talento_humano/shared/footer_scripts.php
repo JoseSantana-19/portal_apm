@@ -21,7 +21,11 @@
      inactividad SIGUE siendo el propio de TH (Auth::renewSession()/
      expireForInactivity(), cascada usuario > módulo TALENTO_HUMANO > global
      leída de PORTAL_APM, ver Auth::resolveInactividad()) -- solo cambia la
-     interfaz que avisa. -->
+     interfaz que avisa. NOTA (actualización 2026-08-28): la versión origen
+     de TH trae ahora su propio widget "session_guard" (session_guard.css/js
+     + modal #sessionWarning) -- se descarta deliberadamente aquí para no
+     duplicar el aviso de inactividad; session_guard.css/js NO se referencian
+     en ninguna vista. -->
 <script>
     window.APP_INACTIVIDAD = {
         timeoutSegundos: <?= (int)Auth::idleTtl() ?>,
@@ -34,5 +38,9 @@
 </script>
 <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
 <script src="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+<script src="<?= PORTAL_ROOT_URL ?>/js/alerts.js"></script>
 <script src="<?= PORTAL_ROOT_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>
 <?php endif; ?>
+<script>window.BASE_URL=<?= json_encode(BASE_URL) ?>;</script>
+<script src="<?= BASE_URL ?>/public/js/form_drafts.js"></script>
+<script src="<?= BASE_URL ?>/public/js/searchable_select.js"></script>

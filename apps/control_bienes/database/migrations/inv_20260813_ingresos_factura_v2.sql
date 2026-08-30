@@ -29,13 +29,13 @@ IF COL_LENGTH('dbo.inv_facturas_detalles', 'iva_porcentaje') IS NULL
     ALTER TABLE dbo.inv_facturas_detalles ADD iva_porcentaje DECIMAL(7,4) NOT NULL
         CONSTRAINT df_inv_fac_det_iva_porcentaje DEFAULT (0);
 IF COL_LENGTH('dbo.inv_facturas_detalles', 'subtotal') IS NULL
-    ALTER TABLE dbo.inv_facturas_detalles ADD subtotal DECIMAL(19,4) NOT NULL
+    ALTER TABLE dbo.inv_facturas_detalles ADD subtotal DECIMAL(30,8) NOT NULL
         CONSTRAINT df_inv_fac_det_subtotal DEFAULT (0);
 IF COL_LENGTH('dbo.inv_facturas_detalles', 'valor_iva') IS NULL
-    ALTER TABLE dbo.inv_facturas_detalles ADD valor_iva DECIMAL(19,4) NOT NULL
+    ALTER TABLE dbo.inv_facturas_detalles ADD valor_iva DECIMAL(30,8) NOT NULL
         CONSTRAINT df_inv_fac_det_valor_iva DEFAULT (0);
 IF COL_LENGTH('dbo.inv_facturas_detalles', 'total') IS NULL
-    ALTER TABLE dbo.inv_facturas_detalles ADD total DECIMAL(19,4) NOT NULL
+    ALTER TABLE dbo.inv_facturas_detalles ADD total DECIMAL(30,8) NOT NULL
         CONSTRAINT df_inv_fac_det_total DEFAULT (0);
 
 COMMIT TRANSACTION;

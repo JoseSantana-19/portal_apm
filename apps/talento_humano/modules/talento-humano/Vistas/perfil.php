@@ -2,8 +2,7 @@
 /* Expediente digital completo del funcionario (solo lectura). */
 $empleado = is_array($empleado ?? null) ? $empleado : [];
 if (!$empleado) {
-    http_response_code(404);
-    exit('El funcionario solicitado no existe.');
+    ErrorHandler::abort(404, 'El funcionario solicitado no existe.');
 }
 
 $e = static fn(string $valor): string => htmlspecialchars($valor, ENT_QUOTES, 'UTF-8');
@@ -30,7 +29,9 @@ $fechaIngreso = !empty($empleado['fecha_ingreso']) ? new DateTimeImmutable((stri
 $fechaNacimiento = !empty($empleado['fecha_nacimiento']) ? new DateTimeImmutable((string)$empleado['fecha_nacimiento']) : null;
 $estadoActivo = (int)($empleado['estado'] ?? 0) === 1;
 $estadoTexto = $estadoActivo ? 'Activo' : 'Inactivo';
-$aniosInstitucion = $fechaIngreso ? $fechaIngreso->diff(new DateTimeImmutable('today'))->y : null;
+$situacionTemporal = !empty($empleado['situacion_temporal']);
+$vigenciaTemporalHasta = $empleado['vigencia_hasta'] ?? $empleado['jornada_hasta'] ?? null;
+$aniosInstitucion = isset($antiguedad['anios_servicio']) ? (float)$antiguedad['anios_servicio'] : ($fechaIngreso ? (float)$fechaIngreso->diff(new DateTimeImmutable('today'))->y : null);
 $edad = $fechaNacimiento ? $fechaNacimiento->diff(new DateTimeImmutable('today'))->y : null;
 
 $nacionalidades = [];
@@ -83,10 +84,15 @@ $secciones = [
         'campos' => [
             ['Código de empleado', $valor($empleado, ['cod_emplea'], 'No registrado'), 'bi-hash'],
             ['Dirección / Área', $valor($empleado, ['direccion_area'], 'Sin asignación'), 'bi-building'],
-            ['Proceso institucional', $valor($empleado, ['tipo_proceso'], 'No registrado'), 'bi-diagram-3'],
+            ['Proceso institucional', $valor($empleado, ['proceso_institucional','tipo_proceso'], 'No registrado'), 'bi-diagram-3'],
+            ['Nivel de gestión', $valor($empleado, ['nivel_gestion'], 'No registrado'), 'bi-diagram-2'],
             ['Cargo / Denominación', $valor($empleado, ['cargo'], 'Sin denominación'), 'bi-briefcase'],
+            ['Lugar de trabajo', $valor($empleado, ['lugar_trabajo'], 'No registrado'), 'bi-geo'],
+            ['Grupo ocupacional', $valor($empleado, ['grupo_ocupacional'], 'No registrado'), 'bi-people'],
+            ['Grado laboral', $valor($empleado, ['grado_laboral'], 'No registrado'), 'bi-bar-chart-steps'],
+            ['Partida individual', $valor($empleado, ['partida_individual'], 'No registrada'), 'bi-receipt'],
             ['Tipo de contrato', $valor($empleado, ['tipo_contrato'], 'No especificado'), 'bi-file-earmark-text'],
-            ['Jornada', $valor($empleado, ['jornada'], 'No registrada'), 'bi-clock'],
+            ['Jornada', $valor($empleado, ['jornada'], 'No registrada').' · '.$valor($empleado, ['horas_jornada'], '0').' horas', 'bi-clock'],
             ['Fecha de ingreso', $fecha($empleado['fecha_ingreso'] ?? null), 'bi-calendar-check'],
             ['Fecha de salida', $fecha($empleado['fecha_salida'] ?? null), 'bi-calendar-x'],
             ['RMU mensual', $remuneracionTexto, 'bi-currency-dollar', 'info-card-value--money'],
@@ -164,7 +170,7 @@ $secciones = [
         <?php $topbarShowSearch=false; $topbarBackUrl=BASE_URL.'/talento-humano/directorio'; $topbarBackLabel='Volver al Directorio'; require ROOT.'/shared/topbar.php'; ?>
         <main class="main">
             <div class="content-shell profile-page">
-                <div class="readonly-badge"><i class="bi bi-lock-fill"></i> Expediente digital en modo de consulta. La edición se realiza desde el Directorio de Personal.</div>
+                <div class="readonly-badge"><i class="bi bi-lock-fill"></i> Expediente digital en modo de consulta. La edición se realiza desde el Nómina de Personal.</div>
 
                 <section class="perfil-hero">
                     <div class="perfil-avatar" aria-label="Fotografía o iniciales del funcionario">
@@ -180,8 +186,11 @@ $secciones = [
                         <p><?= $e($valor($empleado, ['cargo'], 'Sin denominación')) ?> · <?= $e($valor($empleado, ['direccion_area'], 'Sin asignación')) ?></p>
                         <div class="perfil-chips">
                             <span class="perfil-chip <?= $estadoActivo ? 'activo' : 'inactivo' ?>"><i class="bi <?= $estadoActivo ? 'bi-check-circle-fill' : 'bi-x-circle-fill' ?>"></i> <?= $e($estadoTexto) ?></span>
-                            <?php if ($aniosInstitucion !== null): ?><span class="perfil-chip"><i class="bi bi-calendar3"></i> <?= $aniosInstitucion ?> años en la institución</span><?php endif; ?>
+                            <?php if ($aniosInstitucion !== null): ?><span class="perfil-chip"><i class="bi bi-calendar3"></i> <?= number_format($aniosInstitucion,1) ?> años efectivos · <?= (int)($antiguedad['periodos_vinculacion']??1) ?> período(s)</span><?php endif; ?>
                             <span class="perfil-chip"><i class="bi bi-file-earmark-person"></i> <?= $e($cedula) ?></span>
+                            <?php if ($situacionTemporal): ?>
+                            <span class="perfil-chip"><i class="bi bi-arrow-counterclockwise"></i> Situación temporal<?= $vigenciaTemporalHasta ? ' hasta '.$e($fecha($vigenciaTemporalHasta)) : '' ?> · retorno automático</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="perfil-actions">
@@ -221,6 +230,14 @@ $secciones = [
                 <?php endif; ?>
 
                 <section class="card profile-section">
+                    <div class="profile-section-heading"><span class="profile-section-icon"><i class="bi bi-calendar-range"></i></span><div><h2>Períodos de vinculación</h2><p>La antigüedad excluye los intervalos en que el funcionario no mantuvo relación con la institución.</p></div></div>
+                    <div class="profile-timeline">
+                    <?php foreach(($periodosVinculacion??[]) as $periodo): ?><article class="historial-item"><div class="historial-dot"></div><div class="historial-line"><strong><?= $e($periodo['tipo_ingreso']??'Período laboral') ?></strong><small><?= $e($periodo['motivo_salida']??(!empty($periodo['fecha_hasta'])?'Período finalizado':'Vínculo vigente')) ?></small><span class="historial-period"><i class="bi bi-calendar-range"></i> <?= $e($fecha($periodo['fecha_desde']??null)) ?> – <?= !empty($periodo['fecha_hasta'])?$e($fecha($periodo['fecha_hasta'])):'Actualidad' ?></span></div></article><?php endforeach; ?>
+                    </div>
+                    <?php if(!empty($hitosServicio)): ?><div class="profile-audit-note"><i class="bi bi-award"></i> Hito de reconocimiento en <?= InstitutionalClock::today()->format('Y') ?>: <?= (int)$hitosServicio[0]['hito_anios'] ?> años efectivos, el <?= $e($fecha($hitosServicio[0]['fecha_hito'])) ?>.</div><?php endif; ?>
+                </section>
+
+                <section class="card profile-section">
                     <div class="profile-section-heading"><span class="profile-section-icon"><i class="bi bi-clock-history"></i></span><div><h2>Historial laboral en la APM</h2><p>Asignaciones institucionales registradas cronológicamente.</p></div></div>
                     <div class="profile-timeline">
                         <?php foreach ($historialPerfil as $h): ?>
@@ -236,16 +253,6 @@ $secciones = [
         </main>
     </section>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const dateElement = document.getElementById('currentDate');
-    if (dateElement) {
-        dateElement.textContent = new Date().toLocaleDateString('es-EC', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-    }
-});
-</script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>
 </html>

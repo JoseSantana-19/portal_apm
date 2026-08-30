@@ -706,3 +706,48 @@ tr:hover td {
 .animate-fade-in {
     animation: fadeIn 0.4s ease-out forwards;
 }
+/* Tablas de productos: estándar visual basado en Maestro de Ítems / Lista Completa. */
+#tabla-inventario_wrapper table.dataTable,
+#maestro-items-table_wrapper table.dataTable,
+.grupo-tabla-body table.catalogo-datatable,
+#tabla-maestros_wrapper table.dataTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    color: var(--text-color);
+}
+#tabla-inventario_wrapper table.dataTable thead th,
+#maestro-items-table_wrapper table.dataTable thead th,
+.grupo-tabla-body table.catalogo-datatable thead th,
+#tabla-maestros_wrapper table.dataTable thead th {
+    padding: 13px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--secondary-bg) 88%, white);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .025em;
+    text-transform: uppercase;
+}
+#tabla-inventario_wrapper table.dataTable tbody td,
+#maestro-items-table_wrapper table.dataTable tbody td,
+.grupo-tabla-body table.catalogo-datatable tbody td,
+#tabla-maestros_wrapper table.dataTable tbody td {
+    padding: 13px 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+#tabla-inventario_wrapper table.dataTable tbody tr:nth-child(odd),
+#maestro-items-table_wrapper table.dataTable tbody tr:nth-child(odd),
+.grupo-tabla-body table.catalogo-datatable tbody tr:nth-child(odd),
+#tabla-maestros_wrapper table.dataTable tbody tr:nth-child(odd) {
+    background: color-mix(in srgb, var(--secondary-bg) 54%, transparent);
+}
+.maestro-items-tools,
+.catalogo-dt-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}

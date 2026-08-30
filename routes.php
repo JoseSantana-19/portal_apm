@@ -18,6 +18,7 @@ $router->get('/dashboard',              'DashboardController@index');
 $router->get('/dashboard/ejecutivo',    'DashboardController@executive');
 $router->get('/dashboard/operativo',    'DashboardController@operational');
 $router->get('/dashboard/exportar-excel','DashboardController@exportarExcel');
+$router->get('/dashboard/exportar-pdf',  'DashboardController@exportarPdf');
 $router->get('/api/dashboard/ejecutivo','DashboardController@apiEjecutivo');
 $router->get('/api/dashboard/operativo','DashboardController@apiOperativo');
 $router->get('/api/dashboard/drilldown','DashboardController@apiDrilldown');
@@ -50,6 +51,7 @@ $router->post('/perfil',                        'AuthController@actualizarPerfil
 $router->get('/cambiar-contrasena',             'AuthController@showCambiarContrasena');
 $router->post('/cambiar-contrasena',            'AuthController@cambiarContrasena');
 $router->get('/perfil/seguridad',               'AuthController@showSeguridad');
+$router->get('/perfil/export/pdf',              'AdminController@exportarMiPerfilPdf');
 $router->post('/perfil/seguridad/preparar',     'AuthController@prepararMfa');
 $router->post('/perfil/seguridad/activar',      'AuthController@activarMfa');
 $router->post('/perfil/seguridad/desactivar',   'AuthController@desactivarMfa');

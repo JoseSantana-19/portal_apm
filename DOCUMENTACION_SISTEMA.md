@@ -1,4 +1,4 @@
-# Portal APM — Documentación del Sistema v7.0
+# Portal APM — Documentación del Sistema v8.0
 
 **Portal de Gestión Integral — Autoridad Portuaria de Manta**
 PHP 7.4 / 8.3 / 8.5 (compatible con las 3 versiones a la vez, ver §2 y §18 v7.0) · SQL Server 2014+ · sqlsrv nativo · Sin PDO en el portal nativo · Sin Composer
@@ -1633,6 +1633,112 @@ organigrama genérico), y las últimas 6 acciones propias reales desde
 `vw_AuditoriaGlobal` identifica por `nombre_usuario`, que las entradas
 `LOGIN`/`LOGOUT` nativas del portal siempre guardan `NULL` — hubo que
 consultar `CORE_Auditoria` directo por `id_usuario` en su lugar.
+
+### v8.0 (2026-08-28) — Actualización de Talento Humano y Control de Bienes a sus versiones origen más recientes
+
+Aplicado el método de actualización de 3 vías documentado en
+`INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` (Parte 2): diff
+OLD/NEW/CUR, `git merge-file` para el grueso del diff, revisión manual de
+cada conflicto real, escaneo dirigido de pérdidas silenciosas del merge
+automático, verificación de BD contra el servidor real antes y después de
+cualquier cambio de esquema. TH: 158 archivos en el diff, 8 conflictos
+reales + 3 pérdidas silenciosas encontradas aparte. Bienes: 95 archivos en
+el diff, 2 conflictos reales + 1 migración con bug real cazado en un clon
+desechable.
+
+**1. Pérdidas silenciosas del merge automático (el hallazgo metodológico
+más importante de esta sesión).** `git merge-file` da por "sin conflicto"
+cualquier hunk donde CUR nunca se apartó de OLD, aunque ese hunk sea
+justo donde NEW hizo un cambio real — adopta NEW en silencio, sin marcar
+nada. Encontrado así en TH: el bloque completo de puente SSO
+(`loginTrusted()`/`syncPortalSession()`/cascada de inactividad, ~150
+líneas) desapareció de `core/Auth.php`; la firma de `establishSession()`
+perdió sus parámetros `$auditAction`/`$auditDescription`; el fallback a
+`config/connections.php` desapareció de `core/Database.php`/`Config.php`;
+el botón "Volver al Portal APM" desapareció de `shared/topbar.php`; el
+`<link>` a SweetAlert2 desapareció de `shared/head_assets.php`. Los 4
+archivos con caídas sospechosas de líneas en Bienes (hasta -722 líneas en
+un archivo) se investigaron uno por uno — resultaron ser reescrituras
+reales más compactas (dashboard rediseñado, reporte refactorizado a
+config-driven con export CSV nuevo), no pérdidas; se confirmó comparando
+el inventario de funciones antes de aceptar el resultado. Todo archivo
+"limpio" del merge automático se re-verificó con un diff dirigido contra
+el CUR real antes de darlo por bueno — no basta con que `php -l` pase.
+
+**2. Bug real encontrado en producción por prueba en vivo, no por
+lectura de código.** `apps/talento_humano/.htaccess` — un dotfile, fuera
+del alcance de `php -l` y del diff por extensión — quedó con
+`RewriteBase /PortalPortuario/` (valor de origen) en vez de
+`/portal_apm/apps/talento_humano/`, rompiendo toda URL "bonita" de TH
+(login incluido, 404 en todo). Detectado con un curl real después de
+copiar al repo, no antes; corregido y reverificado (200/302 según
+corresponde en cada ruta).
+
+**3. Sistemas de inactividad propios de origen, descartados a
+propósito.** Ambos módulos traen ahora su propio modal de aviso de
+inactividad (`session_guard.css/js` en TH, `session_inactivity.js` +
+`#session-warning-modal` en Bienes) compitiendo con el sistema
+centralizado SweetAlert2 ya establecido (ver §12-bis, [[inactividad_sesion]]
+en memoria). Se descartó el modal propio en los dos casos — nunca se
+referencia su CSS/JS en ninguna vista — y se conservó el bloque
+`window.APP_INACTIVIDAD` + SweetAlert2 vendorizado del portal tal cual
+estaba. En Bienes el modal nunca había llegado a engancharse siquiera
+(el HTML del modal no existía en ningún lado del CUR anterior); en TH sí
+competía activamente.
+
+**4. Funcionalidad nueva real adoptada.** TH: módulo Paz y Salvo completo
+(formulario por secciones, cierre, PDF vía FPDF), Vacaciones reemplazado
+de prototipo estático a datos reales (`vw_th_vacaciones_acciones`),
+autoguardado de borradores de formulario (AES-256-GCM, `Config::draftKey()`),
+selector de funcionario con autocompletado + sugerencia de rol por puesto
+en creación de usuarios (`sp_th_mapa_roles_puestos`), mapa socioeconómico
+con protección SSRF real contra IPs privadas (`validarDestinoPublico()`),
+reloj institucional testeable (`InstitutionalClock`, `PORTAL_TEST_TODAY`),
+exportación a Excel nativa (`XlsxWriter`, sin ZipArchive/Composer). Bienes:
+módulo de Órdenes de Compra y Requisiciones completo, exportación a Excel
+(`excel_export_helper.php`), buscador con ayudas de UI nuevas
+(`inv_searchable_select.js`, `inv_list_search.js`), autoguardado de
+borradores propio (`form_draft_recovery.js`), importador de proveedores
+históricos desde DBF. Todo el código nuevo de origen usa sintaxis PHP
+8.0+ (`match()`, `: never`, tipos unión, `catch (Throwable)` sin
+variable) — se adaptó archivo por archivo al patrón de compatibilidad ya
+establecido (§2) antes de integrarlo.
+
+**5. Esquema híbrido de contraseñas preservado sin excepción.** El
+formulario de creación de usuarios de TH origen ahora deriva el nombre de
+usuario desde la cédula del funcionario (coherente con
+[[identidad_cedula_unica]]) y valida la clave con fuerza en el servidor
+sobre texto plano — se adoptó la derivación por cédula pero se descartó
+la validación de texto plano, manteniendo `Auth::hashPasswordSecure()`
+sobre el hash SHA-256 que ya manda el cliente.
+
+**6. Migraciones SQL — dos historias distintas.** `Talento_Humano`: el
+`.trn` restaurado por el usuario ya traía las 16 migraciones nuevas
+aplicadas (`th_schema_migrations`, verificado por checksum SHA-256 exacto
+contra cada archivo del drop nuevo — las 16 coinciden) — no hizo falta
+ejecutar nada. `inventario`: el `.bak` restaurado era anterior a las 5
+migraciones más nuevas (`fecha_fin` de períodos seguía `NOT NULL`,
+columnas modernas de órdenes de compra ausentes) — se probaron las 5
+contra un clon desechable (`BACKUP`/`RESTORE` real, sin `WITH COMPRESSION`
+por ser SQL Server Express) antes de tocar la base real, siguiendo §2.7
+de la guía de actualización. **Bug real cazado por la prueba en clon:**
+`inv_20260824_proveedores_historicos_dbf.sql` crea `origen_datos` con
+`ALTER TABLE ADD` y en el mismo lote intenta un `CREATE INDEX` sobre esa
+columna — la resolución de nombres diferida de SQL Server no cubre este
+caso, falla con "nombre de columna no válido". Corregido envolviendo esos
+3 `CREATE INDEX` en `EXEC('...')` (fuerza resolución en tiempo de
+ejecución); reprobado en el clon, aplicado a la base real, verificado
+columna por columna. Clon y `.bak` de prueba eliminados al terminar.
+
+**7. Menú, permisos, auditoría y MFA — verificados intactos, no
+tocados.** Las rutas y entradas de menú nuevas (Vacaciones, Paz y Salvo,
+Órdenes de Compra, Requisiciones) ya llegaban permisadas por rol desde
+las migraciones de TH (`th_permisos_rol` real, no solo la tabla) y
+enganchadas en `shared/menu.php`/`config/navigation.php` sin necesidad de
+tocarlas a mano. MFA/TOTP de TH no se tocó (el conflicto de `Auth.php` no
+alcanzaba esa zona). Verificado con `php -l` en el 100% del árbol de
+ambos módulos y con curl real post-copia (login, rutas nuevas sin sesión
+→ 302, assets nuevos → 200) — no solo "el script no dio error".
 
 ### v3.1 (2026-07-01) y anteriores
 

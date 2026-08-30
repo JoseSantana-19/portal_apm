@@ -241,7 +241,14 @@ class EmpleadoController extends Controller
     private function generarPdfFicha(array $emp): void
     {
         $utf = function(string $str): string {
-            return utf8_decode((string)($str ?? ''));
+            $str = (string)($str ?? '');
+            if (function_exists('mb_convert_encoding')) {
+                return mb_convert_encoding($str, 'ISO-8859-1', 'UTF-8');
+            }
+            if (function_exists('iconv')) {
+                return (string)@iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $str);
+            }
+            return function_exists('utf8_decode') ? @utf8_decode($str) : $str;
         };
 
         $pdf = new FPDF('P', 'mm', 'A4');

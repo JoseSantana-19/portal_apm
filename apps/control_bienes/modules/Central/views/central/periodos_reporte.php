@@ -107,9 +107,9 @@ $sumTotal = 0.0;
                             <td><?= htmlspecialchars((string)$zona) ?></td>
                             <td><?= htmlspecialchars((string)$resp) ?></td>
                             <td><span style="font-weight:600;color:var(--primary);"><?= htmlspecialchars((string)$area) ?></span></td>
-                            <td>$<?= number_format($vBase, 2) ?></td>
-                            <td>$<?= number_format($vIva, 2) ?></td>
-                            <td><strong>$<?= number_format($vTotal, 2) ?></strong></td>
+                            <td><?= htmlspecialchars(CommonHelper::formatearImporte($vBase)) ?></td>
+                            <td><?= htmlspecialchars(CommonHelper::formatearImporte($vIva)) ?></td>
+                            <td><strong><?= htmlspecialchars(CommonHelper::formatearImporte($vTotal)) ?></strong></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -118,9 +118,9 @@ $sumTotal = 0.0;
                 <tfoot>
                     <tr style="background:rgba(59,130,246,0.05);font-weight:700;border-top:2px solid var(--border-color);color:var(--text-color);">
                         <td colspan="7" style="text-align:right;padding:16px;">VALORES TOTALES CONSOLIDADOS:</td>
-                        <td style="font-size:15px;">$<?= number_format($sumBase, 2) ?></td>
-                        <td style="font-size:15px;">$<?= number_format($sumIva, 2) ?></td>
-                        <td style="font-size:16px;color:var(--primary);">$<?= number_format($sumTotal, 2) ?></td>
+                        <td style="font-size:15px;"><?= htmlspecialchars(CommonHelper::formatearImporte($sumBase)) ?></td>
+                        <td style="font-size:15px;"><?= htmlspecialchars(CommonHelper::formatearImporte($sumIva)) ?></td>
+                        <td style="font-size:16px;color:var(--primary);"><?= htmlspecialchars(CommonHelper::formatearImporte($sumTotal)) ?></td>
                     </tr>
                 </tfoot>
             <?php endif; ?>

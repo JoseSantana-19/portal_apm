@@ -1,17 +1,55 @@
 <?php
 $puedeCrear = !empty($_permisoVista['create']) || !empty($_permisoVista['full']);
+$puedeAnular = !empty($_permisoVista['edit']) || !empty($_permisoVista['full']);
 $pasoActivo = 1;
+$configLista = ['hoy'=>date('Y-m-d'),'url'=>'index.php?route=requisiciones&action=requisicionesDataTable','puedeAnular'=>$puedeAnular,'csrf'=>csrf_token()];
 ?>
 <link rel="stylesheet" href="public/css/inv_flujo_bodega.css?v=<?= (int)@filemtime(ROOT_PATH.'public/css/inv_flujo_bodega.css') ?>">
+<link rel="stylesheet" href="public/css/inv_flujo_bodega_moderno.css?v=<?= (int)@filemtime(ROOT_PATH.'public/css/inv_flujo_bodega_moderno.css') ?>">
+<link rel="stylesheet" href="public/css/inv_requisiciones_moderno.css?v=<?= (int)@filemtime(ROOT_PATH.'public/css/inv_requisiciones_moderno.css') ?>">
+<link rel="stylesheet" href="public/css/inv_consultas_diferidas.css?v=<?= (int)@filemtime(ROOT_PATH.'public/css/inv_consultas_diferidas.css') ?>">
+
 <div class="wf-page">
- <header class="wf-hero"><div class="wf-title"><span><i class="fa-solid fa-clipboard-list"></i></span><div><h1>Requisiciones</h1><p>Solicitudes internas que dan inicio al flujo de abastecimiento y despacho.</p></div></div></header>
- <?php require __DIR__.'/_flujo_bodega.php'; ?>
+    <header class="wf-hero">
+        <div class="wf-title">
+            <span><i class="fa-solid fa-clipboard-list"></i></span>
+            <div><h1>Requisiciones</h1><p>Consulta y filtra las requisiciones registradas.</p></div>
+        </div>
+        <div class="rq-hero-actions">
+            <span class="wf-period <?= $periodoActivo?'active':'inactive' ?>">
+                <i class="fa-solid <?= $periodoActivo?'fa-circle-check':'fa-triangle-exclamation' ?>"></i>
+                <?= $periodoActivo?'Período '.htmlspecialchars($periodoActivo['nombre']).' activo':'Sin período activo' ?>
+            </span>
+        </div>
+    </header>
 
- <?php if($puedeCrear): ?><section class="wf-card" id="wf-requisition-form"><div class="wf-card-head"><div><h2>Nueva requisición</h2><p>Indique quién solicita, para quién se requiere y los productos necesarios.</p></div><i class="fa-solid fa-file-circle-plus"></i></div><form class="wf-card-body" action="index.php?route=requisiciones&amp;action=guardarSolicitud" method="post" id="wf-request-form"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>"><div class="wf-form-grid"><label><span>Fecha</span><input type="date" name="fecha_solicitud" value="<?= date('Y-m-d') ?>" required></label><label><span>Solicitante</span><select name="solicitante_id" required><option value="">Seleccione…</option><?php foreach($personal as $persona): ?><option value="<?= (int)$persona['id'] ?>"><?= htmlspecialchars($persona['nombre']) ?></option><?php endforeach; ?></select></label><label class="span-2"><span>Centro de consumo / persona destinataria</span><select name="centro_consumo_persona_id" required><option value="">Seleccione…</option><?php foreach($personal as $persona): ?><option value="<?= (int)$persona['id'] ?>"><?= htmlspecialchars($persona['nombre'].(!empty($persona['area'])?' · '.$persona['area']:'')) ?></option><?php endforeach; ?></select></label><label class="span-2"><span>Motivo</span><input name="motivo" maxlength="500" placeholder="Finalidad de la requisición" required></label><label class="span-2"><span>Observaciones</span><input name="observaciones" maxlength="2000" placeholder="Información adicional opcional"></label></div><div class="wf-lines" id="wf-request-lines"></div><div class="wf-actions"><button class="btn-outline" type="button" id="wf-add-request-line"><i class="fa-solid fa-plus"></i> Agregar producto</button><button class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Registrar requisición</button></div></form></section><?php endif; ?>
+    <?php require __DIR__.'/_flujo_bodega.php'; ?>
 
- <section class="wf-card"><div class="wf-card-head"><div><h2>Requisiciones registradas</h2><p>Cada solicitud conserva cantidades solicitadas, entregadas y pendientes.</p></div><span class="wf-status"><?= count($notas) ?> registro(s)</span></div><div class="wf-table-wrap"><table class="wf-table"><thead><tr><th>Requisición</th><th>Fecha</th><th>Solicitante</th><th>Destino</th><th>Motivo</th><th>Productos</th><th>Solicitado</th><th>Entregado</th><th>Estado</th></tr></thead><tbody><?php if(!$notas): ?><tr><td colspan="9" class="wf-empty"><i class="fa-solid fa-clipboard"></i>No existen requisiciones registradas.</td></tr><?php endif; ?><?php foreach($notas as $nota): $final=in_array($nota['estado'],['ATENDIDA','CERRADA'],true); ?><tr><td><strong class="wf-code"><?= htmlspecialchars($nota['secuencial']) ?></strong></td><td><?= htmlspecialchars($nota['fecha_solicitud']) ?></td><td><?= htmlspecialchars($nota['solicitante']) ?></td><td><?= htmlspecialchars($nota['centro_consumo']) ?></td><td><?= htmlspecialchars($nota['motivo']) ?></td><td><?= (int)$nota['total_productos'] ?></td><td><?= (int)$nota['total_solicitado'] ?></td><td><?= (int)$nota['total_entregado'] ?></td><td><span class="wf-status <?= $final?'done':'pending' ?>"><?= htmlspecialchars($nota['estado']) ?></span></td></tr><?php endforeach; ?></tbody></table></div></section>
+    <nav class="rq-tabs" aria-label="Apartados de requisiciones">
+        <a class="active" href="index.php?route=requisiciones"><i class="fa-solid fa-list"></i> Lista de requisiciones</a>
+        <?php if($puedeCrear): ?><a href="index.php?route=requisiciones&amp;action=nuevaRequisicion"><i class="fa-solid fa-file-circle-plus"></i> Nueva requisición</a><?php endif; ?>
+    </nav>
+
+    <section class="inv-query-filter" aria-label="Filtros de requisiciones">
+        <div class="inv-query-intro"><span><i class="fa-solid fa-sliders"></i></span><div><strong>Filtrar requisiciones</strong><small>Defina el período y pulse Mostrar datos.</small></div></div>
+        <div class="inv-query-periods"><button type="button" class="active" data-rq-period="hoy">Hoy</button><button type="button" data-rq-period="mes">Mes</button><button type="button" data-rq-period="anio">Año</button><button type="button" data-rq-period="todos">Todos</button></div>
+        <label><span>Desde</span><input id="rq-date-from" type="date"></label><label><span>Hasta</span><input id="rq-date-to" type="date"></label>
+        <label><span>Estado</span><select id="rq-list-state"><option value="">Todos</option><option value="PENDIENTE">PENDIENTE</option><option value="ATENDIDA">ATENDIDA</option><option value="CERRADA">CERRADA</option><option value="ANULADA">ANULADA</option></select></label>
+        <button class="btn-primary inv-query-show" type="button" id="rq-show-data"><i class="fa-solid fa-table-list"></i><span>Mostrar datos</span></button>
+    </section>
+
+    <section class="wf-card inv-query-card">
+        <div class="wf-card-head">
+            <div><h2>Lista de requisiciones</h2><p>Busca por número, fecha, código de producto, centro de consumo, detalle o estado.</p></div>
+            <span class="wf-status inv-query-state" id="rq-visible-count"><i class="fa-regular fa-circle"></i> Datos sin cargar</span>
+        </div>
+        <div class="inv-query-empty" id="rq-list-empty"><i class="fa-solid fa-database"></i><strong>Consulta lista para cargar</strong><span>Las requisiciones no se descargan hasta que pulse Mostrar datos.</span></div>
+        <div class="wf-table-wrap inv-query-table" id="rq-table-shell" hidden>
+            <table class="wf-table rq-history-table" id="rq-history-table">
+                <thead><tr><th>Requisición</th><th>Fecha</th><th>Centro de consumo</th><th>Detalle</th><th>Productos</th><th>Solicitado</th><th>Entregado</th><th>Estado</th><th>Acciones</th></tr></thead>
+            </table>
+        </div>
+    </section>
 </div>
-<template id="wf-request-line-template"><div class="wf-line"><label><span>Producto</span><select class="wf-item" required><option value="">Seleccione un producto…</option><?php foreach($itemsInventario as $item): ?><option value="<?= (int)$item['id'] ?>"><?= htmlspecialchars($item['secuencial'].' · '.$item['nombre'].' · existencia '.(int)($item['cantidad']??0)) ?></option><?php endforeach; ?></select></label><label><span>Cantidad</span><input class="wf-quantity" type="number" min="1" step="1" value="1" required></label><button class="wf-remove" type="button" title="Quitar"><i class="fa-solid fa-trash"></i></button></div></template>
-<script>
-(()=>{const host=document.getElementById('wf-request-lines'),tpl=document.getElementById('wf-request-line-template'),add=document.getElementById('wf-add-request-line');if(!host||!tpl||!add)return;function names(){[...host.children].forEach((row,i)=>{row.querySelector('.wf-item').name=`items[${i}][item_id]`;row.querySelector('.wf-quantity').name=`items[${i}][cantidad]`})}function line(){const row=tpl.content.firstElementChild.cloneNode(true);row.querySelector('.wf-remove').onclick=()=>{row.remove();names()};host.appendChild(row);names()}add.onclick=line;line()})();
-</script>
+<script type="application/json" id="rq-list-config"><?= json_encode($configLista, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?></script>
+<script src="public/js/inv_requisiciones.js?v=<?= (int)@filemtime(ROOT_PATH.'public/js/inv_requisiciones.js') ?>"></script>

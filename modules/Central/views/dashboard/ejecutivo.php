@@ -82,9 +82,9 @@ $spanishDate = $days[date('w')] . ', ' . date('d') . ' de ' . $months[date('n')]
                 <i class="fa-solid fa-file-excel" style="color:#10B981;"></i> Excel
             </a>
 
-            <button type="button" class="btn-dash btn-dash-primary" onclick="window.print()" title="Imprimir o Exportar PDF Formateado">
+            <a href="<?= APP_URL ?>/dashboard/exportar-pdf" target="_blank" rel="noopener" class="btn-dash btn-dash-primary" title="Visualizar Reporte Oficial en PDF">
                 <i class="fa-solid fa-file-pdf"></i> PDF
-            </button>
+            </a>
 
             <!-- Switch to Ops -->
             <a href="<?= APP_URL ?>/dashboard/operativo" class="btn-dash" data-spa title="Ver Centro de Control Operativo">

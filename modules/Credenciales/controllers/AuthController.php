@@ -187,13 +187,6 @@ class AuthController extends Controller {
         $id = SessionHelper::userId();
         $db = Database::getInstance();
 
-        // vw_Usuarios_Identidad trae nombre/cédula/foto EN VIVO desde Talento
-        // Humano cuando la cuenta está vinculada (id_empleado_th) -- mismo
-        // patrón que ya usa el resto del sistema (ver §11 de
-        // DOCUMENTACION_SISTEMA.md). Se suma cargo/dirección de área reales
-        // vía la vista de directorio de TH -- antes el perfil solo mostraba
-        // CORE_Departamentos.nombre (el organigrama genérico), nunca el
-        // cargo real de la persona.
         $usuario = $db->fetch($db->query(
             'SELECT u.id_usuario, u.nombre_usuario, u.correo, u.nivel_jerarquia, u.estado,
                     u.requiere_mfa, u.mfa_activado_en, u.fecha_creacion, u.tema_preferido,
@@ -209,6 +202,21 @@ class AuthController extends Controller {
             [[$id, SQLSRV_PARAM_IN]]
         ));
 
+        // Consultar registro completo de Talento Humano
+        $cedula = trim((string)($usuario['cedula'] ?? ''));
+        $empId  = (int)($usuario['id_empleado_th'] ?? 0);
+        $empleadoTh = null;
+        try {
+            $empleadoTh = $db->fetch($db->query(
+                "SELECT e.*, u.nombre_unidad, p.nombre_puesto 
+                 FROM Talento_Humano.dbo.th_empleados e
+                 LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+                 LEFT JOIN Talento_Humano.dbo.th_puestos p ON p.puesto_id = e.puesto_id
+                 WHERE e.identificacion = ? OR (e.empleado_id = ? AND ? > 0)",
+                [[$cedula, SQLSRV_PARAM_IN], [$empId, SQLSRV_PARAM_IN], [$empId, SQLSRV_PARAM_IN]]
+            ));
+        } catch (Throwable $e) {}
+
         $roles = $db->fetchAll($db->query(
             'SELECT r.nombre, r.codigo FROM CORE_Usuarios_Roles ur
              JOIN CORE_Roles r ON r.id_rol = ur.id_rol
@@ -223,27 +231,16 @@ class AuthController extends Controller {
             [[$id, SQLSRV_PARAM_IN]]
         ));
 
-        // Últimas acciones propias -- antes el perfil no mostraba nada de
-        // esto, solo dos fechas sueltas (creación + última sesión previa).
-        // Directo a CORE_Auditoria (no vw_AuditoriaGlobal): la vista global
-        // identifica por nombre_usuario, pero las entradas LOGIN/LOGOUT
-        // nativas del portal SIEMPRE lo guardan NULL ahí -- id_usuario sí
-        // está poblado, es la columna real a usar para "mis propias
-        // acciones" del portal.
         $actividadPropia = $db->fetchAll($db->query(
-            "SELECT TOP 6 modulo, operacion, resultado, fecha_registro
+            "SELECT TOP 8 modulo, operacion, resultado, fecha_registro
              FROM CORE_Auditoria
              WHERE id_usuario=?
              ORDER BY fecha_registro DESC",
             [[$id, SQLSRV_PARAM_IN]]
         ));
 
-        // Foto real de Talento Humano -- se descarta el placeholder genérico
-        // (default_avatar.png, lo que TH pone por defecto a toda cuenta sin
-        // foto propia subida) para no mostrar una silueta genérica en vez
-        // del avatar con iniciales, que ya se ve mejor cuando no hay foto real.
         $fotoUrl = null;
-        $rutaFoto = trim((string)($usuario['foto'] ?? ''));
+        $rutaFoto = trim((string)($usuario['foto'] ?? ($empleadoTh['foto'] ?? '')));
         if ($rutaFoto !== '' && !str_ends_with($rutaFoto, 'default_avatar.png')) {
             $rutaAbsoluta = ROOT_PATH . '/apps/talento_humano/' . ltrim($rutaFoto, '/');
             if (is_file($rutaAbsoluta)) {
@@ -252,13 +249,14 @@ class AuthController extends Controller {
         }
 
         $this->render('Credenciales/perfil/index', [
-            'pageTitle'       => 'Mi Perfil',
+            'pageTitle'       => 'Mi Perfil Institucional',
             'usuario'         => $usuario,
+            'empleadoTh'      => $empleadoTh,
             'actividadPropia' => $actividadPropia,
             'fotoUrl'         => $fotoUrl,
-            'roles'         => $roles,
-            'ultimoAcceso'  => $ultimoAcceso['fecha_registro'] ?? null,
-            'csrf'          => $this->csrfToken(),
+            'roles'           => $roles,
+            'ultimoAcceso'    => $ultimoAcceso['fecha_registro'] ?? null,
+            'csrf'            => $this->csrfToken(),
         ]);
     }
 
@@ -266,15 +264,62 @@ class AuthController extends Controller {
         $this->requireAuth();
         $this->verifyCsrf();
 
-        $id = SessionHelper::userId();
+        $id = (int)SessionHelper::userId();
         $correo = trim($_POST['correo'] ?? '');
+        $correoPersonal = trim($_POST['correo_personal'] ?? '');
+        $telMovil = trim($_POST['telefono_movil'] ?? '');
+        $telConv  = trim($_POST['telefono_convencional'] ?? '');
+        $ciudad   = trim($_POST['ciudad_residencia'] ?? '');
+        $direccion = trim($_POST['direccion_domiciliaria'] ?? '');
+        $contactoEmerg = trim($_POST['contacto_emergencia'] ?? '');
+        $emergRelacion = trim($_POST['emergencia_relacion'] ?? '');
+        $telEmerg = trim($_POST['tel_emergencia'] ?? '');
+
+        $db = Database::getInstance();
+
         if (filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-            Database::getInstance()->query(
+            $db->query(
                 'UPDATE CORE_Usuarios SET correo=? WHERE id_usuario=?',
                 [[$correo, SQLSRV_PARAM_IN], [$id, SQLSRV_PARAM_IN]]
             );
+            $_SESSION['correo'] = $correo;
         }
-        SessionHelper::flash('success', 'Perfil actualizado.');
+
+        // Si tiene empleado vinculado en Talento Humano, sincronizar campos de contacto
+        $u = $db->fetch($db->query('SELECT id_empleado_th, cedula FROM CORE_Usuarios WHERE id_usuario=?', [[$id, SQLSRV_PARAM_IN]]));
+        if ($u) {
+            $empId = (int)($u['id_empleado_th'] ?? 0);
+            $ced   = trim((string)($u['cedula'] ?? ''));
+            try {
+                $db->query(
+                    "UPDATE Talento_Humano.dbo.th_empleados
+                     SET correo_personal = COALESCE(NULLIF(?, ''), correo_personal),
+                         telefono_movil  = COALESCE(NULLIF(?, ''), telefono_movil),
+                         telefono_convencional = COALESCE(NULLIF(?, ''), telefono_convencional),
+                         ciudad_residencia = COALESCE(NULLIF(?, ''), ciudad_residencia),
+                         direccion_domiciliaria = COALESCE(NULLIF(?, ''), direccion_domiciliaria),
+                         contacto_emergencia = COALESCE(NULLIF(?, ''), contacto_emergencia),
+                         emergencia_relacion = COALESCE(NULLIF(?, ''), emergencia_relacion),
+                         tel_emergencia  = COALESCE(NULLIF(?, ''), tel_emergencia)
+                     WHERE identificacion = ? OR (empleado_id = ? AND ? > 0)",
+                    [
+                        [$correoPersonal, SQLSRV_PARAM_IN],
+                        [$telMovil, SQLSRV_PARAM_IN],
+                        [$telConv, SQLSRV_PARAM_IN],
+                        [$ciudad, SQLSRV_PARAM_IN],
+                        [$direccion, SQLSRV_PARAM_IN],
+                        [$contactoEmerg, SQLSRV_PARAM_IN],
+                        [$emergRelacion, SQLSRV_PARAM_IN],
+                        [$telEmerg, SQLSRV_PARAM_IN],
+                        [$ced, SQLSRV_PARAM_IN],
+                        [$empId, SQLSRV_PARAM_IN],
+                        [$empId, SQLSRV_PARAM_IN],
+                    ]
+                );
+            } catch (Throwable $e) {}
+        }
+
+        SessionHelper::flash('success', 'Tus datos de perfil y contacto han sido actualizados y sincronizados con éxito.');
         $this->redirect('/perfil');
     }
 

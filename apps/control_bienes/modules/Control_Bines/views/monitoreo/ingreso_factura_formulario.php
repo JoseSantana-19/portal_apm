@@ -10,8 +10,11 @@ foreach($detalleFactura as $linea)$tasaPredeterminada=max($tasaPredeterminada,(f
 if($esNueva&&$tiposIva){foreach($tiposIva as $tipo)$tasaPredeterminada=max($tasaPredeterminada,(float)$tipo['tasa_iva']);}
 $config=[
  'hoy'=>date('Y-m-d'),'esNueva'=>$esNueva,'estado'=>$estado,'puedeModificar'=>$puedeModificar,'vistaPrevia'=>$esVistaPrevia,
+ 'usuarioId'=>(int)($_SESSION['usuario']['id']??$_SESSION['usuario_id']??0),
  'factura'=>$factura,'tiposIva'=>array_map(static fn($i)=>['id'=>(int)$i['id'],'nombre'=>$i['nombre'],'tasa'=>(float)$i['tasa_iva']],$tiposIva),
  'tasaPredeterminada'=>$tasaPredeterminada,'productosUrl'=>'index.php?route=ingresos&action=productosFacturaDataTable',
+ 'resolverProductosUrl'=>'index.php?route=ingresos&action=resolverProductosEscaneadosFactura',
+ 'requisicionUrl'=>'index.php?route=ingresos&action=buscarRequisicionFactura',
  'proveedoresUrl'=>'index.php?route=ingresos&action=proveedoresFacturaJson',
  'proveedores'=>array_map(static fn($p)=>['id'=>(int)$p['id'],'codigo'=>$p['codigo']??'','nombre'=>$p['nombre'],'ruc'=>$p['ruc']??''],$proveedores)
 ];
@@ -45,7 +48,7 @@ $config=[
    <label class="if-order-field"><span>No. orden <em>AUTO</em></span><input id="if-orden" value="<?= htmlspecialchars($factura['orden_secuencial']??'Se asignará al guardar') ?>" readonly><small>El sistema genera automáticamente la siguiente orden OCP.</small></label>
    <label><span>Número de factura</span><input class="if-editable" name="numero_factura" id="if-numero" maxlength="100" value="<?= htmlspecialchars($factura['numero_factura']??'') ?>" required></label>
    <label><span>IVA predeterminado</span><select class="if-editable" id="if-iva-default"><option value="0">No aplica / 0%</option><?php foreach($tiposIva as $tipo): ?><option value="<?= (float)$tipo['tasa_iva'] ?>" <?= abs((float)$tipo['tasa_iva']-$tasaPredeterminada)<.0001?'selected':'' ?>><?= htmlspecialchars($tipo['nombre']) ?> (<?= (float)$tipo['tasa_iva'] ?>%)</option><?php endforeach; ?></select></label>
-   <label class="if-provider-field"><span>Proveedor</span><div class="if-provider-control"><select class="if-editable" name="proveedor_id" id="if-proveedor" required><option value="">Seleccione…</option><?php foreach($proveedores as $p): ?><option value="<?= (int)$p['id'] ?>" <?= (int)($factura['proveedor_id']??0)===(int)$p['id']?'selected':'' ?>><?= htmlspecialchars(($p['codigo']?:'PRV-'.$p['id']).' · '.$p['nombre']) ?></option><?php endforeach; ?></select><a class="if-provider-create" id="if-create-provider" href="index.php?route=inv_maestros&amp;tabla=proveedores&amp;nuevo=1" target="_blank" rel="noopener" title="Crear un proveedor nuevo" aria-label="Crear un proveedor nuevo"><i class="fa-solid fa-plus"></i></a></div><small>Si no existe, use el botón para crearlo; la lista se actualizará al volver.</small></label>
+   <label class="if-provider-field"><span>Proveedor</span><div class="if-provider-control"><select class="if-editable" name="proveedor_id" id="if-proveedor" data-searchable-select data-search-placeholder="Buscar proveedor por código, nombre o RUC…" required><option value="">Escriba para buscar…</option><?php foreach($proveedores as $p): ?><option value="<?= (int)$p['id'] ?>" <?= (int)($factura['proveedor_id']??0)===(int)$p['id']?'selected':'' ?>><?= htmlspecialchars(($p['codigo']?:'PRV-'.$p['id']).' · '.$p['nombre'].(!empty($p['ruc'])?' · '.$p['ruc']:'')) ?></option><?php endforeach; ?></select><a class="if-provider-create" id="if-create-provider" href="index.php?route=inv_maestros&amp;tabla=proveedores&amp;nuevo=1" target="_blank" rel="noopener" title="Crear un proveedor nuevo" aria-label="Crear un proveedor nuevo"><i class="fa-solid fa-plus"></i></a></div><small>Escriba el código, nombre o RUC. Si no existe, use el botón para crearlo.</small></label>
    <label class="if-detail-field"><span>Detalle / concepto de compra</span><input class="if-editable" name="descripcion" id="if-descripcion" maxlength="1000" value="<?= htmlspecialchars($factura['descripcion']??'') ?>" placeholder="Motivo general del ingreso"></label>
   </div></section>
 
@@ -56,7 +59,7 @@ $config=[
    <div class="if-scan-actions"><span><i class="fa-solid fa-shield-halved"></i> Ningún dato se incorpora hasta confirmar.</span><button class="btn-outline" type="button" id="if-scan-discard">Descartar</button><button class="btn-primary" type="button" id="if-scan-apply"><i class="fa-solid fa-check"></i> Aplicar datos detectados</button></div>
   </section>
 
-  <section class="if-doc-card if-products-card"><div class="if-card-heading"><div class="if-section-heading"><span class="if-section-icon if-green"><i class="fa-solid fa-box-open"></i></span><div><h2>Detalle de productos</h2></div></div><div class="if-card-actions"><button class="btn-outline" type="button" id="if-aplicar-iva"><i class="fa-solid fa-percent"></i> Aplicar IVA a todas</button><button class="btn-primary" type="button" id="if-agregar-producto"><i class="fa-solid fa-plus"></i> Agregar producto</button></div></div>
+  <section class="if-doc-card if-products-card"><div class="if-card-heading"><div class="if-section-heading"><span class="if-section-icon if-green"><i class="fa-solid fa-box-open"></i></span><div><h2>Detalle de productos</h2><p>Escriba directamente en la fila rápida o use el catálogo para una búsqueda avanzada.</p></div></div><div class="if-card-actions"><button class="btn-outline" type="button" id="if-aplicar-iva"><i class="fa-solid fa-percent"></i> IVA a todas</button><button class="btn-primary" type="button" id="if-agregar-producto"><i class="fa-solid fa-plus"></i> Agregar producto</button></div></div>
 
    <section class="if-product-editor" id="if-product-editor">
     <div class="if-product-editor-head"><div><span class="if-step-number">1</span><strong id="if-editor-title">Seleccione un producto</strong><small>Prepare la línea y confírmela antes de incorporarla a la factura.</small></div><button class="if-editor-close" type="button" id="if-cerrar-editor" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button></div>
@@ -68,7 +71,8 @@ $config=[
     </div>
    </section>
 
-   <div class="if-detail-table-wrap"><table class="if-detail-table"><thead><tr><th>No. orden</th><th>Factura</th><th>Pedido</th><th>Requisición</th><th>Ítem</th><th>Descripción</th><th>Cantidad</th><th>P. unitario</th><th>Subtotal</th><th>% IVA</th><th>IVA</th><th>Total</th><th>Referencia</th><th>Acciones</th></tr></thead><tbody id="if-lineas"></tbody></table></div>
+   <div class="if-detail-table-wrap"><table class="if-detail-table"><colgroup><col class="if-col-order"><col class="if-col-invoice"><col class="if-col-request"><col class="if-col-requisition"><col class="if-col-item"><col class="if-col-description"><col class="if-col-quantity"><col class="if-col-money"><col class="if-col-money"><col class="if-col-tax"><col class="if-col-money"><col class="if-col-money"><col class="if-col-reference"><col class="if-col-actions"></colgroup><thead><tr><th>No. orden</th><th>Factura</th><th>Pedido</th><th>Requisición</th><th>Ítem</th><th>Descripción</th><th>Cantidad</th><th>P. unitario</th><th>Subtotal</th><th>% IVA</th><th>IVA</th><th>Total</th><th>Referencia</th><th class="if-actions-heading">Acciones</th></tr></thead><tbody id="if-lineas"></tbody><tbody id="if-quick-lines" aria-label="Captura rápida de productos"></tbody></table></div>
+   <div class="if-quick-results" id="if-quick-results" role="listbox" aria-label="Resultados de productos"></div>
    <div class="if-empty-lines" id="if-empty-lines"><i class="fa-solid fa-table-cells-large"></i><span>Aún no ha confirmado productos para esta factura.</span></div>
   </section>
 
@@ -79,7 +83,7 @@ $config=[
     <h3>Aplicación contable</h3>
     <div class="if-account-wrap"><table class="if-account-table"><thead><tr><th>Código</th><th>Descripción</th><th class="if-money">Total</th></tr></thead><tbody id="if-info-account-body"><tr class="if-account-empty"><td colspan="3">Seleccione un producto para consultar su aplicación contable.</td></tr></tbody></table></div>
    </section>
-   <section class="if-doc-card if-summary if-summary-compact"><div class="if-section-heading"><span class="if-section-icon if-amber"><i class="fa-solid fa-calculator"></i></span><div><h2>Resumen de factura</h2><p>Bases tributarias según los tipos de IVA del maestro.</p></div></div><div class="if-summary-content"><div><div class="if-summary-row if-summary-main"><span>Subtotal</span><strong id="if-subtotal-general">$0.00</strong></div><div id="if-bases"></div><div class="if-summary-row if-iva-row"><span>IVA aplicado</span><strong id="if-total-iva">$0.00</strong></div></div><div class="if-grand-total"><span>TOTAL</span><strong id="if-total">$0.00</strong></div></div></section>
+   <section class="if-doc-card if-summary if-summary-compact"><div class="if-section-heading"><span class="if-section-icon if-amber"><i class="fa-solid fa-calculator"></i></span><div><h2>Resumen de factura</h2><p>IVA generado por cada tasa utilizada en la factura.</p></div></div><div class="if-summary-content"><div><div class="if-summary-row if-summary-main"><span>Subtotal</span><strong id="if-subtotal-general">$0.00</strong></div><div id="if-bases"></div><div class="if-summary-row if-iva-row"><span>Total IVA</span><strong id="if-total-iva">$0.00</strong></div></div><div class="if-grand-total"><span>TOTAL</span><strong id="if-total">$0.00</strong></div></div></section>
   </div>
  </form>
 

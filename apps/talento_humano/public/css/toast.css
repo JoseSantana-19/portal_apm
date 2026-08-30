@@ -40,3 +40,56 @@
     from { opacity: 0; transform: translateX(12px); }
     to   { opacity: 1; transform: translateX(0); }
 }
+
+.portal-confirm {
+    width: min(470px, calc(100vw - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: 22px;
+    background: transparent;
+    color: var(--ink-900);
+    overflow: visible;
+}
+
+.portal-confirm::backdrop {
+    background: rgba(3, 24, 39, .68);
+    backdrop-filter: blur(5px);
+}
+
+.portal-confirm-card {
+    padding: 30px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: var(--card);
+    box-shadow: 0 28px 70px rgba(4, 31, 48, .28);
+    text-align: center;
+    animation: confirmIn .2s ease-out;
+}
+
+.portal-confirm-icon {
+    display: grid;
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 15px;
+    place-items: center;
+    border-radius: 17px;
+    background: linear-gradient(145deg, #dff7fb, #e8f2ff);
+    color: var(--ocean-700);
+    font-size: 1.55rem;
+}
+
+.portal-confirm h2 { margin: 0 0 9px; font: 700 1.25rem/1.25 var(--font-display); }
+.portal-confirm p { margin: 0 auto; max-width: 370px; color: var(--ink-600); line-height: 1.55; }
+.portal-confirm-actions { display: flex; justify-content: center; gap: 12px; margin-top: 24px; }
+.portal-confirm-actions .btn { min-width: 132px; justify-content: center; }
+
+@keyframes confirmIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 520px) {
+    .portal-confirm-card { padding: 24px 20px; }
+    .portal-confirm-actions { flex-direction: column-reverse; }
+    .portal-confirm-actions .btn { width: 100%; }
+}

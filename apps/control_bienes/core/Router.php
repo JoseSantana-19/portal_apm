@@ -274,7 +274,7 @@ class Router {
             if (in_array($action, ['guardarFacturaCompra','editarFacturaCompra','verDocumentoFactura','ingresarFacturaBodega'], true)) {
                 return ['ingresos', 'general'];
             }
-            if (in_array($action, ['despacharNota','marcarSinExistencias','obtenerNota'], true)) {
+            if (in_array($action, ['guardarMovimientoEgreso','despacharNota','marcarSinExistencias','obtenerNota'], true)) {
                 return ['egresos', 'general'];
             }
             $porAccion = [
@@ -291,9 +291,10 @@ class Router {
     private function resolverOperacionPermiso(string $action, string $route = ''): string {
         if ($action === 'guardarFacturaIngreso') return !empty($_POST['factura_id']) ? 'edit' : 'create';
         $accion = strtolower($action === 'index' ? $route : $action);
+        if (in_array($accion, ['nuevarequisicion','nuevaordencompra','crearproveedorrapido','resolverproductosescaneadosfactura'], true)) return 'create';
         if (strpos($accion, 'eliminar') !== false || strpos($accion, 'borrar') !== false) return 'delete';
         if ($accion === 'crear' || strpos($accion, '_crear') !== false) return 'create';
-        if (strpos($accion, 'editar') !== false || in_array($accion, ['aprobarordencompra','ingresarfacturabodega','despacharnota','marcarsinexistencias','ejecutarcorte','reiniciar','test'], true)) return 'edit';
+        if (strpos($accion, 'editar') !== false || in_array($accion, ['aprobarordencompra','ingresarfacturabodega','guardarmovimientoegreso','despacharnota','marcarsinexistencias','ejecutarcorte','reiniciar','test'], true)) return 'edit';
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (in_array($accion, ['guardarordencompra','guardarfacturacompra','guardarsolicitud'], true)) return 'create';
             if (strpos($accion, 'guardar') !== false || strpos($accion, 'registrar') !== false || strpos($accion, 'agregar') !== false) return (!empty($_POST['id']) || !empty($_POST['usuario_id']) || !empty($_POST['empId']) || !empty($_POST['periodo_id']) || !empty($_POST['secuencial_id'])) ? 'edit' : 'create';

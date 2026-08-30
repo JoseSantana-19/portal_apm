@@ -180,7 +180,7 @@ try {
         ]);
         while ($actualizar->nextRowset()) {}
     }
-    $auditoria = $db->prepare("EXEC dbo.sp_th_registrar_auditoria 'MIGRACION','Directorio de Personal','RECONCILIAR_ROLMAES',:detalle,'127.0.0.1'");
+    $auditoria = $db->prepare("EXEC dbo.sp_th_registrar_auditoria 'MIGRACION','Nómina de Personal','RECONCILIAR_ROLMAES',:detalle,'127.0.0.1'");
     $auditoria->execute([':detalle'=>'CSV conciliado por cédula. Empleados corregidos: '.count($cambios).'. Sin renumerar claves primarias.']);
     while ($auditoria->nextRowset()) {}
     $db->commit();

@@ -13,6 +13,32 @@ Integra cuatro momentos dentro de una sola opción del menú:
 
 El proceso visible ya no utiliza Nota de Pedido. La operación comienza desde una orden de compra o desde una factura directa.
 
+### Requisiciones internas
+
+La lista y la creación de requisiciones se presentan en pestañas independientes. **Nueva requisición** abre una página completa y no utiliza una ventana flotante. Su número no se escribe manualmente: el sistema asigna el siguiente secuencial al guardar.
+
+El número de nota de pedido es opcional y se ingresa en la cabecera. Puede escribirse como código completo o únicamente con su parte numérica. Al buscarlo, el sistema carga fecha, detalle, solicitante, centro/responsable, observaciones y todos los productos de la nota; la información continúa editable antes de guardar.
+
+Al salir del campo, si la nota existe, el sistema completa su fecha y, cuando la referencia lo permite, selecciona el centro y su responsable en el bloque general. Si contiene varios productos, utiliza la fila actual para el primero y agrega una fila adicional por cada producto restante, repitiendo el número de nota. Después se puede escribir otra nota en una nueva fila. Si la nota no existe, conserva el número escrito y permite completar manualmente los demás campos. Cuando dos notas contienen el mismo producto, el sistema suma sus cantidades al guardar y conserva las referencias de ambas.
+
+La grilla reúne pedido, fecha, código y descripción del producto, cantidad, precio promedio, subtotal, referencias y existencia. El centro no se repite por producto: se selecciona una sola vez en el bloque inferior. La búsqueda consulta únicamente coincidencias por código, descripción o grupo y evita cargar el inventario completo al abrir la página.
+
+El **Centro de consumo** corresponde al área o departamento institucional. Después de seleccionarlo, **Responsable del centro** muestra únicamente las personas activas que pertenecen a esa área. La relación entre ambos datos se valida nuevamente al guardar.
+
+La lista histórica ocupa su propia pestaña e incluye filtros inmediatos por texto, estado y fecha.
+
+### Búsqueda en centros y listas
+
+En Centro de consumo, Responsable del centro y en los demás selectores extensos se puede comenzar a escribir el nombre, área, código o dato visible. El sistema abre una lista de coincidencias y permite escoger con el ratón o con las teclas de dirección y **Enter**. Para mantener ágil la pantalla, primero muestra hasta cien coincidencias y solicita escribir más cuando el resultado todavía es muy amplio.
+
+Las tablas comunes con diez filas o más incorporan automáticamente un campo de búsqueda. Los listados que ya tienen filtros especializados o búsqueda paginada conservan sus propios controles.
+
+### Proveedores históricos
+
+El maestro de proveedores incluye los 1.083 registros activos encontrados en `bases/provee.DBF`, además de los cuatro proveedores que ya estaban registrados. La carga conserva literalmente los datos disponibles del archivo anterior y marca su origen para poder distinguirlos de los proveedores creados en el sistema moderno.
+
+La importación puede repetirse de forma segura: actualiza cada proveedor histórico por su código y no elimina proveedores creados manualmente. Existe además una verificación que compara cada campo importado con el archivo DBF.
+
 ---
 
 ## 2. Estructura de la pantalla
@@ -35,18 +61,31 @@ La pantalla muestra indicadores de órdenes pendientes, facturas pendientes e in
 
 ## 3. Flujo desde una orden de compra
 
+Antes de habilitar una nueva orden, el sistema comprueba que exista un período activo. Si no existe, bloquea la creación, edición y aprobación y muestra el motivo al usuario. La validación se repite en el servidor.
+
 ### 3.1 Crear la orden
 
-Desde **Órdenes de compra**, el usuario selecciona **Nueva orden** y completa:
+La lista de órdenes y la captura de una nueva orden están en pestañas independientes. **Nueva orden** abre una página completa, no una ventana flotante. Desde allí el usuario completa:
 
 - Proveedor.
 - Fecha.
-- Observaciones.
-- Productos solicitados.
-- Cantidad por producto.
-- Precio unitario estimado.
+- Detalle de la compra.
+- Dirección requirente.
+- Memorando de solicitud.
+- Responsable que autoriza.
+- Acta de selección de proveedor.
+- Certificación presupuestaria.
+- Plazo de entrega, forma y condiciones de pago.
 
 El proveedor puede buscarse por nombre, RUC o código. Los productos pueden buscarse por código, descripción o grupo.
+
+La creación de factura utiliza el mismo selector con búsqueda: al abrir Proveedor aparece un campo para filtrar por código, nombre o RUC, evitando recorrer manualmente el catálogo histórico completo.
+
+La orden puede originarse desde una requisición o registrarse directamente. Al seleccionar una requisición, sus productos pendientes se copian a la misma grilla y la relación queda registrada. La requisición y la nota de pedido son referencias opcionales.
+
+Cada producto ocupa una fila de la misma grilla. Las columnas disponibles son pedido, requisición, artículo, descripción, referencia, cantidad, precio unitario, subtotal, aplicación y porcentaje de IVA, total y especificaciones técnicas. Al cambiar cantidad, precio o IVA, la pantalla recalcula subtotal, base 0 %, base gravada, IVA y total general.
+
+Desde el selector de proveedor se puede crear uno nuevo sin cerrar ni perder la orden en edición. El proveedor recién registrado se selecciona automáticamente.
 
 Al guardar, el sistema valida que exista un proveedor y al menos un producto, impide productos repetidos, cantidades inválidas y precios negativos, genera un secuencial y deja la orden en estado **PENDIENTE**.
 
@@ -267,7 +306,15 @@ La eliminación no forma parte de la matriz y queda reservada al Administrador. 
 
 ---
 
-## 16. Archivos relacionados
+## 16. Registro y movimiento de egresos
+
+La pantalla de egresos comienza con una cabecera única. El número de egreso se genera al grabar; el usuario completa la fecha, el ingreso de referencia cuando corresponda, el área, el centro de consumo o receptor y el detalle de la entrega.
+
+La tabla no se presenta como un “egreso directo” separado. Se abre únicamente mediante el botón **Movimiento**, después de validar la cabecera. Desde esa ventana se agregan o eliminan productos y se revisan grupo, existencia, cantidad, costo promedio, subtotal y saldo posterior.
+
+Al confirmar, el sistema valida nuevamente el stock, registra el egreso, resta las cantidades de las existencias y genera el Kardex dentro de una sola transacción. Así, la recepción de una factura suma inventario y el egreso lo resta sin alterar el historial.
+
+## 17. Archivos relacionados
 
 - `modules/Control_Bines/views/monitoreo/egresos.php`.
 - `modules/Control_Bines/controllers/MonitoreoController.php`.

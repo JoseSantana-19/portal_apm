@@ -68,18 +68,55 @@ class InvAbastecimiento extends Model
 
     public function listarOrdenes(): array
     {
-        $sql = "SELECT o.*, p.nombre proveedor, p.ruc proveedor_ruc, n.secuencial nota_secuencial,
+        $campoRequisicion = $this->columnaExiste('inv_ordenes_compra', 'requisicion_id')
+            ? ', r.secuencial requisicion_secuencial' : ', NULL requisicion_secuencial';
+        $joinRequisicion = $this->columnaExiste('inv_ordenes_compra', 'requisicion_id')
+            ? ' LEFT JOIN inv_notas_pedido r ON r.id_nota = o.requisicion_id' : '';
+        $sql = "SELECT o.*, p.nombre proveedor, p.ruc proveedor_ruc, n.secuencial nota_secuencial{$campoRequisicion},
                        (SELECT COUNT(*) FROM inv_ordenes_compra_detalles d WHERE d.orden_id = o.id_orden) total_lineas,
                        (SELECT COALESCE(SUM(d.cantidad * d.precio_unitario_estimado), 0) FROM inv_ordenes_compra_detalles d WHERE d.orden_id = o.id_orden) total_estimado
                 FROM inv_ordenes_compra o
                 JOIN inv_proveedores p ON p.id = o.proveedor_id
                 LEFT JOIN inv_abast_notas_pedido n ON n.id_nota = o.nota_pedido_id
+                {$joinRequisicion}
                 ORDER BY o.fecha DESC, o.id_orden DESC";
         $ordenes = $this->db->query($sql)->fetchAll();
         foreach ($ordenes as &$orden) {
             $orden['detalles'] = $this->detallesOrden((int)$orden['id_orden']);
         }
         return $ordenes;
+    }
+
+    /** Listado paginado de órdenes para consultas grandes. */
+    public function ordenesDataTable(array $peticion): array
+    {
+        $draw=max(0,(int)($peticion['draw']??0)); $inicio=max(0,(int)($peticion['start']??0));
+        $largo=min(100,max(10,(int)($peticion['length']??10))); $busqueda=trim((string)($peticion['search']['value']??''));
+        $tieneRequisicion=$this->columnaExiste('inv_ordenes_compra','requisicion_id');
+        $campoReq=$tieneRequisicion?',r.secuencial requisicion_secuencial':',NULL requisicion_secuencial';
+        $joinReq=$tieneRequisicion?' LEFT JOIN inv_notas_pedido r ON r.id_nota=o.requisicion_id':'';
+        $from=" FROM inv_ordenes_compra o JOIN inv_proveedores p ON p.id=o.proveedor_id LEFT JOIN inv_abast_notas_pedido n ON n.id_nota=o.nota_pedido_id {$joinReq}";
+        $where=['1=1']; $params=[];
+        if($busqueda!==''){
+            $partes=['o.secuencial LIKE :b1','p.nombre LIKE :b2','p.ruc LIKE :b3','o.observaciones LIKE :b4','n.secuencial LIKE :b5'];
+            if($tieneRequisicion)$partes[]='r.secuencial LIKE :b6';
+            foreach(range(1,$tieneRequisicion?6:5) as $i)$params[':b'.$i]='%'.$busqueda.'%';
+            $where[]='('.implode(' OR ',$partes).')';
+        }
+        $desde=trim((string)($peticion['fecha_desde']??'')); $hasta=trim((string)($peticion['fecha_hasta']??''));
+        if($desde!==''){$where[]='o.fecha>=:desde';$params[':desde']=$desde;} if($hasta!==''){$where[]='o.fecha<=:hasta';$params[':hasta']=$hasta;}
+        $estado=strtoupper(trim((string)($peticion['estado']??''))); if(in_array($estado,['PENDIENTE','APROBADA','CERRADA'],true)){$where[]='o.estado=:estado';$params[':estado']=$estado;}
+        $whereSql=implode(' AND ',$where); $total=(int)$this->db->query('SELECT COUNT(*) FROM inv_ordenes_compra')->fetchColumn();
+        $conteo=$this->db->prepare('SELECT COUNT(*)'.$from.' WHERE '.$whereSql);$conteo->execute($params);$filtrados=(int)$conteo->fetchColumn();
+        $columnas=['o.secuencial','o.origen','p.nombre','o.fecha','o.id_orden','o.id_orden','o.id_orden','o.id_orden','o.estado','o.id_orden'];
+        $indice=(int)($peticion['order'][0]['column']??3);$orden=$columnas[$indice]??'o.fecha';$direccion=strtolower((string)($peticion['order'][0]['dir']??'desc'))==='asc'?'ASC':'DESC';
+        $sql="SELECT o.id_orden,o.secuencial,o.fecha,o.estado,o.origen,o.observaciones,p.nombre proveedor,p.ruc proveedor_ruc,n.secuencial nota_secuencial{$campoReq},
+                    (SELECT COUNT(*) FROM inv_ordenes_compra_detalles d WHERE d.orden_id=o.id_orden) total_lineas,
+                    (SELECT COALESCE(SUM(d.cantidad*d.precio_unitario_estimado),0) FROM inv_ordenes_compra_detalles d WHERE d.orden_id=o.id_orden) subtotal,
+                    (SELECT COALESCE(SUM(CASE WHEN d.grava_iva=1 THEN d.cantidad*d.precio_unitario_estimado*d.iva_porcentaje/100 ELSE 0 END),0) FROM inv_ordenes_compra_detalles d WHERE d.orden_id=o.id_orden) iva
+              {$from} WHERE {$whereSql} ORDER BY {$orden} {$direccion},o.id_orden DESC OFFSET {$inicio} ROWS FETCH NEXT {$largo} ROWS ONLY";
+        $stmt=$this->db->prepare($sql);$stmt->execute($params);
+        return ['draw'=>$draw,'recordsTotal'=>$total,'recordsFiltered'=>$filtrados,'data'=>$stmt->fetchAll()];
     }
 
     public function listarFacturas(): array
@@ -116,9 +153,11 @@ class InvAbastecimiento extends Model
     public function listarKardexEntradas(): array
     {
         return $this->db->query(
-            "SELECT k.*, i.nombre item_nombre, i.secuencial item_secuencial
+            "SELECT k.*, i.nombre item_nombre, COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_codigo,
+                    COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_secuencial
              FROM inv_kardex k
              JOIN inv_inventario i ON i.id = k.item_id
+             LEFT JOIN inv_productos p ON p.id = i.producto_id
              WHERE k.tipo_movimiento = 'INGRESO'
              ORDER BY k.fecha_movimiento DESC, k.id_movimiento DESC"
         )->fetchAll();
@@ -177,25 +216,25 @@ class InvAbastecimiento extends Model
                 if (!$nota || $nota['estado'] !== 'PENDIENTE') throw new RuntimeException('La nota seleccionada ya no está disponible.');
             }
             $secuencial = (new InvSecuencial())->generarSiguiente('ocp');
+            $camposModernos = $this->camposOrdenModernos($datos);
+            $columnasExtra = $camposModernos ? ', ' . implode(', ', array_keys($camposModernos)) : '';
+            $valoresExtra = $camposModernos ? ', ' . implode(', ', array_map(static fn($campo) => ':' . $campo, array_keys($camposModernos))) : '';
             $stmt = $this->db->prepare(
                 "INSERT INTO inv_ordenes_compra
-                    (secuencial, fecha, nota_pedido_id, proveedor_id, origen, estado, observaciones, creado_por)
-                 VALUES (:sec, :fecha, :nota, :proveedor, :origen, 'PENDIENTE', :obs, :usuario)"
+                    (secuencial, fecha, nota_pedido_id, proveedor_id, origen, estado, observaciones, creado_por{$columnasExtra})
+                 VALUES (:sec, :fecha, :nota, :proveedor, :origen, 'PENDIENTE', :obs, :usuario{$valoresExtra})"
             );
-            $stmt->execute([
+            $parametros = [
                 ':sec' => $secuencial, ':fecha' => $datos['fecha'] ?? date('Y-m-d'),
                 ':nota' => $notaId ?: null, ':proveedor' => $proveedorId,
                 ':origen' => $notaId ? 'NOTA_PEDIDO' : 'MANUAL',
                 ':obs' => trim((string)($datos['observaciones'] ?? '')),
                 ':usuario' => $datos['creado_por'] ?? 'Sistema',
-            ]);
+            ];
+            foreach ($camposModernos as $campo => $valor) $parametros[':' . $campo] = $valor;
+            $stmt->execute($parametros);
             $id = (int)$this->db->lastInsertId();
-            $insert = $this->db->prepare(
-                'INSERT INTO inv_ordenes_compra_detalles (orden_id, item_id, cantidad, precio_unitario_estimado) VALUES (:orden, :item, :cantidad, :precio)'
-            );
-            foreach ($detalles as $detalle) {
-                $insert->execute([':orden' => $id, ':item' => $detalle['item_id'], ':cantidad' => $detalle['cantidad'], ':precio' => $detalle['precio']]);
-            }
+            $this->insertarDetallesOrden($id, $detalles);
             if ($notaId) {
                 $up = $this->db->prepare("UPDATE inv_abast_notas_pedido SET estado = 'EN_ORDEN' WHERE id_nota = :id");
                 $up->execute([':id' => $notaId]);
@@ -224,20 +263,20 @@ class InvAbastecimiento extends Model
                 throw new RuntimeException('Solo se pueden editar órdenes que todavía estén pendientes.');
             }
 
+            $camposModernos = $this->camposOrdenModernos($datos);
+            $asignacionesExtra = '';
+            foreach (array_keys($camposModernos) as $campo) $asignacionesExtra .= ', ' . $campo . ' = :' . $campo;
             $stmt = $this->db->prepare(
-                'UPDATE inv_ordenes_compra SET fecha = :fecha, proveedor_id = :proveedor, observaciones = :obs WHERE id_orden = :id'
+                'UPDATE inv_ordenes_compra SET fecha = :fecha, proveedor_id = :proveedor, observaciones = :obs' . $asignacionesExtra . ' WHERE id_orden = :id'
             );
-            $stmt->execute([
+            $parametros = [
                 ':fecha' => $datos['fecha'] ?? date('Y-m-d'), ':proveedor' => $proveedorId,
                 ':obs' => trim((string)($datos['observaciones'] ?? '')), ':id' => $id,
-            ]);
+            ];
+            foreach ($camposModernos as $campo => $valor) $parametros[':' . $campo] = $valor;
+            $stmt->execute($parametros);
             $this->db->prepare('DELETE FROM inv_ordenes_compra_detalles WHERE orden_id = :id')->execute([':id' => $id]);
-            $insert = $this->db->prepare(
-                'INSERT INTO inv_ordenes_compra_detalles (orden_id, item_id, cantidad, precio_unitario_estimado) VALUES (:orden, :item, :cantidad, :precio)'
-            );
-            foreach ($detalles as $detalle) {
-                $insert->execute([':orden' => $id, ':item' => $detalle['item_id'], ':cantidad' => $detalle['cantidad'], ':precio' => $detalle['precio']]);
-            }
+            $this->insertarDetallesOrden($id, $detalles);
             (new InvBitacora())->registrar('ACTUALIZAR', 'bod', "Orden de compra {$orden['secuencial']} editada por {$usuario}.");
             $this->db->commit();
         } catch (Throwable $e) {
@@ -295,12 +334,12 @@ class InvAbastecimiento extends Model
 
             $subtotal0 = 0.0; $subtotalGravado = 0.0;
             foreach ($detalles as $d) {
-                $base = $d['cantidad'] * $d['precio'];
+                $base = CommonHelper::redondearImporte($d['cantidad'] * $d['precio']);
                 if (!empty($d['grava_iva'])) $subtotalGravado += $base; else $subtotal0 += $base;
             }
             $iva = max(0, (float)($datos['iva_porcentaje'] ?? 0));
-            $valorIva = round($subtotalGravado * $iva / 100, 2);
-            $total = round($subtotal0 + $subtotalGravado + $valorIva, 2);
+            $valorIva = CommonHelper::redondearImporte($subtotalGravado * $iva / 100);
+            $total = CommonHelper::redondearImporte($subtotal0 + $subtotalGravado + $valorIva);
 
             $stmt = $this->db->prepare(
                 "INSERT INTO inv_facturas
@@ -373,12 +412,12 @@ class InvAbastecimiento extends Model
 
             $subtotal0 = 0.0; $subtotalGravado = 0.0;
             foreach ($detalles as $detalle) {
-                $base = $detalle['cantidad'] * $detalle['precio'];
+                $base = CommonHelper::redondearImporte($detalle['cantidad'] * $detalle['precio']);
                 if (!empty($detalle['grava_iva'])) $subtotalGravado += $base; else $subtotal0 += $base;
             }
             $iva = max(0, (float)($datos['iva_porcentaje'] ?? 0));
-            $valorIva = round($subtotalGravado * $iva / 100, 2);
-            $total = round($subtotal0 + $subtotalGravado + $valorIva, 2);
+            $valorIva = CommonHelper::redondearImporte($subtotalGravado * $iva / 100);
+            $total = CommonHelper::redondearImporte($subtotal0 + $subtotalGravado + $valorIva);
             $reemplazaArchivo = !empty($datos['archivo_ruta']);
 
             $sqlArchivo = $reemplazaArchivo
@@ -462,7 +501,7 @@ class InvAbastecimiento extends Model
                 $cantidad = (int)$d['cantidad'];
                 $nueva = $anterior + $cantidad;
                 $costoAnterior = (float)$item['valor'];
-                $promedio = $nueva > 0 ? round((($anterior * $costoAnterior) + ($cantidad * (float)$d['precio_unitario'])) / $nueva, 4) : (float)$d['precio_unitario'];
+                $promedio = $nueva > 0 ? CommonHelper::redondearPrecio((($anterior * $costoAnterior) + ($cantidad * (float)$d['precio_unitario'])) / $nueva) : CommonHelper::redondearPrecio($d['precio_unitario']);
                 $insertDetalle->execute([
                     ':ingreso' => $ingresoId, ':item' => $d['item_id'], ':cantidad' => $cantidad,
                     ':precio' => $d['precio_unitario'], ':anterior' => $anterior, ':nueva' => $nueva, ':promedio' => $promedio,
@@ -495,7 +534,12 @@ class InvAbastecimiento extends Model
     private function detallesNota(int $id): array
     {
         $stmt = $this->db->prepare(
-            'SELECT d.*, i.nombre item_nombre, i.secuencial item_secuencial FROM inv_abast_notas_pedido_detalles d JOIN inv_inventario i ON i.id = d.item_id WHERE d.nota_id = :id ORDER BY d.id_detalle'
+            "SELECT d.*, i.nombre item_nombre, COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_codigo,
+                    COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_secuencial
+             FROM inv_abast_notas_pedido_detalles d
+             JOIN inv_inventario i ON i.id = d.item_id
+             LEFT JOIN inv_productos p ON p.id = i.producto_id
+             WHERE d.nota_id = :id ORDER BY d.id_detalle"
         );
         $stmt->execute([':id' => $id]);
         return $stmt->fetchAll();
@@ -504,7 +548,12 @@ class InvAbastecimiento extends Model
     private function detallesOrden(int $id): array
     {
         $stmt = $this->db->prepare(
-            'SELECT d.*, i.nombre item_nombre, i.secuencial item_secuencial FROM inv_ordenes_compra_detalles d JOIN inv_inventario i ON i.id = d.item_id WHERE d.orden_id = :id ORDER BY d.id_detalle'
+            "SELECT d.*, i.nombre item_nombre, COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_codigo,
+                    COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_secuencial
+             FROM inv_ordenes_compra_detalles d
+             JOIN inv_inventario i ON i.id = d.item_id
+             LEFT JOIN inv_productos p ON p.id = i.producto_id
+             WHERE d.orden_id = :id ORDER BY d.id_detalle"
         );
         $stmt->execute([':id' => $id]);
         return $stmt->fetchAll();
@@ -513,13 +562,15 @@ class InvAbastecimiento extends Model
     private function detallesFactura(int $id): array
     {
         $stmt = $this->db->prepare(
-            'SELECT d.*, i.nombre item_nombre, i.secuencial item_secuencial,
+            "SELECT d.*, i.nombre item_nombre, COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_codigo,
+                    COALESCE(NULLIF(p.codigo, ''), i.secuencial) item_secuencial,
                     i.cantidad existencia_actual, i.valor costo_actual,
                     c.nombre grupo_nombre, c.codigo grupo_codigo
              FROM inv_facturas_detalles d
              JOIN inv_inventario i ON i.id = d.item_id
+             LEFT JOIN inv_productos p ON p.id = i.producto_id
              LEFT JOIN inv_categorias c ON c.id = i.categoria_id
-             WHERE d.factura_id = :id ORDER BY d.id_detalle'
+             WHERE d.factura_id = :id ORDER BY d.id_detalle"
         );
         $stmt->execute([':id' => $id]);
         return $stmt->fetchAll();
@@ -572,15 +623,76 @@ class InvAbastecimiento extends Model
             $vistos[$item] = true;
             $fila = ['item_id' => $item, 'cantidad' => $cantidad];
             if ($conPrecio) {
-                $precio = (float)($detalle['precio'] ?? $detalle['precio_unitario'] ?? 0);
+                $precio = CommonHelper::redondearPrecio($detalle['precio'] ?? $detalle['precio_unitario'] ?? 0);
                 if ($precio < 0) throw new InvalidArgumentException('El precio unitario no puede ser negativo.');
                 $fila['precio'] = $precio;
                 $fila['grava_iva'] = !empty($detalle['grava_iva']);
+                $fila['iva_porcentaje'] = max(0.0, min(100.0, (float)($detalle['iva_porcentaje'] ?? 0)));
+                $fila['pedido_numero'] = trim((string)($detalle['pedido_numero'] ?? ''));
+                $fila['requisicion_numero'] = trim((string)($detalle['requisicion_numero'] ?? ''));
+                $fila['referencia'] = trim((string)($detalle['referencia'] ?? ''));
+                $fila['especificaciones_tecnicas'] = trim((string)($detalle['especificaciones_tecnicas'] ?? ''));
                 $fila['codigo_presupuestario'] = $detalle['codigo_presupuestario'] ?? '';
             }
             $salida[] = $fila;
         }
         return $salida;
+    }
+
+    /** Guarda la grilla completa de una orden, incluyendo referencias e IVA por línea. */
+    private function insertarDetallesOrden(int $ordenId, array $detalles): void
+    {
+        $insertar = $this->db->prepare(
+            'INSERT INTO inv_ordenes_compra_detalles
+                (orden_id, item_id, cantidad, precio_unitario_estimado, pedido_numero, requisicion_numero,
+                 referencia, grava_iva, iva_porcentaje, especificaciones_tecnicas)
+             VALUES
+                (:orden, :item, :cantidad, :precio, :pedido, :requisicion, :referencia, :grava, :iva, :especificaciones)'
+        );
+        foreach ($detalles as $detalle) {
+            $insertar->execute([
+                ':orden' => $ordenId,
+                ':item' => $detalle['item_id'],
+                ':cantidad' => $detalle['cantidad'],
+                ':precio' => $detalle['precio'],
+                ':pedido' => $detalle['pedido_numero'] ?: null,
+                ':requisicion' => $detalle['requisicion_numero'] ?: null,
+                ':referencia' => $detalle['referencia'] ?: null,
+                ':grava' => $detalle['grava_iva'] ? 1 : 0,
+                ':iva' => $detalle['grava_iva'] ? $detalle['iva_porcentaje'] : 0,
+                ':especificaciones' => $detalle['especificaciones_tecnicas'] ?: null,
+            ]);
+        }
+    }
+
+    /** Devuelve solo los campos modernos que ya existen en la base instalada. */
+    private function camposOrdenModernos(array $datos): array
+    {
+        $permitidos = [
+            'periodo_id', 'requisicion_id', 'direccion_requirente', 'memorando_solicitud', 'autorizado_por',
+            'acta_seleccion', 'certificacion_presupuestaria', 'plazo_entrega',
+            'forma_pago', 'condiciones_pago',
+        ];
+        $campos = [];
+        foreach ($permitidos as $campo) {
+            if (!$this->columnaExiste('inv_ordenes_compra', $campo)) continue;
+            $campos[$campo] = in_array($campo, ['periodo_id', 'requisicion_id'], true)
+                ? ((int)($datos[$campo] ?? 0) ?: null)
+                : trim((string)($datos[$campo] ?? ''));
+        }
+        return $campos;
+    }
+
+    private function columnaExiste(string $tabla, string $columna): bool
+    {
+        static $cache = [];
+        $clave = $tabla . '.' . $columna;
+        if (array_key_exists($clave, $cache)) return $cache[$clave];
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = :tabla AND COLUMN_NAME = :columna'
+        );
+        $stmt->execute([':tabla' => $tabla, ':columna' => $columna]);
+        return $cache[$clave] = (int)$stmt->fetchColumn() > 0;
     }
 
     private function validarCoincidencia(array $orden, array $factura): void

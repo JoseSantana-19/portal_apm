@@ -14,6 +14,7 @@ sessions/
 # Archivos generados y temporales
 tmp/
 output/pdf/*.pdf
+outputs/
 public/img/empleados/
 backups/
 

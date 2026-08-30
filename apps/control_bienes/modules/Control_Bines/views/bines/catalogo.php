@@ -212,7 +212,7 @@ $limpiarCodigoVisible = static function ($nombre) {
     <div class="catalogo-stats">
         <div class="catalogo-stat"><strong><?= number_format($totalGruposCatalogo) ?></strong><span>Grupos visibles</span></div>
         <div class="catalogo-stat"><strong><?= number_format($totalItemsCatalogo) ?></strong><span>Ítems activos</span></div>
-        <div class="catalogo-stat"><strong>$<?= $valorCatalogo >= 1000000 ? number_format($valorCatalogo / 1000000, 1) . 'M' : number_format($valorCatalogo, 0) ?></strong><span>Valor inventariado</span></div>
+        <div class="catalogo-stat"><strong><?= htmlspecialchars(CommonHelper::formatearImporte($valorCatalogo)) ?></strong><span>Valor inventariado</span></div>
     </div>
 </section>
 
@@ -280,7 +280,7 @@ $limpiarCodigoVisible = static function ($nombre) {
         if ($total <= 0) continue;
 
         $totalQty    = number_format((float)$catResumen['total_qty'], 0);
-        $valorTotal  = number_format((float)$catResumen['total_value'], 2);
+        $valorTotal  = CommonHelper::formatearImporte($catResumen['total_value'], false);
         
         $bodyId      = 'grp-body-' . $grupoIdx;
         $grupoIdx++;
@@ -311,6 +311,7 @@ $limpiarCodigoVisible = static function ($nombre) {
                 <table id="catalogo-tabla-<?= $grupoId ?>" class="catalogo-datatable display" style="width:100%">
                     <thead>
                         <tr>
+                            <th style="width:105px;">Código</th>
                             <th>Descripción / Nombre</th>
                             <th>Marca</th>
                             <th style="width:120px;">Unidad</th>
@@ -393,7 +394,7 @@ $limpiarCodigoVisible = static function ($nombre) {
                     </div>
                     <div class="form-group">
                         <label>Valor Monetario Base ($)</label>
-                        <input type="number" step="0.01" name="valor" id="inv-inp-valor" required placeholder="Ej: 8500.00">
+                        <input type="number" data-price-input step="<?= htmlspecialchars(CommonHelper::pasoPrecio()) ?>" name="valor" id="inv-inp-valor" required placeholder="Ej: <?= htmlspecialchars(number_format(8500, CommonHelper::decimalesPrecio(), '.', '')) ?>">
                     </div>
                 </div>
                 <div class="form-group">
@@ -449,7 +450,7 @@ function toggleGrupoTabla(categoriaId, bodyId, headerEl) {
     }
 
     var tbody = body.querySelector('.items-ajax-tbody');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:var(--primary);margin-right:8px;display:block;margin-bottom:10px;"></i>Consultando registros en la base de datos...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:var(--primary);margin-right:8px;display:block;margin-bottom:10px;"></i>Consultando registros en la base de datos...</td></tr>';
 
     var termino = document.getElementById('txt-termino').value;
 
@@ -458,7 +459,7 @@ function toggleGrupoTabla(categoriaId, bodyId, headerEl) {
         .then(function(items) {
             body.setAttribute('data-cargado', 'true');
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);"><i class="fa-solid fa-inbox" style="margin-right:6px;"></i>No se encontraron ítems en esta categoría.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);"><i class="fa-solid fa-inbox" style="margin-right:6px;"></i>No se encontraron ítems en esta categoría.</td></tr>';
                 return;
             }
 
@@ -471,8 +472,10 @@ function toggleGrupoTabla(categoriaId, bodyId, headerEl) {
 
                 var itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
                 var unidadStr = item.unidad_abrev || item.unidad_nombre || 'u.';
+                var codigoProducto = item.producto_codigo || item.codigo_clasificacion || item.secuencial || item.codigo || '—';
 
                 html += '<tr>' +
+                    '<td><code style="font-family:monospace;font-weight:800;font-size:12px;color:var(--primary);white-space:nowrap;">' + limpiarCodigoVisible(codigoProducto) + '</code></td>' +
                     '<td><strong style="display:block;color:var(--text-color);font-size:13.5px;">' + (item.nombre || '') + '</strong>' +
                         '<span style="display:block;margin-top:3px;font-size:11px;color:var(--text-muted);">' + limpiarCodigoVisible(item.categoria || '') + '</span></td>' +
                     '<td style="font-size:13px;color:var(--text-muted);">' + (item.marca || '') + '</td>' +
@@ -482,7 +485,7 @@ function toggleGrupoTabla(categoriaId, bodyId, headerEl) {
                             '<i class="fa-solid ' + qtyIcon + '" style="font-size:11px;"></i> ' + cant +
                         '</span>' +
                     '</td>' +
-                    '<td style="font-size:13px;font-weight:600;text-align:right;color:var(--text-color);">$' + parseFloat(item.valor).toFixed(2) + '</td>' +
+                    '<td style="font-size:13px;font-weight:600;text-align:right;color:var(--text-color);">' + window.InvMoney.formatPrice(item.valor) + '</td>' +
                     '<td style="text-align:right;"><strong style="font-size:13px;color:var(--primary);">' +
                         '$' + totalVal.toLocaleString('es-EC', {minimumFractionDigits:2, maximumFractionDigits:2}) +
                         '</strong><span style="display:block;font-size:10.5px;color:var(--text-muted);">×' + cant + ' und.</span>' +
@@ -500,7 +503,7 @@ function toggleGrupoTabla(categoriaId, bodyId, headerEl) {
             inicializarTablaCatalogo(body);
         })
         .catch(function(e) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:48px;color:#ef4444;"><i class="fa-solid fa-triangle-exclamation" style="font-size:32px;display:block;margin-bottom:12px;"></i>Error al consultar los ítems. Intente de nuevo.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:48px;color:#ef4444;"><i class="fa-solid fa-triangle-exclamation" style="font-size:32px;display:block;margin-bottom:12px;"></i>Error al consultar los ítems. Intente de nuevo.</td></tr>';
         });
 }
 
@@ -521,10 +524,15 @@ function inicializarTablaCatalogo(body) {
     var nombreGrupo = body.getAttribute('data-grupo-nombre') || 'Catálogo de ítems';
     var nombreArchivo = ('catalogo_' + nombreGrupo).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').toLowerCase();
     var botones = [];
+    var formatoExcel = { body: function(data, row, column, node) {
+        var texto = node ? node.textContent.trim() : String(data || '').replace(/<[^>]*>/g, '').trim();
+        return column === 0 ? '\u200C' + texto : texto;
+    } };
     if ($.fn.dataTable.Buttons) {
         botones = [
-            { extend: 'excelHtml5', text: '<i class="fa-solid fa-file-excel"></i> Excel', title: nombreGrupo, filename: nombreArchivo, exportOptions: { columns: [0,1,2,3,4,5,6] } },
-            { extend: 'pdfHtml5', text: '<i class="fa-solid fa-file-pdf"></i> PDF', title: nombreGrupo, filename: nombreArchivo, orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6] } }
+            { extend: 'excelHtml5', text: '<i class="fa-solid fa-file-excel"></i> Excel completo', title: nombreGrupo + ' - Completo', filename: nombreArchivo + '_completo', exportOptions: { columns: [0,1,2,3,4,5,6,7], format: formatoExcel } },
+            { extend: 'excelHtml5', text: '<i class="fa-regular fa-file-excel"></i> Excel resumido', title: nombreGrupo + ' - Resumido', filename: nombreArchivo + '_resumido', exportOptions: { columns: [0,1,3,4,6,7], format: formatoExcel } },
+            { extend: 'pdfHtml5', text: '<i class="fa-solid fa-file-pdf"></i> PDF', title: nombreGrupo, filename: nombreArchivo, orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7] } }
         ];
     }
     $(tabla).DataTable({
@@ -532,7 +540,7 @@ function inicializarTablaCatalogo(body) {
         pageLength: 10,
         lengthMenu: [10, 25, 50, 100],
         order: [[0, 'asc']],
-        columnDefs: [{ targets: 7, orderable: false, searchable: false }],
+        columnDefs: [{ targets: 8, orderable: false, searchable: false }],
         dom: '<"catalogo-dt-tools"Bf>rt<"bottom"lip><"clear">',
         buttons: botones,
         language: {
@@ -589,9 +597,9 @@ function verDetallesInventario(id) {
                     '<div>' +
                         '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.04),rgba(59,130,246,0.08));padding:16px;border-radius:14px;margin-bottom:14px;border:1px solid rgba(59,130,246,0.12);">' +
                             '<h4 style="margin:0 0 12px 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;"><i class="fa-solid fa-calculator" style="color:var(--primary);margin-right:6px;"></i>Valores</h4>' +
-                            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12.5px;color:var(--text-muted);"><span>Precio unitario:</span><strong>$' + vBase.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
-                            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12.5px;color:var(--text-muted);"><span>IVA (' + item.tasa_iva + '%):</span><strong>$' + ivaCal.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
-                            '<div style="display:flex;justify-content:space-between;font-size:14px;border-top:1px dashed var(--border-color);padding-top:10px;font-weight:700;"><span>Total:</span><strong style="font-size:16px;color:var(--primary);">$' + vTotal.toLocaleString('es-EC',{minimumFractionDigits:2}) + '</strong></div>' +
+                            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12.5px;color:var(--text-muted);"><span>Precio unitario:</span><strong>' + window.InvMoney.formatPrice(vBase) + '</strong></div>' +
+                            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:12.5px;color:var(--text-muted);"><span>IVA (' + item.tasa_iva + '%):</span><strong>' + window.InvMoney.formatAmount(ivaCal) + '</strong></div>' +
+                            '<div style="display:flex;justify-content:space-between;font-size:14px;border-top:1px dashed var(--border-color);padding-top:10px;font-weight:700;"><span>Total:</span><strong style="font-size:16px;color:var(--primary);">' + window.InvMoney.formatAmount(vTotal) + '</strong></div>' +
                         '</div>' +
                         '<div style="background:var(--panel-bg);padding:12px;border-radius:12px;border:1px solid var(--border-color);">' +
                             '<label style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px;"><i class="fa-solid fa-message" style="color:' + colorTema + ';margin-right:5px;"></i>Observaciones</label>' +

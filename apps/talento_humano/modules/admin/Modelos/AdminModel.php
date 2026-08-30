@@ -16,10 +16,39 @@ final class AdminModel extends Model
     public function empleadosDisponibles(): array
     {
         return $this->db->query(
-            "SELECT e.empleado_id,e.identificacion,CONCAT(e.apellidos,' ',e.nombres) nombre,e.correo_institucional
-             FROM dbo.th_empleados e LEFT JOIN dbo.th_usuarios_sistema u ON u.empleado_id=e.empleado_id
-             WHERE e.estado=1 AND u.usuario_id IS NULL ORDER BY e.apellidos,e.nombres"
+            "SELECT e.empleado_id, e.identificacion, e.puesto_id,
+                    CONCAT(e.apellidos,' ',e.nombres) nombre,
+                    e.correo_institucional,
+                    ISNULL(p.nombre_puesto, '') nombre_puesto
+             FROM dbo.th_empleados e
+             LEFT JOIN dbo.th_usuarios_sistema u ON u.empleado_id = e.empleado_id
+             LEFT JOIN dbo.th_puestos p ON p.puesto_id = e.puesto_id
+             WHERE e.estado = 1 AND u.usuario_id IS NULL
+             ORDER BY e.apellidos, e.nombres"
         )->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Devuelve el mapa puesto_id -> [rol_id, ...] para la precarga
+     * del selector de roles en la vista de creacion de usuarios.
+     * La clave es el puesto_id (string) y el valor es un array de rol_id enteros
+     * ordenados por es_principal DESC (el primero es el rol recomendado).
+     */
+    public function mapaRolesPorPuesto(): array
+    {
+        try {
+            $stmt = $this->db->prepare('EXEC dbo.sp_th_mapa_roles_puestos');
+            $stmt->execute();
+            $filas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $mapa  = [];
+            foreach ($filas as $f) {
+                $mapa[(string)$f['puesto_id']][] = (int)$f['rol_id'];
+            }
+            return $mapa;
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'admin', false);
+            return [];
+        }
     }
 
     public function roles(): array
@@ -44,29 +73,81 @@ final class AdminModel extends Model
 
     public function crearUsuario(array $d): array
     {
-        $usuario = strtolower(trim((string)($d['usuario'] ?? '')));
-        $correo = trim((string)($d['correo'] ?? ''));
-        $nombre = trim((string)($d['nombre'] ?? ''));
-        $clave = (string)($d['password'] ?? '');
-        $rol = (int)($d['rol_id'] ?? 0);
         $empleado = (int)($d['empleado_id'] ?? 0) ?: null;
         // El navegador hashea la clave (SHA-256) antes de enviarla -- el
         // atributo pattern del <input> ya exige mayúscula/minúscula/número/
         // símbolo/12+ caracteres del lado cliente, ANTES de hashear. Acá solo
-        // queda confirmar que sí llegó un hash real, no revisar su "forma".
-        $claveSegura = (bool)preg_match('/^[a-f0-9]{64}$/', $clave);
-        if (!preg_match('/^[a-z0-9._-]{4,50}$/',$usuario) || !filter_var($correo,FILTER_VALIDATE_EMAIL)
-            || $nombre==='' || !$claveSegura || $rol<=0) {
-            return ['exito'=>0,'mensaje'=>'Revise usuario, correo, rol y clave. La clave no llegó correctamente -- recargue la página e intente de nuevo.'];
+        // queda confirmar que sí llegó un hash real, no revisar su "forma"
+        // (ver js/password-hash.js, mismo esquema que Auth::hashPasswordSecure()).
+        $clave = (string)($d['password'] ?? '');
+        $rol   = (int)($d['rol_id'] ?? 0);
+
+        // --- Derivar usuario y datos desde la cedula del empleado (origen) ---
+        // Coherente con la identidad de cédula única del portal (ver
+        // identidad_cedula_unica): el nombre de usuario de TH pasa a ser la
+        // cédula real del funcionario en vez de un alias manual.
+        if ($empleado !== null) {
+            try {
+                $stmt = $this->db->prepare(
+                    "SELECT identificacion, correo_institucional,
+                            CONCAT(apellidos,' ',nombres) nombre
+                     FROM dbo.th_empleados
+                     WHERE empleado_id = :id AND estado = 1"
+                );
+                $stmt->execute([':id' => $empleado]);
+                $emp = $stmt->fetch(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                Conexion::registrarErrorLog($e, 'admin', false);
+                return ['exito' => 0, 'mensaje' => 'No fue posible consultar los datos del funcionario.'];
+            }
+
+            if (!$emp) {
+                return ['exito' => 0, 'mensaje' => 'El funcionario seleccionado no existe o se encuentra inactivo.'];
+            }
+
+            // El nombre de usuario es la cedula/identificacion del empleado
+            $usuario = trim((string)$emp['identificacion']);
+            $correo  = trim((string)($d['correo'] ?: ($emp['correo_institucional'] ?? '')));
+            $nombre  = trim((string)($d['nombre']  ?: ($emp['nombre'] ?? '')));
+        } else {
+            // Sin empleado vinculado: usuario manual (caso admin interno)
+            $usuario = strtolower(trim((string)($d['usuario'] ?? '')));
+            $correo  = trim((string)($d['correo'] ?? ''));
+            $nombre  = trim((string)($d['nombre'] ?? ''));
         }
+
+        $claveSegura = (bool)preg_match('/^[a-f0-9]{64}$/', $clave);
+        if ($usuario === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)
+            || $nombre === '' || !$claveSegura || $rol <= 0) {
+            return ['exito' => 0, 'mensaje' => 'Revise correo y rol. La clave no llegó correctamente -- recargue la página e intente de nuevo.'];
+        }
+
         try {
-            $stmt=$this->db->prepare('EXEC dbo.sp_th_crear_usuario_sistema :usuario,:hash,:correo,:nombre,:empleado,:rol');
-            $stmt->execute([':usuario'=>$usuario,':hash'=>Auth::hashPasswordSecure($clave),':correo'=>$correo,':nombre'=>$nombre,':empleado'=>$empleado,':rol'=>$rol]);
-            $this->auditarCambio('Usuarios','CREAR',"Creo la cuenta {$usuario}.");
-            return ['exito'=>1,'mensaje'=>'Cuenta creada. El usuario debe cambiar la clave inicial.'];
-        } catch(PDOException $e) {
-            Conexion::registrarErrorLog($e,'admin',false);
-            return ['exito'=>0,'mensaje'=>'No fue posible crear la cuenta; verifique que usuario y empleado no estén registrados.'];
+            $stmt = $this->db->prepare(
+                'EXEC dbo.sp_th_crear_usuario_sistema :usuario,:hash,:correo,:nombre,:empleado,:rol'
+            );
+            $stmt->execute([
+                ':usuario'  => $usuario,
+                ':hash'     => Auth::hashPasswordSecure($clave),
+                ':correo'   => $correo,
+                ':nombre'   => $nombre,
+                ':empleado' => $empleado,
+                ':rol'      => $rol,
+            ]);
+            $this->auditarCambio('Usuarios', 'CREAR', "Creo la cuenta {$usuario}.");
+            return ['exito' => 1, 'mensaje' => 'Cuenta creada. El usuario debe cambiar la clave inicial.'];
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'admin', false);
+            // El SP lanza mensajes descriptivos (rol invalido, puesto no corresponde, etc.)
+            $msgSql = $e->getMessage();
+            $msg = 'No fue posible crear la cuenta; verifique que usuario y empleado no estén registrados.';
+            // Extraer el mensaje del THROW del SP si esta disponible
+            if (preg_match('/51\d{3},\s*(.+?)(?:\s*,\s*1)?$/s', $msgSql, $m)) {
+                $msg = trim($m[1], "' ");
+            } elseif (str_contains($msgSql, 'El rol') || str_contains($msgSql, 'El funcionario') || str_contains($msgSql, 'El nombre')) {
+                $msg = trim(preg_replace('/\[.*?\]/', '', $msgSql));
+            }
+            return ['exito' => 0, 'mensaje' => $msg];
         }
     }
 

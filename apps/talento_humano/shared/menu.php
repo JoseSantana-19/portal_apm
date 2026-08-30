@@ -58,9 +58,9 @@ if (!function_exists('navActive')) {
 
             <?php if(Auth::can('directorio','visualizar')): ?><a class="nav-item<?= str_contains($currentUri, '/talento-humano/directorio') && !$esModoMovimiento ? ' active' : '' ?>"
                href="<?= BASE_URL ?>/talento-humano/directorio"
-               data-label="Directorio de Personal">
+               data-label="Nómina de Personal">
                 <i class="bi bi-people-fill"></i>
-                <span class="nav-text">Directorio de Personal</span>
+                <span class="nav-text">Nómina de Personal</span>
             </a><?php endif; ?>
         </div>
 
@@ -89,6 +89,14 @@ if (!function_exists('navActive')) {
                data-label="Estudio Socioeconómico">
                 <i class="bi bi-shield-shaded"></i>
                 <span class="nav-text">Estudio Socioeconómico</span>
+            </a><?php endif; ?>
+
+            <?php if(Auth::can('vacaciones','visualizar')): ?><a class="nav-item<?= navActive('/talento-humano/vacaciones', $currentUri) ?>" href="<?= BASE_URL ?>/talento-humano/vacaciones" data-label="Vacaciones">
+                <i class="bi bi-calendar-check"></i><span class="nav-text">Vacaciones</span>
+            </a><?php endif; ?>
+
+            <?php if(Auth::can('paz_salvo','visualizar')): ?><a class="nav-item<?= navActive('/talento-humano/paz-salvo', $currentUri) ?>" href="<?= BASE_URL ?>/talento-humano/paz-salvo" data-label="Paz y Salvo">
+                <i class="bi bi-file-earmark-check-fill"></i><span class="nav-text">Paz y Salvo</span>
             </a><?php endif; ?>
         </div>
 
@@ -178,9 +186,6 @@ if (!function_exists('navActive')) {
             </div>
             <a class="nav-item<?= navActive('/talento-humano/asistencia', $currentUri) ?>" href="<?= BASE_URL ?>/talento-humano/asistencia" data-label="Asistencia y Turnos">
                 <i class="bi bi-clock-history"></i><span class="nav-text">Asistencia y Turnos</span><span class="nav-badge nav-text">Demo</span>
-            </a>
-            <a class="nav-item<?= navActive('/talento-humano/vacaciones', $currentUri) ?>" href="<?= BASE_URL ?>/talento-humano/vacaciones" data-label="Vacaciones y Ausencias">
-                <i class="bi bi-calendar-check"></i><span class="nav-text">Vacaciones y Ausencias</span><span class="nav-badge nav-text">Demo</span>
             </a>
             <a class="nav-item<?= navActive('/talento-humano/desempeno', $currentUri) ?>" href="<?= BASE_URL ?>/talento-humano/desempeno" data-label="Evaluación y Desempeño">
                 <i class="bi bi-bar-chart-steps"></i><span class="nav-text">Evaluación y Desempeño</span><span class="nav-badge nav-text">Demo</span>

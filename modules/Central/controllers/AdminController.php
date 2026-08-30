@@ -17,17 +17,148 @@ class AdminController extends Controller {
     public function usuarios(): void {
         $this->requireAuth();
         $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
+        $db = $this->db();
 
-        $stmt = $this->db()->query(
-            'SELECT u.id_usuario, u.cedula, u.nombre_completo, u.correo,
-                    u.nivel_jerarquia, u.estado, d.nombre AS departamento
+        // 1. Usuarios Centrales
+        $coreUsers = $db->fetchAll($db->query(
+            'SELECT u.id_usuario, u.cedula, u.nombre_usuario, u.nombre_completo, u.correo,
+                    u.nivel_jerarquia, u.estado, d.nombre AS departamento, u.requiere_mfa,
+                    u.fecha_creacion, u.mfa_activado_en, u.id_empleado_th
              FROM CORE_Usuarios u
              LEFT JOIN CORE_Departamentos d ON d.id_departamento = u.id_departamento
              ORDER BY u.nombre_completo'
-        );
+        ));
+
+        $usuariosMap = [];
+
+        foreach ($coreUsers as $u) {
+            $ced = trim((string)($u['cedula'] ?? ''));
+            $usr = trim((string)($u['nombre_usuario'] ?? ''));
+            $key = $ced !== '' ? $ced : $usr;
+            $usuariosMap[$key] = [
+                'id_usuario'        => (int)$u['id_usuario'],
+                'id_empleado_th'    => $u['id_empleado_th'] ?? null,
+                'cedula'            => $ced,
+                'nombre_usuario'    => $usr,
+                'nombre_completo'   => $u['nombre_completo'],
+                'correo'            => $u['correo'],
+                'departamento'      => $u['departamento'] ?? 'General',
+                'nivel_jerarquia'   => (int)$u['nivel_jerarquia'],
+                'estado'            => (int)$u['estado'],
+                'requiere_mfa'      => (bool)$u['requiere_mfa'],
+                'mfa_activado_en'   => $u['mfa_activado_en'],
+                'modulos'           => ['Portal Central'],
+                'es_central'        => true,
+            ];
+        }
+
+        // 2. Talento Humano (Nómina y Servidores)
+        try {
+            $thUsers = $db->fetchAll($db->query(
+                "SELECT e.empleado_id, e.identificacion AS cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
+                        e.correo_institucional, e.correo_personal, u.nombre_unidad, e.estado
+                 FROM Talento_Humano.dbo.th_empleados e
+                 LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+                 WHERE e.estado = 1"
+            ));
+            foreach ($thUsers as $th) {
+                $ced = trim((string)($th['cedula'] ?? ''));
+                if (!$ced) continue;
+                if (isset($usuariosMap[$ced])) {
+                    if (!in_array('Talento Humano', $usuariosMap[$ced]['modulos'], true)) {
+                        $usuariosMap[$ced]['modulos'][] = 'Talento Humano';
+                    }
+                    if (empty($usuariosMap[$ced]['id_empleado_th'])) {
+                        $usuariosMap[$ced]['id_empleado_th'] = (int)$th['empleado_id'];
+                    }
+                } else {
+                    $usuariosMap[$ced] = [
+                        'id_usuario'        => null,
+                        'id_empleado_th'    => (int)$th['empleado_id'],
+                        'cedula'            => $ced,
+                        'nombre_usuario'    => $ced,
+                        'nombre_completo'   => $th['nombre_completo'],
+                        'correo'            => $th['correo_institucional'] ?: ($th['correo_personal'] ?: ''),
+                        'departamento'      => $th['nombre_unidad'] ?? 'Talento Humano',
+                        'nivel_jerarquia'   => 0,
+                        'estado'            => (int)$th['estado'],
+                        'requiere_mfa'      => false,
+                        'mfa_activado_en'   => null,
+                        'modulos'           => ['Talento Humano'],
+                        'es_central'        => false,
+                    ];
+                }
+            }
+        } catch (Throwable $e) {}
+
+        // 3. Control de Bienes / Inventario
+        try {
+            $invUsers = $db->fetchAll($db->query(
+                "SELECT id, nombre, usuario, rol, activo FROM inventario.dbo.inv_usuarios"
+            ));
+            foreach ($invUsers as $inv) {
+                $usr = trim((string)($inv['usuario'] ?? ''));
+                $ced = preg_match('/^\d{10}$/', $usr) ? $usr : '';
+                $key = $ced !== '' ? $ced : $usr;
+                if (isset($usuariosMap[$key])) {
+                    if (!in_array('Control de Bienes', $usuariosMap[$key]['modulos'], true)) {
+                        $usuariosMap[$key]['modulos'][] = 'Control de Bienes';
+                    }
+                } else {
+                    $usuariosMap[$key] = [
+                        'id_usuario'        => null,
+                        'id_empleado_th'    => null,
+                        'cedula'            => $ced ?: '—',
+                        'nombre_usuario'    => $usr,
+                        'nombre_completo'   => $inv['nombre'],
+                        'correo'            => '',
+                        'departamento'      => 'Control de Bienes (' . ($inv['rol'] ?? 'Operador') . ')',
+                        'nivel_jerarquia'   => ($inv['rol'] === 'Administrador' ? 3 : 0),
+                        'estado'            => (int)$inv['activo'],
+                        'requiere_mfa'      => false,
+                        'mfa_activado_en'   => null,
+                        'modulos'           => ['Control de Bienes'],
+                        'es_central'        => false,
+                    ];
+                }
+            }
+        } catch (Throwable $e) {}
+
+        // 4. Bitácoras Portuarias
+        try {
+            $bitUsers = $db->fetchAll($db->query(
+                "SELECT id_usuario, cedula, nombres, id_departamento, estado FROM PortuariaDemo.dbo.bit_usuarios_apm"
+            ));
+            foreach ($bitUsers as $bit) {
+                $ced = trim((string)($bit['cedula'] ?? ''));
+                $key = $ced;
+                if ($key && isset($usuariosMap[$key])) {
+                    if (!in_array('Bitácoras Portuarias', $usuariosMap[$key]['modulos'], true)) {
+                        $usuariosMap[$key]['modulos'][] = 'Bitácoras Portuarias';
+                    }
+                } elseif ($key) {
+                    $usuariosMap[$key] = [
+                        'id_usuario'        => null,
+                        'id_empleado_th'    => null,
+                        'cedula'            => $ced,
+                        'nombre_usuario'    => $ced,
+                        'nombre_completo'   => $bit['nombres'],
+                        'correo'            => '',
+                        'departamento'      => 'Operaciones Portuarias',
+                        'nivel_jerarquia'   => 0,
+                        'estado'            => (int)$bit['estado'],
+                        'requiere_mfa'      => false,
+                        'mfa_activado_en'   => null,
+                        'modulos'           => ['Bitácoras Portuarias'],
+                        'es_central'        => false,
+                    ];
+                }
+            }
+        } catch (Throwable $e) {}
+
         $this->render('Central/admin/usuarios', [
-            'pageTitle' => 'Gestión de Usuarios',
-            'usuarios'  => $this->db()->fetchAll($stmt),
+            'pageTitle' => 'Gestión de Usuarios Multi-Módulo',
+            'usuarios'  => array_values($usuariosMap),
             'csrf'      => $this->csrfToken(),
         ]);
     }
@@ -1203,37 +1334,132 @@ class AdminController extends Controller {
         $this->descargarExcel($x, 'usuario_' . preg_replace('/\W+/', '', (string)($u['nombre_usuario'] ?? $id)));
     }
 
-    /** GET /admin/usuarios/{id}/export/pdf — un usuario (ficha). */
+    /** GET /admin/usuarios/{id}/export/pdf — un usuario (ficha completa Talento Humano + Portal). */
     public function exportarUsuarioPdf(int $id): void {
-        $this->requireAuth(); $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
-        require_once ROOT . '/libs/fpdf/fpdf.php';
-        require_once ROOT . '/libs/ReportPdf.php';
+        $this->requireAuth();
+        $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         $u = $this->usuariosData($id)[0] ?? null;
         if (!$u) { http_response_code(404); die('Usuario no encontrado.'); }
-        $secciones = [
-            ['Identidad', [
-                ['Usuario', $u['nombre_usuario'] ?? ''],
-                ['Nombre completo', $u['nombre_completo'] ?? ''],
-                ['Cédula', $u['cedula'] ?? ''],
-                ['Correo', $u['correo'] ?? ''],
-            ]],
-            ['Acceso y permisos', [
-                ['Departamento', $u['departamento'] ?? ''],
-                ['Nivel jerárquico', $this->nivelLabel($u['nivel_jerarquia'] ?? 0)],
-                ['Roles asignados', $u['roles'] ?? '(sin roles)'],
-                ['Estado', (int)($u['estado'] ?? 0) === 1 ? 'Activo' : 'Inactivo'],
-                ['Requiere MFA', (int)($u['requiere_mfa'] ?? 0) ? 'Sí' : 'No'],
-                ['Requiere cambio de contraseña', (int)($u['requiere_cambio_pass'] ?? 0) ? 'Sí' : 'No'],
-                ['Intentos fallidos', (string)($u['intentos_fallidos'] ?? 0)],
-                ['Tema preferido', $u['tema_preferido'] ?? ''],
-            ]],
-            ['Fechas', [
-                ['Creado', $this->fmtFechaHora($u['fecha_creacion'] ?? null)],
-                ['Última modificación', $this->fmtFechaHora($u['fecha_modificacion'] ?? null) ?: '—'],
-            ]],
+        $this->generarFichaUsuarioPdfCompleta($u);
+    }
+
+    /** GET /perfil/export/pdf — Ficha completa del usuario logueado en "MI PERFIL". */
+    public function exportarMiPerfilPdf(): void {
+        $this->requireAuth();
+        $id = (int)SessionHelper::userId();
+        $u = $this->usuariosData($id)[0] ?? null;
+        if (!$u) {
+            // Fallback a sesión
+            $u = [
+                'id_usuario'       => $id,
+                'cedula'           => $_SESSION['cedula'] ?? '',
+                'nombre_usuario'   => $_SESSION['nombre_usuario'] ?? '',
+                'nombre_completo'  => $_SESSION['nombre_completo'] ?? '',
+                'correo'           => $_SESSION['correo'] ?? '',
+                'departamento'     => $_SESSION['nombre_departamento'] ?? 'General',
+                'nivel_jerarquia'  => $_SESSION['nivel_jerarquia'] ?? 0,
+                'roles'            => implode(', ', (array)($_SESSION['roles'] ?? [])),
+                'estado'           => 1,
+                'requiere_mfa'     => !empty($_SESSION['_requiere_mfa']),
+                'fecha_creacion'   => null,
+            ];
+        }
+        $this->generarFichaUsuarioPdfCompleta($u);
+    }
+
+    private function fmtFecha($v): string {
+        if ($v instanceof DateTime) return $v->format('d/m/Y');
+        if (is_string($v) && $v !== '') return date('d/m/Y', strtotime($v));
+        return '';
+    }
+
+    private function generarFichaUsuarioPdfCompleta(array $u): void {
+        require_once ROOT . '/libs/fpdf/fpdf.php';
+        require_once ROOT . '/libs/ReportPdf.php';
+
+        $db = $this->db();
+        $cedula = trim((string)($u['cedula'] ?? ''));
+        $empId  = (int)($u['id_empleado_th'] ?? 0);
+
+        $emp = null;
+        try {
+            $emp = $db->fetch($db->query(
+                "SELECT e.*, u.nombre_unidad, p.nombre_puesto 
+                 FROM Talento_Humano.dbo.th_empleados e
+                 LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+                 LEFT JOIN Talento_Humano.dbo.th_puestos p ON p.puesto_id = e.puesto_id
+                 WHERE e.identificacion = ? OR (e.empleado_id = ? AND ? > 0)",
+                [[$cedula, SQLSRV_PARAM_IN], [$empId, SQLSRV_PARAM_IN], [$empId, SQLSRV_PARAM_IN]]
+            ));
+        } catch (Throwable $e) {}
+
+        $secciones = [];
+
+        // 1. Identidad y Datos Personales
+        $secIdentidad = [
+            ['Nombre Completo', $emp ? ($emp['nombres'] . ' ' . $emp['apellidos']) : ($u['nombre_completo'] ?? '')],
+            ['Cédula / Identificación', $u['cedula'] ?? ($emp['identificacion'] ?? '—')],
+            ['Tipo de Documento', $emp['tipo_identificacion'] ?? 'Cédula de Identidad'],
         ];
-        ReportPdf::ficha('Ficha de Usuario', ($u['nombre_completo'] ?? '') . ' · ' . ($u['nombre_usuario'] ?? ''),
-            $secciones, 'usuario_' . preg_replace('/\W+/', '', (string)($u['nombre_usuario'] ?? $id)) . '.pdf');
+        if ($emp) {
+            $secIdentidad[] = ['Fecha de Nacimiento', $this->fmtFecha($emp['fecha_nacimiento'] ?? null) ?: '—'];
+            $secIdentidad[] = ['Sexo / Género', ($emp['sexo'] ?? '') === 'M' ? 'Masculino' : (($emp['sexo'] ?? '') === 'F' ? 'Femenino' : ($emp['sexo'] ?? '—'))];
+            $secIdentidad[] = ['Estado Civil', $emp['estado_civil'] ?? '—'];
+            $secIdentidad[] = ['Nacionalidad', $emp['nacionalidad'] ?? 'Ecuatoriana'];
+            if (!empty($emp['tipo_sangre'])) $secIdentidad[] = ['Tipo de Sangre', $emp['tipo_sangre']];
+        }
+        $secciones[] = ['1. Identidad y Datos Personales', $secIdentidad];
+
+        // 2. Ubicación y Contacto
+        $secContacto = [
+            ['Correo Institucional', $u['correo'] ?? ($emp['correo_institucional'] ?? '—')],
+        ];
+        if ($emp) {
+            $secContacto[] = ['Correo Personal', $emp['correo_personal'] ?? '—'];
+            $secContacto[] = ['Teléfono Móvil', $emp['telefono_movil'] ?? '—'];
+            $secContacto[] = ['Teléfono Convencional', $emp['telefono_convencional'] ?? '—'];
+            $secContacto[] = ['Ciudad de Residencia', $emp['ciudad_residencia'] ?? 'Manta'];
+            $secContacto[] = ['Dirección Domiciliaria', $emp['direccion_domiciliaria'] ?? '—'];
+            if (!empty($emp['contacto_emergencia'])) {
+                $secContacto[] = ['Contacto de Emergencia', $emp['contacto_emergencia'] . (!empty($emp['emergencia_relacion']) ? " ({$emp['emergencia_relacion']})" : '') . (!empty($emp['tel_emergencia']) ? " - {$emp['tel_emergencia']}" : '')];
+            }
+        }
+        $secciones[] = ['2. Ubicación y Contacto Domiciliario', $secContacto];
+
+        // 3. Información Institucional y Régimen Laboral
+        $secLaboral = [
+            ['Dirección / Unidad', $emp['nombre_unidad'] ?? ($u['departamento'] ?? 'General')],
+            ['Puesto / Cargo Oficial', $emp['nombre_puesto'] ?? 'Servidor Público'],
+        ];
+        if ($emp) {
+            $secLaboral[] = ['Fecha de Ingreso APM', $this->fmtFecha($emp['fecha_ingreso'] ?? null) ?: '—'];
+            if (!empty($emp['sueldo_rmu'])) {
+                $secLaboral[] = ['Remuneración (RMU)', '$' . number_format((float)$emp['sueldo_rmu'], 2) . ' USD'];
+            }
+            if (!empty($emp['tipo_contrato'])) $secLaboral[] = ['Régimen / Contrato', $emp['tipo_contrato']];
+            if (!empty($emp['codigo_iess'])) $secLaboral[] = ['Afiliación IESS', $emp['codigo_iess']];
+            if (!empty($emp['grupo_ocupacional'])) $secLaboral[] = ['Grupo Ocupacional', $emp['grupo_ocupacional']];
+            if (!empty($emp['partida_individual'])) $secLaboral[] = ['Partida Presupuestaria', $emp['partida_individual']];
+        }
+        $secciones[] = ['3. Información Institucional y Laboral (Talento Humano)', $secLaboral];
+
+        // 4. Seguridad y Credenciales del Portal Central
+        $secPortal = [
+            ['Usuario de Acceso', $u['nombre_usuario'] ?? ''],
+            ['Nivel Jerárquico en Portal', $this->nivelLabel((int)($u['nivel_jerarquia'] ?? 0))],
+            ['Roles Asignados', !empty($u['roles']) ? $u['roles'] : 'Acceso Estándar'],
+            ['Estado de Cuenta', (int)($u['estado'] ?? 1) === 1 ? 'Activo / Habilitado' : 'Inactivo'],
+            ['Autenticación MFA (2FA)', (int)($u['requiere_mfa'] ?? 0) ? 'Activo (TOTP RFC 6238)' : 'Inactivo'],
+            ['Fecha de Registro', $this->fmtFechaHora($u['fecha_creacion'] ?? null)],
+        ];
+        $secciones[] = ['4. Credenciales y Ciberseguridad (Portal APM)', $secPortal];
+
+        ReportPdf::ficha(
+            'FICHA INSTITUCIONAL DE USUARIO',
+            ($u['nombre_completo'] ?? '') . ' · ' . ($u['cedula'] ?? ''),
+            $secciones,
+            'ficha_usuario_' . preg_replace('/\W+/', '', (string)($u['cedula'] ?? ($u['nombre_usuario'] ?? 'apm'))) . '.pdf'
+        );
     }
 
     /** Pares Campo/Valor de un usuario (para Excel individual). */

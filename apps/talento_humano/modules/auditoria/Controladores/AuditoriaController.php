@@ -9,7 +9,27 @@ class AuditoriaController extends Controller
     {
         [$grupos,$totales]=$this->datosOrganizacionales();
         $this->auditar('CONSULTAR_REPORTES','Consulta del reporte organizacional real.');
-        $this->cargarVista('auditoria','reportes',['grupos'=>$grupos,'totales'=>$totales]);
+        $db=Conexion::conectar();
+        $genero=[];$hitos=[];$erroresEstadisticas=[];
+        try {
+            $genero=$db->query('SELECT genero,total,activos FROM dbo.vw_th_estadisticas_genero ORDER BY genero')->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $erroresEstadisticas['genero']=true;
+            Conexion::registrarErrorLog($e,'auditoria',false);
+        }
+        try {
+            $hitos=$db->query('SELECT * FROM dbo.vw_th_hitos_servicio WHERE YEAR(fecha_hito)=YEAR(dbo.fn_th_fecha_institucional()) ORDER BY fecha_hito')->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $erroresEstadisticas['hitos']=true;
+            Conexion::registrarErrorLog($e,'auditoria',false);
+        }
+        $this->cargarVista('auditoria','reportes',[
+            'grupos'=>$grupos,
+            'totales'=>$totales,
+            'estadisticasGenero'=>$genero,
+            'hitosServicio'=>$hitos,
+            'erroresEstadisticas'=>$erroresEstadisticas,
+        ]);
     }
 
     public function exportarCsv(): void
@@ -23,10 +43,51 @@ class AuditoriaController extends Controller
 
     public function exportarPdf(): void
     {
-        [$grupos,$totales]=$this->datosOrganizacionales();$this->auditar('EXPORTAR_PDF','Exporto el reporte organizacional.');
-        require_once ROOT.'/libs/fpdf/fpdf.php';$pdf=new FPDF();$pdf->AddPage();$pdf->SetFont('Arial','B',14);$pdf->Cell(0,9,utf8_decode('AUTORIDAD PORTUARIA DE MANTA'),0,1,'C');$pdf->SetFont('Arial','',10);$pdf->Cell(0,7,utf8_decode('Reporte organizacional de Talento Humano - '.date('d/m/Y H:i')),0,1,'C');$pdf->Ln(4);
-        foreach($grupos as $g){$pdf->SetFont('Arial','B',10);$pdf->SetFillColor(220,238,245);$pdf->Cell(0,7,utf8_decode($g['tipo']),1,1,'L',true);foreach($g['areas'] as $a){$pdf->SetFont('Arial','',8);$pdf->Cell(115,6,utf8_decode($a['nombre']),1);$pdf->Cell(25,6,'Total: '.$a['empleados'],1);$pdf->Cell(25,6,'Activos: '.$a['activos'],1,1);}}
-        $pdf->SetFont('Arial','B',9);$pdf->Cell(0,8,'TOTAL: '.$totales['empleados'].' / ACTIVOS: '.$totales['activos'],1,1);$pdf->Output('I','Reporte_Organizacional_APM.pdf');exit;
+        $rows=$this->datosFuncionariosCompletos();$this->auditar('EXPORTAR_PDF','Exportó el reporte detallado de funcionarios.');
+        require_once ROOT.'/libs/fpdf/fpdf.php';$text=static fn($value):string=>mb_convert_encoding((string)($value??''),'Windows-1252','UTF-8');
+        $pdf=new FPDF('L','mm','A4');$pdf->SetMargins(9,9,9);$pdf->SetAutoPageBreak(true,10);$pdf->AddPage();
+        $encabezado=static function(FPDF $pdf)use($text):void{$pdf->SetFont('Arial','B',14);$pdf->Cell(0,8,$text('AUTORIDAD PORTUARIA DE MANTA'),0,1,'C');$pdf->SetFont('Arial','',9);$pdf->Cell(0,6,$text('Reporte general detallado de funcionarios - '.InstitutionalClock::now()->format('d/m/Y H:i')),0,1,'C');$pdf->Ln(2);};$encabezado($pdf);
+        foreach($rows as $i=>$e){if($pdf->GetY()>178){$pdf->AddPage();$encabezado($pdf);} $pdf->SetFillColor(222,239,247);$pdf->SetFont('Arial','B',8);$pdf->Cell(0,6,$text(($i+1).'. '.($e['apellidos']??'').' '.($e['nombres']??'').' - C.I. '.($e['cedula']??'')),1,1,'L',true);$pdf->SetFont('Arial','',7);
+            $lineas=[
+                'Estado: '.(((int)($e['estado']??0)===1)?'ACTIVO':'INACTIVO').' | Area: '.($e['direccion_area']??'').' | Cargo: '.($e['cargo']??''),
+                'Contrato: '.($e['tipo_contrato']??'').' | Ingreso: '.($e['fecha_ingreso']??'').' | RMU: $'.number_format((float)($e['sueldo_rmu']??0),2).' | Jornada: '.($e['jornada']??'').' '.($e['horas_jornada']??'').'h',
+                'Proceso: '.($e['proceso_institucional']??'').' | Nivel: '.($e['nivel_gestion']??'').' | Grupo: '.($e['grupo_ocupacional']??'').' | Grado: '.($e['grado_laboral']??''),
+                'Nacimiento: '.($e['fecha_nacimiento']??'').' | Nacionalidad: '.($e['nacionalidad']??'').' | Estado civil: '.($e['estado_civil']??'').' | Condicion: '.($e['condicion_especial']??''),
+                'Correo: '.($e['correo_institucional']??'').' | Celular: '.($e['telefono_movil']??'').' | Ciudad: '.($e['ciudad_residencia']??'').' | Emergencia: '.($e['contacto_emergencia']??'').' '.($e['tel_emergencia']??''),
+                'Formacion: '.($e['nivel_estudio']??'').' - '.($e['titulo']??'').' | Partida: '.($e['partida_individual']??'').' | Observaciones: '.($e['observaciones']??''),
+            ];foreach($lineas as $linea)$pdf->MultiCell(0,4.2,$text($linea),1,'L');$pdf->Ln(1);
+        }
+        $pdf->Output('I','Reporte_General_Funcionarios_APM_'.InstitutionalClock::now()->format('Ymd_His').'.pdf');exit;
+    }
+
+    public function exportarExcel(): void
+    {
+        $hojas=$this->hojasReporteCompleto();
+        $this->auditar('EXPORTAR_XLSX','Exportó el libro XLSX completo de funcionarios.');
+        $book=new XlsxWriter();
+        foreach($hojas as $nombre=>$rows)$book->addSheet((string)$nombre,$rows);
+        $book->download('Reporte_Completo_Funcionarios_APM_'.InstitutionalClock::now()->format('Ymd_His').'.xlsx');
+    }
+
+    private function datosFuncionariosCompletos(): array
+    {
+        return Conexion::conectar()->query('SELECT * FROM dbo.vw_th_directorio_empleados ORDER BY apellidos,nombres,empleado_id')->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    private function hojasReporteCompleto(): array
+    {
+        $db=Conexion::conectar();$hojas=['Funcionarios'=>$this->datosFuncionariosCompletos()];
+        $consultas=['Historial laboral'=>'SELECT * FROM dbo.vw_th_reporte_historial_jerarquico ORDER BY empleado_id,fecha_desde',
+            'Acciones de personal'=>'SELECT * FROM dbo.th_acciones_personal ORDER BY accion_id',
+            'Estudios socioeconomicos'=>'SELECT * FROM dbo.th_estudios_socioeconomicos ORDER BY estudio_id',
+            'Jornadas especiales'=>'SELECT * FROM dbo.th_jornadas_especiales ORDER BY empleado_id,fecha_desde',
+            'Vigencias laborales'=>'SELECT * FROM dbo.th_vigencias_laborales ORDER BY empleado_id,fecha_desde',
+            'Periodos vinculacion'=>'SELECT * FROM dbo.th_periodos_vinculacion ORDER BY empleado_id,fecha_desde',
+            'Vacaciones'=>'SELECT * FROM dbo.vw_th_vacaciones_acciones ORDER BY fecha_inicio',
+            'Hitos de servicio'=>'SELECT * FROM dbo.vw_th_hitos_servicio ORDER BY fecha_hito',
+            'Paz y Salvo'=>'SELECT * FROM dbo.th_paz_salvo ORDER BY paz_salvo_id'];
+        foreach($consultas as $nombre=>$sql){try{$hojas[$nombre]=$db->query($sql)->fetchAll(PDO::FETCH_ASSOC);}catch(PDOException $e){Conexion::registrarErrorLog($e,'auditoria',false);$hojas[$nombre]=[];}}
+        return $hojas;
     }
 
     private function datosOrganizacionales(): array

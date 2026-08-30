@@ -1,19 +1,56 @@
 # Portal Portuario APM
 
-Sistema MVC nativo en PHP y SQL Server para la gestion de Talento Humano de la Autoridad Portuaria de Manta.
+Sistema MVC nativo en PHP y SQL Server para la gestión de Talento Humano de la Autoridad Portuaria de Manta.
 
-## Estado
+## Estado actual
 
-La aplicacion incluye directorio con busqueda compuesta, catalogos de nacionalidades y maestros organizacionales, movimientos internos individuales y grupales, Acciones de Personal, estudios socioeconomicos, formularios PDF oficiales, auditoria y control de acceso por roles.
+El entorno local de preproducción está operativo con IIS, PHP 8.5 NTS, HTTPS obligatorio y conexión cifrada a SQL Server mediante ODBC Driver 18. El portal incluye:
 
-El buscador del directorio y los selectores de Acción de Personal y estudio socioeconómico filtran en memoria por cédula, nombres o apellidos para responder mientras se escribe. Los identificadores técnicos permanecen estables; el número de registro mostrado y exportado es consecutivo e independiente de las claves foráneas.
+- nómina de personal con búsqueda compuesta y paginación;
+- expedientes, estructura organizacional y cargos;
+- Acciones de Personal y movimientos internos individuales o grupales;
+- correlativos documentales MP, CA, LI, RD y VAC asignados transaccionalmente;
+- Vacaciones productivas derivadas de Acciones de Personal aprobadas;
+- períodos de vinculación, reingresos, antigüedad efectiva e hitos de servicio;
+- Paz y Salvo auditable para personal saliente, con PDF de dos páginas;
+- estudio socioeconómico con persistencia y generación PDF;
+- biblioteca de formularios oficiales;
+- usuarios, roles, permisos, MFA, auditoría y reportes;
+- asignación de cuentas y roles compatible con el puesto institucional;
+- respaldos y migraciones reproducibles.
 
-El Directorio incluye paginación, acciones según permisos y movimientos grupales contextuales. El ciclo laboral se sincroniza mediante `database/migracion_ciclo_laboral_2026.sql`: las bajas, cesaciones y reingresos actualizan estado, fecha efectiva, historial y auditoría en una sola transacción.
+Asistencia, Desempeño y Capacitación siguen siendo prototipos y no forman parte del alcance operativo. La página 4 del formato socioeconómico incorpora la ubicación domiciliaria autorizada por el proyecto: coordenadas, referencia, mapa privado y QR auditado.
 
-Los modulos de Asistencia, Vacaciones, Desempeno y Capacitacion se conservan temporalmente como prototipos y no deben usarse como fuentes oficiales de informacion.
+## Puesta en marcha
 
-## Instalacion
+1. Consulte el [índice de documentación](docs/README.md).
+2. Prepare el equipo con la guía de [entorno local IIS](docs/ENTORNO_LOCAL_IIS.md).
+3. Revise el orden de [migraciones de base de datos](database/README.md).
+4. Ejecute las verificaciones:
 
-Consulte [docs/DESPLIEGUE_PRODUCCION.md](docs/DESPLIEGUE_PRODUCCION.md) para la configuracion del servidor, SQL Server, secretos, permisos, migraciones y verificaciones posteriores al despliegue.
+```powershell
+C:\php85-nts\php.exe scripts\preflight.php
+C:\php85-nts\php.exe tests\environment_static.php
+C:\php85-nts\php.exe tests\run_sql_smoke.php
+C:\php85-nts\php.exe tests\security_db_smoke.php
+powershell -ExecutionPolicy Bypass -File deployment\run-local-validation-gate.ps1
+```
 
-Nunca almacene credenciales, claves de token, sesiones, respaldos, logs ni documentos personales en Git.
+La compuerta local debe ejecutarse en una consola administrativa real porque valida claves privadas de equipo, SQL cifrado e IIS. Una consola aislada de automatización puede carecer de credenciales Schannel aunque el sitio y el pool funcionen correctamente.
+
+Para preparar el servidor definitivo, siga [Despliegue seguro](docs/DESPLIEGUE_PRODUCCION.md).
+
+### Servidor integrado de PHP (solo desarrollo rápido)
+
+Si se requiere una prueba puntual sin IIS, el comando debe ejecutarse desde la raíz del repositorio:
+
+```powershell
+Set-Location 'C:\Users\palmi\Downloads\Practicas 2026\PortalPortuario'
+C:\php85-nts\php.exe -S localhost:8000 index.php
+```
+
+Abra `http://localhost:8000/login`. El front controller permite que el servidor integrado entregue directamente únicamente los recursos existentes de `public/` (CSS, JavaScript e imágenes). Este modo no sustituye el espejo local validado en IIS; la dirección de referencia sigue siendo `https://portal-apm-preprod.local/`.
+
+## Seguridad
+
+Las credenciales, claves de token, sesiones, respaldos, logs y documentos personales deben permanecer fuera de Git y fuera de la raíz pública. La configuración privada se toma desde `PORTAL_PRIVATE_DIR` o variables de entorno; `.env.example` contiene únicamente marcadores.

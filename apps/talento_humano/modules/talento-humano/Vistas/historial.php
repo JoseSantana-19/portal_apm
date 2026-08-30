@@ -15,7 +15,10 @@
             justify-content: space-between;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            padding: .9rem 1rem;
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--primary,#0d6efd) 5%, var(--surface,#fff));
         }
         .historial-header h3 { margin: 0; font-size: 1.15rem; }
 
@@ -90,6 +93,18 @@
             transition: box-shadow .2s;
         }
         .periodo-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+        .periodo-detalle { cursor:pointer; }
+        .periodo-detalle:focus-visible { outline:3px solid rgba(14,116,144,.3);outline-offset:3px; }
+        .detalle-hint {font-size:.72rem;color:var(--primary,#0e7490);margin-top:.65rem;font-weight:700;}
+        .history-modal {position:fixed;inset:0;z-index:1200;background:rgba(2,12,27,.7);display:none;align-items:center;justify-content:center;padding:20px;}
+        .history-modal.open {display:flex;}
+        .history-dialog {width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--surface,#fff);color:var(--text,#1e293b);border-radius:20px;box-shadow:0 30px 90px rgba(0,0,0,.35);}
+        .history-dialog-head {padding:20px 24px;background:linear-gradient(135deg,#0b3551,#0e7490);color:#fff;display:flex;justify-content:space-between;gap:14px;align-items:start;}
+        .history-dialog-body {padding:22px 24px;}
+        .history-detail-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+        .history-detail {padding:12px;border:1px solid var(--border,#dbe4ee);border-radius:12px;}
+        .history-detail small {display:block;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted,#64748b);margin-bottom:4px;}
+        @media(max-width:650px){.history-detail-grid{grid-template-columns:1fr}}
 
         .periodo-card.actual-card {
             border-color: #198754;
@@ -260,6 +275,10 @@
                             ];
                             $porFuncionario[$key]['periodos'][] = $fila;
                         }
+                        $jornadasPorEmpleado=[];
+                        foreach (($jornadasEspeciales ?? []) as $jornada) $jornadasPorEmpleado[(int)$jornada['empleado_id']][]=$jornada;
+                        $vigenciasPorEmpleado=[];
+                        foreach (($vigenciasLaborales ?? []) as $vigencia) $vigenciasPorEmpleado[(int)$vigencia['empleado_id']][]=$vigencia;
                         ?>
 
                         <?php foreach ($porFuncionario as $persona): ?>
@@ -289,7 +308,24 @@
                                              style="animation-delay:<?= $idx * 0.08 ?>s">
                                             <div class="timeline-dot"></div>
 
-                                            <div class="periodo-card <?= $esActual ? 'actual-card' : '' ?>">
+                                            <?php
+                                            $detallePeriodo=$p;
+                                            $inicioPeriodo=(string)($p['fecha_desde']??'0001-01-01');
+                                            $finPeriodo=(string)($p['fecha_hasta']??'9999-12-31');
+                                             $detallePeriodo['jornadas_especiales']=array_values(array_filter(
+                                                $jornadasPorEmpleado[(int)$p['empleado_id']] ?? [],
+                                                static fn(array $j):bool=>(string)($j['fecha_hasta']??'0001-01-01') >= $inicioPeriodo
+                                                    && (string)($j['fecha_desde']??'9999-12-31') <= $finPeriodo
+                                             ));
+                                             $detallePeriodo['vigencias_laborales']=array_values(array_filter(
+                                                 $vigenciasPorEmpleado[(int)$p['empleado_id']] ?? [],
+                                                 static fn(array $v):bool=>(string)($v['fecha_hasta']??'9999-12-31') >= $inicioPeriodo
+                                                     && (string)($v['fecha_desde']??'9999-12-31') <= $finPeriodo
+                                             ));
+                                            ?>
+                                            <div class="periodo-card periodo-detalle <?= $esActual ? 'actual-card' : '' ?>" role="button" tabindex="0"
+                                                 aria-label="Ver detalle del periodo de <?= htmlspecialchars($p['nombre_puesto']) ?>"
+                                                 data-periodo="<?= htmlspecialchars(json_encode($detallePeriodo,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),ENT_QUOTES,'UTF-8') ?>">
                                                 <div class="periodo-head">
                                                     <div>
                                                         <!-- Dirección (padre o única) -->
@@ -344,6 +380,7 @@
                                                         <b><?= htmlspecialchars($p['direccion_actual_unificada']) ?></b>
                                                     </div>
                                                 <?php endif; ?>
+                                                <div class="detalle-hint"><i class="bi bi-eye"></i> Ver detalle completo del periodo</div>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
@@ -382,6 +419,13 @@
     </section>
 </div>
 
+<div class="history-modal" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+    <div class="history-dialog">
+        <div class="history-dialog-head"><div><small>Detalle del periodo laboral</small><h3 id="historyModalTitle" style="margin:4px 0 0"></h3></div><button type="button" class="btn btn-ghost" id="closeHistoryModal" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></div>
+        <div class="history-dialog-body"><div class="history-detail-grid" id="historyDetailGrid"></div><div id="historyAssignments"></div><div id="historySchedules"></div></div>
+    </div>
+</div>
+
 
 <?php if (!empty($_GET['msg'])): ?>
 <script>
@@ -394,13 +438,23 @@
 <script>
 /* Fecha en el topbar */
 document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('currentDate');
-    if (el) {
-        const ahora = new Date();
-        el.textContent = ahora.toLocaleDateString('es-EC', {
-            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
-        });
-    }
+    const modal=document.getElementById('historyModal');
+    const abrir=card=>{
+        const p=JSON.parse(card.dataset.periodo||'{}');
+        document.getElementById('historyModalTitle').textContent=`${p.nombre_puesto||'Cargo'} — ${p.departamento_historico||''}`;
+        const formato=valor=>valor===null||valor===undefined||valor===''?'No registrado':String(valor);
+        const fecha=valor=>valor?new Date(`${valor}T12:00:00`).toLocaleDateString('es-EC'):'Vigente';
+        const campos=[['Dirección / área',p.departamento_historico],['Cargo / puesto',p.nombre_puesto],['Periodo',`${fecha(p.fecha_desde)} — ${fecha(p.fecha_hasta)}`],['Tipo de contrato',p.tipo_contrato],['Proceso institucional',p.proceso_institucional],['Nivel de gestión',p.nivel_gestion],['Lugar de trabajo',p.lugar_trabajo],['Grupo ocupacional',p.grupo_ocupacional],['Grado',p.grado_laboral],['Partida individual',p.partida_individual],['RMU',p.sueldo_rmu?`$${Number(p.sueldo_rmu).toFixed(2)}`:'No registrada'],['Jornada',`${formato(p.jornada)} · ${formato(p.horas_jornada)} h`],['Condición especial',p.condicion_especial],['Origen',p.accion_id?`Acción de Personal #${p.accion_id}`:(p.movimiento_id?`Movimiento interno #${p.movimiento_id}`:'Registro del expediente')],['Observaciones',p.observaciones]];
+        document.getElementById('historyDetailGrid').innerHTML=campos.map(([k,v])=>`<div class="history-detail"><small>${k}</small><strong>${formato(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}</strong></div>`).join('');
+        const jornadas=p.jornadas_especiales||[];
+        document.getElementById('historySchedules').innerHTML=jornadas.length?`<h4 style="margin:22px 0 10px">Jornadas temporales registradas</h4>${jornadas.map(j=>`<div class="history-detail" style="margin-bottom:8px"><strong>${formato(j.tipo_novedad)}</strong><br><small>${fecha(j.fecha_desde)} — ${fecha(j.fecha_hasta)} · ${formato(j.horas_diarias)} horas · ${formato(j.numero_accion)}</small></div>`).join('')}`:'';
+        const vigencias=p.vigencias_laborales||[];
+        document.getElementById('historyAssignments').innerHTML=vigencias.length?`<h4 style="margin:22px 0 10px">Vigencias laborales y retornos</h4>${vigencias.map(v=>`<div class="history-detail" style="margin-bottom:8px"><strong>${formato(v.tipo_vigencia)} · ${formato(v.estado)}</strong><br><small>${fecha(v.fecha_desde)} — ${fecha(v.fecha_hasta)} · ${formato(v.area_propuesta)} · ${formato(v.cargo_propuesto)} · ${formato(v.numero_accion)}</small><br><small>Situación de retorno: ${formato(v.area_original)} · ${formato(v.cargo_original)}</small></div>`).join('')}`:'';
+        modal.classList.add('open');document.body.style.overflow='hidden';document.getElementById('closeHistoryModal').focus();
+    };
+    document.querySelectorAll('.periodo-detalle').forEach(card=>{card.addEventListener('click',()=>abrir(card));card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir(card)}})});
+    const cerrar=()=>{modal.classList.remove('open');document.body.style.overflow=''};
+    document.getElementById('closeHistoryModal')?.addEventListener('click',cerrar);modal?.addEventListener('click',e=>{if(e.target===modal)cerrar()});document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrar()});
 });
 </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>

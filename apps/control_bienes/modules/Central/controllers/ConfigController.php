@@ -5,11 +5,13 @@
 
 require_once ROOT_PATH . 'modules/Central/models/InvPeriodo.php';
 require_once ROOT_PATH . 'modules/Central/models/InvSecuencial.php';
+require_once ROOT_PATH . 'modules/Central/models/InvParametro.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/LogModel.php';
 
 class ConfigController extends Controller {
     private $periodoModel;
     private $secuencialModel;
+    private $parametroModel;
     private $logger;
 
     public function __construct() {
@@ -17,6 +19,7 @@ class ConfigController extends Controller {
         $this->logger = new Logger('per');
         $this->periodoModel = new InvPeriodo();
         $this->secuencialModel = new InvSecuencial();
+        $this->parametroModel = new InvParametro();
     }
 
     /**
@@ -24,6 +27,16 @@ class ConfigController extends Controller {
      */
     public function periodos() {
         $this->registrarAuditoria('ACCESO', 'per', 'Acceso al módulo de Períodos e IVA Histórico');
+
+        try {
+            $vencido = $this->periodoModel->cerrarVencidoSiCorresponde();
+            if ($vencido) {
+                $this->registrarAuditoria('CIERRE_AUTOMATICO', 'per', "Cierre automático y respaldo del período vencido: {$vencido['nombre']}");
+                $this->logger->info("CIERRE_AUTOMATICO_PERIODO: {$vencido['nombre']} (ID={$vencido['id']})", 'periodos');
+            }
+        } catch (Exception $e) {
+            $this->logger->inv_error('No fue posible ejecutar el cierre automático del período vencido', $e, 'periodos');
+        }
         
         $inv_periodos = $this->periodoModel->obtenerTodos();
         $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
@@ -70,6 +83,33 @@ class ConfigController extends Controller {
         ], 'Secuenciales de Índice - Sistema Portuario');
     }
 
+    public function parametros() {
+        $this->registrarAuditoria('ACCESO', 'par', 'Acceso a parámetros monetarios');
+        $this->render('central/parametros', [
+            'decimalesPrecio' => max(0, min(12, (int)$this->parametroModel->obtener('decimales_precio_unitario', 8))),
+            'decimalesImporte' => max(0, min(8, (int)$this->parametroModel->obtener('decimales_importe_monetario', 2))),
+            'csrfToken' => csrf_token(),
+        ], 'Parámetros monetarios - Sistema Portuario');
+    }
+
+    public function guardarParametrosPrecio() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('inv_parametros', 'La solicitud no es válida o venció.', 'error');
+        }
+        $precio = filter_var($_POST['decimales_precio_unitario'] ?? null, FILTER_VALIDATE_INT);
+        $importe = filter_var($_POST['decimales_importe_monetario'] ?? null, FILTER_VALIDATE_INT);
+        if ($precio === false || $precio < 0 || $precio > 12 || $importe === false || $importe < 0 || $importe > 8) {
+            $this->redirect('inv_parametros', 'La precisión indicada está fuera del rango permitido.', 'error');
+        }
+        $okPrecio = $this->parametroModel->guardar('decimales_precio_unitario', (string)$precio, 'Decimales utilizados para precios unitarios y costos promedio (0 a 12).');
+        $okImporte = $this->parametroModel->guardar('decimales_importe_monetario', (string)$importe, 'Decimales utilizados para subtotales, impuestos y totales monetarios (0 a 8).');
+        if (!$okPrecio || !$okImporte) {
+            $this->redirect('inv_parametros', 'No fue posible guardar los parámetros monetarios.', 'error');
+        }
+        $this->registrarAuditoria('EDITAR', 'par', "Precisión monetaria actualizada: precio={$precio}, importe={$importe}");
+        $this->redirect('inv_parametros', 'Precisión monetaria actualizada correctamente.', 'success');
+    }
+
     /**
      * Guarda un período
      */
@@ -78,10 +118,14 @@ class ConfigController extends Controller {
             $this->redirect('inv_periodos', 'Método no permitido', 'error');
         }
 
-        $nombre = trim($_POST['nombre']);
-        $fechaInicio = $_POST['fecha_inicio'];
-        $fechaFin = $_POST['fecha_fin'];
-        $tasaIva = (float)$_POST['tasa_iva'];
+        $nombre = trim((string)($_POST['nombre'] ?? ''));
+        $fechaInicio = trim((string)($_POST['fecha_inicio'] ?? ''));
+        $fechaFin = trim((string)($_POST['fecha_fin'] ?? ''));
+        $tasaIva = (float)($_POST['tasa_iva'] ?? 0);
+
+        if ($nombre === '' || $fechaInicio === '') {
+            $this->redirect('inv_periodos', 'El nombre y la fecha de inicio son obligatorios', 'error');
+        }
 
         try {
             $periodoId = $this->periodoModel->crear($nombre, $fechaInicio, $fechaFin, $tasaIva);

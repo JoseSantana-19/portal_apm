@@ -412,8 +412,8 @@
                             <span>Categoría: <?= htmlspecialchars($det['item_categoria']) ?> | Marca: <?= htmlspecialchars($det['item_marca']) ?></span>
                         </td>
                         <td><?= $det['cantidad'] ?> unid.</td>
-                        <td>$<?= number_format($det['valor_unitario'], 2) ?></td>
-                        <td style="font-weight: 600;">$<?= number_format($subtotal, 2) ?></td>
+                        <td><?= htmlspecialchars(CommonHelper::formatearPrecio($det['valor_unitario'])) ?></td>
+                        <td style="font-weight: 600;"><?= htmlspecialchars(CommonHelper::formatearImporte($subtotal)) ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -423,7 +423,7 @@
         <div class="total-box">
             <div class="total-card">
                 <span class="total-label">Total Custodia Ingresada</span>
-                <span class="total-val">$<?= number_format($totalCalculado, 2) ?></span>
+                <span class="total-val"><?= htmlspecialchars(CommonHelper::formatearImporte($totalCalculado)) ?></span>
             </div>
         </div>
 

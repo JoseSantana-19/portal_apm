@@ -62,7 +62,7 @@ $topbarIdentification = trim((string)($topbarContext['identification'] ?? ''));
         <?php endif; ?>
 
         <div class="icon-chip topbar-date-chip" title="Fecha actual">
-            <i class="bi bi-calendar-event" aria-hidden="true"></i><span id="currentDate">--</span>
+            <i class="bi bi-calendar-event" aria-hidden="true"></i><span id="currentDate" data-institutional-date="<?= htmlspecialchars(InstitutionalClock::todayIso()) ?>">--</span>
         </div>
 
         <button class="topbar-icon-button" id="themeToggle" type="button"

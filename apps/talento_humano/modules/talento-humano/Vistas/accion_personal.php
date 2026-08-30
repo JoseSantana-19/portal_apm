@@ -8,6 +8,7 @@ $emp  = $empleado    ?? [];
 $hist = $historialLab ?? [];
 $nro  = $nroAccion   ?? ('APM-TH-' . date('Y') . '-001');
 $preselCedula = $preselCedula ?? '';
+$tipoPreseleccionado = $tipoPreseleccionado ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -42,6 +43,27 @@ $preselCedula = $preselCedula ?? '';
             font-weight: 700;
             letter-spacing: .06em;
         }
+        .document-summary {
+            position: sticky;
+            top: var(--topbar-height, 86px);
+            z-index: 24;
+            display: grid;
+            grid-template-columns: minmax(190px,1.2fr) repeat(3,minmax(135px,.8fr));
+            gap: 10px;
+            margin: -12px 14px 18px;
+            padding: 11px;
+            border: 1px solid rgba(14,116,144,.22);
+            border-radius: 15px;
+            background: rgba(255,255,255,.96);
+            box-shadow: 0 12px 28px rgba(15,39,64,.12);
+            backdrop-filter: blur(12px);
+        }
+        .document-summary__item { min-width:0;padding:7px 11px;border-right:1px solid #dbe8ef; }
+        .document-summary__item:last-child { border-right:0; }
+        .document-summary__label { display:block;margin-bottom:3px;color:#64748b;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase; }
+        .document-summary__value { display:flex;align-items:center;gap:7px;min-height:23px;color:#0f2740;font-size:.82rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .document-summary__value .accion-num { padding:4px 11px;background:#e6f9fc;border-color:#9bdce5;color:#0e7490;font-size:.78rem; }
+        .document-summary__note { display:block;margin-top:2px;color:#64748b;font-size:.64rem;font-weight:500; }
         /* Banner buscador de funcionario */
         .buscador-banner {
             display: flex;
@@ -150,6 +172,16 @@ $preselCedula = $preselCedula ?? '';
         .accion-field input[readonly], .accion-field input:disabled,
         .accion-field select:disabled { background: rgba(15,23,42,.04); color: #64748b; cursor: default; }
         .accion-field .req { color: #ef4444; margin-left: 2px; }
+        .vigencia-selector,.capture-selector { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 16px; }
+        .vigencia-option,.capture-option { display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:1px solid #cbdce7;border-radius:12px;background:#f8fafc;cursor:pointer; }
+        .vigencia-option:has(input:checked),.capture-option:has(input:checked) { border-color:#0e7490;background:#ecfeff;box-shadow:0 0 0 2px rgba(14,116,144,.08); }
+        .vigencia-option input,.capture-option input { width:auto;margin-top:3px;accent-color:#0e7490; }
+        .vigencia-option strong,.capture-option strong { display:block;color:#0f2740;font-size:.84rem; }
+        .vigencia-option small,.capture-option small { display:block;color:#587086;font-size:.72rem;line-height:1.4;margin-top:2px; }
+        .vigencia-help { padding:10px 13px;border-radius:10px;background:#eff6ff;color:#1e4f79;font-size:.76rem;margin-bottom:14px; }
+        .compact-schedule-note { display:none;padding:12px 14px;margin-bottom:14px;border-left:4px solid #0e7490;background:#ecfeff;border-radius:10px;color:#155e75;font-size:.78rem; }
+        #panelActual.compact-schedule-current > .accion-field:not(.schedule-current) { display:none; }
+        #panelActual.compact-schedule-current .schedule-current { padding:16px;border:1px solid #cfe3ed;border-radius:12px;background:#f8fcfe; }
         /* Tipo de acción: chips */
         .tipo-accion-grid {
             display: flex;
@@ -188,6 +220,8 @@ $preselCedula = $preselCedula ?? '';
             .split-wrap  { grid-template-columns: 1fr; }
             .split-divider { display: none; }
             .firma-grid  { grid-template-columns: 1fr; }
+            .document-summary { position:static;grid-template-columns:1fr 1fr;margin:-12px 0 16px; }
+            .document-summary__item { border-right:0;border-bottom:1px solid #dbe8ef; }
         }
         /* Barra de acciones del formulario */
         .accion-actions {
@@ -228,8 +262,27 @@ $preselCedula = $preselCedula ?? '';
                         <h2><i class="bi bi-file-earmark-text"></i> Formulario de Acción de Personal</h2>
                         <p>Art. 21 LOSEP — Registro oficial de movimiento de personal de la APM</p>
                     </div>
-                    <span class="accion-num" id="displayNroAccion"><?= htmlspecialchars($nro) ?></span>
                 </div>
+
+                <section class="document-summary" aria-label="Resumen del documento">
+                    <div class="document-summary__item">
+                        <span class="document-summary__label">Código previsto</span>
+                        <span class="document-summary__value"><i class="bi bi-upc-scan"></i><span class="accion-num" id="displayNroAccion"><?= htmlspecialchars($nro) ?></span></span>
+                        <small class="document-summary__note">SQL Server confirma el correlativo definitivo al guardar.</small>
+                    </div>
+                    <div class="document-summary__item">
+                        <span class="document-summary__label">Tipo de acción</span>
+                        <span class="document-summary__value" id="displayTipoAccion"><i class="bi bi-list-check"></i> Pendiente de selección</span>
+                    </div>
+                    <div class="document-summary__item">
+                        <span class="document-summary__label">Vigencia</span>
+                        <span class="document-summary__value" id="displayVigencia"><i class="bi bi-infinity"></i> Permanente</span>
+                    </div>
+                    <div class="document-summary__item">
+                        <span class="document-summary__label">Estado</span>
+                        <span class="document-summary__value"><i class="bi bi-pencil-square"></i> Borrador</span>
+                    </div>
+                </section>
 
                 <!-- BUSCADOR DE FUNCIONARIO (conectado a BD real via AJAX) -->
                 <div class="buscador-banner">
@@ -271,7 +324,7 @@ $preselCedula = $preselCedula ?? '';
                 <!-- FORMULARIO PRINCIPAL -->
                 <section class="card form-card">
                     <form method="POST" action="<?= BASE_URL ?>/talento-humano/accion-personal/guardar"
-                          id="formAccionPersonal">
+                          id="formAccionPersonal" data-draft-context="accion-personal:nueva">
                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
 
                         <!-- Campos ocultos: identificación y claves de situación actual -->
@@ -300,20 +353,25 @@ $preselCedula = $preselCedula ?? '';
                                        value="<?= htmlspecialchars($emp['apellidos_nombres'] ?? $emp['nombres'] ?? '') ?>">
                             </div>
                         </div>
+                        <div class="vigencia-selector" role="radiogroup" aria-label="Modalidad de vigencia">
+                            <label class="vigencia-option"><input type="radio" name="modalidad_vigencia" value="PERMANENTE" checked onchange="actualizarVigencia()"><span><strong>Permanente</strong><small>El cambio se mantiene hasta una nueva Acción de Personal.</small></span></label>
+                            <label class="vigencia-option"><input type="radio" name="modalidad_vigencia" value="TEMPORAL" onchange="actualizarVigencia()"><span><strong>Temporal con retorno automático</strong><small>Al vencer, reaparece la situación laboral anterior sin emitir otra acción.</small></span></label>
+                        </div>
+                        <div class="vigencia-help" id="vigenciaHelp"><i class="bi bi-infinity"></i> Vigencia permanente: deje únicamente la fecha desde.</div>
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
                             <div class="accion-field">
                                 <label>Fecha de Elaboración</label>
                                 <input type="date" name="fecha_elaboracion" id="inpFechaElab"
-                                       value="<?= date('Y-m-d') ?>" required>
+                                       value="<?= InstitutionalClock::todayIso() ?>" required>
                             </div>
                             <div class="accion-field">
                                 <label>Rige desde</label>
                                 <input type="date" name="rige_desde" id="inpRigeDesde"
-                                       value="<?= date('Y-m-d') ?>" required>
+                                       value="<?= InstitutionalClock::todayIso() ?>" required>
                             </div>
                             <div class="accion-field">
-                                <label>Rige hasta <small style="color:#94a3b8;">(vacío = permanente)</small></label>
-                                <input type="date" name="rige_hasta" id="inpRigeHasta">
+                                <label>Rige hasta <span class="req" id="reqRigeHasta" style="display:none">*</span></label>
+                                <input type="date" name="rige_hasta" id="inpRigeHasta" disabled>
                             </div>
                         </div>
 
@@ -343,6 +401,11 @@ $preselCedula = $preselCedula ?? '';
 
                         <!-- ══ SECCIÓN 3: COMPARATIVA SITUACIÓN ACTUAL VS PROPUESTA ════════ -->
                         <div class="section-sep"><span><i class="bi bi-columns-gap"></i> 3 · Situación Actual vs. Situación Propuesta</span></div>
+                        <div class="capture-selector" role="radiogroup" aria-label="Tipo de captura">
+                            <label class="capture-option"><input type="radio" name="modo_captura" value="CAMBIO_LABORAL" checked onchange="actualizarModoCaptura()"><span><strong>Cambio laboral</strong><small>Área, cargo, RMU, contrato u otras condiciones.</small></span></label>
+                            <label class="capture-option"><input type="radio" name="modo_captura" value="JORNADA_TEMPORAL" onchange="actualizarModoCaptura()"><span><strong>Solo jornada temporal</strong><small>Lactancia, maternidad, sustitución u horario especial.</small></span></label>
+                        </div>
+                        <div class="compact-schedule-note" id="compactScheduleNote"><i class="bi bi-clock-history"></i> Complete únicamente la jornada temporal y sus fechas. El cargo y el área permanentes no serán modificados.</div>
                         <div class="split-wrap">
 
                             <!-- ── LADO IZQUIERDO: SITUACIÓN ACTUAL (readonly, BD) ── -->
@@ -358,7 +421,7 @@ $preselCedula = $preselCedula ?? '';
                                     <input type="text" id="inpProcesoActual" name="actual_proceso" readonly
                                            value="<?= htmlspecialchars($hist['proceso_institucional'] ?? '') ?>">
                                 </div>
-                                <div class="accion-field"><label>Nivel de Gestión</label><input type="text" name="actual_nivel_gestion" value="<?= htmlspecialchars($hist['nivel_gestion'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Nivel de Gestión</label><input type="text" id="inpNivelActual" name="actual_nivel_gestion" readonly value="<?= htmlspecialchars($hist['nivel_gestion'] ?? '') ?>"></div>
                                 <div class="accion-field">
                                     <label>Unidad Administrativa (Área)</label>
                                     <input type="text" id="inpUnidadActual" name="actual_unidad" readonly
@@ -369,10 +432,12 @@ $preselCedula = $preselCedula ?? '';
                                     <input type="text" id="inpPuestoActual" name="actual_puesto" readonly
                                            value="<?= htmlspecialchars($hist['denominacion_puesto'] ?? '') ?>">
                                 </div>
-                                <div class="accion-field"><label>Lugar de Trabajo</label><input type="text" name="actual_lugar_trabajo" value="<?= htmlspecialchars($hist['lugar_trabajo'] ?? 'Manta') ?>"></div>
-                                <div class="accion-field"><label>Grupo Ocupacional</label><input type="text" name="actual_grupo_ocupacional" value="<?= htmlspecialchars($hist['grupo_ocupacional'] ?? '') ?>"></div>
-                                <div class="accion-field"><label>Grado</label><input type="text" name="actual_grado" value="<?= htmlspecialchars($hist['grado'] ?? '') ?>"></div>
-                                <div class="accion-field"><label>Partida Individual</label><input type="text" name="actual_partida_presupuestaria" value="<?= htmlspecialchars($hist['partida_presupuestaria'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Lugar de Trabajo</label><input type="text" id="inpLugarActual" name="actual_lugar_trabajo" readonly value="<?= htmlspecialchars($hist['lugar_trabajo'] ?? 'Manta') ?>"></div>
+                                <div class="accion-field"><label>Grupo Ocupacional</label><input type="text" id="inpGrupoActual" name="actual_grupo_ocupacional" readonly value="<?= htmlspecialchars($hist['grupo_ocupacional'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Grado</label><input type="text" id="inpGradoActual" name="actual_grado" readonly value="<?= htmlspecialchars($hist['grado_laboral'] ?? $hist['grado'] ?? '') ?>"></div>
+                                <div class="accion-field"><label>Partida Individual</label><input type="text" id="inpPartidaActual" name="actual_partida_presupuestaria" readonly value="<?= htmlspecialchars($hist['partida_individual'] ?? $hist['partida_presupuestaria'] ?? '') ?>"></div>
+                                <?php $jornadaBase=(string)($hist['jornada']??'Completa');$horasBase=(float)($hist['horas_jornada']??8); ?>
+                                <div class="accion-field schedule-current"><label>Jornada base vigente</label><input type="text" id="inpJornadaActualResumen" readonly value="<?= htmlspecialchars($jornadaBase.' — '.rtrim(rtrim(number_format($horasBase,1,'.',''),'0'),'.').' horas diarias') ?>"><input type="hidden" id="inpJornadaActual" name="actual_jornada" value="<?= htmlspecialchars($jornadaBase) ?>"><input type="hidden" id="inpHorasActual" name="actual_horas_jornada" value="<?= htmlspecialchars((string)$horasBase) ?>"></div>
                                 <div class="accion-field">
                                     <label>Remuneración Mensual Unificada ($)</label>
                                     <input type="text" id="inpSueldoActual" name="actual_remuneracion" readonly
@@ -381,7 +446,7 @@ $preselCedula = $preselCedula ?? '';
                                 </div>
                                 <div class="accion-field">
                                     <label>Tipo de Contrato</label>
-                                    <input type="text" id="inpContratoActual" readonly
+                                    <input type="text" id="inpContratoActual" name="actual_tipo_contrato" readonly
                                            value="<?= htmlspecialchars($hist['tipo_contrato'] ?? '') ?>">
                                 </div>
                             </div>
@@ -397,6 +462,7 @@ $preselCedula = $preselCedula ?? '';
                                         Complete solo los campos que cambian
                                     </span>
                                 </div>
+                                <div id="camposCambioLaboral">
                                 <div class="accion-field">
                                     <label>Proceso Institucional Propuesto</label>
                                     <select class="inputs-propuesta" name="propuesta_proceso" id="propProceso">
@@ -420,7 +486,7 @@ $preselCedula = $preselCedula ?? '';
                                 </div>
                                 <div class="accion-field">
                                     <div class="label-with-action"><label for="propPuesto">Nueva Denominación del Puesto <span class="req">*</span></label><?php if(Auth::can('maestros','crear')): ?><button class="quick-add-button" type="button" onclick="abrirCatalogoRapido('puesto')" title="Crear cargo" aria-label="Crear cargo o puesto"><i class="bi bi-plus-lg"></i></button><?php endif; ?></div>
-                                    <select class="inputs-propuesta" name="propuesta_puesto_id" id="propPuesto">
+                                    <select class="inputs-propuesta" name="propuesta_puesto_id" id="propPuesto" data-searchable-select data-search-placeholder="Buscar cargo propuesto…">
                                         <option value="">Seleccione el cargo...</option>
                                         <?php foreach (($cargos ?? []) as $cargo): ?>
                                         <option value="<?= (int)$cargo['puesto_id'] ?>">
@@ -448,6 +514,26 @@ $preselCedula = $preselCedula ?? '';
                                         <option value="Contrato">Contrato de Servicios</option>
                                         <option value="Contrato Ocasional">Contrato Ocasional</option>
                                     </select>
+                                </div>
+                                </div>
+                                <div class="accion-field">
+                                    <label id="labelJornadaPropuesta">Jornada propuesta</label>
+                                    <select class="inputs-propuesta" name="propuesta_jornada" id="propJornada">
+                                        <option value="">Sin cambio</option><option value="Completa">Completa</option><option value="Parcial">Parcial</option><option value="Rotativa">Rotativa</option><option value="Especial">Especial</option><option value="Licencia">Licencia</option>
+                                    </select>
+                                </div>
+                                <div class="accion-field"><label id="labelHorasPropuestas">Horas diarias propuestas</label><input class="inputs-propuesta" type="number" name="propuesta_horas_jornada" id="propHoras" min="1" max="24" step="0.5"><small id="ayudaHorasPropuestas">Déjelo vacío si la jornada no cambia.</small></div>
+                                <div class="accion-field">
+                                    <label>Novedad temporal de jornada</label>
+                                    <select class="inputs-propuesta" name="tipo_novedad_jornada" id="tipoNovedadJornada" onchange="toggleJornadaTemporal()">
+                                        <option id="optionNovedadVacia" value="">No aplica</option><option value="LACTANCIA">Lactancia</option><option value="MATERNIDAD">Licencia por maternidad</option><option value="PATERNIDAD">Licencia por paternidad</option><option value="SUSTITUTO">Jornada temporal por condición de sustituto</option><option value="DISCAPACIDAD">Discapacidad</option><option value="OTRA JORNADA ESPECIAL">Otra jornada especial</option>
+                                    </select>
+                                </div>
+                                <div id="bloqueJornadaTemporal" style="display:none;padding:14px;border:1px solid rgba(14,116,144,.25);border-radius:12px;background:#ecfeff;">
+                                    <div class="accion-field"><label>Horario temporal</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="time" name="hora_entrada_propuesta"><input type="time" name="hora_salida_propuesta"></div></div>
+                                    <div class="accion-field"><label>Días aplicables</label><input type="text" name="dias_jornada_propuesta" placeholder="Ej.: lunes a viernes"></div>
+                                    <div class="accion-field"><label>Documento de respaldo</label><input type="text" name="documento_jornada" placeholder="Memorando, resolución o certificado"></div>
+                                    <small>Use “Rige desde” y “Rige hasta” para delimitar el periodo. Quedará visible en el historial laboral.</small>
                                 </div>
                             </div>
                         </div><!-- /split-wrap -->
@@ -627,10 +713,6 @@ function buscarPersonaAccion() {
 
 /* ── 1. Inicialización al cargar la página ───────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-    // Fecha actual en topbar
-    document.getElementById('currentDate').textContent =
-        new Date().toLocaleDateString('es-EC', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' });
-
     // Si la URL trae ?cedula= o ?id=, autocompletar al cargar (viene del Directorio)
     const params  = new URLSearchParams(window.location.search);
     const cedUrl  = params.get('cedula');
@@ -659,6 +741,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Modo ID: buscar por ID interno y mostrar la cédula al completar
         cargarServidorPorId(parseInt(idUrl));
     }
+    actualizarVigencia();
+    actualizarModoCaptura();
+    const tipoInicial=<?= json_encode($tipoPreseleccionado,JSON_UNESCAPED_UNICODE) ?>;
+    const chipInicial=[...document.querySelectorAll('.tipo-chip')].find(chip=>chip.dataset.value===tipoInicial);
+    if(chipInicial)seleccionarTipo(chipInicial);
 });
 
 /* ── 2. Búsqueda AJAX del funcionario por cédula ───────────────────────────── */
@@ -717,10 +804,18 @@ function llenarFormularioConEmpleado(emp) {
     document.getElementById('hidUnidadId').value    = emp.unidad_id     ?? 0;
 
     // Situación actual (bloque izquierdo — readonly, datos directos de la BD)
-    document.getElementById('inpProcesoActual').value  = emp.tipo_contrato  ?? '';
+    document.getElementById('inpProcesoActual').value  = emp.proceso_institucional ?? emp.tipo_proceso ?? '';
+    document.getElementById('inpNivelActual').value    = emp.nivel_gestion ?? '';
     document.getElementById('inpUnidadActual').value   = emp.direccion_area ?? '';
     document.getElementById('inpPuestoActual').value   = emp.cargo          ?? '';
-    document.getElementById('inpSueldoActual').value   = '';               // sin campo en la vista
+    document.getElementById('inpLugarActual').value    = emp.lugar_trabajo ?? 'Manta';
+    document.getElementById('inpGrupoActual').value    = emp.grupo_ocupacional ?? '';
+    document.getElementById('inpGradoActual').value    = emp.grado_laboral ?? '';
+    document.getElementById('inpPartidaActual').value  = emp.partida_individual ?? '';
+    document.getElementById('inpJornadaActual').value  = emp.jornada ?? 'Completa';
+    document.getElementById('inpHorasActual').value    = emp.horas_jornada ?? 8;
+    document.getElementById('inpJornadaActualResumen').value = `${emp.jornada ?? 'Completa'} — ${Number(emp.horas_jornada ?? 8).toLocaleString('es-EC',{maximumFractionDigits:1})} horas diarias`;
+    document.getElementById('inpSueldoActual').value   = Number(emp.remuneracion_mensual ?? emp.sueldo_rmu ?? 0).toFixed(2);
     document.getElementById('inpContratoActual').value = emp.tipo_contrato  ?? '';
 
     // Campos ocultos que viajan al servidor al hacer submit (Situación Actual)
@@ -732,24 +827,115 @@ function llenarFormularioConEmpleado(emp) {
     limpiarPropuesta();
 }
 
+function actualizarVigencia() {
+    const novedad = document.getElementById('tipoNovedadJornada')?.value ?? '';
+    if (novedad) document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+    const temporal = document.querySelector('input[name="modalidad_vigencia"]:checked')?.value === 'TEMPORAL';
+    const hasta = document.getElementById('inpRigeHasta');
+    hasta.disabled = !temporal;
+    hasta.required = temporal;
+    if (!temporal) hasta.value = '';
+    document.getElementById('reqRigeHasta').style.display = temporal ? 'inline' : 'none';
+    document.getElementById('vigenciaHelp').innerHTML = temporal
+        ? '<i class="bi bi-arrow-counterclockwise"></i> Al finalizar la fecha indicada, el sistema mostrará nuevamente la situación anterior y lo registrará en auditoría.'
+        : '<i class="bi bi-infinity"></i> Vigencia permanente: el cambio se mantendrá hasta una nueva Acción de Personal.';
+    const resumen = document.getElementById('displayVigencia');
+    if (resumen) resumen.innerHTML = temporal
+        ? '<i class="bi bi-arrow-counterclockwise"></i> Temporal con retorno'
+        : '<i class="bi bi-infinity"></i> Permanente';
+}
+
+function actualizarModoCaptura() {
+    const compacto = document.querySelector('input[name="modo_captura"]:checked')?.value === 'JORNADA_TEMPORAL';
+    document.getElementById('camposCambioLaboral').style.display = compacto ? 'none' : 'block';
+    document.getElementById('compactScheduleNote').style.display = compacto ? 'block' : 'none';
+    document.getElementById('panelActual').classList.toggle('compact-schedule-current', compacto);
+    document.querySelectorAll('#camposCambioLaboral input, #camposCambioLaboral select').forEach(control => {
+        control.disabled = compacto;
+    });
+    document.getElementById('labelJornadaPropuesta').textContent = compacto ? 'Jornada temporal propuesta' : 'Jornada propuesta';
+    document.getElementById('labelHorasPropuestas').textContent = compacto ? 'Horas temporales diarias' : 'Horas diarias propuestas';
+    const novedad = document.getElementById('tipoNovedadJornada');
+    novedad.required = compacto;
+    document.getElementById('optionNovedadVacia').textContent = compacto ? 'Seleccione la novedad temporal…' : 'No aplica';
+    if (compacto) {
+        document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+        actualizarVigencia();
+        novedad.focus();
+    }
+    toggleJornadaTemporal();
+}
+
+function toggleJornadaTemporal() {
+    const tipo = document.getElementById('tipoNovedadJornada').value;
+    const activa = tipo !== '';
+    const parental = ['MATERNIDAD','PATERNIDAD'].includes(tipo);
+    document.getElementById('bloqueJornadaTemporal').style.display = activa ? 'block' : 'none';
+    const horas = document.getElementById('propHoras');
+    const ayuda = document.getElementById('ayudaHorasPropuestas');
+    horas.readOnly = false;
+    horas.min = '1';
+    if (activa) {
+        document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+        if (parental) {
+            document.getElementById('propJornada').value = 'Licencia';
+            horas.value = '0';
+            horas.min = '0';
+            horas.required = false;
+            horas.readOnly = true;
+            if (ayuda) ayuda.textContent = 'La licencia por maternidad o paternidad se registra automáticamente con 0 horas.';
+            const licencia = document.querySelector('.tipo-chip[data-value="LICENCIA"]');
+            if (licencia) seleccionarTipo(licencia);
+        } else {
+            document.getElementById('propJornada').value = 'Especial';
+            horas.required = true;
+            if (tipo === 'SUSTITUTO') {
+                horas.value = '6'; horas.readOnly = true;
+                if (ayuda) ayuda.textContent = 'La jornada temporal por condición de sustituto utiliza 6 horas.';
+            } else {
+                if (!Number(horas.value)) horas.value = tipo === 'LACTANCIA' ? '6' : '';
+                if (ayuda) ayuda.textContent = 'Ingrese las horas que estarán vigentes únicamente durante el periodo indicado.';
+            }
+        }
+        actualizarVigencia();
+    } else {
+        horas.required = false;
+        horas.readOnly = false;
+        if (ayuda) ayuda.textContent = 'Déjelo vacío si la jornada no cambia.';
+    }
+}
+
 /* ── 6. Selección del tipo de acción (chips interactivos) ─────────────────── */
 function seleccionarTipo(chip) {
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
     chip.classList.add('selected');
     const valor = chip.dataset.value;
     document.getElementById('hidTipoAccion').value = valor;
+    const series={'CAMBIO ADMINISTRATIVO':'CA','LICENCIA':'LI','SANCIONES':'RD','VACACIONES':'VAC'};
+    const serie=series[valor]||'MP';
+    const actual=document.getElementById('displayNroAccion')?.textContent||'';
+    const partes=actual.split('-');const consecutivo=(partes.length>=3&&/^\d+$/.test(partes[1]))?partes[1]:'001';
+    const numero=`${serie}-${consecutivo}-<?= InstitutionalClock::today()->format('Y') ?>`;
+    document.getElementById('displayNroAccion').textContent=numero;
+    document.getElementById('nroAccionInput').value=numero;
+    const resumenTipo=document.getElementById('displayTipoAccion');
+    if(resumenTipo) resumenTipo.innerHTML=`<i class="bi bi-list-check"></i> ${escaparResultadoPersonal(valor)}`;
 
     // Mostrar/ocultar campo "otro"
     document.getElementById('bloqueOtro').style.display = valor.startsWith('OTRO') ? 'block' : 'none';
 
     // Reglas de negocio: bloquear propuesta en acciones que no cambian posición
     aplicarReglasNegocio(valor);
+    if(valor==='VACACIONES'){
+        const temporal=document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]');if(temporal){temporal.checked=true;actualizarVigencia();}
+    }
 }
 
 function aplicarReglasNegocio(accion) {
     const bloquear = ['VACACIONES','CESACIÓN DE FUNCIONES','DESTITUCIÓN','SANCIONES'].includes(accion);
+    const compacto = document.querySelector('input[name="modo_captura"]:checked')?.value === 'JORNADA_TEMPORAL';
     document.querySelectorAll('.inputs-propuesta').forEach(el => {
-        el.disabled = bloquear;
+        el.disabled = bloquear || (compacto && Boolean(el.closest('#camposCambioLaboral')));
         el.style.opacity = bloquear ? '.45' : '1';
         if (bloquear) el.value = '';
     });
@@ -777,7 +963,14 @@ function limpiarPropuesta() {
     // Deseleccionar chips
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
     document.getElementById('hidTipoAccion').value = '';
+    const resumenTipo=document.getElementById('displayTipoAccion');
+    if(resumenTipo) resumenTipo.innerHTML='<i class="bi bi-list-check"></i> Pendiente de selección';
     document.getElementById('bloqueOtro').style.display = 'none';
+    toggleJornadaTemporal();
+    const compacto = document.querySelector('input[name="modo_captura"]:checked')?.value === 'JORNADA_TEMPORAL';
+    document.querySelectorAll('#camposCambioLaboral input, #camposCambioLaboral select').forEach(control => {
+        control.disabled = compacto;
+    });
 }
 
 function limpiarFormulario() {
@@ -797,6 +990,10 @@ function validarFormulario() {
     const cedula = document.getElementById('inpCedula').value.trim();
     const tipo   = document.getElementById('hidTipoAccion').value.trim();
     const motiv  = document.querySelector('textarea[name="motivacion_texto"]').value.trim();
+    const modalidad = document.querySelector('input[name="modalidad_vigencia"]:checked')?.value;
+    const hasta = document.getElementById('inpRigeHasta').value;
+    const compacto = document.querySelector('input[name="modo_captura"]:checked')?.value === 'JORNADA_TEMPORAL';
+    const novedad = document.getElementById('tipoNovedadJornada').value;
 
     if (!cedula) {
         showToast?.('Seleccione un empleado antes de continuar.', 'error');
@@ -808,6 +1005,16 @@ function validarFormulario() {
     }
     if (!motiv) {
         showToast?.('Ingrese la motivación / fundamento legal de la acción.', 'error');
+        return false;
+    }
+    if (modalidad === 'TEMPORAL' && !hasta) {
+        showToast?.('La vigencia temporal requiere una fecha de finalización.', 'error');
+        document.getElementById('inpRigeHasta').focus();
+        return false;
+    }
+    if (compacto && !novedad) {
+        showToast?.('Seleccione la novedad de jornada temporal que se aplicará.', 'error');
+        document.getElementById('tipoNovedadJornada').focus();
         return false;
     }
     showToast?.('Enviando documento al servidor...', 'info');
@@ -838,8 +1045,8 @@ function abrirModalVistaPrevia() {
 
     /* ── URL del logo usando constante PHP ── */
     const logoUrl  = '<?= IMG_URL ?>/logoapm.png';
-    const fechaHoy = new Date().toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
-    const nroDoc   = `APM-TH-${new Date().getFullYear()}-${String(empId).padStart(3,'0')}`;
+    const fechaHoy = '<?= InstitutionalClock::today()->format('d/m/Y') ?>';
+    const nroDoc   = `APM-TH-<?= InstitutionalClock::today()->format('Y') ?>-${String(empId).padStart(3,'0')}`;
 
     const html = `
     <div style="box-sizing:border-box;width:100%;max-width:794px;margin:28px auto;padding:30px 36px;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.1);font-family:'Times New Roman',serif;font-size:11pt;color:#111;line-height:1.55;">

@@ -9,6 +9,17 @@ require_once dirname(__DIR__, 2) . '/helpers/polyfills_php74.php';
 
 // Iniciar sesión global
 if (session_status() === PHP_SESSION_NONE) {
+    // La expiración funcional se controla en Router según la actividad de cada
+    // usuario. Evitamos que el recolector de PHP elimine antes una sesión válida.
+    ini_set('session.gc_maxlifetime', '43200');
+    ini_set('session.use_strict_mode', '1');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 

@@ -14,7 +14,8 @@ class EstudioSeguridadModel extends Model
         'nro_cuenta','conyuge_nombres','conyuge_tipo_doc','conyuge_nro_doc','conyuge_fecha_nac',
         'conyuge_tipo_relacion','conyuge_nivel_instruccion','conyuge_ocupacion','nivel_instruccion',
         'institucion_educativa','tipo_periodo','area_conocimiento','egresado','titulo_academico','vivienda_tipo',
-        'vehiculo_marca','vehiculo_modelo','vehiculo_placa','vehiculo_valor'
+        'vehiculo_marca','vehiculo_modelo','vehiculo_placa','vehiculo_valor','mapa_url_original','latitud',
+        'longitud','indicaciones_llegada','origen_geolocalizacion','mapa_imagen','qr_imagen'
     ];
 
     private const FECHAS = ['fecha_vinculacion','fecha_nacimiento','fecha_ingreso_bienes','conyuge_fecha_nac'];
@@ -27,7 +28,7 @@ class EstudioSeguridadModel extends Model
         'discapacidad'=>20,'tipo_discapacidad'=>100,'nro_carnet_conadis'=>40,'servidor_carrera'=>30,
         'nro_servidor_carrera'=>50,'auto_identificacion'=>80,'nacionalidad_indigena'=>100,
         'dir_calle_principal'=>150,'numero_domicilio'=>30,'calle_secundaria'=>150,'parroquia'=>100,
-        'canton'=>100,'provincia_dom'=>100,'referencia_domiciliaria'=>250,'tel_domicilio'=>40,
+        'canton'=>100,'provincia_dom'=>100,'referencia_domiciliaria'=>500,'tel_domicilio'=>40,
         'tel_celular'=>40,'tel_trabajo'=>40,'extension'=>20,'correo_institucional'=>150,
         'correo_alternativo'=>150,'contacto_nombre'=>180,'contacto_parentesco'=>80,
         'contacto_tel_conv'=>40,'contacto_tel_cel'=>40,'nro_otorgamiento'=>80,'banco'=>120,
@@ -36,6 +37,8 @@ class EstudioSeguridadModel extends Model
         'conyuge_ocupacion'=>120,'nivel_instruccion'=>100,'institucion_educativa'=>180,
         'tipo_periodo'=>80,'area_conocimiento'=>150,'egresado'=>20,'titulo_academico'=>200,
         'vivienda_tipo'=>30,'vehiculo_marca'=>80,'vehiculo_modelo'=>80,'vehiculo_placa'=>30,
+        'mapa_url_original'=>2048,'indicaciones_llegada'=>750,'origen_geolocalizacion'=>15,
+        'mapa_imagen'=>260,'qr_imagen'=>260,
     ];
 
     public function guardar(array $entrada, string $usuario, string $ip): int
@@ -52,7 +55,16 @@ class EstudioSeguridadModel extends Model
             if ($campo === 'vehiculo_valor') {
                 $valor = ($valor === '' || $valor === null) ? null : number_format((float)$valor, 2, '.', '');
             }
+            if (in_array($campo, ['latitud','longitud'], true)) {
+                $valor = ($valor === '' || $valor === null) ? null : number_format((float)str_replace(',', '.', (string)$valor), 6, '.', '');
+            }
             $datos[$campo] = $valor === '' ? null : $valor;
+        }
+        if ($datos['origen_geolocalizacion'] !== null) {
+            $datos['origen_geolocalizacion'] = strtoupper((string)$datos['origen_geolocalizacion']);
+        }
+        if ($datos['latitud'] !== null && $datos['origen_geolocalizacion'] === null) {
+            $datos['origen_geolocalizacion'] = 'MANUAL';
         }
 
         if ((int)($datos['empleado_id'] ?? 0) <= 0) {
@@ -159,6 +171,13 @@ class EstudioSeguridadModel extends Model
         return $id > 0 ? $this->obtenerPorId($id) : null;
     }
 
+    public function obtenerArchivosUbicacion(int $id): array
+    {
+        $stmt = $this->db->prepare('SELECT mapa_imagen,qr_imagen,latitud,longitud FROM dbo.th_estudios_socioeconomicos WHERE estudio_id=:id AND estado=1');
+        $stmt->execute([':id'=>$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function listar(string $usuario, string $ip): array
     {
         $stmt = $this->db->prepare('EXEC dbo.sp_th_consultar_estudios_socioeconomicos :usuario,:ip,NULL');
@@ -253,6 +272,32 @@ class EstudioSeguridadModel extends Model
             throw new InvalidArgumentException('El valor del vehículo no es válido.');
         }
 
+        $latitud = $datos['latitud'];
+        $longitud = $datos['longitud'];
+        if (($latitud === null) xor ($longitud === null)) {
+            throw new InvalidArgumentException('La latitud y longitud deben registrarse juntas.');
+        }
+        if ($latitud !== null && ((float)$latitud < -90 || (float)$latitud > 90)) {
+            throw new InvalidArgumentException('La latitud debe encontrarse entre -90 y 90.');
+        }
+        if ($longitud !== null && ((float)$longitud < -180 || (float)$longitud > 180)) {
+            throw new InvalidArgumentException('La longitud debe encontrarse entre -180 y 180.');
+        }
+        if ($datos['mapa_url_original'] !== null) {
+            $this->validarUrlMapa((string)$datos['mapa_url_original']);
+            if ($latitud === null) {
+                throw new InvalidArgumentException('El enlace de Google Maps no proporcionó una ubicación válida. Seleccione el punto en el mapa.');
+            }
+        }
+        if ($datos['origen_geolocalizacion'] !== null && !in_array($datos['origen_geolocalizacion'], ['URL','MAPA','MANUAL'], true)) {
+            throw new InvalidArgumentException('El origen de la geolocalización no es válido.');
+        }
+        foreach (['mapa_imagen','qr_imagen'] as $campoImagen) {
+            if ($datos[$campoImagen] !== null && !preg_match('/^socio-(?:mapa|qr)-[a-f0-9]{32}\.png$/', (string)$datos[$campoImagen])) {
+                throw new InvalidArgumentException('La referencia de imagen de ubicación no es válida.');
+            }
+        }
+
         for ($i=1;$i<=3;$i++) {
             $this->validarFecha($entrada["hijo_fnac_{$i}"] ?? null, "fecha de nacimiento del hijo {$i}");
             $this->validarFecha($entrada["cap{$i}_fecha_inicio"] ?? null, "fecha de capacitación {$i}");
@@ -268,6 +313,17 @@ class EstudioSeguridadModel extends Model
         $errores=DateTimeImmutable::getLastErrors();
         if (!$fecha || ($errores !== false && ($errores['warning_count'] > 0 || $errores['error_count'] > 0))) {
             throw new InvalidArgumentException("La {$campo} no tiene un formato válido.");
+        }
+    }
+
+    private function validarUrlMapa(string $url): void
+    {
+        $partes = parse_url($url);
+        $host = strtolower((string)($partes['host'] ?? ''));
+        $esGoogle = $host === 'google.com' || str_ends_with($host, '.google.com')
+            || $host === 'maps.app.goo.gl' || $host === 'goo.gl';
+        if (($partes['scheme'] ?? '') !== 'https' || !$esGoogle || isset($partes['user']) || isset($partes['pass'])) {
+            throw new InvalidArgumentException('Solo se permiten enlaces HTTPS oficiales de Google Maps.');
         }
     }
 }

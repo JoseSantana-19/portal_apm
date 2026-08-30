@@ -1430,13 +1430,13 @@ form {
     transition: border .2s, box-shadow .2s, background .2s;
 }
 
-.field input[type="number"] {
+input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield;
 }
 
-.field input[type="number"]::-webkit-outer-spin-button,
-.field input[type="number"]::-webkit-inner-spin-button {
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
@@ -2074,6 +2074,158 @@ form {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+}
+
+/* Agenda compacta del dashboard: agrupa cumpleaños y aniversarios sin
+   empujar los accesos operativos fuera de la primera pantalla. */
+.agenda-card {
+    margin-top: 20px;
+    overflow: hidden;
+    animation: floatIn .65s ease both;
+}
+
+.agenda-header {
+    align-items: center;
+    background: linear-gradient(135deg, #f4fbff 0%, #fff 58%, #fff8f0 100%);
+}
+
+.agenda-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agenda-header h3 i {
+    color: var(--ocean-700);
+}
+
+.agenda-tabs {
+    display: flex;
+    gap: 9px;
+    padding: 0 22px 14px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+}
+
+.agenda-tab {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #f8fbff;
+    color: var(--navy-900);
+    font: inherit;
+    font-size: .79rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.agenda-tab strong {
+    min-width: 23px;
+    height: 23px;
+    padding: 0 6px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #e8f1f7;
+    font-size: .7rem;
+}
+
+.agenda-tab:hover,
+.agenda-tab:focus-visible {
+    transform: translateY(-1px);
+    border-color: var(--ocean-700);
+    outline: 2px solid rgba(14, 116, 144, .16);
+    outline-offset: 2px;
+}
+
+.agenda-tab.is-active {
+    border-color: rgba(14, 116, 144, .42);
+    background: rgba(14, 116, 144, .08);
+    color: var(--navy-900);
+    box-shadow: 0 5px 14px rgba(14, 116, 144, .1);
+}
+
+.agenda-tab.is-active strong {
+    background: rgba(14, 116, 144, .14);
+    color: var(--ocean-800);
+}
+
+.agenda-panel[hidden] {
+    display: none;
+}
+
+.agenda-table-wrap {
+    max-height: 640px;
+    overflow: auto;
+}
+
+.agenda-table-wrap thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.agenda-secondary-line {
+    display: block;
+    margin-top: 3px;
+    color: var(--ink-600);
+    font-size: .72rem;
+    font-weight: 500;
+}
+
+.agenda-preview-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 22px;
+    border-top: 1px solid var(--line);
+    background: #f8fbff;
+}
+
+.agenda-preview-status {
+    color: var(--ink-600);
+    font-size: .76rem;
+}
+
+.agenda-preview-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+@media (max-width: 760px) {
+    .agenda-header {
+        align-items: flex-start;
+    }
+
+    .agenda-tabs {
+        overflow-x: auto;
+        padding-inline: 14px;
+        scrollbar-width: thin;
+    }
+
+    .agenda-tab {
+        min-width: max-content;
+    }
+
+    .agenda-preview-footer,
+    .agenda-preview-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .agenda-preview-actions,
+    .agenda-preview-actions .btn,
+    .agenda-preview-footer > .btn {
+        width: 100%;
+    }
 }
 
 /* Chip de alerta "X cumple HOY" en el header */

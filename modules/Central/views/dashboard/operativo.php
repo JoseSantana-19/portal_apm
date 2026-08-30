@@ -57,6 +57,15 @@ $greeting = $hour < 12 ? 'Buenos días' : ($hour < 18 ? 'Buenas tardes' : 'Buena
                 <i class="fa-solid fa-expand"></i> NOC
             </button>
 
+            <!-- Export Actions -->
+            <a href="<?= APP_URL ?>/dashboard/exportar-excel" class="btn-dash" title="Descargar Reporte Consolidado en Excel (.xlsx)">
+                <i class="fa-solid fa-file-excel" style="color:#10B981;"></i> Excel
+            </a>
+
+            <a href="<?= APP_URL ?>/dashboard/exportar-pdf" target="_blank" rel="noopener" class="btn-dash" title="Visualizar Reporte Oficial en PDF">
+                <i class="fa-solid fa-file-pdf" style="color:#EF4444;"></i> PDF
+            </a>
+
             <!-- Reloj en vivo -->
             <div style="font-family:var(--font-code);font-size:0.85rem;font-weight:700;color:var(--text-app);padding:6px 12px;background:var(--bg-app);border-radius:var(--radius-md);border:1px solid var(--border-app);">
                 <i class="fa-regular fa-clock" style="color:var(--primary-hover);margin-right:4px;"></i>

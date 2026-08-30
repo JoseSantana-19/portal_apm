@@ -77,6 +77,34 @@ class EmpleadoModel extends Model
         }
     }
 
+    /**
+     * Verifica si una cédula/identificación ya existe en el sistema.
+     * Usado por el endpoint AJAX de validación en tiempo real.
+     *
+     * @param  string   $cedula     Número de cédula o pasaporte a verificar.
+     * @param  int|null $excluirId  ID del empleado actual (en edición) para excluirlo de la búsqueda.
+     * @return array|null  Datos básicos del empleado encontrado, o null si no existe.
+     */
+    public function verificarCedulaExistente(string $cedula, ?int $excluirId = null): ?array
+    {
+        try {
+            $sql = 'SELECT empleado_id, apellidos, nombres, cedula, cargo, direccion_area
+                    FROM dbo.vw_th_directorio_empleados
+                    WHERE cedula = :cedula';
+            $params = [':cedula' => $cedula];
+            if ($excluirId !== null) {
+                $sql .= ' AND empleado_id <> :excluir';
+                $params[':excluir'] = $excluirId;
+            }
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'Talento_Humano', false);
+            return null;
+        }
+    }
+
     public function obtenerDetalleCompleto(int $id): ?array
     {
         try {
@@ -207,14 +235,73 @@ class EmpleadoModel extends Model
         }
     }
 
-    public function insertar(array $data): bool
+    public function obtenerJornadasEspeciales(?int $empleadoId = null): array
     {
-        return $this->ejecutarGuardado('sp_th_guardar_empleado', null, $data);
+        try {
+            $stmt=$this->db->prepare('EXEC dbo.sp_th_consultar_jornadas_especiales :empleado,:usuario,:ip');
+            $stmt->execute([':empleado'=>$empleadoId,':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e,'Talento_Humano',false);
+            return [];
+        }
     }
 
-    public function modificar(int $id, array $data): bool
+    public function obtenerVigenciasLaborales(?int $empleadoId = null): array
     {
-        return $this->ejecutarGuardado('sp_th_modificar_empleado', $id, $data);
+        try {
+            $stmt=$this->db->prepare('EXEC dbo.sp_th_consultar_vigencias_laborales :empleado,:usuario,:ip');
+            $stmt->execute([':empleado'=>$empleadoId,':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e,'Talento_Humano',false);
+            return [];
+        }
+    }
+
+    public function obtenerPeriodosVinculacion(?int $empleadoId = null): array
+    {
+        try {
+            $sql='SELECT p.*,ai.numero_accion accion_inicio,af.numero_accion accion_fin FROM dbo.th_periodos_vinculacion p LEFT JOIN dbo.th_acciones_personal ai ON ai.accion_id=p.accion_inicio_id LEFT JOIN dbo.th_acciones_personal af ON af.accion_id=p.accion_fin_id';
+            $params=[];if($empleadoId){$sql.=' WHERE p.empleado_id=:id';$params[':id']=$empleadoId;}$sql.=' ORDER BY p.empleado_id,p.fecha_desde DESC,p.periodo_id DESC';
+            $s=$this->db->prepare($sql);$s->execute($params);$this->auditarLectura('Historial Laboral','Consulta de períodos de vinculación.');return $s->fetchAll(PDO::FETCH_ASSOC);
+        } catch(PDOException $e){Conexion::registrarErrorLog($e,'Talento_Humano',false);return [];}
+    }
+
+    public function obtenerAntiguedad(?int $empleadoId = null): array
+    {
+        try{$sql='SELECT * FROM dbo.vw_th_antiguedad_empleados'.($empleadoId?' WHERE empleado_id=:id':'').' ORDER BY anios_servicio DESC';$s=$this->db->prepare($sql);$s->execute($empleadoId?[':id'=>$empleadoId]:[]);return $s->fetchAll(PDO::FETCH_ASSOC);}
+        catch(PDOException $e){Conexion::registrarErrorLog($e,'Talento_Humano',false);return [];}
+    }
+
+    public function obtenerHitosServicio(int $anio, ?int $empleadoId = null): array
+    {
+        try{$sql="SELECT h.*,COALESCE(r.estado,'PENDIENTE') estado_reconocimiento,r.fecha_entrega,r.observaciones FROM dbo.vw_th_hitos_servicio h LEFT JOIN dbo.th_reconocimientos_servicio r ON r.empleado_id=h.empleado_id AND r.hito_anios=h.hito_anios AND r.fecha_hito=h.fecha_hito WHERE YEAR(h.fecha_hito)=:anio"; $params=[':anio'=>$anio];if($empleadoId){$sql.=' AND h.empleado_id=:id';$params[':id']=$empleadoId;}$sql.=' ORDER BY h.fecha_hito,h.apellidos,h.nombres';$s=$this->db->prepare($sql);$s->execute($params);return $s->fetchAll(PDO::FETCH_ASSOC);}
+        catch(PDOException $e){Conexion::registrarErrorLog($e,'Talento_Humano',false);return [];}
+    }
+
+    public function resumenVacaciones(): array
+    {
+        try{return $this->db->query("SELECT COUNT_BIG(*) total,SUM(IIF(estado_vacacion='VIGENTE',1,0)) vigentes,SUM(IIF(estado_vacacion='PROGRAMADA',1,0)) programadas FROM dbo.vw_th_vacaciones_acciones")->fetch(PDO::FETCH_ASSOC)?:[];}
+        catch(PDOException $e){Conexion::registrarErrorLog($e,'Talento_Humano',false);return [];}
+    }
+
+    /**
+     * Inserta un nuevo empleado.
+     * @return bool|string  true si éxito, string con el mensaje de error si falla.
+     */
+    public function insertar(array $data)
+    {
+        return $this->ejecutarGuardado('sp_th_guardar_empleado_v2', null, $data);
+    }
+
+    /**
+     * Modifica un empleado existente.
+     * @return bool|string  true si éxito, string con el mensaje de error si falla.
+     */
+    public function modificar(int $id, array $data)
+    {
+        return $this->ejecutarGuardado('sp_th_modificar_empleado_v2', $id, $data);
     }
 
     public function eliminar(int $id): bool
@@ -230,16 +317,15 @@ class EmpleadoModel extends Model
         }
     }
 
-    public function mover(int $empleadoId, int $unidadId, int $puestoId, string $fecha, string $motivo): array
+    public function mover(int $empleadoId, int $unidadId, string $fecha, string $motivo): array
     {
         try {
             $stmt = $this->db->prepare(
-                'EXEC dbo.sp_th_mover_empleado :empleado,:unidad,:puesto,:fecha,:motivo,:usuario,:ip'
+                'EXEC dbo.sp_th_mover_empleado :empleado,:unidad,:fecha,:motivo,:usuario,:ip'
             );
             $stmt->execute([
                 ':empleado' => $empleadoId,
                 ':unidad' => $unidadId,
-                ':puesto' => $puestoId,
                 ':fecha' => $fecha,
                 ':motivo' => $motivo,
                 ':usuario' => Auth::username(),
@@ -252,13 +338,13 @@ class EmpleadoModel extends Model
         }
     }
 
-    public function moverLote(array $empleados, int $unidadId, int $puestoId, string $fecha, string $motivo): array
+    public function moverLote(array $empleados, int $unidadId, string $fecha, string $motivo): array
     {
         try {
-            $stmt=$this->db->prepare('EXEC dbo.sp_th_mover_empleados_lote :empleados,:unidad,:puesto,:fecha,:motivo,:usuario,:ip');
+            $stmt=$this->db->prepare('EXEC dbo.sp_th_mover_empleados_lote :empleados,:unidad,:fecha,:motivo,:usuario,:ip');
             $stmt->execute([
                 ':empleados'=>json_encode(array_values(array_unique(array_map('intval',$empleados)))),
-                ':unidad'=>$unidadId,':puesto'=>$puestoId,':fecha'=>$fecha,':motivo'=>$motivo,
+                ':unidad'=>$unidadId,':fecha'=>$fecha,':motivo'=>$motivo,
                 ':usuario'=>Auth::username(),':ip'=>Auth::clientIp(),
             ]);
             return $stmt->fetch(PDO::FETCH_ASSOC) ?: ['exito'=>0,'mensaje'=>'Sin respuesta del servidor.'];
@@ -268,7 +354,11 @@ class EmpleadoModel extends Model
         }
     }
 
-    private function ejecutarGuardado(string $procedure, ?int $id, array $data): bool
+    /**
+     * Ejecuta el SP de guardado (inserción o modificación).
+     * @return bool|string  true si éxito, string con mensaje de error si falla.
+     */
+    private function ejecutarGuardado(string $procedure, ?int $id, array $data)
     {
         try {
             $this->db->beginTransaction();
@@ -278,7 +368,10 @@ class EmpleadoModel extends Model
                 @condicion=:condicion,@tipo_disc=:tipo_disc,@porcentaje_disc=:porcentaje_disc,
                 @sexo=:sexo,@estado_civil=:estado_civil,@nacionalidad=:nacionalidad,
                 @tipo_sangre=:tipo_sangre,@depto=:depto,@puesto=:puesto,@tipo_contrato=:tipo_contrato,
-                @fecha_ing=:fecha_ing,@sueldo=:sueldo,@jornada=:jornada,@correo=:correo,
+                @fecha_ing=:fecha_ing,@sueldo=:sueldo,@jornada=:jornada,@horas_jornada=:horas_jornada,
+                @proceso_institucional=:proceso_institucional,@nivel_gestion=:nivel_gestion,
+                @lugar_trabajo=:lugar_trabajo,@grupo_ocupacional=:grupo_ocupacional,
+                @grado_laboral=:grado_laboral,@partida_individual=:partida_individual,@correo=:correo,
                 @celular=:celular,@convencional=:convencional,@ciudad=:ciudad,@direccion=:direccion,
                 @contacto_emerg=:contacto_emerg,@parentesco=:parentesco,@tel_emerg=:tel_emerg,
                 @nivel_estudio=:nivel_estudio,@titulo=:titulo,@iess=:iess,@foto=:foto,@obs=:obs,
@@ -292,7 +385,8 @@ class EmpleadoModel extends Model
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             if ((int)($result['exito'] ?? 0) !== 1) {
                 if ($this->db->inTransaction()) $this->db->rollBack();
-                return false;
+                // Retornar el mensaje específico del SP si está disponible
+                return (string)($result['mensaje'] ?? 'Error al guardar el expediente.');
             }
             $empleadoId=$id ?? (int)($result['nuevo_id']??0);
             $ids=array_values(array_unique(array_filter(array_map('intval',(array)($data['nacionalidad_ids']??[])))));
@@ -301,14 +395,15 @@ class EmpleadoModel extends Model
             $syncResult=$sync->fetch(PDO::FETCH_ASSOC);
             if ((int)($syncResult['exito']??0)!==1) {
                 if ($this->db->inTransaction()) $this->db->rollBack();
-                return false;
+                return (string)($syncResult['mensaje'] ?? 'Error al sincronizar nacionalidades.');
             }
             $this->db->commit();
             return true;
         } catch (PDOException $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             Conexion::registrarErrorLog($e, 'Talento_Humano', false);
-            return false;
+            // Exponer mensaje de error del motor SQL (cédula duplicada, etc.)
+            return $e->getMessage();
         }
     }
 
@@ -332,6 +427,13 @@ class EmpleadoModel extends Model
             ':fecha_ing' => ($d['fecha_ingreso'] ?? null) ?: null,
             ':sueldo' => ($d['sueldo'] ?? null) ?: null,
             ':jornada' => $d['jornada'] ?? 'Completa',
+            ':horas_jornada' => ($d['horas_jornada'] ?? null) ?: null,
+            ':proceso_institucional' => ($d['proceso_institucional'] ?? null) ?: null,
+            ':nivel_gestion' => ($d['nivel_gestion'] ?? null) ?: null,
+            ':lugar_trabajo' => ($d['lugar_trabajo'] ?? null) ?: null,
+            ':grupo_ocupacional' => ($d['grupo_ocupacional'] ?? null) ?: null,
+            ':grado_laboral' => ($d['grado_laboral'] ?? null) ?: null,
+            ':partida_individual' => ($d['partida_individual'] ?? null) ?: null,
             ':correo' => ($d['correo'] ?? null) ?: null,
             ':celular' => ($d['telefono'] ?? null) ?: null,
             ':convencional' => ($d['telefono_convencional'] ?? null) ?: null,

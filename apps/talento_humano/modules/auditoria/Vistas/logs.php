@@ -33,6 +33,21 @@
         .metric-card--hoy    { border-left:4px solid var(--teal-500); }
         .metric-card--alerta { border-left:4px solid #ef4444; }
         .metric-card--users  { border-left:4px solid var(--ocean-700); }
+        .logs-filters { padding:14px 18px 12px; display:flex; flex-direction:column; gap:10px; border-bottom:1px solid var(--line); }
+        .logs-search-row { display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:0 12px; }
+        .logs-search-row i { color:#9ca3af; flex-shrink:0; }
+        .logs-search-row input { flex:1; min-width:0; border:0; background:transparent; padding:10px 0; outline:0; font-size:.88rem; color:var(--navy-900); }
+        .logs-filter-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+        .logs-filter-select { flex:1; min-width:140px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:.83rem; background:#fff; color:var(--navy-900); }
+        .logs-date-range { display:flex; align-items:center; gap:4px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+        .logs-date-range i,.logs-date-separator { color:#9ca3af; font-size:.82rem; }
+        .logs-date-range input { min-width:125px; border:0; background:transparent; outline:0; font-size:.83rem; color:var(--navy-900); }
+        .logs-filter-row .btn { flex-shrink:0; }
+        @media (max-width:720px) {
+            .logs-filter-select,.logs-date-range { flex-basis:100%; }
+            .logs-date-range { justify-content:center; }
+            .logs-date-range input { min-width:0; width:46%; }
+        }
     </style>
 </head>
 <body>
@@ -106,25 +121,36 @@
                         </div>
                         <span class="chip"><i class="bi bi-list-ul"></i> <?= (int)($paginacion['total'] ?? count($registros)) ?> registros</span>
                     </div>
-                    <form class="toolbar" method="get" action="<?= BASE_URL ?>/auditoria/logs">
-                        <div class="input search-input">
+                    <form class="logs-filters" method="get" action="<?= BASE_URL ?>/auditoria/logs">
+                        <div class="logs-search-row">
                             <i class="bi bi-search"></i>
-                            <input type="search" id="logSearch" name="q" value="<?= htmlspecialchars($filtros['q'] ?? '') ?>" oninput="filtrarLogs()" placeholder="Buscar por usuario, acción, detalle o IP...">
+                            <input
+                                type="search"
+                                id="logSearch"
+                                name="q"
+                                value="<?= htmlspecialchars($filtros['q'] ?? '') ?>"
+                                oninput="filtrarLogs()"
+                                placeholder="Buscar por usuario, acción, detalle o IP..."
+                            >
                         </div>
-                        <div class="filter-group">
-                            <select id="nivelFilter" onchange="filtrarLogs()">
+                        <div class="logs-filter-row">
+                            <select class="logs-filter-select" id="nivelFilter" onchange="filtrarLogs()">
                                 <option value="">Todos los niveles</option>
                                 <option value="danger">⚠ Alertas / Peligro</option>
                                 <option value="warning">⚡ Advertencias</option>
                                 <option value="success">✓ Éxitos</option>
                                 <option value="info">ℹ Información</option>
                             </select>
-                            <select id="moduloFilter" name="modulo">
+                            <select class="logs-filter-select" id="moduloFilter" name="modulo">
                                 <option value="">Todos los módulos</option>
                                 <?php foreach(($modulos ?? []) as $nombreModulo): ?><option value="<?= htmlspecialchars($nombreModulo) ?>" <?= ($filtros['modulo']??'')===$nombreModulo?'selected':'' ?>><?= htmlspecialchars($nombreModulo) ?></option><?php endforeach; ?>
                             </select>
-                            <input type="date" name="desde" value="<?= htmlspecialchars($filtros['desde'] ?? '') ?>" aria-label="Fecha desde">
-                            <input type="date" name="hasta" value="<?= htmlspecialchars($filtros['hasta'] ?? '') ?>" aria-label="Fecha hasta">
+                            <div class="logs-date-range">
+                                <i class="bi bi-calendar3"></i>
+                                <input type="date" name="desde" value="<?= htmlspecialchars($filtros['desde'] ?? '') ?>" aria-label="Fecha desde">
+                                <span class="logs-date-separator">→</span>
+                                <input type="date" name="hasta" value="<?= htmlspecialchars($filtros['hasta'] ?? '') ?>" aria-label="Fecha hasta">
+                            </div>
                             <button class="btn btn-primary" type="submit">Aplicar</button>
                             <a class="btn btn-outline" href="<?= BASE_URL ?>/auditoria/logs">Limpiar</a>
                         </div>

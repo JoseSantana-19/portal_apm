@@ -9,6 +9,7 @@ require_once ROOT_PATH . 'modules/Control_Bines/models/InvNotaPedido.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/InvAbastecimiento.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/InvIngresoFactura.php';
 require_once ROOT_PATH . 'modules/Control_Bines/models/BinModel.php';
+require_once ROOT_PATH . 'modules/Control_Bines/models/EstacionModel.php';
 require_once ROOT_PATH . 'modules/Talento_Humano/models/EmpleadoModel.php';
 require_once ROOT_PATH . 'modules/Central/models/InvPeriodo.php';
 require_once ROOT_PATH . 'modules/Central/models/InvParametro.php';
@@ -80,6 +81,41 @@ class MonitoreoController extends Controller {
         catch (Throwable $e) { $this->logger->inv_error('Error al listar productos para factura', $e, 'productosFacturaDataTable'); $this->jsonResponse(['error'=>'No fue posible cargar los productos.'],500); }
     }
 
+    /** Relaciona por nombre o crea con códigos internos los productos leídos del PDF. */
+    public function resolverProductosEscaneadosFactura(): void {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->jsonResponse(['error'=>'La solicitud no es válida o venció.'],419);
+        }
+        try {
+            $lineas = json_decode((string)($_POST['lineas'] ?? '[]'), true, 64, JSON_THROW_ON_ERROR);
+            if (!is_array($lineas)) throw new InvalidArgumentException('Los productos detectados no tienen un formato válido.');
+            $productos = $this->ingresoFacturaModel->resolverProductosEscaneados($lineas);
+            $creados = count(array_filter($productos, static fn(array $item): bool => !empty($item['creado'])));
+            if ($creados > 0) {
+                $this->registrarAuditoria('CREAR','bod',$creados . ' producto(s) creado(s) desde escaneo de factura');
+            }
+            $this->jsonResponse(['productos'=>$productos, 'creados'=>$creados]);
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al resolver productos escaneados de factura',$e,'resolverProductosEscaneadosFactura');
+            $mensaje = $e instanceof InvalidArgumentException ? $e->getMessage() : 'No fue posible relacionar o crear los productos detectados.';
+            $this->jsonResponse(['error'=>$mensaje],422);
+        }
+    }
+
+    /** Recupera la cabecera y todos los productos de una requisición para la factura. */
+    public function buscarRequisicionFactura(): void {
+        try {
+            $numero = trim((string)($_GET['numero'] ?? ''));
+            if ($numero === '') $this->jsonResponse(['encontrada'=>false,'mensaje'=>'Escriba el número de requisición.']);
+            $requisicion = $this->notaPedidoModel->buscarNotaPedidoPorNumero($numero);
+            if (!$requisicion) $this->jsonResponse(['encontrada'=>false,'mensaje'=>'La requisición no está registrada.']);
+            $this->jsonResponse(['encontrada'=>true,'nota'=>$requisicion]);
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al buscar requisición para factura', $e, 'buscarRequisicionFactura');
+            $this->jsonResponse(['encontrada'=>false,'mensaje'=>'No fue posible consultar la requisición.'],500);
+        }
+    }
+
     public function proveedoresFacturaJson(): void {
         try { $this->jsonResponse(['proveedores'=>$this->ingresoFacturaModel->proveedores()]); }
         catch (Throwable $e) { $this->logger->inv_error('Error al actualizar proveedores de factura', $e, 'proveedoresFacturaJson'); $this->jsonResponse(['error'=>'No fue posible actualizar los proveedores.'],500); }
@@ -100,7 +136,7 @@ class MonitoreoController extends Controller {
                 'numero_factura'=>$_POST['numero_factura']??'', 'fecha_factura'=>$_POST['fecha_factura']??date('Y-m-d'),
                 'proveedor_id'=>(int)($_POST['proveedor_id']??0), 'descripcion'=>$_POST['descripcion']??'',
             ],is_array($_POST['items']??null)?$_POST['items']:[],$this->usuarioActual(),(int)($_POST['factura_id']??0));
-            $this->redirectFacturaIngreso($id,'Factura guardada correctamente. La orden de compra se generó automáticamente.','success');
+            $this->redirectFacturaIngreso($id,'Factura guardada correctamente. La orden de compra se generó automáticamente.','success',true);
         } catch(Throwable $e) { $this->logger->inv_error('Error al guardar factura de ingreso',$e,'guardarFacturaIngreso'); $this->redirectIngresosFactura($this->mensajeSeguroFactura($e),'error'); }
     }
 
@@ -123,9 +159,9 @@ class MonitoreoController extends Controller {
         $_SESSION['toast']=['mensaje'=>$mensaje,'tipo'=>$tipo]; header('Location: index.php?route=ingresos'); exit;
     }
 
-    private function redirectFacturaIngreso(int $id,string $mensaje,string $tipo): void {
+    private function redirectFacturaIngreso(int $id,string $mensaje,string $tipo,bool $borradorGuardado=false): void {
         $_SESSION['toast']=['mensaje'=>$mensaje,'tipo'=>$tipo];
-        header('Location: index.php?route=ingresos&action=facturaIngreso&id='.(int)$id); exit;
+        header('Location: index.php?route=ingresos&action=facturaIngreso&id='.(int)$id.($borradorGuardado?'&borrador_guardado=1':'')); exit;
     }
 
     private function mensajeSeguroFactura(Throwable $e): string {
@@ -137,68 +173,143 @@ class MonitoreoController extends Controller {
     public function requisiciones() {
         $this->registrarAuditoria('ACCESO', 'bod', 'Acceso a Requisiciones de Bodega');
         $this->render('monitoreo/requisiciones', [
-            'notas' => $this->notaPedidoModel->obtenerTodos(),
-            'personal' => $this->talentoModel->obtenerPersonal(),
-            'itemsInventario' => $this->inventarioModel->obtenerActivos(),
+            'periodoActivo' => $this->periodoModel->obtenerPeriodoActivo(),
         ], 'Requisiciones - Sistema Portuario');
     }
 
-    /** Paso 2: órdenes de compra, reutilizando el flujo existente. */
+    public function requisicionesDataTable(): void {
+        try { $this->jsonResponse($this->notaPedidoModel->requisicionesDataTable($_GET)); }
+        catch (Throwable $e) { $this->logger->inv_error('Error al listar requisiciones', $e, 'requisicionesDataTable'); $this->jsonResponse(['error'=>'No fue posible cargar las requisiciones.'],500); }
+    }
+
+    /** Pestaña independiente para registrar una nueva requisición. */
+    public function nuevaRequisicion(): void {
+        $this->registrarAuditoria('ACCESO', 'bod', 'Acceso a Nueva Requisición de Bodega');
+        $this->render('monitoreo/requisicion_nueva', [
+            'personal' => $this->talentoModel->obtenerPersonal(),
+            'gruposCentros' => $this->talentoModel->obtenerAreas(),
+            'periodoActivo' => $this->periodoModel->obtenerPeriodoActivo(),
+        ], 'Nueva requisición - Sistema Portuario');
+    }
+
+    /** Consulta opcional de una nota para completar la grilla de requisición. */
+    public function buscarNotaPedidoRequisicion(): void {
+        try {
+            $numero = trim((string)($_GET['numero'] ?? ''));
+            if ($numero === '') $this->jsonResponse(['encontrada' => false, 'mensaje' => 'Escriba un número de nota.']);
+            $nota = $this->notaPedidoModel->buscarNotaPedidoPorNumero($numero);
+            if (!$nota) $this->jsonResponse(['encontrada' => false, 'mensaje' => 'La nota no está registrada. Puede continuar sin asociarla.']);
+            $this->jsonResponse(['encontrada' => true, 'nota' => $nota]);
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al buscar nota para requisición', $e, 'buscarNotaPedidoRequisicion');
+            $this->jsonResponse(['encontrada' => false, 'mensaje' => 'No fue posible consultar la nota. Puede continuar sin asociarla.']);
+        }
+    }
+
+    /** Buscador remoto y limitado de productos para la grilla de requisición. */
+    public function buscarProductosRequisicion(): void {
+        try {
+            $this->jsonResponse(['productos' => $this->notaPedidoModel->buscarProductos((string)($_GET['q'] ?? ''))]);
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al buscar productos para requisición', $e, 'buscarProductosRequisicion');
+            $this->jsonResponse(['productos' => [], 'error' => 'No fue posible buscar productos.'], 500);
+        }
+    }
+
+    /** Paso 2: listado independiente de órdenes de compra. */
     public function ordenesCompra() {
         $this->registrarAuditoria('ACCESO', 'bod', 'Acceso a Órdenes de Compra');
-        $vistaActiva = 'ordenes';
         $esquemaDisponible = $this->abastecimientoModel->esquemaDisponible();
-        $db = Database::getInstance()->getConnection();
-        $datos = [
-            'vistaActiva' => $vistaActiva,
+        $this->render('monitoreo/ordenes_compra', [
             'esquemaDisponible' => $esquemaDisponible,
-            'resumen' => ['notas' => 0, 'ordenes_pendientes' => 0, 'facturas_pendientes' => 0, 'ingresos' => 0],
-            'notasCompra' => [], 'ordenesCompra' => [], 'facturasCompra' => [],
-            'ingresosCompra' => [], 'kardexEntradas' => [],
-            'personal' => $this->talentoModel->obtenerPersonal(),
-            'itemsInventario' => $this->inventarioModel->obtenerActivos(),
-            'proveedores' => $db->query('SELECT * FROM inv_proveedores ORDER BY nombre')->fetchAll(),
-            'tiposIva' => $db->query('SELECT id, nombre, tasa_iva FROM inv_tipos_iva ORDER BY tasa_iva DESC, nombre')->fetchAll(),
             'periodoActivo' => $this->periodoModel->obtenerPeriodoActivo(),
-        ];
-        if ($esquemaDisponible) {
-            $this->abastecimientoModel->prepararDocumentosFactura();
-            $datos['resumen'] = $this->abastecimientoModel->resumen();
-            $datos['ordenesCompra'] = $this->abastecimientoModel->listarOrdenes();
-            $datos['facturasCompra'] = $this->abastecimientoModel->listarFacturas();
-            $datos['ingresosCompra'] = $this->abastecimientoModel->listarIngresos();
-            $datos['kardexEntradas'] = $this->abastecimientoModel->listarKardexEntradas();
+        ], 'Órdenes de Compra - Sistema Portuario');
+    }
+
+    public function ordenesCompraDataTable(): void {
+        try { $this->jsonResponse($this->abastecimientoModel->ordenesDataTable($_GET)); }
+        catch (Throwable $e) { $this->logger->inv_error('Error al listar órdenes de compra', $e, 'ordenesCompraDataTable'); $this->jsonResponse(['error'=>'No fue posible cargar las órdenes de compra.'],500); }
+    }
+
+    /** Página completa para crear una orden de compra. */
+    public function nuevaOrdenCompra(): void {
+        $this->registrarAuditoria('ACCESO', 'bod', 'Acceso a Nueva Orden de Compra');
+        $this->render('monitoreo/orden_compra_formulario', $this->datosFormularioOrden(), 'Nueva orden de compra - Sistema Portuario');
+    }
+
+    /** Página completa para editar una orden pendiente. */
+    public function editarOrdenCompraForm(): void {
+        $id = (int)($_GET['id'] ?? 0);
+        $orden = null;
+        foreach ($this->abastecimientoModel->listarOrdenes() as $candidata) {
+            if ((int)$candidata['id_orden'] === $id) { $orden = $candidata; break; }
         }
-        $datos['flujoSeparado'] = true;
-        $this->render('monitoreo/egresos', $datos, 'Órdenes de Compra - Sistema Portuario');
+        if (!$orden) $this->redirect('ordenes_compra', 'La orden solicitada no existe.', 'error');
+        if ($orden['estado'] !== 'PENDIENTE') $this->redirect('ordenes_compra', 'Solo las órdenes pendientes pueden editarse.', 'error');
+        $this->registrarAuditoria('ACCESO', 'bod', 'Edición de Orden de Compra ' . $orden['secuencial']);
+        $this->render('monitoreo/orden_compra_formulario', $this->datosFormularioOrden($orden), 'Editar ' . $orden['secuencial'] . ' - Sistema Portuario');
+    }
+
+    private function datosFormularioOrden(?array $orden = null): array {
+        $db = Database::getInstance()->getConnection();
+        $requisiciones = [];
+        foreach ($this->notaPedidoModel->obtenerTodos() as $requisicion) {
+            if (in_array($requisicion['estado'], ['CANCELADA', 'CERRADA'], true)) continue;
+            $detalle = $this->notaPedidoModel->buscarPorId((int)$requisicion['id_nota']);
+            if ($detalle) $requisiciones[] = $detalle;
+        }
+        $periodo = $this->periodoModel->obtenerPeriodoActivo();
+        $tiposIva = $db->query('SELECT id, nombre, tasa_iva FROM inv_tipos_iva ORDER BY tasa_iva DESC, nombre')->fetchAll();
+        $ivaPredeterminado = ($periodo && $periodo['tasa_iva'] !== null)
+            ? (float)$periodo['tasa_iva']
+            : (!empty($tiposIva) ? (float)$tiposIva[0]['tasa_iva'] : 0.0);
+        return [
+            'orden' => $orden,
+            'esquemaDisponible' => $this->abastecimientoModel->esquemaDisponible(),
+            'periodoActivo' => $periodo,
+            'ivaPredeterminado' => $ivaPredeterminado,
+            'proveedores' => $db->query("SELECT * FROM inv_proveedores ORDER BY CASE WHEN nombre = '' THEN 1 ELSE 0 END, nombre, codigo")->fetchAll(),
+            'requisicionesCompra' => $requisiciones,
+            'csrfToken' => csrf_token(),
+        ];
     }
 
     /** Paso 4: despacho de requisiciones y salida real de existencias. */
     public function egresos() {
         $this->registrarAuditoria('ACCESO', 'bod', 'Acceso a Egresos de Bodega');
-        $notas = $this->notaPedidoModel->obtenerTodos();
-        $notasPendientes = [];
-        foreach ($notas as $nota) {
-            if (in_array($nota['estado'], ['ATENDIDA', 'CERRADA', 'CANCELADA'], true)) continue;
-            $detalle = $this->notaPedidoModel->buscarPorId((int)$nota['id_nota']);
-            if ($detalle) $notasPendientes[] = $detalle;
-        }
         $this->render('monitoreo/egresos_bodega', [
-            'notasPendientes' => $notasPendientes,
-            'egresos' => $this->egresoModel->obtenerTodos(),
             'personal' => $this->talentoModel->obtenerPersonal(),
+            'ingresosDisponibles' => $this->abastecimientoModel->esquemaDisponible() ? $this->abastecimientoModel->listarIngresos() : [],
+            'periodoActivo' => $this->periodoModel->obtenerPeriodoActivo(),
         ], 'Egresos de Bodega - Sistema Portuario');
+    }
+
+    public function egresosDataTable(): void {
+        try { $this->jsonResponse($this->egresoModel->egresosDataTable($_GET)); }
+        catch (Throwable $e) { $this->logger->inv_error('Error al listar egresos', $e, 'egresosDataTable'); $this->jsonResponse(['error'=>'No fue posible cargar los egresos.'],500); }
     }
 
     public function guardarOrdenCompra() {
         $this->exigirPostAbastecimiento();
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) $this->redirectAbastecimiento('ordenes', 'La solicitud no es válida o venció.', 'error');
         try {
+            $periodoActivo = $this->exigirPeriodoActivoOrden();
             $this->abastecimientoModel->crearOrden([
                 'fecha' => $_POST['fecha'] ?? date('Y-m-d'),
                 'nota_pedido_id' => (int)($_POST['nota_pedido_id'] ?? 0),
+                'requisicion_id' => (int)($_POST['requisicion_id'] ?? 0),
                 'proveedor_id' => (int)($_POST['proveedor_id'] ?? 0),
                 'observaciones' => trim($_POST['observaciones'] ?? ''),
                 'creado_por' => $this->usuarioActual(),
+                'periodo_id' => (int)$periodoActivo['id'],
+                'direccion_requirente' => trim($_POST['direccion_requirente'] ?? ''),
+                'memorando_solicitud' => trim($_POST['memorando_solicitud'] ?? ''),
+                'autorizado_por' => trim($_POST['autorizado_por'] ?? ''),
+                'acta_seleccion' => trim($_POST['acta_seleccion'] ?? ''),
+                'certificacion_presupuestaria' => trim($_POST['certificacion_presupuestaria'] ?? ''),
+                'plazo_entrega' => trim($_POST['plazo_entrega'] ?? ''),
+                'forma_pago' => trim($_POST['forma_pago'] ?? ''),
+                'condiciones_pago' => trim($_POST['condiciones_pago'] ?? ''),
             ], is_array($_POST['items'] ?? null) ? $_POST['items'] : []);
             $this->redirectAbastecimiento('ordenes', 'Orden creada y pendiente de aprobación.', 'success');
         } catch (Throwable $e) {
@@ -209,13 +320,25 @@ class MonitoreoController extends Controller {
 
     public function editarOrdenCompra() {
         $this->exigirPostAbastecimiento();
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) $this->redirectAbastecimiento('ordenes', 'La solicitud no es válida o venció.', 'error');
         try {
+            $periodoActivo = $this->exigirPeriodoActivoOrden();
             $this->abastecimientoModel->actualizarOrden(
                 (int)($_POST['orden_id'] ?? 0),
                 [
                     'fecha' => $_POST['fecha'] ?? date('Y-m-d'),
                     'proveedor_id' => (int)($_POST['proveedor_id'] ?? 0),
                     'observaciones' => trim($_POST['observaciones'] ?? ''),
+                    'periodo_id' => (int)$periodoActivo['id'],
+                    'requisicion_id' => (int)($_POST['requisicion_id'] ?? 0),
+                    'direccion_requirente' => trim($_POST['direccion_requirente'] ?? ''),
+                    'memorando_solicitud' => trim($_POST['memorando_solicitud'] ?? ''),
+                    'autorizado_por' => trim($_POST['autorizado_por'] ?? ''),
+                    'acta_seleccion' => trim($_POST['acta_seleccion'] ?? ''),
+                    'certificacion_presupuestaria' => trim($_POST['certificacion_presupuestaria'] ?? ''),
+                    'plazo_entrega' => trim($_POST['plazo_entrega'] ?? ''),
+                    'forma_pago' => trim($_POST['forma_pago'] ?? ''),
+                    'condiciones_pago' => trim($_POST['condiciones_pago'] ?? ''),
                 ],
                 is_array($_POST['items'] ?? null) ? $_POST['items'] : [],
                 $this->usuarioActual()
@@ -229,7 +352,9 @@ class MonitoreoController extends Controller {
 
     public function aprobarOrdenCompra() {
         $this->exigirPostAbastecimiento();
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) $this->redirectAbastecimiento('ordenes', 'La solicitud no es válida o venció.', 'error');
         try {
+            $this->exigirPeriodoActivoOrden();
             $this->abastecimientoModel->aprobarOrden((int)($_POST['orden_id'] ?? 0), $this->usuarioActual());
             $this->redirectAbastecimiento('ordenes', 'Orden aprobada; ya puede registrarse la factura.', 'success');
         } catch (Throwable $e) {
@@ -339,6 +464,56 @@ class MonitoreoController extends Controller {
         if (!$this->abastecimientoModel->esquemaDisponible()) $this->redirectAbastecimiento('ordenes', 'Primero debe aplicarse la migración del módulo.', 'error');
     }
 
+    /** Las órdenes solo pueden crearse o aprobarse dentro de un período abierto. */
+    private function exigirPeriodoActivoOrden(): array {
+        $periodo = $this->periodoModel->obtenerPeriodoActivo();
+        if (!$periodo) {
+            throw new RuntimeException('No se puede procesar la orden de compra porque no existe un período activo. Abra un período antes de continuar.');
+        }
+        return $periodo;
+    }
+
+    /** Ninguna vía de despacho o registro de egreso puede operar con el período cerrado. */
+    private function exigirPeriodoActivoEgreso(): array {
+        $periodo = $this->periodoModel->obtenerPeriodoActivo();
+        if (!$periodo) {
+            throw new RuntimeException('No existe un período activo. Los egresos están disponibles únicamente para consulta.');
+        }
+        return $periodo;
+    }
+
+    /** Alta rápida usada desde órdenes y facturas sin perder el documento en edición. */
+    public function crearProveedorRapido(): void {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->jsonResponse(['error' => 'La solicitud no es válida o venció.'], 419);
+        }
+        try {
+            $nombre = trim((string)($_POST['nombre'] ?? ''));
+            $ruc = preg_replace('/\D+/', '', (string)($_POST['ruc'] ?? ''));
+            if ($nombre === '') throw new InvalidArgumentException('Indique la razón social del proveedor.');
+            if ($ruc !== '' && strlen($ruc) !== 13) throw new InvalidArgumentException('El RUC debe contener 13 dígitos.');
+            $modelo = new EstacionModel();
+            $proveedor = $modelo->crear('proveedores', [
+                'nombre' => $nombre,
+                'ruc' => $ruc,
+                'codigo' => '',
+                'representante' => trim((string)($_POST['representante'] ?? '')),
+                'direccion' => trim((string)($_POST['direccion'] ?? '')),
+                'ciudad' => trim((string)($_POST['ciudad'] ?? '')),
+                'email' => trim((string)($_POST['email'] ?? '')),
+                'telefono1' => trim((string)($_POST['telefono1'] ?? '')),
+                'telefono2' => '', 'fax' => '', 'referencia' => '',
+                'extra' => '',
+            ]);
+            $this->registrarAuditoria('CREAR', 'bod', 'Proveedor creado desde el flujo de compras: ' . $nombre);
+            $this->jsonResponse(['proveedor' => $proveedor], 201);
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al crear proveedor desde compras', $e, 'crearProveedorRapido');
+            $mensaje = $e instanceof InvalidArgumentException ? $e->getMessage() : 'No fue posible crear el proveedor. Verifique que el RUC no esté registrado.';
+            $this->jsonResponse(['error' => $mensaje], 422);
+        }
+    }
+
     private function procesarArchivoFactura(): ?array {
         if (!isset($_FILES['factura_archivo']) || (int)$_FILES['factura_archivo']['error'] === UPLOAD_ERR_NO_FILE) return null;
         $archivo = $_FILES['factura_archivo'];
@@ -407,29 +582,79 @@ class MonitoreoController extends Controller {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('requisiciones', 'Método no permitido', 'error');
         }
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('requisiciones', 'La solicitud no es válida o venció.', 'error');
+        }
         $detalles = [];
         foreach (($_POST['items'] ?? []) as $item) {
             if (!empty($item['item_id']) && (int)($item['cantidad'] ?? 0) > 0) {
-                $detalles[] = ['item_id' => (int)$item['item_id'], 'cantidad' => (int)$item['cantidad']];
+                $referencias = array_filter([
+                    trim((string)($item['pedido_numero'] ?? '')) !== '' ? 'Pedido: ' . trim((string)$item['pedido_numero']) : '',
+                    trim((string)($item['pedido_fecha'] ?? '')) !== '' ? 'Fecha pedido: ' . trim((string)$item['pedido_fecha']) : '',
+                    trim((string)($item['referencia'] ?? '')) !== '' ? 'Referencia: ' . trim((string)$item['referencia']) : '',
+                    trim((string)($item['otra_referencia'] ?? '')) !== '' ? 'Otra referencia: ' . trim((string)$item['otra_referencia']) : '',
+                ]);
+                $detalles[] = [
+                    'item_id' => (int)$item['item_id'],
+                    'cantidad' => (int)$item['cantidad'],
+                    'referencia' => implode(' | ', $referencias),
+                ];
             }
         }
         try {
+            $periodoActivo = $this->periodoModel->obtenerPeriodoActivo();
+            if (!$periodoActivo) {
+                throw new RuntimeException('No existe un período activo. La requisición solo puede consultarse.');
+            }
+            $grupoCentroId = (int)($_POST['centro_consumo_grupo_id'] ?? 0);
             $personaCentroId = (int)($_POST['centro_consumo_persona_id'] ?? 0);
-            $centroConsumoId = $this->notaPedidoModel->obtenerOCrearCentroParaPersona($personaCentroId);
+            $centroConsumoId = $this->notaPedidoModel->obtenerOCrearCentroParaPersona($personaCentroId, $grupoCentroId);
+            $observaciones = trim((string)($_POST['observaciones'] ?? ''));
+            $referencia = trim((string)($_POST['documento_referencia'] ?? ''));
+            $prioridad = trim((string)($_POST['prioridad'] ?? 'Normal'));
+            $contexto = array_filter([
+                $referencia !== '' && stripos($observaciones, 'Nota de pedido/referencia: ' . $referencia) === false
+                    ? 'Nota de pedido/referencia: ' . $referencia : '',
+                $prioridad !== 'Normal' && stripos($observaciones, 'Prioridad: ' . $prioridad) === false
+                    ? 'Prioridad: ' . $prioridad : '',
+            ]);
+            if ($contexto) $observaciones = implode('. ', $contexto) . ($observaciones !== '' ? '. ' . $observaciones : '');
             $notas = $this->notaPedidoModel->crearSolicitud([
                 'centro_consumo_id' => $centroConsumoId,
-                'solicitante_id' => (int)($_POST['solicitante_id'] ?? 0),
+                // Compatibilidad histórica: el campo ya no se solicita en pantalla.
+                // Se conserva internamente con el responsable seleccionado del centro.
+                'solicitante_id' => $personaCentroId,
+                'responsable_id' => $personaCentroId,
                 'fecha_solicitud' => !empty($_POST['fecha_solicitud']) ? $_POST['fecha_solicitud'] : date('Y-m-d'),
                 'motivo' => trim($_POST['motivo'] ?? ''),
-                'observaciones' => trim($_POST['observaciones'] ?? ''),
+                'observaciones' => $observaciones,
                 'creado_por' => $_SESSION['usuario']['nombre'] ?? 'Sistema',
             ], $detalles);
             $cantidad = count($notas);
             $this->logger->info("CREAR_SOLICITUD: {$cantidad} nota(s) generada(s)", 'guardarSolicitud');
-            $this->redirect('requisiciones', "Requisición registrada. Se generaron {$cantidad} nota(s) de pedido.", 'success');
+            $this->redirect('requisiciones', "Requisición registrada correctamente en {$cantidad} documento(s) interno(s).", 'success');
         } catch (Throwable $e) {
             $this->logger->inv_error('Error al crear solicitud digital', $e, 'guardarSolicitud');
             $this->redirect('requisiciones', $e->getMessage(), 'error');
+        }
+    }
+
+    /** Anula una requisición, conservándola íntegra en el historial. */
+    public function anularRequisicion(): void {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('requisiciones', 'La solicitud no es válida o venció.', 'error');
+        }
+        try {
+            $this->notaPedidoModel->anular(
+                (int)($_POST['nota_id'] ?? 0),
+                trim((string)($_POST['motivo_anulacion'] ?? '')),
+                $this->usuarioActual()
+            );
+            $this->logger->info('ANULAR_REQUISICION: requisición anulada y conservada en historial', 'anularRequisicion');
+            $this->redirect('requisiciones', 'La requisición fue anulada correctamente.', 'success');
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al anular requisición', $e, 'anularRequisicion');
+            $this->redirect('requisiciones', $this->mensajeSeguroFactura($e), 'error');
         }
     }
 
@@ -438,7 +663,11 @@ class MonitoreoController extends Controller {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('egresos', 'Método no permitido', 'error');
         }
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('egresos', 'La solicitud no es válida o venció.', 'error');
+        }
         try {
+            $this->exigirPeriodoActivoEgreso();
             $egresoId = $this->egresoModel->crearDesdeNota(
                 (int)($_POST['nota_id'] ?? 0),
                 (int)($_POST['receptor_id'] ?? 0),
@@ -456,12 +685,62 @@ class MonitoreoController extends Controller {
         }
     }
 
+    /** Registra el egreso capturado desde la cabecera y su ventana de movimiento. */
+    public function guardarMovimientoEgreso(): void {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('egresos', 'La solicitud no es válida o venció.', 'error');
+        }
+        try {
+            $this->exigirPeriodoActivoEgreso();
+            $detalles = [];
+            foreach (is_array($_POST['items'] ?? null) ? $_POST['items'] : [] as $item) {
+                $itemId = (int)($item['item_id'] ?? 0);
+                $cantidad = (int)($item['cantidad'] ?? 0);
+                if ($itemId > 0 && $cantidad > 0) $detalles[] = ['item_id' => $itemId, 'cantidad' => $cantidad];
+            }
+            $centroId = $this->notaPedidoModel->obtenerOCrearCentroParaPersona((int)($_POST['centro_consumo_persona_id'] ?? 0));
+            $egresoId = $this->egresoModel->crearDesdeMovimiento([
+                'area_id' => (int)($_POST['area_id'] ?? 0),
+                'centro_consumo_id' => $centroId,
+                'responsable_id' => (int)($_POST['receptor_id'] ?? 0),
+                'fecha' => $_POST['fecha'] ?? date('Y-m-d'),
+                'motivo' => trim((string)($_POST['motivo'] ?? '')),
+                'documento_origen' => trim((string)($_POST['documento_origen'] ?? '')),
+                'observaciones' => trim((string)($_POST['observaciones'] ?? '')),
+                'creado_por' => $this->usuarioActual(),
+            ], $detalles);
+            $egreso = $this->egresoModel->buscarPorId($egresoId);
+            $codigo = $egreso['secuencial'] ?? (string)$egresoId;
+            $this->redirect('egresos', "Egreso {$codigo} registrado; existencias y Kardex actualizados.", 'success');
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al registrar el movimiento de egreso', $e, 'guardarMovimientoEgreso');
+            $this->redirect('egresos', $e->getMessage(), 'error');
+        }
+    }
+
+    public function kardexDataTable(): void {
+        try {
+            $this->jsonResponse($this->egresoModel->kardexDataTable($_GET));
+        } catch (Throwable $e) {
+            $this->logger->inv_error('Error al consultar Kardex', $e, 'kardexDataTable');
+            $this->jsonResponse(['error' => 'No fue posible consultar el Kardex.'], 500);
+        }
+    }
+
     public function verNota() {
         $nota = $this->notaPedidoModel->buscarPorId((int)($_GET['id'] ?? 0));
         if (!$nota) {
             $this->jsonResponse(['error' => 'Nota no encontrada'], 404);
         }
         $this->jsonResponse($nota);
+    }
+
+    /** Documento limpio e imprimible de una requisición. */
+    public function imprimirRequisicion(): void {
+        $nota = $this->notaPedidoModel->buscarPorId((int)($_GET['id'] ?? 0));
+        if (!$nota) $this->redirect('requisiciones', 'La requisición solicitada no existe.', 'error');
+        $this->registrarAuditoria('IMPRIMIR', 'bod', 'Impresión de requisición ' . $nota['secuencial']);
+        $this->render('monitoreo/requisicion_imprimir', ['nota' => $nota], 'Requisición ' . $nota['secuencial']);
     }
 
     public function marcarSinExistencias() {
@@ -542,6 +821,9 @@ class MonitoreoController extends Controller {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('egresos', 'Método no permitido', 'error');
         }
+        if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+            $this->redirect('egresos', 'La solicitud no es válida o venció.', 'error');
+        }
 
         $datosCabecera = [
             'area_id'        => (int)$_POST['area_id'],
@@ -569,6 +851,7 @@ class MonitoreoController extends Controller {
         }
 
         try {
+            $this->exigirPeriodoActivoEgreso();
             $egresoId = $this->egresoModel->crear($datosCabecera, $detalles);
             $this->logger->info('CREAR_EGRESO: Egreso de bodega registrado', 'guardar');
             
@@ -579,9 +862,9 @@ class MonitoreoController extends Controller {
             }
 
             $this->redirect('egresos', 'Egreso de bodega registrado exitosamente', 'success');
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->logger->inv_error('Error al procesar egreso de bodega', $e, 'guardar');
-            $this->redirect('egresos', 'Error al procesar el egreso', 'error');
+            $this->redirect('egresos', $e->getMessage(), 'error');
         }
     }
 

@@ -2,9 +2,143 @@
 require_once ROOT_PATH . 'core/Model.php';
 require_once ROOT_PATH . 'modules/Central/models/InvSecuencial.php';
 require_once ROOT_PATH . 'modules/Bitacoras/models/BitacoraModel.php';
+require_once ROOT_PATH . 'modules/Control_Bines/models/InvItemSistema.php';
 
 class InvIngresoFactura extends Model
 {
+    private function normalizarNombreEscaneado(string $valor): string
+    {
+        $valor = mb_strtoupper(trim($valor), 'UTF-8');
+        $valor = strtr($valor, ['Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ü'=>'U','Ñ'=>'N']);
+        return trim((string)preg_replace('/[^A-Z0-9]+/u', ' ', $valor));
+    }
+
+    private function productoFacturaPorInventarioId(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT i.id, COALESCE(NULLIF(p.codigo, ''), i.secuencial) codigo,
+                    i.secuencial codigo_interno, c.codigo codigo_clasificacion, p.codigo codigo_maestro, i.nombre,
+                    i.cantidad existencia, i.valor precio_actual, COALESCE(p.aplica_iva,1) aplica_iva,
+                    c.codigo codigo_contable, c.nombre cuenta_contable
+             FROM inv_inventario i
+             LEFT JOIN inv_productos p ON p.id=i.producto_id
+             LEFT JOIN inv_categorias c ON c.id=i.categoria_id
+             WHERE i.id=:id AND i.activo=1"
+        );
+        $stmt->execute([':id' => $id]);
+        $producto = $stmt->fetch();
+        return $producto ?: null;
+    }
+
+    private function buscarProductoEscaneadoPorNombre(string $nombre): ?array
+    {
+        $normalizado = $this->normalizarNombreEscaneado($nombre);
+        $ignoradas = ['DE','DEL','LA','EL','LOS','LAS','Y','PARA','CON','UNA','UNO','UN'];
+        $tokens = array_values(array_filter(explode(' ', $normalizado), static function (string $token) use ($ignoradas): bool {
+            return strlen($token) >= 3 && !in_array($token, $ignoradas, true);
+        }));
+        if (!$tokens) return null;
+
+        $condiciones = [];
+        $params = [];
+        foreach (array_slice(array_unique($tokens), 0, 7) as $indice => $token) {
+            $param = ':nombre_' . $indice;
+            $condiciones[] = "i.nombre COLLATE Modern_Spanish_CI_AI LIKE {$param}";
+            $params[$param] = '%' . $token . '%';
+        }
+        $stmt = $this->db->prepare(
+            "SELECT TOP 40 i.id, i.nombre
+             FROM inv_inventario i
+             WHERE i.activo=1 AND (" . implode(' OR ', $condiciones) . ")
+             ORDER BY i.nombre, i.id"
+        );
+        $stmt->execute($params);
+
+        $clasificados = [];
+        foreach ($stmt->fetchAll() as $candidato) {
+            $actual = $this->normalizarNombreEscaneado((string)$candidato['nombre']);
+            if ($actual === $normalizado) {
+                $puntaje = 120;
+            } else {
+                $menor = min(strlen($actual), strlen($normalizado));
+                if ($menor >= 10 && (strpos($actual, $normalizado) !== false || strpos($normalizado, $actual) !== false)
+                    && $menor / max(strlen($actual), strlen($normalizado)) >= 0.72) {
+                    $puntaje = 100;
+                } else {
+                    $actualTokens = array_flip(array_filter(explode(' ', $actual), static fn(string $token): bool => strlen($token) >= 3));
+                    $coincidencias = count(array_filter($tokens, static fn(string $token): bool => isset($actualTokens[$token])));
+                    $cobertura = $tokens ? $coincidencias / count($tokens) : 0;
+                    $puntaje = $coincidencias >= 2 && $cobertura >= 0.75 ? 80 + ($cobertura * 15) : 0;
+                }
+            }
+            if ($puntaje >= 85) $clasificados[] = ['id'=>(int)$candidato['id'], 'puntaje'=>$puntaje];
+        }
+        usort($clasificados, static fn(array $a, array $b): int => $b['puntaje'] <=> $a['puntaje']);
+        if (!$clasificados || (isset($clasificados[1]) && $clasificados[0]['puntaje'] === $clasificados[1]['puntaje'])) return null;
+        return $this->productoFacturaPorInventarioId($clasificados[0]['id']);
+    }
+
+    private function defaultsProductoEscaneado(): array
+    {
+        $grupo = $this->db->query(
+            "SELECT TOP 1 c.id
+             FROM inv_categorias c
+             WHERE c.codigo LIKE '1.3.%'
+               AND NOT EXISTS (SELECT 1 FROM inv_categorias h WHERE h.id<>c.id AND h.codigo LIKE c.codigo + '%')
+             ORDER BY CASE WHEN c.codigo='1.3.1.01.99.' THEN 0 ELSE 1 END, c.codigo"
+        )->fetchColumn();
+        $unidad = $this->db->query(
+            "SELECT TOP 1 id FROM inv_unidades
+             ORDER BY CASE WHEN UPPER(LTRIM(RTRIM(nombre)))='UNIDAD' THEN 0 ELSE 1 END, id"
+        )->fetchColumn();
+        if (!(int)$grupo || !(int)$unidad) throw new RuntimeException('No existe una categoría o unidad predeterminada para crear productos escaneados.');
+        return ['grupo_id'=>(int)$grupo, 'unidad_id'=>(int)$unidad];
+    }
+
+    public function resolverProductosEscaneados(array $lineas): array
+    {
+        if (!$lineas) return [];
+        $resultado = [];
+        $defaults = null;
+        $creador = null;
+        $inicioTransaccion = !$this->db->inTransaction();
+        if ($inicioTransaccion) $this->db->beginTransaction();
+        try {
+            foreach (array_slice($lineas, 0, 30) as $linea) {
+                $indice = (int)($linea['indice'] ?? -1);
+                $nombre = trim((string)($linea['nombre'] ?? ''));
+                if ($indice < 0 || $nombre === '') throw new InvalidArgumentException('Uno de los productos detectados no tiene una descripción válida.');
+                $nombre = mb_substr((string)preg_replace('/\s+/u', ' ', $nombre), 0, 255, 'UTF-8');
+                $producto = $this->buscarProductoEscaneadoPorNombre($nombre);
+                $creado = false;
+                if (!$producto) {
+                    $defaults = $defaults ?? $this->defaultsProductoEscaneado();
+                    $creador = $creador ?? new InvItemSistema(false);
+                    $codigoProveedor = mb_substr(trim((string)($linea['codigo_proveedor'] ?? '')), 0, 80, 'UTF-8');
+                    $referencia = $codigoProveedor !== '' ? ' Código del proveedor: ' . $codigoProveedor . '.' : '';
+                    $maestro = $creador->crear([
+                        'nombre'=>$nombre, 'grupo_id'=>$defaults['grupo_id'], 'unidad_id'=>$defaults['unidad_id'],
+                        'aplica_iva'=>!empty($linea['aplica_iva']) ? 1 : 0, 'codigo'=>'',
+                        'descripcion'=>'Creado automáticamente desde el escaneo de una factura.' . $referencia,
+                        'ubicacion'=>'', 'existencia_min'=>0, 'existencia_max'=>0,
+                        'precio_promedio'=>max(0, (float)($linea['precio'] ?? 0)), 'existencia_actual'=>0,
+                    ]);
+                    $inventarioStmt = $this->db->prepare('SELECT id FROM inv_inventario WHERE producto_id=:producto_id');
+                    $inventarioStmt->execute([':producto_id'=>(int)$maestro['id']]);
+                    $producto = $this->productoFacturaPorInventarioId((int)$inventarioStmt->fetchColumn());
+                    if (!$producto) throw new RuntimeException('El producto se creó, pero no pudo vincularse con el inventario.');
+                    $creado = true;
+                }
+                $resultado[] = ['indice'=>$indice, 'creado'=>$creado, 'producto'=>$producto];
+            }
+            if ($inicioTransaccion) $this->db->commit();
+            return $resultado;
+        } catch (Throwable $e) {
+            if ($inicioTransaccion && $this->db->inTransaction()) $this->db->rollBack();
+            throw $e;
+        }
+    }
+
     public function esquemaDisponible(): bool
     {
         try {
@@ -81,17 +215,19 @@ class InvIngresoFactura extends Model
             $ignoradas = ['de','del','la','el','los','las','y','para','gl','un','una'];
             $tokens = preg_split('/\s+/u', mb_strtolower($busqueda, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
             $tokens = array_values(array_filter($tokens, static function ($token) use ($ignoradas) {
-                return mb_strlen($token, 'UTF-8') >= 3 && !in_array($token, $ignoradas, true);
+                return mb_strlen($token, 'UTF-8') >= 2 && !in_array($token, $ignoradas, true);
             }));
             if (!$tokens) $tokens = [$busqueda];
             foreach (array_slice($tokens, 0, 6) as $indice => $token) {
                 $campos = [];
-                foreach (range(1, 5) as $campo) {
+                foreach (range(1, 10) as $campo) {
                     $parametro = ':b' . $indice . '_' . $campo;
                     $campos[] = [
                         'i.secuencial', 'i.nombre COLLATE Modern_Spanish_CI_AI',
                         'p.codigo', 'p.nombre COLLATE Modern_Spanish_CI_AI',
-                        'c.codigo'
+                        'c.codigo', 'i.marca COLLATE Modern_Spanish_CI_AI',
+                        'c.nombre COLLATE Modern_Spanish_CI_AI', 'u.nombre COLLATE Modern_Spanish_CI_AI',
+                        'u.extra COLLATE Modern_Spanish_CI_AI', 'i.tipo_bien'
                     ][$campo - 1] . ' LIKE ' . $parametro;
                     $params[$parametro] = '%' . $token . '%';
                 }
@@ -99,15 +235,18 @@ class InvIngresoFactura extends Model
             }
         }
         $total = (int)$this->db->query('SELECT COUNT(*) FROM inv_inventario WHERE activo=1')->fetchColumn();
-        $count = $this->db->prepare("SELECT COUNT(*) FROM inv_inventario i LEFT JOIN inv_productos p ON p.id=i.producto_id LEFT JOIN inv_categorias c ON c.id=i.categoria_id WHERE {$where}");
+        $count = $this->db->prepare("SELECT COUNT(*) FROM inv_inventario i LEFT JOIN inv_productos p ON p.id=i.producto_id LEFT JOIN inv_categorias c ON c.id=i.categoria_id LEFT JOIN inv_unidades u ON u.id=p.unidad_id WHERE {$where}");
         $count->execute($params);
         $filtrados = (int)$count->fetchColumn();
-        $sql = "SELECT i.id, i.secuencial codigo, c.codigo codigo_clasificacion, p.codigo codigo_maestro, i.nombre,
+        $sql = "SELECT i.id, COALESCE(NULLIF(p.codigo, ''),NULLIF(c.codigo,''),i.secuencial) codigo,
+                       i.secuencial codigo_interno, c.codigo codigo_clasificacion, p.codigo codigo_maestro, i.nombre,i.marca,
                        i.cantidad existencia, i.valor precio_actual, COALESCE(p.aplica_iva,1) aplica_iva,
-                       c.codigo codigo_contable, c.nombre cuenta_contable
+                       c.codigo codigo_contable, c.nombre cuenta_contable,u.nombre unidad_nombre,u.extra unidad_abrev,
+                       COALESCE(i.tipo_bien,p.tipo_bien,'CC') tipo_bien
                 FROM inv_inventario i
                 LEFT JOIN inv_productos p ON p.id=i.producto_id
                 LEFT JOIN inv_categorias c ON c.id=i.categoria_id
+                LEFT JOIN inv_unidades u ON u.id=p.unidad_id
                 WHERE {$where}
                 ORDER BY i.nombre, i.id OFFSET {$inicio} ROWS FETCH NEXT {$largo} ROWS ONLY";
         $stmt = $this->db->prepare($sql); $stmt->execute($params);
@@ -120,9 +259,12 @@ class InvIngresoFactura extends Model
             FROM inv_facturas f JOIN inv_proveedores p ON p.id=f.proveedor_id JOIN inv_ordenes_compra o ON o.id_orden=f.orden_compra_id WHERE f.id_factura=:id");
         $stmt->execute([':id'=>$id]); $factura = $stmt->fetch();
         if (!$factura) return null;
-        $det = $this->db->prepare("SELECT d.*, i.nombre item_nombre, i.secuencial item_codigo,
+        $det = $this->db->prepare("SELECT d.*, i.nombre item_nombre,
+                COALESCE(NULLIF(prod.codigo, ''), i.secuencial) item_codigo,
                 i.cantidad existencia, c.codigo codigo_contable, c.nombre cuenta_contable
-            FROM inv_facturas_detalles d JOIN inv_inventario i ON i.id=d.item_id LEFT JOIN inv_categorias c ON c.id=i.categoria_id
+            FROM inv_facturas_detalles d JOIN inv_inventario i ON i.id=d.item_id
+            LEFT JOIN inv_productos prod ON prod.id=i.producto_id
+            LEFT JOIN inv_categorias c ON c.id=i.categoria_id
             WHERE d.factura_id=:id ORDER BY d.id_detalle");
         $det->execute([':id'=>$id]); $factura['detalles']=$det->fetchAll();
         return $factura;
@@ -142,14 +284,14 @@ class InvIngresoFactura extends Model
         foreach ($this->tiposIva() as $tipo) $tasas[(int)$tipo['id']] = (float)$tipo['tasa_iva'];
         $normalizadas = []; $vistos = []; $baseCero=0.0; $baseGravada=0.0; $ivaTotal=0.0; $tasaMax=0.0;
         foreach ($lineas as $linea) {
-            $itemId=(int)($linea['item_id']??0); $cantidad=(int)($linea['cantidad']??0); $precio=round((float)($linea['precio_unitario']??0),4);
+            $itemId=(int)($linea['item_id']??0); $cantidad=(int)($linea['cantidad']??0); $precio=CommonHelper::redondearPrecio($linea['precio_unitario']??0);
             if ($itemId<=0 || $cantidad<=0) continue;
             if (isset($vistos[$itemId])) throw new InvalidArgumentException('No repita un producto dentro de la misma factura.');
             if ($precio<0) throw new InvalidArgumentException('El precio unitario no puede ser negativo.');
             $vistos[$itemId]=true;
             $aplica=!empty($linea['aplica_iva']); $tipoId=$aplica?(int)($linea['iva_tipo_id']??0):0;
             if ($aplica && !isset($tasas[$tipoId])) throw new InvalidArgumentException('Una de las tasas de IVA seleccionadas ya no existe en Maestros.');
-            $tasa=$aplica?$tasas[$tipoId]:0.0; $subtotal=round($cantidad*$precio,4); $valorIva=round($subtotal*$tasa/100,2); $total=round($subtotal+$valorIva,4);
+            $tasa=$aplica?$tasas[$tipoId]:0.0; $subtotal=CommonHelper::redondearImporte($cantidad*$precio); $valorIva=CommonHelper::redondearImporte($subtotal*$tasa/100); $total=CommonHelper::redondearImporte($subtotal+$valorIva);
             if ($aplica && $tasa>0) $baseGravada += $subtotal; else $baseCero += $subtotal;
             $ivaTotal += $valorIva; $tasaMax=max($tasaMax,$tasa);
             $normalizadas[]=['item_id'=>$itemId,'cantidad'=>$cantidad,'precio'=>$precio,'aplica'=>$aplica,'tipo_id'=>$tipoId?:null,'tasa'=>$tasa,
@@ -178,7 +320,7 @@ class InvIngresoFactura extends Model
             $ordenDet=$this->db->prepare('INSERT INTO inv_ordenes_compra_detalles (orden_id,item_id,cantidad,precio_unitario_estimado) VALUES (:orden,:item,:cantidad,:precio)');
             foreach($normalizadas as $linea) $ordenDet->execute([':orden'=>$ordenId,':item'=>$linea['item_id'],':cantidad'=>$linea['cantidad'],':precio'=>$linea['precio']]);
 
-            $total=round($baseCero+$baseGravada+$ivaTotal,4);
+            $total=CommonHelper::redondearImporte($baseCero+$baseGravada+$ivaTotal);
             if ($id>0) {
                 $stmt=$this->db->prepare('UPDATE inv_facturas SET numero_factura=:numero,fecha_factura=:fecha,proveedor_id=:proveedor,descripcion=:descripcion,
                     iva_porcentaje=:tasa,base_cero=:base0,subtotal_gravado=:gravado,valor_iva=:iva,total=:total,actualizado_por=:usuario,fecha_actualizacion=CURRENT_TIMESTAMP WHERE id_factura=:id');

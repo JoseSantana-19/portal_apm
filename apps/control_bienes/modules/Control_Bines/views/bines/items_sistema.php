@@ -630,7 +630,7 @@
                                     </div>
                                     <div class="its-field-row-new">
                                         <label>Precio Promedio Unitario</label>
-                                        <input type="number" step="0.0001" name="precio_promedio" id="form-precio" class="its-field-input-new" placeholder="0.0000" value="0" oninput="calcularTotal()">
+                                        <input type="number" data-price-input step="<?= htmlspecialchars(CommonHelper::pasoPrecio()) ?>" name="precio_promedio" id="form-precio" class="its-field-input-new" placeholder="<?= htmlspecialchars(CommonHelper::pasoPrecio()) ?>" value="0" oninput="calcularTotal()">
                                     </div>
                                 </div>
                                 <div class="its-field-row-new">
@@ -735,7 +735,7 @@ function calcularTotal() {
     var exist  = parseFloat(document.getElementById('form-existencia').value) || 0;
     var subtotal = precio * exist;
     var aplicaIva = parseInt(document.getElementById('form-iva').value, 10) === 1;
-    var total  = (subtotal + (aplicaIva ? subtotal * (_tasaIvaVigente / 100) : 0)).toFixed(4);
+    var total  = window.InvMoney.roundAmount(subtotal + (aplicaIva ? subtotal * (_tasaIvaVigente / 100) : 0)).toFixed(window.InvMoney.config.amountDecimals);
     
     document.getElementById('form-total').value = total;
     actualizarLivePreview();
@@ -1005,7 +1005,7 @@ function cargarItemEnFormulario(item) {
     document.getElementById('form-descripcion').value  = item.descripcion || '';
     updateSelectValue('form-unidad', item.unidad_id);
     document.getElementById('form-existencia').value   = parseFloat(item.existencia_actual || 0).toFixed(4);
-    document.getElementById('form-precio').value       = parseFloat(item.precio_promedio || 0).toFixed(4);
+    document.getElementById('form-precio').value       = window.InvMoney.roundPrice(item.precio_promedio || 0).toFixed(window.InvMoney.config.priceDecimals);
     document.getElementById('form-iva').value          = item.aplica_iva;
     
     // Ubicacion: check if option already exists or map legacy names
@@ -1093,14 +1093,19 @@ function iniciarMaestroItemsDataTable() {
         pageLength: _listaLimit,
         lengthMenu: [10, 25, 50, 100],
         order: [[0, 'asc']],
+        dom: '<"maestro-items-tools"Bf>rt<"bottom"lip><"clear">',
+        buttons: ($.fn.dataTable && $.fn.dataTable.Buttons) ? [
+            { extend: 'excelHtml5', text: '<i class="fa-solid fa-file-excel"></i> Excel completo', title: 'Maestro de Ítems - Completo', filename: 'maestro_items_completo', exportOptions: { columns: [0,1,2,3,4,5,6,7], format: { body: formatearCeldaMaestroExcel } } },
+            { extend: 'excelHtml5', text: '<i class="fa-regular fa-file-excel"></i> Excel resumido', title: 'Maestro de Ítems - Resumido', filename: 'maestro_items_resumido', exportOptions: { columns: [0,1,2,3,4], format: { body: formatearCeldaMaestroExcel } } }
+        ] : [],
         columns: [
             { data: 'codigo', render: function(v, type) { return type === 'display' ? '<code style="font-family:monospace;font-weight:700;font-size:12px;color:var(--primary);">' + escaparMaestro(v || '—') + '</code>' : (v || ''); } },
             { data: null, render: function(item, type) { var texto = [item.nombre || '', item.descripcion || ''].join(' '); return type === 'display' ? '<strong style="display:block;font-size:13px;color:var(--text-color);">' + escaparMaestro(item.nombre || '') + '</strong>' + (item.descripcion ? '<span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">' + escaparMaestro(item.descripcion) + '</span>' : '') : texto; } },
             { data: 'grupo_nombre', render: function(v, type) { return type === 'display' ? '<span class="status-badge transit" style="font-size:11px;background:#eef2ff;color:#4f46e5;font-weight:600;">' + escaparMaestro(v || '') + '</span>' : (v || ''); } },
             { data: null, render: function(item) { return escaparMaestro(item.unidad_abrev || item.unidad_nombre || 'u.'); } },
             { data: 'existencia_actual', className: 'dt-body-center', render: function(v, type, item) { var n = Number(v || 0); if (type !== 'display') return n; var bajo = Number(item.existencia_min || 0) > 0 && n <= Number(item.existencia_min); return '<span style="font-weight:700;color:' + (bajo ? '#f59e0b' : 'var(--text-color)') + ';">' + n.toFixed(2) + '</span>'; } },
-            { data: 'precio_promedio', render: function(v, type) { var n=Number(v || 0); return type === 'display' ? '$' + n.toFixed(2) : n; } },
-            { data: null, render: function(item, type) { var n=Number(item.precio_promedio || 0)*Number(item.existencia_actual || 0); return type === 'display' ? '<strong style="color:#10b981;">$' + n.toFixed(2) + '</strong>' : n; } },
+            { data: 'precio_promedio', render: function(v, type) { var n=Number(v || 0); return type === 'display' ? window.InvMoney.formatPrice(n) : n; } },
+            { data: null, render: function(item, type) { var n=Number(item.precio_promedio || 0)*Number(item.existencia_actual || 0); return type === 'display' ? '<strong style="color:#10b981;">' + window.InvMoney.formatAmount(n) + '</strong>' : n; } },
             { data: 'aplica_iva', className: 'dt-body-center', render: function(v, type) { var aplica=Number(v)===1; return type === 'display' ? '<span class="status-badge ' + (aplica ? 'active' : 'inactive') + '" style="font-size:10px;">' + (aplica ? 'Sí (' + _tasaIvaVigente.toFixed(2) + '%)' : 'No aplica') + '</span>' : (aplica ? 'Sí' : 'No'); } },
             { data: null, orderable: false, searchable: false, className: 'acciones-cell columna-acciones', render: function() { return '<button type="button" class="btn-accion btn-ver maestro-cargar-item" title="Cargar en Ficha"><i class="fa-solid fa-pen-to-square"></i></button>'; } }
         ],
@@ -1120,6 +1125,11 @@ function iniciarMaestroItemsDataTable() {
         if (item) cargarItemEnFormulario(item);
     });
     return _listaTable;
+}
+
+function formatearCeldaMaestroExcel(data, row, column, node) {
+    var texto = node ? node.textContent.trim() : String(data || '').replace(/<[^>]*>/g, '').trim();
+    return column === 0 ? '\u200C' + texto : texto;
 }
 
 function renderListaTable(page) {
@@ -1174,8 +1184,8 @@ function renderListaTable(page) {
             '<td><span class="status-badge transit" style="font-size:11px;background:#eef2ff;color:#4f46e5;font-weight:600;">' + (item.grupo_nombre || '') + '</span></td>' +
             '<td style="font-size:12px;color:var(--text-muted);">' + (item.unidad_abrev || item.unidad_nombre || 'u.') + '</td>' +
             '<td style="text-align:center;"><span style="font-weight:700;font-size:13px;color:' + exColor + ';">' + exist.toFixed(2) + '</span></td>' +
-            '<td style="font-size:13px;">$' + precio.toFixed(2) + '</td>' +
-            '<td><strong style="color:#10b981;font-size:13px;">$' + total.toFixed(2) + '</strong></td>' +
+            '<td style="font-size:13px;">' + window.InvMoney.formatPrice(precio) + '</td>' +
+            '<td><strong style="color:#10b981;font-size:13px;">' + window.InvMoney.formatAmount(total) + '</strong></td>' +
             '<td style="text-align:center;"><span class="status-badge ' + ivaClass + '" style="font-size:10px;">' + ivaNombre + '</span></td>' +
             '<td class="acciones-cell columna-acciones" onclick="event.stopPropagation()">' +
                 '<button type="button" class="btn-accion btn-ver" onclick="cargarItemEnFormulario(' + itemJson + ')" title="Cargar en Ficha"><i class="fa-solid fa-pen-to-square"></i></button>' +
@@ -1504,7 +1514,7 @@ document.getElementById('form-copiar-plantilla').addEventListener('change', func
         
         document.getElementById('form-exmin').value = parseFloat(item.existencia_min || 0).toFixed(2);
         document.getElementById('form-exmax').value = parseFloat(item.existencia_max || 0).toFixed(2);
-        document.getElementById('form-precio').value = parseFloat(item.precio_promedio || 0).toFixed(4);
+        document.getElementById('form-precio').value = window.InvMoney.roundPrice(item.precio_promedio || 0).toFixed(window.InvMoney.config.priceDecimals);
         document.getElementById('form-existencia').value = '0';
         
         calcularTotal();
@@ -1537,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nuevoItem();
         document.getElementById('form-nombre').value = urlParams.get('nombre') || '';
         document.getElementById('form-descripcion').value = urlParams.get('descripcion') || '';
-        document.getElementById('form-precio').value = Number(urlParams.get('precio') || 0).toFixed(4);
+        document.getElementById('form-precio').value = window.InvMoney.roundPrice(urlParams.get('precio') || 0).toFixed(window.InvMoney.config.priceDecimals);
         calcularTotal();
     }
     var editId = urlParams.get('edit_id') || urlParams.get('id');

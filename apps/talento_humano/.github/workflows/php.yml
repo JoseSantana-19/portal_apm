@@ -3,20 +3,37 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   lint-and-security:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php }}
       - name: PHP syntax
         run: find . -name '*.php' -not -path './libs/*' -print0 | xargs -0 -n1 php -l
       - name: Static security regression
         run: php tests/security_static.php
       - name: MFA, session and audit regression
         run: php tests/security_audit_static.php
+      - name: Environment and certificate reproducibility
+        run: php tests/environment_static.php
+      - name: Local frontend dependencies
+        run: php tests/frontend_assets_static.php
+      - name: Centralized error handling
+        run: php tests/error_handling_static.php
+      - name: Operational monitoring and retention
+        run: php tests/operations_static.php
+      - name: PDF compatibility
+        run: php tests/pdf_compatibility_static.php
       - name: Compact administration UI
         run: php tests/admin_ui_render.php
       - name: Topbar theme and notifications UI
@@ -27,6 +44,23 @@ jobs:
         run: php tests/operational_static.php
       - name: Socioeconomic workflow
         run: php tests/socioeconomico_static.php
+      - name: Socioeconomic geolocation
+        run: |
+          php tests/socio_geolocation_static.php
+          php tests/socio_geolocation_ui_render.php
+          php tests/map_url_parser.php
+      - name: Institutional clock
+        run: php tests/institutional_clock.php
+      - name: Workforce improvements
+        run: php tests/workforce_improvements_static.php
+      - name: Position-based roles
+        run: php tests/role_position_static.php
+      - name: Talent operations and report UI
+        run: |
+          php tests/talent_operation_static.php
+          php tests/talent_operation_ui_render.php
+      - name: XLSX writer
+        run: php tests/xlsx_export.php
       - name: Dashboard and profile render
         run: php tests/dashboard_profile_render.php
       - name: Quick catalogs render

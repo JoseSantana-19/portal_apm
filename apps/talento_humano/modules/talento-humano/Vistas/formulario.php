@@ -71,7 +71,7 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                             </button>
                         </div>
 
-                        <form id="empleadoForm" method="POST" action="<?= BASE_URL ?>/talento-humano/empleado/guardar" enctype="multipart/form-data">
+                        <form id="empleadoForm" method="POST" action="<?= BASE_URL ?>/talento-humano/empleado/guardar" enctype="multipart/form-data" data-draft-context="empleado:<?= $modoEdicion ? (int)($e['empleado_id'] ?? $e['id'] ?? 0) : 'nuevo' ?>">
                             <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
                             <input type="hidden" name="empId" value="<?= htmlspecialchars($e['empleado_id'] ?? $e['id'] ?? '') ?>">
 
@@ -119,8 +119,18 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                                     class="required">*</span></label>
                                             <input type="text" id="cedula" name="cedula" required
                                                 pattern="[0-9A-Za-z]{10,15}"
-                                                value="<?= htmlspecialchars($e['cedula'] ?? '') ?>"
-                                                placeholder="Ej: 1308126646">
+                                                value="<?= htmlspecialchars($e['cedula'] ?? $e['identificacion'] ?? '') ?>"
+                                                placeholder="Ej: 1308126646"
+                                                autocomplete="off"
+                                                <?= $modoEdicion ? 'data-empid="' . (int)($e['empleado_id'] ?? $e['id'] ?? 0) . '"' : '' ?>>
+                                            <?php if (!$modoEdicion): ?>
+                                            <!-- Alerta de cédula duplicada (solo en creación) -->
+                                            <div id="alertaCedulaDuplicada" style="display:none;margin-top:6px;padding:10px 14px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:0.85rem;line-height:1.4">
+                                                <strong><i class="bi bi-exclamation-triangle-fill" style="color:#d97706"></i> Funcionario ya registrado</strong><br>
+                                                <span id="alertaCedulaNombre"></span><br>
+                                                <small id="alertaCedulaCargo" style="opacity:0.8"></small>
+                                            </div>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="field span-2">
                                             <label for="apellidos">Apellidos <span class="required">*</span></label>
@@ -144,9 +154,9 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                             <label for="condicion_especial">Condicion Especial</label>
                                             <select id="condicion_especial" name="condicion_especial"
                                                 onchange="evaluarDiscapacidad()">
-                                                <?php foreach (['Ninguna', 'Tercera Edad', 'Discapacidad', 'Ambas'] as $opt): ?>
+                                                <?php foreach (['Ninguna', 'Tercera Edad', 'Discapacidad', 'Ambas', 'Sustituto'] as $opt): ?>
                                                     <option value="<?= $opt ?>" <?= ($e['condicion_especial'] ?? '') === $opt ? 'selected' : '' ?>>
-                                                        <?= $opt === 'Tercera Edad' ? 'Tercera Edad (65+)' : ($opt === 'Ambas' ? 'Tercera Edad y Discapacidad' : $opt) ?>
+                                                        <?= $opt === 'Tercera Edad' ? 'Tercera Edad (65+)' : ($opt === 'Ambas' ? 'Tercera Edad y Discapacidad' : ($opt === 'Sustituto' ? 'Sustituto por cuidado de persona con discapacidad' : $opt)) ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
@@ -173,7 +183,7 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                             </div>
                                         </div>
                                         <div class="field span-2">
-                                            <label for="genero">Genero</label>
+                                            <label for="genero">Género</label>
                                             <select id="genero" name="genero">
                                                 <option value="">Seleccione...</option>
                                                 <?php foreach (['Masculino', 'Femenino', 'Otro'] as $g): ?>
@@ -257,7 +267,7 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                                 <label for="puesto_id">Cargo / Puesto <span class="required">*</span></label>
                                                 <?php if(Auth::can('maestros','crear')): ?><button type="button" class="quick-add-button" onclick="abrirCatalogoRapido('puesto')" title="Crear cargo o puesto" aria-label="Crear cargo o puesto"><i class="bi bi-plus-lg"></i></button><?php endif; ?>
                                             </div>
-                                            <select id="puesto_id" name="puesto_id" required>
+                                            <select id="puesto_id" name="puesto_id" required data-searchable-select data-search-placeholder="Buscar cargo o puesto…">
                                                 <option value="">Seleccione cargo...</option>
                                                 <?php
                                                 $cargosDisp = $cargos ?? [];
@@ -295,12 +305,42 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                             <small>El estado se modifica únicamente mediante alta, baja, reingreso o Acción de Personal.</small>
                                         </div>
                                         <div class="field span-3">
-                                            <label for="jornada">Jornada</label>
+                                            <label for="jornada">Jornada base contractual</label>
                                             <select id="jornada" name="jornada">
-                                                <?php foreach (['Completa', 'Parcial', 'Rotativa'] as $j): ?>
+                                                <?php foreach (['Completa', 'Parcial', 'Rotativa', 'Especial'] as $j): ?>
                                                     <option value="<?= $j ?>" <?= ($e['jornada'] ?? 'Completa') === $j ? 'selected' : '' ?>><?= $j ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="horas_jornada">Horas base diarias</label>
+                                            <input type="number" id="horas_jornada" name="horas_jornada" min="1" max="24" step="0.5"
+                                                value="<?= htmlspecialchars((string)($e['horas_jornada'] ?? (($e['jornada'] ?? 'Completa') === 'Completa' ? 8 : ''))) ?>" placeholder="8">
+                                            <small id="ayuda_horas_jornada">La jornada completa utiliza 8 horas. Las excepciones temporales se registran mediante Acción de Personal.</small>
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="proceso_institucional">Proceso institucional</label>
+                                            <input type="text" id="proceso_institucional" name="proceso_institucional" maxlength="150" value="<?= htmlspecialchars($e['proceso_institucional'] ?? '') ?>" placeholder="Ej: Adjetivo de apoyo">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="nivel_gestion">Nivel de gestión</label>
+                                            <input type="text" id="nivel_gestion" name="nivel_gestion" maxlength="150" value="<?= htmlspecialchars($e['nivel_gestion'] ?? '') ?>" placeholder="Ej: Dirección">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="lugar_trabajo">Lugar de trabajo</label>
+                                            <input type="text" id="lugar_trabajo" name="lugar_trabajo" maxlength="150" value="<?= htmlspecialchars($e['lugar_trabajo'] ?? 'Manta') ?>" placeholder="Ej: Manta">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="grupo_ocupacional">Grupo ocupacional</label>
+                                            <input type="text" id="grupo_ocupacional" name="grupo_ocupacional" maxlength="150" value="<?= htmlspecialchars($e['grupo_ocupacional'] ?? '') ?>">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="grado_laboral">Grado</label>
+                                            <input type="text" id="grado_laboral" name="grado_laboral" maxlength="50" value="<?= htmlspecialchars($e['grado_laboral'] ?? $e['grado'] ?? '') ?>">
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="partida_individual">Partida individual</label>
+                                            <input type="text" id="partida_individual" name="partida_individual" maxlength="100" value="<?= htmlspecialchars($e['partida_individual'] ?? '') ?>">
                                         </div>
                                     </div>
                                 </fieldset>
@@ -523,7 +563,15 @@ $catalogoNacionalidades = $nacionalidades ?? [];
             if(typeof input.showPicker==='function') input.showPicker();
         }
 
-        document.getElementById('empleadoForm')?.addEventListener('submit',event=>{
+        document.getElementById('empleadoForm')?.addEventListener('submit', event => {
+            // Bloquear envio si la cédula está marcada como existente (solo en creación)
+            const alertaDiv = document.getElementById('alertaCedulaDuplicada');
+            if (alertaDiv && alertaDiv.style.display !== 'none') {
+                event.preventDefault();
+                showToast?.('La cédula ingresada ya pertenece a un funcionario registrado. No se puede continuar.', 'error');
+                document.getElementById('cedula')?.focus();
+                return;
+            }
             const filas=[...document.querySelectorAll('#contenedorNacionalidades .input-group-nac')];
             for(const fila of filas){
                 const texto=fila.querySelector('input[list]').value.trim();
@@ -532,6 +580,62 @@ $catalogoNacionalidades = $nacionalidades ?? [];
             }
             document.getElementById('nacionalidadPrincipal').value=filas[0]?.querySelector('input[list]')?.value?.trim()||'';
         });
+
+        <?php if (!$modoEdicion): ?>
+        /* ──────────────────────────────────────────────────────────────────
+           Validación AJAX de cédula duplicada en tiempo real (solo creación)
+           ────────────────────────────────────────────────────────────────── */
+        (function () {
+            const camposCedula = document.getElementById('cedula');
+            const alertaDiv    = document.getElementById('alertaCedulaDuplicada');
+            const alertaNombre = document.getElementById('alertaCedulaNombre');
+            const alertaCargo  = document.getElementById('alertaCedulaCargo');
+            const btnGuardar   = document.querySelector('#empleadoForm button[type="submit"]');
+            let debounceTimer  = null;
+            let abortCtrl      = null;
+
+            if (!camposCedula || !alertaDiv) return;
+
+            function ocultarAlerta() {
+                alertaDiv.style.display = 'none';
+                if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.style.opacity = ''; }
+            }
+
+            function mostrarAlerta(nombre, cargo, area) {
+                alertaNombre.textContent = nombre;
+                alertaCargo.textContent  = (cargo ? cargo : '') + (area ? ' — ' + area : '');
+                alertaDiv.style.display  = 'block';
+                if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.style.opacity = '0.5'; }
+            }
+
+            camposCedula.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                if (abortCtrl) { abortCtrl.abort(); }
+                const val = this.value.trim();
+
+                if (val.length < 10) {
+                    ocultarAlerta();
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    abortCtrl = new AbortController();
+                    const url = `<?= BASE_URL ?>/talento-humano/empleado/verificar-cedula?cedula=${encodeURIComponent(val)}`;
+                    fetch(url, { signal: abortCtrl.signal })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.existe) {
+                                mostrarAlerta(data.nombre, data.cargo, data.area);
+                                showToast?.(`Cédula ya registrada: ${data.nombre}`, 'error');
+                            } else {
+                                ocultarAlerta();
+                            }
+                        })
+                        .catch(err => { if (err.name !== 'AbortError') ocultarAlerta(); });
+                }, 600);
+            });
+        })();
+        <?php endif; ?>
     </script>
 <?php require_once ROOT . '/shared/footer_scripts.php'; ?>
 </body>

@@ -47,11 +47,14 @@ final class TopbarService
                 $context['notifications'][] = self::notification('mfa','warning','bi-shield-exclamation','Proteja su cuenta','Active la autenticación en dos pasos.','/cuenta/seguridad');
             }
 
-            $birthdays = (int)$db->query(
-                "SELECT COUNT_BIG(*) FROM dbo.th_empleados
+            $birthdayQuery = $db->prepare(
+                "DECLARE @fecha date=CONVERT(date,:fecha);
+                 SELECT COUNT_BIG(*) FROM dbo.th_empleados
                  WHERE estado=1 AND fecha_nacimiento IS NOT NULL
-                   AND MONTH(fecha_nacimiento)=MONTH(GETDATE()) AND DAY(fecha_nacimiento)=DAY(GETDATE())"
-            )->fetchColumn();
+                   AND MONTH(fecha_nacimiento)=MONTH(@fecha) AND DAY(fecha_nacimiento)=DAY(@fecha)"
+            );
+            $birthdayQuery->execute([':fecha'=>InstitutionalClock::todayIso()]);
+            $birthdays = (int)$birthdayQuery->fetchColumn();
             if ($birthdays > 0) {
                 $context['notifications'][] = self::notification('birthdays','info','bi-cake2-fill','Cumpleaños de hoy',self::plural($birthdays,'funcionario cumple','funcionarios cumplen').' años hoy.','/talento-humano/inicio#seccion-cumpleanos');
             }
@@ -60,6 +63,27 @@ final class TopbarService
                 $pending = (int)$db->query("SELECT COUNT_BIG(*) FROM dbo.th_acciones_personal WHERE UPPER(estado_documento) IN ('BORRADOR','PENDIENTE')")->fetchColumn();
                 if ($pending > 0) {
                     $context['notifications'][] = self::notification('actions','action','bi-file-earmark-text-fill','Acciones por revisar',self::plural($pending,'documento pendiente','documentos pendientes').' de revisión.','/talento-humano/accion-personal');
+                }
+                if (self::objectExists($db, 'dbo.th_vigencias_laborales')) {
+                    $expiring = $db->prepare(
+                        "DECLARE @hoy date=CONVERT(date,:fecha);
+                         SELECT COUNT_BIG(*) FROM (
+                           SELECT vigencia_id id FROM dbo.th_vigencias_laborales
+                           WHERE estado IN('PROGRAMADA','VIGENTE') AND fecha_hasta BETWEEN @hoy AND DATEADD(DAY,7,@hoy)
+                           UNION ALL
+                           SELECT jornada_especial_id FROM dbo.th_jornadas_especiales
+                           WHERE estado IN('PROGRAMADA','VIGENTE') AND fecha_hasta BETWEEN @hoy AND DATEADD(DAY,7,@hoy)
+                         ) proximas"
+                    );
+                    $expiring->execute([':fecha'=>InstitutionalClock::todayIso()]);
+                    $expiringCount = (int)$expiring->fetchColumn();
+                    if ($expiringCount > 0) {
+                        $context['notifications'][] = self::notification(
+                            'expiring-vigencies','warning','bi-arrow-counterclockwise','Retornos automáticos próximos',
+                            self::plural($expiringCount,'vigencia finaliza','vigencias finalizan').' en los próximos 7 días.',
+                            '/talento-humano/reporte'
+                        );
+                    }
                 }
             }
 
@@ -83,6 +107,13 @@ final class TopbarService
     private static function notification(string $id,string $tone,string $icon,string $title,string $text,string $url): array
     {
         return compact('id','tone','icon','title','text','url');
+    }
+
+    private static function objectExists(PDO $db, string $qualifiedName): bool
+    {
+        $query = $db->prepare('SELECT IIF(OBJECT_ID(:name) IS NULL,0,1)');
+        $query->execute([':name'=>$qualifiedName]);
+        return (int)$query->fetchColumn() === 1;
     }
 
     private static function safePhoto(string $path): string

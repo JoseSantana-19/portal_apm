@@ -11,10 +11,34 @@
 // se hace después del confirm() nativo, no antes, para no calcular el hash
 // de una acción que el usuario todavía puede cancelar.
 function handleDesactivarMfaSubmit(e) {
+    e.preventDefault();
+    var form = e.target;
+    if (window.PortalAlert) {
+        PortalAlert.confirmAction('¿Desactivar la doble autenticación de su cuenta? Su nivel de seguridad disminuirá.', function() {
+            if (!window.hashPasswordFieldsBeforeSubmit) { form.submit(); return; }
+            hashPasswordFieldsBeforeSubmit(form, ['clave']).then(function () { form.submit(); });
+        }, { title: '¿Desactivar 2FA?', confirmText: 'Sí, desactivar 2FA', icon: 'warning' });
+        return false;
+    }
+    if (window.Swal) {
+        Swal.fire({
+            title: '¿Desactivar 2FA?',
+            text: '¿Desactivar la doble autenticación de su cuenta?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, desactivar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#EF4444'
+        }).then(function(res) {
+            if (!res.isConfirmed) return;
+            if (!window.hashPasswordFieldsBeforeSubmit) { form.submit(); return; }
+            hashPasswordFieldsBeforeSubmit(form, ['clave']).then(function () { form.submit(); });
+        });
+        return false;
+    }
     if (!confirm('¿Desactivar la doble autenticación de su cuenta?')) return false;
     if (!window.hashPasswordFieldsBeforeSubmit) return true;
-    e.preventDefault();
-    hashPasswordFieldsBeforeSubmit(e.target, ['clave']).then(function () { e.target.submit(); });
+    hashPasswordFieldsBeforeSubmit(form, ['clave']).then(function () { form.submit(); });
     return false;
 }
 </script><?php endif; ?></section>

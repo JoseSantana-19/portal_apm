@@ -20,6 +20,7 @@ $menu = (string)file_get_contents($root . '/shared/menu.php');
 $topbar = (string)file_get_contents($root . '/shared/topbar.php');
 $sidebarJs = (string)file_get_contents($root . '/public/js/layout_sidebar.js');
 $empleadoController = (string)file_get_contents($root . '/modules/talento-humano/Controladores/EmpleadoController.php');
+$biblioteca = (string)file_get_contents($root . '/modules/talento-humano/Vistas/biblioteca.php');
 
 $assert(!str_contains($directorio, '$i * 0.04'), 'El directorio conserva la demora acumulativa por fila.');
 $assert(str_contains($directorio, 'opacity:1;animation:none'), 'Las filas del directorio todavía esperan una animación antes de mostrarse.');
@@ -49,6 +50,8 @@ $assert(str_contains($ciclo, 'sp_th_cambiar_estado_empleado') && str_contains($c
 $assert(str_contains($ciclo, "'CESACION DE FUNCIONES','DESTITUCION'") && str_contains($ciclo, "'INGRESO','REINGRESO','RESTITUCION','REINTEGRO'"), 'La aprobación no distingue cesaciones y reingresos.');
 $assert(str_contains($menu, 'Prototipos / Próximamente') && str_contains($menu, 'Documentos y Formatos'), 'El menú no refleja la organización funcional aprobada.');
 $assert(str_contains($topbar, 'global-search-form'), 'La búsqueda global compartida no está disponible.');
+$assert(substr_count($biblioteca, 'preview-modal preview-modal--records') === 3, 'Los tres listados de Biblioteca no utilizan el modal ampliado.');
+$assert(str_contains($biblioteca, 'max-width: min(1280px, calc(100vw - 40px))') && str_contains($biblioteca, 'records-table-wrap'), 'El modal de registros de Biblioteca no conserva ancho útil y desplazamiento responsivo.');
 
 if ($fallos) {
     foreach ($fallos as $fallo) fwrite(STDERR, "[FAIL] {$fallo}\n");

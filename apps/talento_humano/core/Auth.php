@@ -251,7 +251,7 @@ final class Auth
             // propio como el de arriba.
             self::syncPortalSession((int)$adminApm['usuario_id'], (string)$adminApm['usuario']);
             return true;
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             return null;
         }
     }
@@ -297,7 +297,7 @@ final class Auth
             $_SESSION['last_activity'] = time();
             self::$currentUser = $claims;
             return self::$currentUser;
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             self::clear();
             return null;
         }
@@ -618,7 +618,7 @@ final class Auth
     public static function expireForInactivity(): void
     {
         $username='ANONIMO';
-        try{$token=$_SESSION['auth_token']??'';if(is_string($token)&&$token!=='')$username=(string)(self::decryptClaims($token)['usr']??'ANONIMO');}catch(Throwable){}
+        try{$token=$_SESSION['auth_token']??'';if(is_string($token)&&$token!=='')$username=(string)(self::decryptClaims($token)['usr']??'ANONIMO');}catch(Throwable $e){}
         self::audit($username,'SESSION_EXPIRADA','Cierre automático por inactividad.');
         self::clear();session_regenerate_id(true);
     }

@@ -2,6 +2,8 @@
 // helpers/common_helper.php
 
 class CommonHelper {
+    private static $parametrosCache = [];
+
     /**
      * Genera el siguiente secuencial transaccional para evitar colisiones y saltos de 1000.
      * @param string $modulo Identificador del módulo (ej. 'inv', 'th', 'egr', 'ing')
@@ -62,15 +64,55 @@ class CommonHelper {
      * @return string Valor del parámetro
      */
     public static function obtenerParametro(string $clave, string $default = ''): string {
+        if (array_key_exists($clave, self::$parametrosCache)) {
+            return self::$parametrosCache[$clave];
+        }
         $db = Database::getInstance()->getConnection();
         
         try {
             $stmt = $db->prepare("SELECT valor FROM inv_parametros WHERE clave = :clave");
             $stmt->execute([':clave' => $clave]);
             $res = $stmt->fetch();
-            return $res ? $res['valor'] : $default;
+            return self::$parametrosCache[$clave] = ($res ? (string)$res['valor'] : $default);
         } catch (Exception $e) {
-            return $default;
+            return self::$parametrosCache[$clave] = $default;
         }
+    }
+
+    public static function decimalesPrecio(): int {
+        return max(0, min(12, (int)self::obtenerParametro('decimales_precio_unitario', '8')));
+    }
+
+    public static function decimalesImporte(): int {
+        return max(0, min(8, (int)self::obtenerParametro('decimales_importe_monetario', '2')));
+    }
+
+    public static function pasoPrecio(): string {
+        $decimales = self::decimalesPrecio();
+        return $decimales === 0 ? '1' : '0.' . str_repeat('0', $decimales - 1) . '1';
+    }
+
+    public static function redondearPrecio($valor): float {
+        return round((float)$valor, self::decimalesPrecio());
+    }
+
+    public static function redondearImporte($valor): float {
+        return round((float)$valor, self::decimalesImporte());
+    }
+
+    public static function formatearPrecio($valor, bool $simbolo = true): string {
+        return ($simbolo ? '$' : '') . number_format((float)$valor, self::decimalesPrecio(), '.', ',');
+    }
+
+    public static function formatearImporte($valor, bool $simbolo = true): string {
+        return ($simbolo ? '$' : '') . number_format((float)$valor, self::decimalesImporte(), '.', ',');
+    }
+
+    public static function configuracionMonetaria(): array {
+        return [
+            'priceDecimals' => self::decimalesPrecio(),
+            'amountDecimals' => self::decimalesImporte(),
+            'priceStep' => self::pasoPrecio(),
+        ];
     }
 }

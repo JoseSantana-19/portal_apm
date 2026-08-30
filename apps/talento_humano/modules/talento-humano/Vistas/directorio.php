@@ -39,7 +39,7 @@ $empleadosListado   = $modoMovimiento
                 <section class="hero">
                     <div>
                         <div class="hero-kicker"><?= $modoMovimiento ? 'Gestión interna · Sin documento legal' : 'Centro de Mando · Expedientes APM' ?></div>
-                        <h2><?= $modoMovimiento ? 'Movimiento interno de personal' : 'Directorio de Personal' ?></h2>
+                        <h2><?= $modoMovimiento ? 'Movimiento interno de personal' : 'Nómina de Personal' ?></h2>
                         <p><?= $modoMovimiento
                             ? 'Seleccione funcionarios activos para trasladarlos individualmente o en grupo, sin generar una Acción de Personal.'
                             : 'Tabla maestra de todos los funcionarios. Busque, filtre y abra el expediente detallado de cada servidor.' ?></p>

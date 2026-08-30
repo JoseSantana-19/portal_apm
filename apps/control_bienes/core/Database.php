@@ -187,7 +187,7 @@ class Database {
                 ubicacion TEXT DEFAULT '',
                 existencia_min DOUBLE PRECISION DEFAULT 0,
                 existencia_max DOUBLE PRECISION DEFAULT 0,
-                precio_promedio DOUBLE PRECISION DEFAULT 0,
+                precio_promedio NUMERIC(28,12) DEFAULT 0,
                 existencia_actual DOUBLE PRECISION DEFAULT 0,
                 FOREIGN KEY (grupo_id) REFERENCES inv_categorias(id),
                 FOREIGN KEY (unidad_id) REFERENCES inv_unidades(id)
@@ -203,7 +203,7 @@ class Database {
                 zona_id INT NOT NULL,
                 estado_id INT NOT NULL,
                 responsable_id INT,
-                valor DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+                valor NUMERIC(28,12) NOT NULL DEFAULT 0.0,
                 fecha_registro DATE NOT NULL,
                 observaciones TEXT,
                 activo INT NOT NULL DEFAULT 1,
@@ -282,7 +282,7 @@ class Database {
                 ingreso_id INT NOT NULL,
                 item_id INT NOT NULL,
                 cantidad INT NOT NULL,
-                valor_unitario DOUBLE PRECISION NOT NULL,
+                valor_unitario NUMERIC(28,12) NOT NULL,
                 FOREIGN KEY (ingreso_id) REFERENCES inv_bod_ingresos(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES inv_inventario(id)
             );",
@@ -608,7 +608,7 @@ class Database {
                 ubicacion NVARCHAR(MAX) DEFAULT '',
                 existencia_min FLOAT DEFAULT 0,
                 existencia_max FLOAT DEFAULT 0,
-                precio_promedio FLOAT DEFAULT 0,
+                precio_promedio DECIMAL(28,12) DEFAULT 0,
                 existencia_actual FLOAT DEFAULT 0,
                 FOREIGN KEY (grupo_id) REFERENCES inv_categorias(id),
                 FOREIGN KEY (unidad_id) REFERENCES inv_unidades(id)
@@ -624,7 +624,7 @@ class Database {
                 zona_id INT NOT NULL,
                 estado_id INT NOT NULL,
                 responsable_id INT,
-                valor FLOAT NOT NULL DEFAULT 0.0,
+                valor DECIMAL(28,12) NOT NULL DEFAULT 0.0,
                 fecha_registro DATE NOT NULL,
                 observaciones NVARCHAR(MAX),
                 activo INT NOT NULL DEFAULT 1,
@@ -703,7 +703,7 @@ class Database {
                 ingreso_id INT NOT NULL,
                 item_id INT NOT NULL,
                 cantidad INT NOT NULL,
-                valor_unitario FLOAT NOT NULL,
+                valor_unitario DECIMAL(28,12) NOT NULL,
                 FOREIGN KEY (ingreso_id) REFERENCES inv_bod_ingresos(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES inv_inventario(id)
             );",
@@ -994,7 +994,9 @@ class Database {
 
         // 11. Cargar Parámetros Iniciales
         $this->pdo->exec("INSERT INTO inv_parametros (clave, valor, descripcion) VALUES 
-            ('tiempo_inactividad', '600', 'Tiempo de inactividad permitido antes de relogearse (en segundos)');");
+            ('tiempo_inactividad', '600', 'Tiempo de inactividad permitido antes de relogearse (en segundos)'),
+            ('decimales_precio_unitario', '8', 'Decimales utilizados para precios unitarios y costos promedio (0 a 12)'),
+            ('decimales_importe_monetario', '2', 'Decimales utilizados para subtotales, impuestos y totales (0 a 8)');");
 
         // 12. Cargar Proveedores Semilla
         $this->pdo->exec("INSERT INTO inv_proveedores (nombre, ruc, extra) VALUES 
@@ -1196,7 +1198,7 @@ class Database {
                 zona_id INTEGER NOT NULL,
                 estado_id INTEGER NOT NULL,
                 responsable_id INTEGER,
-                valor REAL NOT NULL DEFAULT 0.0,
+                valor NUMERIC NOT NULL DEFAULT 0.0,
                 fecha_registro DATE NOT NULL,
                 observaciones TEXT,
                 activo INTEGER NOT NULL DEFAULT 1,
@@ -1261,7 +1263,7 @@ class Database {
                 ingreso_id INTEGER NOT NULL,
                 item_id INTEGER NOT NULL,
                 cantidad INTEGER NOT NULL,
-                valor_unitario REAL NOT NULL,
+                valor_unitario NUMERIC NOT NULL,
                 FOREIGN KEY (ingreso_id) REFERENCES inv_bod_ingresos(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES inv_inventario(id)
             );",
@@ -1356,7 +1358,7 @@ class Database {
                 ingreso_id INTEGER NOT NULL,
                 item_id INTEGER NOT NULL,
                 cantidad INTEGER NOT NULL,
-                valor_unitario REAL NOT NULL,
+                valor_unitario NUMERIC NOT NULL,
                 FOREIGN KEY (ingreso_id) REFERENCES inv_bod_ingresos(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES inv_inventario(id)
             );");
@@ -1399,6 +1401,9 @@ class Database {
                 $this->pdo->exec("INSERT INTO inv_parametros (clave, valor, descripcion) VALUES 
                     ('tiempo_inactividad', '600', 'Tiempo de inactividad permitido antes de relogearse (en segundos)');");
             }
+            $this->pdo->exec("INSERT OR IGNORE INTO inv_parametros (clave, valor, descripcion) VALUES
+                ('decimales_precio_unitario', '8', 'Decimales utilizados para precios unitarios y costos promedio (0 a 12)'),
+                ('decimales_importe_monetario', '2', 'Decimales utilizados para subtotales, impuestos y totales (0 a 8)');");
 
             $checkUsr = $this->pdo->query("PRAGMA table_info(inv_usuarios)");
             $columnsUsr = $checkUsr->fetchAll(PDO::FETCH_COLUMN, 1);

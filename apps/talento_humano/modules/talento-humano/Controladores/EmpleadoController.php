@@ -18,6 +18,8 @@ class EmpleadoController extends Controller
         $datos = [
             'empleados'   => $this->modelo->listarDirectorio(),
             'rbu_vigente' => $this->modelo->obtenerRbuVigente(),
+            'resumenVacaciones' => $this->modelo->resumenVacaciones(),
+            'hitosServicio' => $this->modelo->obtenerHitosServicio((int)InstitutionalClock::today()->format('Y')),
         ];
         $this->cargarVista('talento-humano', 'inicio', $datos);
     }
@@ -109,13 +111,15 @@ class EmpleadoController extends Controller
         $rutaNueva = (string)$_POST['ruta_foto'];
 
         try {
-            $exito = $id
+            $resultado = $id
                 ? $this->modelo->modificar($id, $_POST)
                 : $this->modelo->insertar($_POST);
         } catch (Throwable $e) {
             error_log('[EmpleadoController::guardar] ' . $e->getMessage());
-            $exito = false;
+            $resultado = 'Error inesperado al procesar la solicitud.';
         }
+
+        $exito = $resultado === true;
 
         if ($exito && $id && $rutaNueva !== $rutaAnterior) {
             $this->eliminarFotoGestionada($rutaAnterior);
@@ -123,9 +127,22 @@ class EmpleadoController extends Controller
             $this->eliminarFotoGestionada($rutaNueva);
         }
 
-        $msg = $exito
-            ? ($id ? 'Expediente actualizado correctamente.' : 'Funcionario registrado con éxito.')
-            : 'Error al guardar. La incidencia ha sido registrada por el sistema.';
+        if ($exito) {
+            DraftService::deleteCurrent((string)($_POST['_draft_context'] ?? ''));
+            $msg = $id ? 'Expediente actualizado correctamente.' : 'Funcionario registrado con éxito.';
+        } else {
+            // Usar el mensaje específico del SP/BD si está disponible
+            $msgBd = is_string($resultado) ? $resultado : '';
+            // Simplificar mensajes técnicos de SQL Server en texto amigable
+            if (str_contains($msgBd, 'identificacion') || str_contains($msgBd, 'Ya existe')) {
+                $cedulaIngresada = trim((string)($_POST['cedula'] ?? ''));
+                $msg = "La cédula {$cedulaIngresada} ya está registrada en el sistema. Verifique el directorio de funcionarios.";
+            } elseif ($msgBd !== '') {
+                $msg = $msgBd;
+            } else {
+                $msg = 'Error al guardar. La incidencia ha sido registrada por el sistema.';
+            }
+        }
 
         header('Location: ' . BASE_URL . '/talento-humano?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
         exit;
@@ -174,6 +191,9 @@ class EmpleadoController extends Controller
         }
         if(!empty($data['correo'])&&!filter_var($data['correo'],FILTER_VALIDATE_EMAIL))return 'El correo institucional no es válido.';
         if((int)($data['unidad_id']??0)<=0||(int)($data['puesto_id']??0)<=0)return 'Debe seleccionar un área y un cargo vigentes.';
+        $horas=(float)($data['horas_jornada']??0);
+        if($horas<=0||$horas>24)return 'Las horas de jornada deben estar entre 1 y 24.';
+        if(($data['condicion_especial']??'')==='Sustituto' && (abs($horas-6)>0.001 || ($data['jornada']??'')!=='Especial'))return 'La condición Sustituto requiere jornada especial de 6 horas.';
         if(isset($data['sueldo'])&&(float)$data['sueldo']<0)return 'La remuneración no puede ser negativa.';
         $porcentaje=(float)($data['porcentaje_discapacidad']??0);if($porcentaje<0||$porcentaje>100)return 'El porcentaje de discapacidad debe estar entre 0 y 100.';
         if(!empty($_FILES['foto']['name'])){
@@ -260,8 +280,7 @@ class EmpleadoController extends Controller
     public function eliminar(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit('Metodo no permitido.');
+            ErrorHandler::abort(405);
         }
         Auth::requireCsrf($_POST['_csrf'] ?? null);
         $id    = (int)($_POST['id'] ?? 0);
@@ -275,7 +294,7 @@ class EmpleadoController extends Controller
     /** GET (enlace directo) /talento-humano/empleado/borrar?id=X – Alias de eliminar via GET */
     public function borrar(): void
     {
-        http_response_code(405);
+        ErrorHandler::abort(405);
         header('Allow: POST');
         $msg = 'La baja de empleados requiere una solicitud POST segura.';
         header('Location: ' . BASE_URL . '/talento-humano/directorio?msg=' . urlencode($msg) . '&ok=0');
@@ -296,6 +315,8 @@ class EmpleadoController extends Controller
 
         $datos = [
             'historial'    => $this->modelo->obtenerReporteFiltrado($tipoCargo, $empleadoId),
+            'jornadasEspeciales' => $this->modelo->obtenerJornadasEspeciales($empleadoId),
+            'vigenciasLaborales' => $this->modelo->obtenerVigenciasLaborales($empleadoId),
             'filtro_cargo' => $tipoCargo,
         ];
         // RECTIFICADO: carga la vista historial.php (línea de tiempo cronológica)
@@ -328,6 +349,9 @@ class EmpleadoController extends Controller
                 'cedula'   => $cedula,
                 'empleado' => $empleado,
                 'historial' => $this->modelo->obtenerReporteFiltrado(null, (int)$empleado['empleado_id']),
+                'periodosVinculacion' => $this->modelo->obtenerPeriodosVinculacion((int)$empleado['empleado_id']),
+                'antiguedad' => $this->modelo->obtenerAntiguedad((int)$empleado['empleado_id'])[0] ?? null,
+                'hitosServicio' => $this->modelo->obtenerHitosServicio((int)InstitutionalClock::today()->format('Y'), (int)$empleado['empleado_id']),
                 'nacionalidadesEmpleado' => $this->modelo->obtenerNacionalidadesEmpleado((int)$empleado['empleado_id']),
                 'noEncontrado' => false,
             ];
@@ -409,27 +433,59 @@ class EmpleadoController extends Controller
         $this->cargarVista('talento-humano', 'movimiento', [
             'empleado' => $empleado,
             'areas' => $this->modelo->listarAreas(),
-            'cargos' => $this->modelo->listarCargos(),
         ]);
     }
 
     public function mover(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit('Metodo no permitido.');
+            ErrorHandler::abort(405);
         }
         Auth::requireCsrf($_POST['_csrf'] ?? null);
         $resultado = $this->modelo->mover(
             (int)($_POST['empleado_id'] ?? 0),
             (int)($_POST['unidad_destino_id'] ?? 0),
-            (int)($_POST['puesto_destino_id'] ?? 0),
             (string)($_POST['fecha_movimiento'] ?? date('Y-m-d')),
             trim((string)($_POST['motivo'] ?? ''))
         );
         $ok = (int)($resultado['exito'] ?? 0) === 1;
+        if ($ok) DraftService::deleteCurrent((string)($_POST['_draft_context'] ?? ''));
         $msg = (string)($resultado['mensaje'] ?? 'No se pudo registrar el movimiento.');
         header('Location: ' . BASE_URL . '/talento-humano/directorio?modo=movimiento&msg=' . urlencode($msg) . '&ok=' . ($ok ? '1' : '0'));
+        exit;
+    }
+
+    /**
+     * GET /talento-humano/empleado/verificar-cedula?cedula=XXXX[&excluir=ID]
+     * Endpoint AJAX: verifica en tiempo real si una cédula ya está registrada.
+     * Responde JSON {existe, nombre, cargo, area} para validación en el formulario.
+     */
+    public function verificarCedula(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $cedula = trim((string)($_GET['cedula'] ?? ''));
+        $excluirId = isset($_GET['excluir']) && ctype_digit((string)$_GET['excluir'])
+            ? (int)$_GET['excluir']
+            : null;
+
+        // Requiere al menos 10 caracteres para consultar (cédulas ecuatorianas = 10)
+        if (mb_strlen($cedula) < 10 || !preg_match('/^[0-9A-Za-z]{10,15}$/', $cedula)) {
+            echo json_encode(['existe' => false]);
+            exit;
+        }
+
+        $encontrado = $this->modelo->verificarCedulaExistente($cedula, $excluirId);
+
+        if ($encontrado) {
+            echo json_encode([
+                'existe' => true,
+                'nombre' => trim($encontrado['apellidos'] . ' ' . $encontrado['nombres']),
+                'cargo'  => $encontrado['cargo']  ?? '',
+                'area'   => $encontrado['direccion_area'] ?? '',
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['existe' => false]);
+        }
         exit;
     }
 
@@ -453,18 +509,19 @@ class EmpleadoController extends Controller
         $seleccion=array_values(array_filter($this->modelo->listarDirectorio(),static fn($e)=>
             in_array((int)($e['empleado_id']??0),$ids,true) && (int)($e['estado']??0)===1));
         if(count($seleccion)!==count($ids)){header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode('La selección contiene empleados no disponibles.').'&ok=0');exit;}
-        $this->cargarVista('talento-humano','movimiento_grupal',['seleccion'=>$seleccion,'areas'=>$this->modelo->listarAreas(),'cargos'=>$this->modelo->listarCargos()]);
+        $this->cargarVista('talento-humano','movimiento_grupal',['seleccion'=>$seleccion,'areas'=>$this->modelo->listarAreas()]);
     }
 
     public function moverLote(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Metodo no permitido.');}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_POST['_csrf']??null);
         $ids=array_values(array_unique(array_filter(array_map('intval',(array)($_POST['empleados']??[])))));
         $fecha=(string)($_POST['fecha_movimiento']??'');$valida=DateTimeImmutable::createFromFormat('Y-m-d',$fecha);
         if(count($ids)<2||!$valida||$valida->format('Y-m-d')!==$fecha){header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode('Revise la selección y la fecha efectiva.').'&ok=0');exit;}
-        $resultado=$this->modelo->moverLote($ids,(int)($_POST['unidad_destino_id']??0),(int)($_POST['puesto_destino_id']??0),$fecha,trim((string)($_POST['motivo']??'')));
+        $resultado=$this->modelo->moverLote($ids,(int)($_POST['unidad_destino_id']??0),$fecha,trim((string)($_POST['motivo']??'')));
         $ok=(int)($resultado['exito']??0)===1;$msg=(string)($resultado['mensaje']??'No se pudo registrar el movimiento grupal.');
+        if($ok) DraftService::deleteCurrent((string)($_POST['_draft_context']??''));
         header('Location: '.BASE_URL.'/talento-humano/directorio?modo=movimiento&msg='.urlencode($msg).'&ok='.($ok?'1':'0'));exit;
     }
 
@@ -472,8 +529,7 @@ class EmpleadoController extends Controller
     {
         // 1. Validar que llegue un ID numérico válido
         if (empty($_GET['id']) || !ctype_digit((string)$_GET['id'])) {
-            http_response_code(400);
-            die('<p style="font-family:sans-serif;color:#c00;">Error: ID de funcionario no especificado o inválido.</p>');
+            ErrorHandler::abort(400, 'Debe indicar un funcionario válido.');
         }
 
         $empleadoId = (int)$_GET['id'];
@@ -482,8 +538,7 @@ class EmpleadoController extends Controller
         $datosEmpleado = $this->modelo->obtenerExpedienteImpresion($empleadoId);
 
         if (!$datosEmpleado) {
-            http_response_code(404);
-            die('<p style="font-family:sans-serif;color:#c00;">Error: El funcionario no existe o no está disponible en el sistema.</p>');
+            ErrorHandler::abort(404, 'El funcionario no existe o no está disponible en el sistema.');
         }
 
         require_once ROOT . '/modules/talento-humano/Servicios/PdfFormularioPrincipal.php';
@@ -515,9 +570,7 @@ class EmpleadoController extends Controller
         // ── Escudo protector UTF-8 → ISO-8859-1 ──────────────────────────────
         // FPDF trabaja internamente con ISO-8859-1. Cualquier texto con tildes
         // o ñ proveniente de la BD debe ser decodificado antes de entregarse.
-        $utf = function(string $str): string {
-            return utf8_decode((string)($str ?? ''));
-        };
+        $utf = static fn(string $str): string => mb_convert_encoding($str, 'Windows-1252', 'UTF-8');
 
         $pdf = new FPDF('P', 'mm', 'A4');
         $pdf->AddPage();

@@ -144,7 +144,7 @@ class InvIngreso extends Model {
                 }
 
                 $cant = (int)$det['cantidad'];
-                $valUnit = (float)$det['valor_unitario'];
+                $valUnit = CommonHelper::redondearPrecio($det['valor_unitario']);
 
                 // Insertar detalle
                 $stmtDet->execute([

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-27 - Estandarización del flujo de Bodega
+
+- Requisiciones dejó de solicitar y mostrar el campo **Solicitante**; conserva destinatario, centro de consumo, motivo y detalle sin reorganizar el flujo.
+- Requisiciones valida período activo y existencia antes de guardar, permite anular con motivo sin eliminar el historial e incorpora impresión del documento.
+- Requisiciones, órdenes de compra, ingresos y egresos muestran como referencia principal el código publicado en **Maestro de ítems → Lista**, con el secuencial interno únicamente como respaldo técnico.
+- Egresos dejó de solicitar **Área institucional**; la relación heredada requerida por la base se resuelve internamente a partir del receptor o mediante un área técnica neutral.
+- La opción **Inventario General** fue reemplazada por **Consulta de existencias**, con carga filtrada, filtro por condición de stock y código del Maestro de ítems.
+- Egresos incorpora una consulta Kardex paginada y filtrable por producto, documento, tipo y fechas.
+- Los historiales de requisiciones, órdenes de compra y egresos, junto con la consulta Kardex, utilizan DataTables; ingresos conserva sus tablas paginadas en servidor.
+- Se compactó la cabecera visual de Bodega y se añadieron estados claros cuando no existe un período activo.
+- Se agregó una prueba estática para proteger estos criterios funcionales y de presentación.
+
+## 2026-08-26 - Cabecera y movimiento de egresos
+
+- Se eliminó de la interfaz el acceso independiente “Nuevo egreso directo”.
+- Egresos ahora inicia con la cabecera: número automático, fecha, ingreso de referencia, área, centro de consumo/receptor y detalle.
+- La grilla de productos se abre únicamente al pulsar **Movimiento**, después de validar los datos obligatorios.
+- La ventana de movimiento muestra ingreso, producto, grupo, cantidad, costo, subtotal, existencia y saldo posterior, con acciones para agregar, eliminar y grabar.
+- La confirmación mantiene una única transacción: el ingreso de factura suma existencias; el egreso resta existencias y genera su registro inmutable en Kardex.
+
+- Creación de factura compacta la cabecera, el proveedor y la barra de acciones para recuperar espacio vertical y horizontal.
+- El detalle de factura funciona también como grilla de captura rápida: permite buscar el ítem y editar pedido, requisición, cantidad, IVA y referencia directamente en las celdas, manteniendo una fila vacía que no se envía al guardar.
+- Los textos extensos de la grilla se muestran recortados dentro de su celda y las notificaciones globales quedan por encima de las barras fijas del formulario.
+- La columna Acciones reserva el ancho necesario para mostrar completos sus controles. La fila rápida permite buscar una requisición por número y cargar todos sus productos, acumulando cantidades cuando un artículo ya estaba agregado.
+- La recuperación de borradores conserva durante siete días los datos escritos en formularios sin guardar y solo elimina el respaldo después de una confirmación exitosa. En facturas incluye cabecera, líneas, fila rápida incompleta y producto en preparación.
+- El escaneo de facturas reconoce productos con cantidades enteras o decimales y con distintas posiciones de código, cantidad y descripción; si el texto interno del PDF no contiene líneas utilizables, intenta lectura visual automáticamente.
+- Al aplicar una lectura de factura, todos los productos detectados se resuelven por nombre contra el inventario. Las coincidencias reutilizan el ítem existente y las líneas nuevas crean un producto con secuenciales internos; el código del proveedor se conserva solo como referencia.
+- El número de pedido de la grilla de requisiciones incorpora un botón de búsqueda, permite sustituir una orden ya cargada desde la misma fila y acepta variantes equivalentes del secuencial sin confundir los prefijos NPE y NPA.
+
 ## 4.1.0 - 2026-08-13
 
 - Bodega quedó organizada como cuatro funciones consecutivas e independientes: **Requisiciones**, **Órdenes de compra**, **Ingresos con Factura** y **Egresos de bodega**.
@@ -116,3 +145,28 @@
 - Se documentó la clasificación histórica `CA` (control administrativo) sin mezclarla con `AF`.
 - Se automatizó la clasificación `CC`/`AF` a partir del código contable de la categoría.
 - `aplica_iva` pasó a ser una bandera sí/no y la tasa se toma del período vigente.
+# 2026-08-24 - Flujo moderno de inventario y bodega
+
+- Se importaron 1.083 proveedores activos desde `bases/provee.DBF` hacia `inv_proveedores`, conservando los cuatro registros que ya existían. La verificación campo por campo no encontró diferencias con el archivo original.
+- Los proveedores históricos conservan código, código anterior, grupo de origen, nombre, RUC, representante, dirección, ciudad, correo, teléfonos, fax y referencia; además se almacena una copia estructurada de cada registro de origen para auditoría.
+- Requisiciones separa correctamente el Centro de consumo —área o departamento— del Responsable del centro —persona activa del área— y valida esa relación al guardar.
+- El centro y su responsable permanecen una sola vez en el bloque general; se retiró la columna repetida de Centro de consumo del detalle de productos.
+- Los selectores de Centro de consumo y Responsable del centro permiten escribir y muestran coincidencias inmediatas, con navegación por teclado.
+- Los selectores con catálogos extensos, como proveedores, requisiciones, centros y solicitantes, incorporan búsqueda sin abandonar el formulario.
+- Las tablas convencionales que alcanzan diez registros o más reciben automáticamente un filtro de búsqueda local, excepto cuando el apartado ya dispone de filtros propios o búsqueda paginada.
+- Requisiciones ahora trabajan en una grilla compacta con existencia, precio promedio, subtotal y filtros.
+- La lista y la creación de requisiciones ahora son pestañas/páginas independientes; el formulario dejó de utilizar una ventana flotante.
+- Cuando una nota contiene varios productos, al escribirla en una fila vacía se genera automáticamente una fila por cada producto y se repite el número de nota para mantener su trazabilidad.
+- El número de requisición se genera automáticamente al guardar. La cabecera permite ingresar el número opcional de nota de pedido y cargar en una sola acción todos sus datos generales y productos.
+- La carga de la nota completa fecha, detalle, solicitante, centro/responsable, observaciones, productos, cantidades, precio promedio y referencias; una nota inexistente no bloquea la captura manual.
+- Cuando notas diferentes contienen el mismo producto, sus cantidades se consolidan al guardar y se conservan todas las referencias asociadas.
+- La búsqueda de productos de requisición se ejecuta de forma remota y limitada por código, descripción o grupo para evitar cargar el inventario completo al abrir la pantalla.
+- La nota de pedido queda como referencia opcional en requisiciones y egresos.
+- Se agregó el egreso directo autorizado con validación transaccional de stock y generación de Kardex.
+- Las órdenes de compra no pueden crearse, editarse ni aprobarse sin un período activo.
+- La lista y la creación de órdenes de compra funcionan en pestañas/páginas independientes y dejaron de depender de ventanas flotantes.
+- La nueva orden reúne los campos documentales del sistema anterior y una sola grilla para pedido, requisición, artículo, descripción, referencia, cantidad, precio unitario, subtotal, IVA, total y especificaciones técnicas.
+- Los totales de base 0 %, base gravada, IVA y total general se recalculan desde las líneas y los datos tributarios quedan almacenados por producto.
+- Se integró la creación rápida de proveedores desde órdenes y facturas.
+- La lista de proveedores de la creación de factura ahora se filtra al escribir código, nombre o RUC y se mantiene sincronizada cuando se agrega un proveedor nuevo o se aplican datos escaneados.
+- Se incorporaron los campos documentales del sistema anterior mediante una migración compatible con SQL Server 2014.

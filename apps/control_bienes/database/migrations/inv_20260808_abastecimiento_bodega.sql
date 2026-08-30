@@ -66,7 +66,7 @@ BEGIN
         orden_id INT NOT NULL,
         item_id INT NOT NULL,
         cantidad INT NOT NULL,
-        precio_unitario_estimado DECIMAL(19,4) NOT NULL CONSTRAINT df_inv_oc_det_precio DEFAULT (0),
+        precio_unitario_estimado DECIMAL(28,12) NOT NULL CONSTRAINT df_inv_oc_det_precio DEFAULT (0),
         CONSTRAINT ck_inv_oc_det_cantidad CHECK (cantidad > 0),
         CONSTRAINT ck_inv_oc_det_precio CHECK (precio_unitario_estimado >= 0),
         CONSTRAINT ux_inv_oc_det UNIQUE (orden_id, item_id),
@@ -84,10 +84,10 @@ BEGIN
         proveedor_id INT NOT NULL,
         orden_compra_id INT NOT NULL,
         iva_porcentaje DECIMAL(7,4) NOT NULL CONSTRAINT df_inv_fac_iva DEFAULT (0),
-        base_cero DECIMAL(19,4) NOT NULL CONSTRAINT df_inv_fac_base0 DEFAULT (0),
-        subtotal_gravado DECIMAL(19,4) NOT NULL CONSTRAINT df_inv_fac_gravado DEFAULT (0),
-        valor_iva DECIMAL(19,4) NOT NULL CONSTRAINT df_inv_fac_valor_iva DEFAULT (0),
-        total DECIMAL(19,4) NOT NULL CONSTRAINT df_inv_fac_total DEFAULT (0),
+        base_cero DECIMAL(30,8) NOT NULL CONSTRAINT df_inv_fac_base0 DEFAULT (0),
+        subtotal_gravado DECIMAL(30,8) NOT NULL CONSTRAINT df_inv_fac_gravado DEFAULT (0),
+        valor_iva DECIMAL(30,8) NOT NULL CONSTRAINT df_inv_fac_valor_iva DEFAULT (0),
+        total DECIMAL(30,8) NOT NULL CONSTRAINT df_inv_fac_total DEFAULT (0),
         estado NVARCHAR(20) NOT NULL CONSTRAINT df_inv_fac_estado DEFAULT ('REGISTRADA'),
         creado_por NVARCHAR(255) NOT NULL,
         fecha_creacion DATETIME2(0) NOT NULL CONSTRAINT df_inv_fac_fecha DEFAULT (SYSDATETIME()),
@@ -106,7 +106,7 @@ BEGIN
         factura_id INT NOT NULL,
         item_id INT NOT NULL,
         cantidad INT NOT NULL,
-        precio_unitario DECIMAL(19,4) NOT NULL,
+        precio_unitario DECIMAL(28,12) NOT NULL,
         grava_iva BIT NOT NULL CONSTRAINT df_inv_fac_det_grava DEFAULT (1),
         codigo_presupuestario NVARCHAR(100) NULL,
         CONSTRAINT ck_inv_fac_det_cantidad CHECK (cantidad > 0),
@@ -126,7 +126,7 @@ IF COL_LENGTH('dbo.inv_bod_ingresos_detalles', 'existencia_anterior') IS NULL
 IF COL_LENGTH('dbo.inv_bod_ingresos_detalles', 'existencia_nueva') IS NULL
     ALTER TABLE dbo.inv_bod_ingresos_detalles ADD existencia_nueva INT NULL;
 IF COL_LENGTH('dbo.inv_bod_ingresos_detalles', 'costo_promedio_actualizado') IS NULL
-    ALTER TABLE dbo.inv_bod_ingresos_detalles ADD costo_promedio_actualizado DECIMAL(19,4) NULL;
+    ALTER TABLE dbo.inv_bod_ingresos_detalles ADD costo_promedio_actualizado DECIMAL(28,12) NULL;
 IF COL_LENGTH('dbo.inv_facturas', 'archivo_nombre_original') IS NULL
     ALTER TABLE dbo.inv_facturas ADD archivo_nombre_original NVARCHAR(255) NULL;
 IF COL_LENGTH('dbo.inv_facturas', 'archivo_ruta') IS NULL

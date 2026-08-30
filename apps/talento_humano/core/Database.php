@@ -27,7 +27,15 @@ class Conexion
                 // PDO_SQLSRV documenta estas opciones como 1/0 o true/false.
                 $encrypt = !empty($config['encrypt']) ? 'true' : 'false';
                 $trustCertificate = !empty($config['trust_server_certificate']) ? 'true' : 'false';
-                $dsn = "sqlsrv:Server=$servidor;Database=$baseDatos;Encrypt=$encrypt;TrustServerCertificate=$trustCertificate";
+                // Driver ODBC explícito (permite elegir entre 17/18 cuando hay
+                // varios instalados en la máquina) -- whitelist para que un
+                // valor de config nunca inyecte texto arbitrario en el DSN.
+                $driver = (string)($config['driver'] ?? 'ODBC Driver 18 for SQL Server');
+                $driversPermitidos = ['ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server'];
+                if (!in_array($driver, $driversPermitidos, true)) {
+                    throw new RuntimeException('El controlador ODBC configurado no está permitido.');
+                }
+                $dsn = "sqlsrv:Driver={{$driver}};Server=$servidor;Database=$baseDatos;Encrypt=$encrypt;TrustServerCertificate=$trustCertificate";
 
                 // Opciones de inicialización segura con codificación forzada de Microsoft
                 self::$conexion = new PDO($dsn, $usuario, $clave, [
@@ -59,12 +67,13 @@ class Conexion
      * - Archivo independiente por cada día: log_YYYY-MM-DD.txt
      * - En producción, el usuario NUNCA ve rutas internas (C:\wamp64\...).
      *
-     * @param Exception $e                 La excepción capturada.
+     * @param Throwable $e                 La excepción/error capturado (Throwable, no solo Exception --
+     *                                     así también cubre Error/TypeError, ver mismos catch(Throwable) de Auth.php).
      * @param string    $modulo            Nombre del módulo (ej: 'talento-humano', 'Core').
      * @param bool      $detenerEjecucion  Si es false, solo escribe el log y retorna (no hace die/exit).
      *                                     Úsalo false en métodos de modelo con valores de fallback.
      */
-    public static function registrarErrorLog(Exception $e, string $modulo = 'talento-humano', bool $detenerEjecucion = true): void
+    public static function registrarErrorLog(Throwable $e, string $modulo = 'talento-humano', bool $detenerEjecucion = true): void
     {
         $fechaActual = date('Y-m-d');
         $horaActual  = date('H:i:s');

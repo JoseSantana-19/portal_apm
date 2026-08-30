@@ -37,6 +37,8 @@ class BinModel extends Model {
         $segmento = trim((string)($filtros['segmento'] ?? ''));
         if ($segmento === 'sin_stock') {
             $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)<=0";
+        } elseif ($segmento === 'con_stock') {
+            $sql .= " AND COALESCE(i.cantidad,0)>0";
         } elseif ($segmento === 'stock_bajo') {
             $sql .= " AND COALESCE(i.tipo_bien,p.tipo_bien,'CC')<>'AF' AND COALESCE(i.cantidad,0)>0 AND COALESCE(p.existencia_min,0)>0 AND i.cantidad<=p.existencia_min";
         } elseif ($segmento === 'mantenimiento') {
@@ -57,7 +59,7 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       i.codigo_clasificacion as producto_codigo,
+                       COALESCE(NULLIF(p.codigo, ''), i.codigo_clasificacion, i.secuencial) as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
@@ -77,7 +79,7 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       i.codigo_clasificacion as producto_codigo,
+                       COALESCE(NULLIF(p.codigo, ''), i.codigo_clasificacion, i.secuencial) as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
@@ -98,7 +100,7 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       i.codigo_clasificacion as producto_codigo,
+                       COALESCE(NULLIF(p.codigo, ''), i.codigo_clasificacion, i.secuencial) as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien
                 FROM vw_inv_items_clasificados i
                 JOIN inv_categorias cat ON i.categoria_id = cat.id
@@ -119,7 +121,7 @@ class BinModel extends Model {
                        est.descripcion as estado, 
                        pers.nombre as responsable,
                        p.aplica_iva as producto_aplica_iva,
-                       i.codigo_clasificacion as producto_codigo,
+                       COALESCE(NULLIF(p.codigo, ''), i.codigo_clasificacion, i.secuencial) as producto_codigo,
                        COALESCE(i.tipo_bien, p.tipo_bien, 'CC') as tipo_bien,
                        u.nombre as unidad_nombre,
                        u.extra as unidad_abrev
@@ -166,6 +168,7 @@ class BinModel extends Model {
             $sql .= " AND (i.secuencial LIKE :prefix1
                         OR i.codigo_clasificacion LIKE :prefix2
                         OR cat.codigo LIKE :prefix3
+                        OR p.codigo LIKE :prefix4
                         OR i.nombre COLLATE Modern_Spanish_CI_AI LIKE :term1
                         OR i.marca COLLATE Modern_Spanish_CI_AI LIKE :term2
                         OR cat.nombre COLLATE Modern_Spanish_CI_AI LIKE :term3
@@ -173,7 +176,7 @@ class BinModel extends Model {
             $contiene = '%' . trim($filtros['termino']) . '%';
             $prefijo = trim($filtros['termino']) . '%';
             foreach (range(1, 4) as $indice) $params[':term' . $indice] = $contiene;
-            foreach (range(1, 3) as $indice) $params[':prefix' . $indice] = $prefijo;
+            foreach (range(1, 4) as $indice) $params[':prefix' . $indice] = $prefijo;
         }
 
         // Ordenamiento dinámico
@@ -181,10 +184,11 @@ class BinModel extends Model {
         $sortDir = 'DESC';
         
         $allowedSorts = [
-            'secuencial' => 'i.secuencial',
+            'secuencial' => "COALESCE(NULLIF(p.codigo, ''), i.codigo_clasificacion, i.secuencial)",
             'nombre'     => 'i.nombre',
             'categoria'  => 'cat.nombre',
             'unidad'     => 'COALESCE(u.extra, u.nombre)',
+            'existencia' => 'i.cantidad',
             'valor'      => 'i.valor',
             'iva'        => 'p.aplica_iva',
             'total'      => 'i.valor',
@@ -255,6 +259,7 @@ class BinModel extends Model {
             $sql .= " AND (i.secuencial LIKE :prefix1
                         OR i.codigo_clasificacion LIKE :prefix2
                         OR cat.codigo LIKE :prefix3
+                        OR p.codigo LIKE :prefix4
                         OR i.nombre COLLATE Modern_Spanish_CI_AI LIKE :term1
                         OR i.marca COLLATE Modern_Spanish_CI_AI LIKE :term2
                         OR cat.nombre COLLATE Modern_Spanish_CI_AI LIKE :term3
@@ -262,7 +267,7 @@ class BinModel extends Model {
             $contiene = '%' . trim($filtros['termino']) . '%';
             $prefijo = trim($filtros['termino']) . '%';
             foreach (range(1, 4) as $indice) $params[':term' . $indice] = $contiene;
-            foreach (range(1, 3) as $indice) $params[':prefix' . $indice] = $prefijo;
+            foreach (range(1, 4) as $indice) $params[':prefix' . $indice] = $prefijo;
         }
 
         $stmt = $this->db->prepare($sql);

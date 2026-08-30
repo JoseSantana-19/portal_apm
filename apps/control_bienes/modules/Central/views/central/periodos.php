@@ -34,7 +34,10 @@
                     <div>
                         <h2 style="margin:0;font-size:20px;color:var(--text-color);"><?= htmlspecialchars($periodoActivo['nombre']) ?></h2>
                         <p style="margin:4px 0 0 0;font-size:13px;color:var(--text-muted);">
-                            Vigente desde el <strong><?= $periodoActivo['fecha_inicio'] ?></strong> al <strong><?= $periodoActivo['fecha_fin'] ?></strong>.
+                            Vigente desde el <strong><?= htmlspecialchars($periodoActivo['fecha_inicio']) ?></strong>
+                            <?= !empty($periodoActivo['fecha_fin'])
+                                ? 'hasta el <strong>' . htmlspecialchars($periodoActivo['fecha_fin']) . '</strong>.'
+                                : '<strong>sin fecha de fin</strong> (cierre manual).' ?>
                         </p>
                     </div>
                     <span class="status-badge active" style="margin-left:auto;">Activo</span>
@@ -96,8 +99,9 @@
                     <input type="date" name="fecha_inicio" required value="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="form-group">
-                    <label>Fecha de Fin</label>
-                    <input type="date" name="fecha_fin" required value="<?= date('Y-12-31') ?>">
+                    <label>Fecha de Fin <span style="font-weight:400;color:var(--text-muted);">(opcional)</span></label>
+                    <input type="date" name="fecha_fin" min="<?= date('Y-m-d') ?>">
+                    <small style="display:block;margin-top:5px;color:var(--text-muted);line-height:1.35;">Si queda vacía, el período seguirá abierto hasta ejecutar manualmente el cierre y respaldo.</small>
                 </div>
             </div>
 
@@ -148,7 +152,7 @@
                 <?php foreach ($inv_periodos as $p): ?>
                     <tr>
                         <td><strong><?= htmlspecialchars($p['nombre']) ?></strong></td>
-                        <td><?= $p['fecha_inicio'] ?> al <?= $p['fecha_fin'] ?></td>
+                        <td><?= htmlspecialchars($p['fecha_inicio']) ?> <?= !empty($p['fecha_fin']) ? 'al ' . htmlspecialchars($p['fecha_fin']) : '· Sin fecha final' ?></td>
                         <td>
                             <?php
                                 // Buscar nombre del tipo IVA para este período
@@ -238,9 +242,9 @@
                                 <td><?= htmlspecialchars((string)($ri['zona_historica'] ?? '')) ?></td>
                                 <td><?= htmlspecialchars((string)($ri['responsable_historico'] ?? '')) ?></td>
                                 <td><span style="font-weight:600;color:var(--primary);"><?= htmlspecialchars((string)($ri['area_talento_historica'] ?? '')) ?></span></td>
-                                <td>$<?= number_format($vBase, 2) ?></td>
+                                <td><?= htmlspecialchars(CommonHelper::formatearImporte($vBase)) ?></td>
                                 <td><?= isset($ri['iva_aplicado']) ? $ri['iva_aplicado'] : $respaldoPeriodo['tasa_iva'] ?>%</td>
-                                <td><strong>$<?= number_format($vTotal, 2) ?></strong></td>
+                                <td><strong><?= htmlspecialchars(CommonHelper::formatearImporte($vTotal)) ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

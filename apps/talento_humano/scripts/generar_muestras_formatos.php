@@ -35,7 +35,6 @@ $accion = [
 $ref = new ReflectionClass(AccionPersonalController::class);
 $controller = $ref->newInstanceWithoutConstructor();
 $metodo = $ref->getMethod('generarPdfAccionOficial');
-$metodo->setAccessible(true);
 $metodo->invoke($controller,$accion,'F',$salida.'/accion_personal_muestra.pdf');
 $metodo->invoke($controller,['_blank'=>true],'F',$salida.'/accion_personal_formato_blanco.pdf');
 
@@ -58,7 +57,7 @@ $socio = [
     'tipo_doc_ident'=>'CEDULA','nro_documento'=>'131224734-7','nacionalidad'=>'ECUATORIANA','anios_residencia'=>'32',
     'libreta_militar'=>'NO APLICA','tipo_relacion'=>'SERVIDOR','apellidos'=>'MARRASQUIN MALDONADO','nombres'=>'MARIA GABRIELA',
     'fecha_nacimiento'=>'1992-04-14','edad'=>'32 AÑOS','lugar_nacimiento'=>'MANTA','provincia_ciudad_nac'=>'MANABI - MANTA',
-    'genero'=>'FEMENINO','tipo_sangre'=>'O+','estado_civil'=>'DIVORCIADO','discapacidad'=>'NO',
+    'sexo'=>'FEMENINO','tipo_sangre'=>'O+','estado_civil'=>'DIVORCIADO','discapacidad'=>'NO',
     'dir_calle_principal'=>'AVENIDA 114','numero_domicilio'=>'S/N','calle_secundaria'=>'CALLE 17','parroquia'=>'TARQUI',
     'canton'=>'MANTA','provincia_dom'=>'MANABI','referencia_domiciliaria'=>'CERCA DE LA ESCUELA MARIA CEDEÑO DE DELGADO',
     'tel_domicilio'=>'S/N','tel_celular'=>'0984977425','tel_trabajo'=>'(593) 53700345','extension'=>'1206',
@@ -80,7 +79,10 @@ $socio = [
         ['orden'=>1,'institucion'=>'FERRETERIA JMD','tipo_institucion'=>'PRIVADA','unidad_administrativa'=>'ATENCION AL CLIENTE','cargo'=>'VENDEDORA','antiguedad'=>'9 AÑOS','jefe_inmediato'=>'JAIME MARRASQUIN','telefono'=>'0999532095','fecha_ingreso'=>'2015-06-01'],
         ['orden'=>2,'institucion'=>'NOTARIA 1','tipo_institucion'=>'PUBLICO-PRIVADA','unidad_administrativa'=>'ATENCION AL CLIENTE','cargo'=>'AUXILIAR DIGITADORA','antiguedad'=>'5 MESES','jefe_inmediato'=>'ABG. CARMEN SEGOVIA','fecha_ingreso'=>'2019-10-16','motivo_ingreso'=>'PERIODO DE MATERNIDAD','fecha_retiro'=>'2020-03-16','motivo_retiro'=>'PANDEMIA']
     ],
-    'vivienda_tipo'=>'PROPIA','vehiculo_marca'=>'KIA','vehiculo_modelo'=>'RIO','vehiculo_placa'=>'MAB-1234','vehiculo_valor'=>'14500.00'
+    'vivienda_tipo'=>'PROPIA','vehiculo_marca'=>'KIA','vehiculo_modelo'=>'RIO','vehiculo_placa'=>'MAB-1234','vehiculo_valor'=>'14500.00',
+    'mapa_url_original'=>'https://www.google.com/maps/search/?api=1&query=-0.967653,-80.708910',
+    'latitud'=>'-0.967653','longitud'=>'-80.708910','origen_geolocalizacion'=>'MANUAL',
+    'indicaciones_llegada'=>'DESDE LA AVENIDA PRINCIPAL, AVANZAR DOS CUADRAS HASTA EL CENTRO DE SALUD; EL DOMICILIO SE ENCUENTRA EN LA ESQUINA DERECHA.'
 ];
 
 (new PdfEstudioSocioeconomico())->generar($socio,false,'F',$salida.'/estudio_socioeconomico_muestra.pdf');

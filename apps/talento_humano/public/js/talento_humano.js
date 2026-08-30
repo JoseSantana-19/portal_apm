@@ -65,11 +65,32 @@ function evaluarDiscapacidad() {
     }
 }
 
+function sincronizarJornadaBase() {
+    const condicion = document.getElementById('condicion_especial');
+    const jornada = document.getElementById('jornada');
+    const horas = document.getElementById('horas_jornada');
+    const ayuda = document.getElementById('ayuda_horas_jornada');
+    if (!condicion || !jornada || !horas) return;
+    if (condicion.value === 'Sustituto') {
+        jornada.value = 'Especial'; horas.value = '6'; horas.readOnly = true;
+        if (ayuda) ayuda.textContent = 'La condición de sustituto establece una jornada base especial de 6 horas.';
+    } else if (jornada.value === 'Completa') {
+        horas.value = '8'; horas.readOnly = true;
+        if (ayuda) ayuda.textContent = 'La jornada completa establece automáticamente 8 horas base diarias.';
+    } else {
+        horas.readOnly = false;
+        if (!Number(horas.value) || Number(horas.value) > 24) horas.value = '';
+        if (ayuda) ayuda.textContent = 'Ingrese las horas base contractuales. Las excepciones temporales se registran mediante Acción de Personal.';
+    }
+}
+
 /* ── FECHA ACTUAL ─────────────────────────────────────────────────────── */
 function setCurrentDate() {
     const el = document.getElementById('currentDate');
     if (!el) return;
-    el.textContent = new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
+    const parts=(el.dataset.institutionalDate||'').split('-').map(Number);
+    const value=parts.length===3&&parts.every(Number.isFinite)?new Date(parts[0],parts[1]-1,parts[2],12):new Date();
+    el.textContent = value.toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 /* ── INICIALIZACIÓN ────────────────────────────────────────────────────── */
@@ -132,4 +153,9 @@ window.addEventListener('DOMContentLoaded', () => {
             salaryInput.value = referenceSalary.toFixed(2);
         }
     });
+    const conditionSelect=document.getElementById('condicion_especial');
+    const scheduleSelect=document.getElementById('jornada');
+    conditionSelect?.addEventListener('change',sincronizarJornadaBase);
+    scheduleSelect?.addEventListener('change',sincronizarJornadaBase);
+    sincronizarJornadaBase();
 });

@@ -26,6 +26,8 @@
     <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/topbar-enhanced.css" media="screen">
     <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/theme.css" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/form_drafts.css" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/searchable_select.css" media="screen">
 <?php if (defined('PORTAL_ROOT_URL')): ?>
     <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
 <?php endif; ?>

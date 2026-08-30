@@ -62,6 +62,7 @@
     };
 </script>
 <script src="<?= APP_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.all.min.js"></script>
+<script src="<?= APP_URL ?>/js/alerts.js"></script>
 <!-- ?v=time(): cache-busting real — evita que el navegador siga usando una
      copia vieja de este archivo cacheada de una visita anterior. -->
 <script src="<?= APP_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>

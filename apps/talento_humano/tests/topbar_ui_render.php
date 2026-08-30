@@ -5,6 +5,8 @@ require dirname(__DIR__,2) . '/helpers/polyfills_php74.php';
 define('ROOT', dirname(__DIR__));
 define('BASE_URL', '');
 define('IMG_URL', '/public/img');
+require_once ROOT.'/core/Config.php';
+require_once ROOT.'/core/InstitutionalClock.php';
 
 final class Auth
 {

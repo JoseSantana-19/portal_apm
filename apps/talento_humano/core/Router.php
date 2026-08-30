@@ -96,8 +96,6 @@ class Router
             }
         }
 
-        http_response_code(404);
-        echo '<h3>404 – Ruta no encontrada: /' . htmlspecialchars($url) . '</h3>';
-        return true;
+        ErrorHandler::abort(404);
     }
 }

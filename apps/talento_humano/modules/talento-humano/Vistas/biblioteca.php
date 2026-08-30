@@ -213,11 +213,38 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         .preview-overlay.open { opacity: 1; pointer-events: auto; }
         .preview-modal {
             background: #fff; border-radius: 20px;
-            width: 100%; max-width: 860px;
+            width: 100%; max-width: min(1100px, calc(100vw - 40px));
             box-shadow: 0 30px 80px rgba(0,0,0,.35);
             transform: translateY(30px);
             transition: transform .3s;
             overflow: hidden;
+        }
+        .preview-modal--records {
+            max-width: min(1280px, calc(100vw - 40px));
+            max-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+        .preview-modal--records .preview-modal-body {
+            min-height: 0;
+            max-height: none;
+            overflow: hidden;
+        }
+        .preview-modal--records .records-table-wrap {
+            overflow: auto;
+            max-height: calc(100vh - 230px);
+        }
+        .preview-modal--records table {
+            min-width: 900px;
+        }
+        .preview-modal--records thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .preview-modal--records th:last-child,
+        .preview-modal--records td:last-child {
+            min-width: 180px;
         }
         .preview-overlay.open .preview-modal { transform: translateY(0); }
         .preview-modal-header {
@@ -270,6 +297,13 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         @media (max-width: 768px) {
             .bib-grid { grid-template-columns: 1fr; }
             .doc-a4 { padding: 10mm 8mm; font-size: 9pt; }
+            .preview-overlay { padding: 8px; }
+            .preview-modal,
+            .preview-modal--records { max-width: calc(100vw - 16px); border-radius: 14px; }
+            .preview-modal--records { max-height: calc(100vh - 16px); }
+            .preview-modal--records .records-table-wrap { max-height: calc(100vh - 210px); }
+            .preview-modal-header { padding: 12px 14px; }
+            .preview-modal-toolbar { padding: 9px 14px; }
         }
 
         @media print {
@@ -384,6 +418,25 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                             </div>
                         </div>
 
+                        <!-- Tarjeta 3: Paz y Salvo -->
+                        <div class="form-card-lib">
+                            <div class="form-card-head form-card-head--amber" data-icon="&#xF26E;">
+                                <span class="form-card-codigo">APM-TH-PS</span>
+                                <div class="form-card-icon"><i class="bi bi-file-earmark-check-fill"></i></div>
+                                <div class="form-card-head-info"><h3>Paz y Salvo</h3><p>Salida y certificación por áreas</p></div>
+                            </div>
+                            <div class="form-card-body">
+                                <div class="form-meta-row"><i class="bi bi-diagram-3"></i> Jefatura &bull; Talento Humano &bull; Financiero &bull; Administrativo &bull; TIC</div>
+                                <div class="form-meta-row"><i class="bi bi-shield-check"></i> Documento auditable vinculado a una Acción de Personal de salida</div>
+                                <div class="form-tags"><span class="form-tag"><i class="bi bi-box-arrow-right"></i> Salida</span><span class="form-tag"><i class="bi bi-patch-check"></i> Certificaciones</span></div>
+                            </div>
+                            <div class="form-card-actions">
+                                <a href="<?= BASE_URL ?>/talento-humano/paz-salvo/crear" class="btn-lib btn-lib--primary"><i class="bi bi-plus-circle"></i> Nuevo documento</a>
+                                <a href="<?= BASE_URL ?>/talento-humano/paz-salvo" class="btn-lib btn-lib--ghost"><i class="bi bi-folder2-open"></i> Ver registros</a>
+                                <a class="btn-lib btn-lib--doc" target="_blank" href="<?= BASE_URL ?>/talento-humano/paz-salvo/formato-blanco"><i class="bi bi-file-earmark-arrow-down"></i> Descargar Formato</a>
+                            </div>
+                        </div>
+
                     </div><!-- /bib-grid sección 1 -->
 
 
@@ -443,7 +496,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
 
     <!-- REGISTROS: Formulario Principal de Registro -->
     <div class="preview-overlay" id="registros-expediente" role="dialog" aria-modal="true">
-        <div class="preview-modal" style="max-width:900px;">
+        <div class="preview-modal preview-modal--records">
             <div class="preview-modal-header">
                 <h4><i class="bi bi-person-badge-fill"></i> Registros — Formulario Principal (APM-TH-FO-001)</h4>
                 <button class="preview-modal-close" onclick="cerrarPreview('registros-expediente')" aria-label="Cerrar">
@@ -454,8 +507,8 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                 <a href="<?= BASE_URL ?>/talento-humano/empleado/crear" class="btn-lib btn-lib--primary">
                     <i class="bi bi-plus-circle"></i> Nuevo registro
                 </a>
-                <a href="<?= BASE_URL ?>/talento-humano/directorio" class="btn-lib btn-lib--ghost">
-                    <i class="bi bi-people-fill"></i> Ver directorio completo
+                <a href="<?= BASE_URL ?>/talento-humano/nomina" class="btn-lib btn-lib--ghost">
+                    <i class="bi bi-people-fill"></i> Ver Nómina
                 </a>
             </div>
             <div class="preview-modal-body" style="padding:0;">
@@ -465,7 +518,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
                     <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($empleados ?? []) ?> expediente(s) registrado(s)</span>
                 </div>
-                <div style="overflow-x:auto;">
+                <div class="records-table-wrap">
                     <table id="tabla-expediente" style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,var(--navy-900),var(--ocean-700));color:#fff;">
@@ -520,7 +573,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
 
     <!-- REGISTROS: Acción de Personal -->
     <div class="preview-overlay" id="registros-accion" role="dialog" aria-modal="true">
-        <div class="preview-modal" style="max-width:900px;">
+        <div class="preview-modal preview-modal--records">
             <div class="preview-modal-header" style="background:linear-gradient(135deg,#0e7490,#0891b2);">
                 <h4><i class="bi bi-file-earmark-text-fill"></i> Registros — Acción de Personal (APM-TH-FO-002)</h4>
                 <button class="preview-modal-close" onclick="cerrarPreview('registros-accion')" aria-label="Cerrar">
@@ -539,7 +592,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
                     <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($acciones ?? []) ?> acción(es) registrada(s)</span>
                 </div>
-                <div style="overflow-x:auto;">
+                <div class="records-table-wrap">
                     <table id="tabla-accion" style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,#0e7490,#0891b2);color:#fff;">
@@ -595,7 +648,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
 
     <!-- REGISTROS: Estudio de Seguridad Socioeconómico -->
     <div class="preview-overlay" id="registros-seguridad" role="dialog" aria-modal="true">
-        <div class="preview-modal" style="max-width:900px;">
+        <div class="preview-modal preview-modal--records">
             <div class="preview-modal-header" style="background:linear-gradient(135deg,#3730a3,#4f46e5);">
                 <h4><i class="bi bi-shield-shaded"></i> Registros — Estudio de Seguridad (APM-BASC-TH-FO-002)</h4>
                 <button class="preview-modal-close" onclick="cerrarPreview('registros-seguridad')" aria-label="Cerrar">
@@ -614,7 +667,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
                     <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($estudios ?? []) ?> estudio(s) registrado(s)</span>
                 </div>
-                <div style="overflow-x:auto;">
+                <div class="records-table-wrap">
                     <table id="tabla-seguridad" style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,#3730a3,#4f46e5);color:#fff;">

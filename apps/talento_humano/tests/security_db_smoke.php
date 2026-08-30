@@ -37,7 +37,7 @@ $directInsertDenied = false;
 try {
     $stmt = $db->prepare("INSERT dbo.th_usuarios_sistema(usuario,password_hash,nombre,rol_id,estado) VALUES(:usuario,'x','x',1,1)");
     $stmt->execute([':usuario' => $username . '_direct']);
-} catch (PDOException) {
+} catch (PDOException $e) {
     $directInsertDenied = true;
 }
 $assert($directInsertDenied, 'El rol de aplicación todavía puede insertar cuentas directamente.');
@@ -45,7 +45,7 @@ $assert($directInsertDenied, 'El rol de aplicación todavía puede insertar cuen
 $forbiddenUpdateDenied = false;
 try {
     $db->exec('UPDATE dbo.th_usuarios_sistema SET nombre=nombre WHERE usuario_id=-1');
-} catch (PDOException) {
+} catch (PDOException $e) {
     $forbiddenUpdateDenied = true;
 }
 $assert($forbiddenUpdateDenied, 'El rol de aplicación puede modificar columnas de identidad no autorizadas.');

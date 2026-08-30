@@ -20,7 +20,7 @@ class PdfEstudioSocioeconomico
         $this->pagina1();
         $this->pagina2();
         $this->pagina3();
-        $this->pagina4Reservada();
+        $this->pagina4Ubicacion();
         $nombre = $archivo ?: 'Estudio_Socioeconomico_' . ($this->valor('nro_documento') ?: 'Formato') . '.pdf';
         return $this->pdf->Output($destino, $nombre);
     }
@@ -141,22 +141,93 @@ class PdfEstudioSocioeconomico
         $this->pdf->MultiCell($this->w-12,3.8,$this->t('Certifico que la información aquí suministrada es verdadera y podrá ser verificada en cualquier momento por la institución. Así mismo estoy dispuesto a brindar una ampliación de cualquier aspecto de los datos registrados.'),0,'J');
     }
 
-    private function pagina4Reservada(): void
+    private function pagina4Ubicacion(): void
     {
         $this->cabecera(4);
         $p=$this->pdf;
-        $p->SetY(62);
-        $p->SetFont('Arial','B',9);
-        $p->Cell($this->w,6,$this->t('HOJA RESERVADA DEL FORMATO OFICIAL'),0,1,'C');
-        $p->SetFont('Arial','',7.5);
-        $p->MultiCell($this->w,4,$this->t('Página conservada para completar el documento de cuatro páginas. No contiene campos añadidos ni sustituye la página oficial pendiente de incorporación.'),0,'C');
-        $p->SetDrawColor(150,150,150);
-        $p->Rect($this->x,82,$this->w,150);
-        $p->SetXY($this->x,151);
-        $p->SetTextColor(130,130,130);
-        $p->SetFont('Arial','I',8);
-        $p->Cell($this->w,5,$this->t('Espacio reservado — pendiente de la hoja autorizada'),0,1,'C');
-        $p->SetTextColor(0,0,0);
+        $this->tituloSeccion('V.    UBICACION DOMICILIARIA Y REFERENCIA');
+        $p->SetFont('Arial','',6.8);
+        $p->MultiCell($this->w,3.5,$this->t('La ubicación georreferenciada es información confidencial del expediente. Utilice el código QR únicamente durante verificaciones institucionales autorizadas.'),0,'J');
+        $p->Ln(3);
+
+        $mapX=$this->x;$mapY=$p->GetY();$mapW=126.0;$mapH=92.0;$qrX=$mapX+$mapW+6;$qrW=38.0;
+        $p->SetDrawColor(55,65,81);$p->Rect($mapX,$mapY,$mapW,$mapH);
+        $mapa=$this->rutaImagenPrivada('mapa_imagen');
+        if(!$this->vacio && $mapa!==null){
+            try{$p->Image($mapa,$mapX+.6,$mapY+.6,$mapW-1.2,$mapH-1.2,'PNG');}
+            catch(Throwable $e){$this->marcadorMapaVacio($mapX,$mapY,$mapW,$mapH);}
+        } else $this->marcadorMapaVacio($mapX,$mapY,$mapW,$mapH);
+
+        $p->SetXY($qrX,$mapY);$p->SetFont('Arial','B',7);$p->Cell($qrW,5,$this->t('ACCESO MOVIL'),1,1,'C');
+        $p->Rect($qrX,$mapY+5,$qrW,42);
+        $qr=$this->rutaImagenPrivada('qr_imagen');
+        if(!$this->vacio && $qr!==null){
+            try{$p->Image($qr,$qrX+3,$mapY+8,32,32,'PNG');}
+            catch(Throwable $e){$this->textoQrVacio($qrX,$mapY,$qrW);}
+        } else $this->textoQrVacio($qrX,$mapY,$qrW);
+        $p->SetXY($qrX,$mapY+49);$p->SetFont('Arial','',5.7);
+        $p->MultiCell($qrW,3.2,$this->t('Escanee para abrir la ubicación registrada en Google Maps.'),0,'C');
+        $p->SetXY($qrX,$mapY+66);$p->SetFont('Arial','B',5.8);$p->Cell($qrW,4,$this->t('ORIGEN DEL REGISTRO'),1,1,'C');
+        $p->SetX($qrX);$p->SetFont('Arial','',6);$p->Cell($qrW,6,$this->t($this->valor('origen_geolocalizacion')),1,1,'C');
+        $p->SetX($qrX);$p->SetFont('Arial','I',5.2);$p->MultiCell($qrW,3,$this->t('La ubicación puede provenir de URL, mapa o captura manual.'),0,'C');
+
+        $p->SetY($mapY+$mapH+5);
+        $lat=$this->coordenada('latitud');$lng=$this->coordenada('longitud');
+        $this->filaDoble('LATITUD',$lat,'LONGITUD',$lng,true,true);
+        $this->filaCompleta('ENLACE UNIVERSAL',$this->vacio?'':$this->urlMapa(),true);
+        $p->Ln(4);
+        $this->tituloTabla('REFERENCIA DOMICILIARIA');
+        $this->bloqueTexto($this->valor('referencia_domiciliaria'),19);
+        $p->Ln(4);
+        $this->tituloTabla('INDICACIONES PARA LLEGAR');
+        $this->bloqueTexto($this->valor('indicaciones_llegada'),27);
+
+        $p->SetY(247);$p->SetFont('Arial','',6.5);
+        $p->Cell(74,4,$this->t('Firma del servidor público'),0,0,'C');$p->Cell(22,4,'',0,0);$p->Cell(74,4,$this->t('Responsable de verificación'),0,1,'C');
+        $p->Line($this->x+7,246,$this->x+67,246);$p->Line($this->x+103,246,$this->x+163,246);
+        $p->SetY(259);$p->SetFont('Arial','I',5.7);
+        $p->MultiCell($this->w,3.2,$this->t('La información de esta página forma parte del estudio socioeconómico y está sujeta a los controles de confidencialidad y auditoría de la Autoridad Portuaria de Manta.'),0,'C');
+    }
+
+    private function marcadorMapaVacio(float $x,float $y,float $w,float $h): void
+    {
+        $p=$this->pdf;$p->SetDrawColor(205,213,224);
+        for($i=1;$i<6;$i++){$p->Line($x+$i*$w/6,$y,$x+$i*$w/6,$y+$h);$p->Line($x,$y+$i*$h/6,$x+$w,$y+$i*$h/6);}
+        $p->SetDrawColor(55,65,81);$p->SetXY($x,$y+$h/2-5);$p->SetFont('Arial','B',7);
+        $p->Cell($w,5,$this->t($this->vacio?'ESPACIO PARA MAPA DE UBICACION':'MAPA NO DISPONIBLE - VERIFIQUE LAS COORDENADAS'),0,1,'C');
+    }
+
+    private function textoQrVacio(float $x,float $y,float $w): void
+    {
+        $this->pdf->SetXY($x+2,$y+21);$this->pdf->SetFont('Arial','I',5.8);
+        $this->pdf->MultiCell($w-4,3,$this->t($this->vacio?'CODIGO QR':'QR NO DISPONIBLE'),0,'C');
+    }
+
+    private function bloqueTexto(string $texto,float $alto): void
+    {
+        $p=$this->pdf;$x=$p->GetX();$y=$p->GetY();$p->Rect($x,$y,$this->w,$alto);
+        $p->SetXY($x+2,$y+2);$p->SetFont('Arial','',6.5);$p->MultiCell($this->w-4,3.6,$this->t($this->vacio?'':$texto),0,'L');
+        $p->SetY($y+$alto);
+    }
+
+    private function rutaImagenPrivada(string $campo): ?string
+    {
+        $nombre=$this->valor($campo);
+        if($nombre===''||!preg_match('/^socio-(?:mapa|qr)-[a-f0-9]{32}\.png$/',$nombre))return null;
+        $base=realpath(Config::privateDirectory().DIRECTORY_SEPARATOR.'socio-geolocation');
+        if($base===false)return null;$ruta=realpath($base.DIRECTORY_SEPARATOR.$nombre);
+        return $ruta!==false&&str_starts_with($ruta,$base.DIRECTORY_SEPARATOR)&&is_file($ruta)?$ruta:null;
+    }
+
+    private function coordenada(string $campo): string
+    {
+        $valor=$this->valor($campo);return $valor===''?'':number_format((float)$valor,6,'.','');
+    }
+
+    private function urlMapa(): string
+    {
+        $lat=$this->coordenada('latitud');$lng=$this->coordenada('longitud');
+        return $lat!==''&&$lng!==''?'https://www.google.com/maps/search/?api=1&query='.$lat.','.$lng:'';
     }
 
     private function tablaHijos(): void

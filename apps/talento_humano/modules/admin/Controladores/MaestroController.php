@@ -36,8 +36,7 @@ final class MaestroController extends Controller
     private function validarPost(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit('Metodo no permitido.');
+            ErrorHandler::abort(405);
         }
         Auth::requireCsrf($_POST['_csrf'] ?? null);
     }

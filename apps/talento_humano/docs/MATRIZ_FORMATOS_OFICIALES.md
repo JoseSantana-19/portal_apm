@@ -24,7 +24,7 @@ Esta matriz define la fuente de cada dato impreso. Prioridad: registro guardado 
 | Pagina | Seccion oficial | Campos |
 |---|---|---|
 | 1 | Cabecera | codigo, fecha, pagina, vinculacion, cargo, nombre |
-| 1 | Informacion del servidor | documento, nacionalidad, residencia, libreta militar, relacion, apellidos, nombres, nacimiento, edad, genero, sangre, estado civil, discapacidad, CONADIS, carrera, etnia y nacionalidad indigena |
+| 1 | Informacion del servidor | documento, nacionalidad, residencia, libreta militar, relacion, apellidos, nombres, nacimiento, edad, sexo, sangre, estado civil, discapacidad, CONADIS, carrera, etnia y nacionalidad indigena |
 | 1 | Domicilio y contacto | calles, numero, parroquia, canton, provincia, referencia, telefonos, extension y correos |
 | 1 | Contacto de emergencia | nombre, parentesco, telefono convencional y celular |
 | 1 | Declaracion de bienes | numero de otorgamiento y fecha de ingreso |
@@ -37,7 +37,7 @@ Esta matriz define la fuente de cada dato impreso. Prioridad: registro guardado 
 | 3 | Experiencia laboral | tres ultimos empleos con los once campos del formato |
 | 3 | Bienes | vivienda; vehiculo: marca, modelo, placa y valor |
 | 3 | Certificacion | nota oficial y espacios de firma del servidor y responsable |
-| 4 | Hoja oficial pendiente | cabecera y area reservada, sin inventar campos; reemplazable al recibir la referencia autorizada |
+| 4 | Ubicación domiciliaria | mapa, coordenadas, enlace universal, referencia, indicaciones, QR y firmas de servidor/verificador |
 
 ## Modos de salida
 

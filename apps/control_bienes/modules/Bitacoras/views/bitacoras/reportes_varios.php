@@ -1,525 +1,70 @@
 <?php
-/**
- * REPORTES_VARIOS.PHP - Vista Unificada de Reportes Varios
- * Compatible con PHP 7.4, 8.3 y 8.4
- */
-
-// Calcular estadísticas rápidas según el reporte activo
 $totalRegistros = count($datosReporte);
-$extraStat = 0;
-$valorTotalReporte = 0.0;
-
-$configBusqueda = [
-    'proveedores' => [
-        'label' => 'ID, RUC, nombre o contacto',
-        'placeholder' => 'Ej.: 4, 0991234567001 o nombre del proveedor'
-    ],
-    'centros_consumo' => [
-        'label' => 'ID, código, centro, funcionario o grupo',
-        'placeholder' => 'Ej.: 12, CC-001, nombre del centro o funcionario'
-    ],
-    'items' => [
-        'label' => 'ID, secuencial, código de producto o descripción',
-        'placeholder' => 'Ej.: 127, INV-001, código, nombre, marca o categoría'
-    ],
-    'compras' => [
-        'label' => 'ID de ingreso/ítem, secuencial, producto o proveedor',
-        'placeholder' => 'Ej.: 15, ING-001, código de producto o proveedor'
-    ],
-    'mensual' => [
-        'label' => 'ID o secuencial de orden, o proveedor',
-        'placeholder' => 'Busca las órdenes que se consolidarán por mes'
-    ]
-];
-$busquedaActiva = $configBusqueda[$tabActivo] ?? $configBusqueda['proveedores'];
-
-if ($tabActivo === 'items') {
-    foreach ($datosReporte as $item) {
-        $extraStat += (int)$item['cantidad'];
-        $valorTotalReporte += (float)($item['cantidad'] * $item['valor']);
-    }
-} elseif ($tabActivo === 'compras') {
-    foreach ($datosReporte as $compra) {
-        $extraStat += (int)$compra['cantidad'];
-        $valorTotalReporte += (float)$compra['subtotal'];
-    }
-} elseif ($tabActivo === 'mensual') {
-    foreach ($datosReporte as $m) {
-        $extraStat += (int)$m['total_ordenes'];
-        $valorTotalReporte += (float)$m['total_valor'];
+$columnas = $reporteActivo['columns'];
+$totales = [];
+foreach ($columnas as $clave => $columna) {
+    if (in_array($columna['type'] ?? '', ['money','number'], true)) {
+        $totales[$clave] = array_sum(array_map(function ($fila) use ($clave) { return (float)($fila[$clave] ?? 0); }, $datosReporte));
     }
 }
+$parametrosSalida = array_merge(['route'=>'reportes','tab'=>$tabActivo], $filtros);
+$parametrosSalida = array_filter($parametrosSalida, function ($valor) { return $valor !== ''; });
+$urlExportar = 'index.php?' . http_build_query(array_merge($parametrosSalida, ['action'=>'exportar']));
+$urlImprimir = 'index.php?' . http_build_query(array_merge($parametrosSalida, ['action'=>'imprimir']));
+$claveValorResumen = $reporteActivo['summary_money'] ?? '';
+$valorResumen = $claveValorResumen !== '' ? (float)($totales[$claveValorResumen] ?? 0) : 0.0;
 ?>
 
-<!-- InvCabecera de Página -->
-<div class="page-header animate-fade-in">
-    <div class="page-title">
-        <h1>Reportes Varios de Auditoría</h1>
-        <p>Listados consolidados, compras de insumos, auditoría de consumos y cortes financieros históricos.</p>
-    </div>
-    <?php if ($generarReporte && !empty($datosReporte)): ?>
-    <div>
-        <a href="index.php?route=reportes&action=imprimir&tab=<?= $tabActivo ?>&fecha_inicio=<?= urlencode($fechaInicio) ?>&fecha_fin=<?= urlencode($fechaFin) ?>&proveedor=<?= urlencode($proveedor) ?>&termino=<?= urlencode($termino) ?>&id_exacto=<?= urlencode($idExacto) ?>&id_inicio=<?= urlencode($idInicio) ?>&id_fin=<?= urlencode($idFin) ?>" 
-           target="_blank" 
-           class="btn-primary" 
-           style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-file-pdf"></i> Imprimir Reporte Oficial
-        </a>
-    </div>
-    <?php endif; ?>
-</div>
+<style>
+.reports-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:18px;padding:23px;border:1px solid rgba(37,99,235,.15);border-radius:20px;background:linear-gradient(135deg,rgba(37,99,235,.09),rgba(14,165,233,.025))}.reports-hero h1{margin:0 0 6px;font-size:27px}.reports-hero p{margin:0;color:var(--text-muted);line-height:1.5}.reports-hero-icon{width:55px;height:55px;display:grid;place-items:center;flex:0 0 auto;border-radius:16px;background:#2563eb;color:#fff;font-size:23px;box-shadow:0 10px 22px rgba(37,99,235,.22)}
+.report-tabs{display:grid;grid-template-columns:repeat(5,minmax(145px,1fr));gap:9px;margin-bottom:18px}.report-tab{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid var(--border-color);border-radius:13px;background:var(--panel-bg);color:var(--text-color);text-decoration:none;transition:.18s}.report-tab:hover{border-color:#93c5fd;transform:translateY(-1px)}.report-tab.active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8;box-shadow:0 8px 18px rgba(37,99,235,.1)}.report-tab i{width:31px;height:31px;display:grid;place-items:center;flex:0 0 auto;border-radius:9px;background:var(--secondary-bg);color:#64748b}.report-tab.active i{background:#dbeafe;color:#2563eb}.report-tab span{overflow:hidden;font-size:11px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
+.report-filter-panel{padding:20px;margin-bottom:18px;border:1px solid rgba(148,163,184,.22);border-radius:18px;background:var(--panel-bg);box-shadow:0 10px 28px rgba(15,23,42,.045)}.filter-intro{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:17px}.filter-intro h2{margin:0 0 4px;font-size:17px}.filter-intro p{margin:0;color:var(--text-muted);font-size:11px}.active-report-badge{padding:7px 10px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:800}.report-filters{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;align-items:end}.report-filter{grid-column:span 2;min-width:0}.report-filter.wide{grid-column:span 4}.report-filter label{display:block;margin-bottom:6px;color:var(--text-muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.report-filter input,.report-filter select{width:100%;height:41px;padding:0 11px;border:1px solid var(--border-color);border-radius:10px;background:var(--panel-bg);color:var(--text-color);box-sizing:border-box}.report-filter input:focus,.report-filter select:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(37,99,235,.1)}.filter-buttons{grid-column:span 2;display:flex;gap:8px}.filter-buttons a,.filter-buttons button{height:41px;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}.filter-buttons button{flex:1;border:0;cursor:pointer}
+.report-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.summary-card{padding:16px;border:1px solid rgba(148,163,184,.2);border-radius:15px;background:var(--panel-bg)}.summary-card span,.summary-card strong{display:block}.summary-card span{color:var(--text-muted);font-size:10px;text-transform:uppercase;font-weight:800}.summary-card strong{margin-top:7px;font-size:23px;letter-spacing:-.025em}.summary-card.primary strong{color:#2563eb}.summary-card.money strong{color:#059669}
+.results-panel{overflow:hidden;border:1px solid rgba(148,163,184,.22);border-radius:18px;background:var(--panel-bg);box-shadow:0 12px 30px rgba(15,23,42,.05)}.results-header{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:17px 20px;border-bottom:1px solid var(--border-color);background:var(--secondary-bg)}.results-header h3{margin:0 0 3px;font-size:15px}.results-header p{margin:0;color:var(--text-muted);font-size:10px}.result-actions{display:flex;gap:8px;flex-wrap:wrap}.result-actions a{display:inline-flex;align-items:center;gap:7px;text-decoration:none}.report-table-wrap{overflow:auto;max-height:620px}.report-table{width:100%;border-collapse:collapse;white-space:nowrap}.report-table th{position:sticky;top:0;z-index:1;padding:11px 12px;background:#f8fafc;color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-bottom:1px solid var(--border-color)}.report-table td{max-width:300px;padding:11px 12px;border-bottom:1px solid rgba(148,163,184,.15);font-size:11px;overflow:hidden;text-overflow:ellipsis}.report-table tbody tr:hover{background:#f8fbff}.report-table td.money{text-align:right;color:#047857;font-weight:700}.report-table td.number{text-align:right;font-weight:700}.report-table td.code{color:#2563eb;font-family:ui-monospace,monospace;font-weight:700}.report-table td.status span{display:inline-flex;padding:5px 8px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:9px;font-weight:800}.report-table tfoot td{position:sticky;bottom:0;background:#f8fafc;font-weight:800}.report-empty{padding:60px 25px;text-align:center;color:var(--text-muted)}.report-empty i{display:block;margin-bottom:13px;font-size:38px;color:#93c5fd}.report-empty strong{display:block;margin-bottom:5px;color:var(--text-color)}.report-error{margin-bottom:18px;padding:14px;border:1px solid #fecaca;border-radius:12px;background:#fef2f2;color:#b91c1c}.report-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 18px;border-top:1px solid var(--border-color);font-size:11px}.pagination-buttons{display:flex;gap:6px}.pagination-buttons button{padding:6px 10px;border:1px solid var(--border-color);border-radius:8px;background:var(--panel-bg);cursor:pointer}.pagination-buttons button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:1100px){.report-tabs{grid-template-columns:repeat(3,1fr)}.report-filter{grid-column:span 3}.report-filter.wide{grid-column:span 6}.filter-buttons{grid-column:span 3}}@media(max-width:720px){.reports-hero{align-items:flex-start}.report-tabs{grid-template-columns:1fr 1fr}.report-filters{grid-template-columns:1fr}.report-filter,.report-filter.wide,.filter-buttons{grid-column:auto}.report-summary{grid-template-columns:1fr 1fr}.results-header{align-items:flex-start;flex-direction:column}}
+.report-table td.price{text-align:right;color:#047857;font-weight:700}
+</style>
 
-<!-- Stats Rápido del Reporte Seleccionado -->
-<div class="stats-row animate-fade-in" style="margin-bottom:24px;">
-    <div class="stat-card">
-        <div class="stat-icon blue"><i class="fa-solid fa-calculator"></i></div>
-        <div>
-            <div class="stat-value"><?= $totalRegistros ?></div>
-            <div class="stat-label">Registros Listados</div>
-        </div>
-    </div>
-    <?php if ($tabActivo === 'items' || $tabActivo === 'compras'): ?>
-        <div class="stat-card">
-            <div class="stat-icon orange"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div>
-                <div class="stat-value"><?= number_format($extraStat) ?></div>
-                <div class="stat-label">Unidades Totales</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-            <div>
-                <div class="stat-value">$<?= number_format($valorTotalReporte, 2) ?></div>
-                <div class="stat-label">Valoración Total</div>
-            </div>
-        </div>
-    <?php elseif ($tabActivo === 'mensual'): ?>
-        <div class="stat-card">
-            <div class="stat-icon orange"><i class="fa-solid fa-cart-shopping"></i></div>
-            <div>
-                <div class="stat-value"><?= number_format($extraStat) ?></div>
-                <div class="stat-label">Órdenes Realizadas</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-            <div>
-                <div class="stat-value">$<?= number_format($valorTotalReporte, 2) ?></div>
-                <div class="stat-label">Presupuesto Invertido</div>
-            </div>
-        </div>
-    <?php else: ?>
-        <div class="stat-card">
-            <div class="stat-icon purple"><i class="fa-solid fa-clock"></i></div>
-            <div>
-                <div class="stat-value"><?= date('H:i') ?></div>
-                <div class="stat-label">Hora del Reporte</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green"><i class="fa-solid fa-calendar-check"></i></div>
-            <div>
-                <div class="stat-value"><?= date('d/M') ?></div>
-                <div class="stat-label">Fecha del Sistema</div>
-            </div>
-        </div>
-    <?php endif; ?>
-</div>
+<header class="reports-hero animate-fade-in"><div><h1>Centro de reportes</h1><p>Información consolidada de todas las funciones del sistema, con filtros combinables y resultados exportables.</p></div><div class="reports-hero-icon"><i class="fa-solid fa-file-lines"></i></div></header>
 
-<!-- Estructura por Pestañas Interiores -->
-<div class="filter-section animate-fade-in" style="padding-bottom: 0; margin-bottom: 24px;">
-    <div class="filter-tabs" style="border-bottom: 1px solid var(--border-color); display:flex; gap:16px;">
-        
-        <a href="index.php?route=reportes&tab=proveedores" 
-           class="filter-tab <?= ($tabActivo === 'proveedores') ? 'active' : '' ?>" 
-           style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'proveedores') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-truck-field"></i> Listado de Proveedores
-        </a>
+<nav class="report-tabs animate-fade-in" aria-label="Tipos de reporte"><?php foreach ($catalogoReportes as $clave => $reporte): ?><a class="report-tab <?= $clave === $tabActivo ? 'active' : '' ?>" href="index.php?route=reportes&amp;tab=<?= urlencode($clave) ?>"><i class="fa-solid <?= htmlspecialchars($reporte['icon']) ?>"></i><span><?= htmlspecialchars($reporte['label']) ?></span></a><?php endforeach; ?></nav>
 
-        <a href="index.php?route=reportes&tab=centros_consumo" 
-           class="filter-tab <?= ($tabActivo === 'centros_consumo') ? 'active' : '' ?>" 
-           style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'centros_consumo') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-building-flag"></i> Listado de Centros de Consumo
-        </a>
-
-        <a href="index.php?route=reportes&tab=items" 
-           class="filter-tab <?= ($tabActivo === 'items') ? 'active' : '' ?>" 
-           style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'items') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-box"></i> Listado de Ítems
-        </a>
-
-        <a href="index.php?route=reportes&tab=compras" 
-           class="filter-tab <?= ($tabActivo === 'compras') ? 'active' : '' ?>" 
-           style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'compras') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-shopping-bag"></i> Compras a Proveedores
-        </a>
-
-        <a href="index.php?route=reportes&tab=mensual" 
-           class="filter-tab <?= ($tabActivo === 'mensual') ? 'active' : '' ?>" 
-           style="text-decoration:none; padding:12px 16px; border-bottom:3px solid <?= ($tabActivo === 'mensual') ? 'var(--primary)' : 'transparent' ?>; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-calendar-days"></i> Reporte Mensual Órdenes
-        </a>
-    </div>
-
-    <!-- Barra de Filtros Dinámica según la pestaña activa -->
-    <form action="index.php" method="GET" class="filter-controls" style="padding:16px 0; margin-top:0;">
-        <input type="hidden" name="route" value="reportes">
-        <input type="hidden" name="tab" value="<?= htmlspecialchars($tabActivo) ?>">
-        <input type="hidden" name="generar" value="1">
-
-        <!-- El consolidado mensual no representa un único registro y no tiene ID propio. -->
-        <?php if ($tabActivo !== 'mensual'): ?>
-        <div class="filter-group" style="max-width:140px;">
-            <label><i class="fa-solid fa-hashtag"></i> ID exacto</label>
-            <input type="number" name="id_exacto" placeholder="ID interno" value="<?= htmlspecialchars($idExacto) ?>" min="1" style="width:100%; box-sizing:border-box;">
-        </div>
-        <div class="filter-group" style="max-width:125px;">
-            <label><i class="fa-solid fa-arrow-right"></i> ID desde</label>
-            <input type="number" name="id_inicio" placeholder="Mínimo" value="<?= htmlspecialchars($idInicio) ?>" min="1" style="width:100%; box-sizing:border-box;">
-        </div>
-        <div class="filter-group" style="max-width:125px;">
-            <label><i class="fa-solid fa-arrow-left"></i> ID hasta</label>
-            <input type="number" name="id_fin" placeholder="Máximo" value="<?= htmlspecialchars($idFin) ?>" min="1" style="width:100%; box-sizing:border-box;">
-        </div>
-        <?php endif; ?>
-
-        <!-- Fechas de registro para ítems y fechas de ingreso para compras/mensual. -->
-        <?php if ($tabActivo === 'items' || $tabActivo === 'compras' || $tabActivo === 'mensual'): ?>
-            <div class="filter-group">
-                <label><i class="fa-solid fa-calendar"></i> Fecha Desde</label>
-                <input type="date" name="fecha_inicio" value="<?= htmlspecialchars($fechaInicio) ?>">
-            </div>
-            <div class="filter-group">
-                <label><i class="fa-solid fa-calendar"></i> Fecha Hasta</label>
-                <input type="date" name="fecha_fin" value="<?= htmlspecialchars($fechaFin) ?>">
-            </div>
-        <?php endif; ?>
-
-        <!-- Filtro: Proveedor (solo para compras a proveedores) -->
-        <?php if ($tabActivo === 'compras'): ?>
-            <div class="filter-group" style="flex:1.5;">
-                <label><i class="fa-solid fa-truck-field"></i> Filtrar por Proveedor</label>
-                <select name="proveedor">
-                    <option value="">Todos los proveedores...</option>
-                    <?php foreach ($proveedores as $prov): ?>
-                        <option value="<?= htmlspecialchars($prov['nombre']) ?>" <?= ($proveedor === $prov['nombre']) ? 'selected' : '' ?>><?= htmlspecialchars($prov['nombre']) ?> (RUC: <?= htmlspecialchars($prov['ruc']) ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        <?php endif; ?>
-
-        <!-- Filtro: Búsqueda General (para todos los reportes) -->
-        <div class="filter-group" style="flex:2;">
-            <label><i class="fa-solid fa-magnifying-glass"></i> <?= htmlspecialchars($busquedaActiva['label']) ?></label>
-            <input type="text" name="termino" placeholder="<?= htmlspecialchars($busquedaActiva['placeholder']) ?>" value="<?= htmlspecialchars($termino) ?>">
-        </div>
-
-        <div class="filter-actions" style="margin-top:auto;">
-            <a href="index.php?route=reportes&tab=<?= $tabActivo ?>" class="btn-outline" style="height:40px; display:flex; align-items:center; justify-content:center; width:40px;" title="Limpiar Filtros">
-                <i class="fa-solid fa-eraser"></i>
-            </a>
-            <button type="submit" class="btn-primary" style="height:40px;"><i class="fa-solid fa-filter"></i> Filtrar</button>
-        </div>
+<section class="report-filter-panel animate-fade-in">
+    <div class="filter-intro"><div><h2><?= htmlspecialchars($reporteActivo['label']) ?></h2><p><?= htmlspecialchars($reporteActivo['description']) ?></p></div><span class="active-report-badge"><i class="fa-solid <?= htmlspecialchars($reporteActivo['icon']) ?>"></i> Reporte activo</span></div>
+    <form class="report-filters" action="index.php" method="get">
+        <input type="hidden" name="route" value="reportes"><input type="hidden" name="tab" value="<?= htmlspecialchars($tabActivo) ?>"><input type="hidden" name="generar" value="1">
+        <?php if (!empty($reporteActivo['date_expr'])): ?><div class="report-filter"><label>Fecha desde</label><input type="date" name="fecha_inicio" value="<?= htmlspecialchars($filtros['fecha_inicio']) ?>"></div><div class="report-filter"><label>Fecha hasta</label><input type="date" name="fecha_fin" value="<?= htmlspecialchars($filtros['fecha_fin']) ?>"></div><?php endif; ?>
+        <div class="report-filter"><label>ID exacto</label><input type="number" min="1" name="id_exacto" value="<?= htmlspecialchars($filtros['id_exacto']) ?>" placeholder="Ej. 125"></div>
+        <div class="report-filter"><label>ID desde</label><input type="number" min="1" name="id_inicio" value="<?= htmlspecialchars($filtros['id_inicio']) ?>"></div>
+        <div class="report-filter"><label>ID hasta</label><input type="number" min="1" name="id_fin" value="<?= htmlspecialchars($filtros['id_fin']) ?>"></div>
+        <?php if (!empty($reporteActivo['status_expr'])): ?><div class="report-filter"><label>Estado / tipo</label><input list="estados-reporte" name="estado" value="<?= htmlspecialchars($filtros['estado']) ?>" placeholder="Todos"><datalist id="estados-reporte"><?php foreach (($reporteActivo['statuses'] ?? []) as $valor): ?><option value="<?= htmlspecialchars($valor) ?>"><?php endforeach; ?></datalist></div><?php endif; ?>
+        <?php if (!empty($reporteActivo['provider_expr'])): ?><div class="report-filter"><label>Proveedor</label><input list="proveedores-reporte" name="proveedor" value="<?= htmlspecialchars($filtros['proveedor']) ?>" placeholder="Todos"><datalist id="proveedores-reporte"><?php foreach ($proveedores as $valor): ?><option value="<?= htmlspecialchars($valor) ?>"><?php endforeach; ?></datalist></div><?php endif; ?>
+        <?php if (!empty($reporteActivo['category_expr']) || !empty($reporteActivo['category_condition'])): ?><div class="report-filter"><label>Categoría</label><select name="categoria"><option value="">Todas</option><?php foreach ($categorias as $categoria): ?><option value="<?= (int)$categoria['id'] ?>" <?= (string)$categoria['id'] === $filtros['categoria'] ? 'selected' : '' ?>><?= htmlspecialchars(($categoria['codigo'] ?? '').' · '.$categoria['nombre']) ?></option><?php endforeach; ?></select></div><?php endif; ?>
+        <?php if (!empty($reporteActivo['stock_filter'])): ?><div class="report-filter"><label>Disponibilidad</label><select name="stock"><option value="">Todos</option><option value="sin_stock" <?= $filtros['stock']==='sin_stock'?'selected':'' ?>>Sin existencia</option><option value="stock_bajo" <?= $filtros['stock']==='stock_bajo'?'selected':'' ?>>Stock bajo</option><option value="sin_responsable" <?= $filtros['stock']==='sin_responsable'?'selected':'' ?>>Sin responsable</option></select></div><?php endif; ?>
+        <div class="report-filter wide"><label>Búsqueda general</label><input type="search" name="termino" value="<?= htmlspecialchars($filtros['termino']) ?>" placeholder="Código, nombre, documento, usuario, descripción..."></div>
+        <div class="filter-buttons"><a class="btn-outline" href="index.php?route=reportes&amp;tab=<?= urlencode($tabActivo) ?>" title="Limpiar filtros"><i class="fa-solid fa-eraser"></i></a><button class="btn-primary" type="submit"><i class="fa-solid fa-filter"></i> Generar</button></div>
     </form>
-</div>
+</section>
+
+<?php if ($errorReporte): ?><div class="report-error"><i class="fa-solid fa-triangle-exclamation"></i> <?= htmlspecialchars($errorReporte) ?></div><?php endif; ?>
 
 <?php if ($generarReporte): ?>
-<!-- Panel de Datos -->
-<div class="panel animate-fade-in">
-    <div class="panel-header">
-        <h3 style="margin:0;">Resultados del Reporte (<?= $totalRegistros ?> registros cargados)</h3>
-    </div>
-    
-    <div class="table-responsive">
-        <?php if (empty($datosReporte)): ?>
-            <div style="text-align:center; padding:60px 40px; color:var(--text-muted);">
-                <i class="fa-solid fa-database" style="font-size:42px; display:block; margin-bottom:16px; opacity:0.3;"></i>
-                <strong style="font-size:15px; color:var(--text-color);">No se encontraron registros coincidentes</strong>
-                <p style="margin-top:6px; font-size:13px;">Prueba ajustando los filtros o realizando otra búsqueda general.</p>
-            </div>
-        <?php else: ?>
-            <table>
-                
-                <!-- 1. Reporte: Proveedores -->
-                <?php if ($tabActivo === 'proveedores'): ?>
-                    <thead>
-                        <tr>
-                            <th style="width: 80px;">Código ID</th>
-                            <th>Razón Social / Nombre del Proveedor</th>
-                            <th style="width: 180px;">RUC / Identificación</th>
-                            <th>Contacto y Dirección física</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($datosReporte as $r): ?>
-                            <tr>
-                                <td><strong>#<?= $r['id'] ?></strong></td>
-                                <td style="font-weight: 600; color: var(--text-color);"><?= htmlspecialchars($r['nombre']) ?></td>
-                                <td><code style="background:var(--border-color); padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px;"><?= htmlspecialchars($r['ruc']) ?></code></td>
-                                <td style="font-size: 13px; color: var(--text-muted);"><?= htmlspecialchars($r['extra'] ?? 'Sin contacto registrado') ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+<section class="report-summary animate-fade-in">
+    <div class="summary-card primary"><span>Registros encontrados</span><strong><?= number_format($totalRegistros) ?></strong></div>
+    <div class="summary-card"><span>Filtros activos</span><strong><?= count(array_filter($filtros, function($v){return $v!=='';})) ?></strong></div>
+    <div class="summary-card money"><span>Valor consolidado</span><strong><?= htmlspecialchars(CommonHelper::formatearImporte($valorResumen)) ?></strong></div>
+    <div class="summary-card"><span>Generado</span><strong style="font-size:16px"><?= date('d/m/Y H:i') ?></strong></div>
+</section>
 
-                <!-- 2. Reporte: Centros de Consumo -->
-                <?php elseif ($tabActivo === 'centros_consumo'): ?>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">Código</th>
-                            <th>Descripción / Puesto del Centro</th>
-                            <th>Funcionario Responsable</th>
-                            <th>Grupo Organizativo</th>
-                            <th style="text-align:center; width: 130px;">Total Despachos</th>
-                            <th style="text-align:center; width: 130px;">Unids Entregadas</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($datosReporte as $r): ?>
-                            <tr>
-                                <td>
-                                    <code style="background:var(--border-color); padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px; color:var(--primary);"><?= htmlspecialchars($r['codigo']) ?></code><br>
-                                    <small style="color:var(--text-muted);">ID #<?= (int)$r['id'] ?></small>
-                                </td>
-                                <td style="font-weight: 600; color: var(--text-color);"><?= htmlspecialchars($r['nombre']) ?></td>
-                                <td><strong><?= htmlspecialchars($r['funcionario_actual'] ?? $r['funcionario']) ?></strong></td>
-                                <td><span class="status-badge active" style="background:rgba(139,92,246,0.1); color:#8b5cf6; border-color:rgba(139,92,246,0.2); font-size:11px;"><?= htmlspecialchars($r['grupo_nombre']) ?> (<?= htmlspecialchars($r['grupo_codigo']) ?>)</span></td>
-                                <td style="text-align:center;"><strong><?= $r['total_egresos'] ?></strong></td>
-                                <td style="text-align:center;"><span class="status-badge dispatched" style="font-weight:700;"><?= $r['total_items'] ?> u.</span></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-
-                <!-- 3. Reporte: Items de Catálogo -->
-                <?php elseif ($tabActivo === 'items'): ?>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">Secuencial</th>
-                            <th>Nombre del Producto / Insumo</th>
-                            <th>Marca</th>
-                            <th>Categoría / Grupo</th>
-                            <th style="text-align:center; width: 100px;">Existencia</th>
-                            <th style="text-align:right; width: 120px;">Costo Base</th>
-                            <th style="text-align:right; width: 140px;">Valor Total Stock</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reporte-items-tbody">
-                        <!-- Las filas se inyectan dinámicamente con paginación JS -->
-                    </tbody>
-
-                <!-- 4. Reporte: Compras a Proveedores -->
-                <?php elseif ($tabActivo === 'compras'): ?>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">Ingreso</th>
-                            <th style="width: 110px;">Fecha</th>
-                            <th>Proveedor</th>
-                            <th>Producto / Insumo</th>
-                            <th style="text-align:center; width: 90px;">Cantidad</th>
-                            <th style="text-align:right; width: 110px;">V. Unitario</th>
-                            <th style="text-align:right; width: 130px;">Subtotal ($)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($datosReporte as $r): ?>
-                            <tr>
-                                <td class="secuencial-cell">
-                                    <?= htmlspecialchars($r['ingreso_codigo']) ?><br>
-                                    <small style="color:var(--text-muted);">ID #<?= (int)$r['ingreso_id'] ?></small>
-                                </td>
-                                <td><?= htmlspecialchars($r['fecha']) ?></td>
-                                <td style="font-weight:600; color:var(--text-color);"><?= htmlspecialchars($r['proveedor']) ?></td>
-                                <td>
-                                    <strong><?= htmlspecialchars($r['item_nombre']) ?></strong><br>
-                                    <span style="font-size:11px; color:var(--text-muted);">
-                                        <?= htmlspecialchars($r['item_secuencial']) ?> · ID #<?= (int)$r['item_id'] ?>
-                                        <?php if (!empty($r['producto_codigo'])): ?> · <?= htmlspecialchars($r['producto_codigo']) ?><?php endif; ?>
-                                    </span>
-                                </td>
-                                <td style="text-align:center;"><span class="status-badge transit" style="background:#e0f2fe; color:#0369a1; font-weight:700;"><?= $r['cantidad'] ?> <?= htmlspecialchars($r['unidad'] ?? 'u.') ?></span></td>
-                                <td style="text-align:right; color:var(--text-color); font-weight:600;">$<?= number_format($r['valor_unitario'], 2) ?></td>
-                                <td style="text-align:right; font-weight:700; color:var(--primary);">$<?= number_format($r['subtotal'], 2) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr style="background:var(--secondary-bg); font-weight:700;">
-                            <td colspan="4" style="text-align:right; padding:16px;">Sumatoria Total de Adquisiciones:</td>
-                            <td style="text-align:center; font-size:14px; color:var(--text-color);"><?= number_format($extraStat) ?> u.</td>
-                            <td></td>
-                            <td style="text-align:right; font-size:15px; color:#10b981;">$<?= number_format($valorTotalReporte, 2) ?></td>
-                        </tr>
-                    </tfoot>
-
-                <!-- 5. Reporte: Mensual de Órdenes de Compras -->
-                <?php elseif ($tabActivo === 'mensual'): ?>
-                    <thead>
-                        <tr>
-                            <th>Mes Fiscal de Adquisición</th>
-                            <th style="text-align:center; width: 150px;">Total de Órdenes</th>
-                            <th style="text-align:center; width: 150px;">Volumen de Items</th>
-                            <th style="text-align:right; width: 180px;">Presupuesto Invertido ($)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($datosReporte as $r): ?>
-                            <tr>
-                                <td style="font-size:14px; font-weight:700; color:var(--text-color);">
-                                    <i class="fa-regular fa-calendar-check" style="margin-right:8px; color:var(--primary);"></i>
-                                    <?php 
-                                    $meses = ['01'=>'Enero','02'=>'Febrero','03'=>'Marzo','04'=>'Abril','05'=>'Mayo','06'=>'Junio','07'=>'Julio','08'=>'Agosto','09'=>'Septiembre','10'=>'Octubre','11'=>'Noviembre','12'=>'Diciembre'];
-                                    $parts = explode('-', $r['mes']);
-                                    echo isset($meses[$parts[1]]) ? $meses[$parts[1]] . ' ' . $parts[0] : $r['mes'];
-                                    ?>
-                                </td>
-                                <td style="text-align:center;"><span class="status-badge active" style="font-weight:700;"><?= $r['total_ordenes'] ?> órdenes</span></td>
-                                <td style="text-align:center;"><span class="status-badge transit" style="font-weight:700;"><?= number_format($r['total_items']) ?> unidades</span></td>
-                                <td style="text-align:right; font-weight:700; color:var(--primary); font-size:15px;">$<?= number_format($r['total_valor'], 2) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr style="background:var(--secondary-bg); font-weight:700;">
-                            <td style="padding:16px;">Acumulados Consolidados del Período:</td>
-                            <td style="text-align:center; font-size:14px;"><?= number_format($extraStat) ?> ord.</td>
-                            <td style="text-align:center; font-size:14px;">
-                                <?php
-                                $sumaItemsTotal = 0;
-                                foreach ($datosReporte as $d) $sumaItemsTotal += (int)$d['total_items'];
-                                echo number_format($sumaItemsTotal) . ' u.';
-                                ?>
-                            </td>
-                            <td style="text-align:right; font-size:15px; color:#10b981;">$<?= number_format($valorTotalReporte, 2) ?></td>
-                        </tr>
-                    </tfoot>
-                <?php endif; ?>
-
-            </table>
-        <?php endif; ?>
-    </div>
-
-    <!-- Paginación para Reporte de Ítems (Solo si está activo y tiene datos) -->
-    <?php if ($tabActivo === 'items' && !empty($datosReporte)): ?>
-        <div id="reporte-items-paginacion" style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--border-color);background:var(--secondary-bg);flex-wrap:wrap;gap:12px;border-bottom-left-radius:10px;border-bottom-right-radius:10px;">
-            <div style="font-size:13px;color:var(--text-muted);">
-                Mostrando <span id="rep-pag-rango" style="font-weight:700;color:var(--text-color);">0 - 0</span> de <span id="rep-pag-total" style="font-weight:700;color:var(--text-color);">0</span> registros
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;" id="rep-pag-botones">
-                <!-- Botones dinámicos inyectados por JS -->
-            </div>
-        </div>
+<section class="results-panel animate-fade-in">
+    <header class="results-header"><div><h3>Resultados · <?= htmlspecialchars($reporteActivo['label']) ?></h3><p>La exportación incluye todos los registros filtrados, no solo la página visible.</p></div><div class="result-actions"><a class="btn-outline" href="<?= htmlspecialchars($urlExportar) ?>"><i class="fa-solid fa-file-excel"></i> Excel / CSV</a><a class="btn-primary" target="_blank" href="<?= htmlspecialchars($urlImprimir) ?>"><i class="fa-solid fa-print"></i> Imprimir / PDF</a></div></header>
+    <?php if (!$datosReporte): ?><div class="report-empty"><i class="fa-solid fa-folder-open"></i><strong>No se encontraron registros</strong><span>Ajuste uno o varios filtros e inténtelo nuevamente.</span></div><?php else: ?>
+    <div class="report-table-wrap"><table class="report-table" id="tabla-reporte"><thead><tr><?php foreach ($columnas as $columna): ?><th><?= htmlspecialchars($columna['label']) ?></th><?php endforeach; ?></tr></thead><tbody><?php foreach ($datosReporte as $indice => $fila): ?><tr data-report-row="<?= $indice ?>"><?php foreach ($columnas as $clave => $columna): $tipo=$columna['type']??''; $valor=$fila[$clave]??''; ?><td class="<?= htmlspecialchars($tipo) ?>" title="<?= htmlspecialchars((string)$valor) ?>"><?php if ($tipo==='price'): ?><?= htmlspecialchars(CommonHelper::formatearPrecio($valor)) ?><?php elseif ($tipo==='money'): ?><?= htmlspecialchars(CommonHelper::formatearImporte($valor)) ?><?php elseif ($tipo==='number'): ?><?= number_format((float)$valor,2) ?><?php elseif ($tipo==='date' && $valor): ?><?= htmlspecialchars(date('d/m/Y H:i',strtotime((string)$valor))) ?><?php elseif ($tipo==='status'): ?><span><?= htmlspecialchars((string)$valor) ?></span><?php else: ?><?= htmlspecialchars((string)$valor) ?><?php endif; ?></td><?php endforeach; ?></tr><?php endforeach; ?></tbody><tfoot><tr><?php foreach ($columnas as $clave => $columna): $tipo=$columna['type']??''; ?><td class="<?= htmlspecialchars($tipo) ?>"><?php if (isset($totales[$clave])): ?><?= $tipo==='money' ? htmlspecialchars(CommonHelper::formatearImporte($totales[$clave])) : number_format($totales[$clave],2) ?><?php endif; ?></td><?php endforeach; ?></tr></tfoot></table></div>
+    <div class="report-pagination"><span id="report-page-info"></span><div class="pagination-buttons"><button type="button" id="report-prev"><i class="fa-solid fa-angle-left"></i> Anterior</button><button type="button" id="report-next">Siguiente <i class="fa-solid fa-angle-right"></i></button></div></div>
     <?php endif; ?>
-</div>
-<?php else: ?>
-<!-- Llamada a la acción para generación bajo demanda -->
-<div class="glass-placeholder animate-fade-in" style="text-align:center; padding:60px 40px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(12px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); margin-top: 24px;">
-    <i class="fa-solid fa-file-invoice" style="font-size:54px; display:block; margin-bottom:20px; color: var(--primary); opacity: 0.8; filter: drop-shadow(0 4px 6px rgba(59, 130, 246, 0.2));"></i>
-    <h3 style="font-size:18px; color:var(--text-color); margin-bottom:8px; font-weight:700;">Generación de Reporte Bajo Demanda</h3>
-    <p style="color:var(--text-muted); max-width:500px; margin:0 auto 24px auto; font-size:14px; line-height:1.6;">
-        Para agilizar la carga del sistema, este listado se genera únicamente cuando lo solicitas. Ajusta los filtros en la parte superior y haz clic en el botón <strong>Filtrar</strong> para obtener los datos oficiales actualizados.
-    </p>
-    <button type="button" onclick="document.querySelector('.filter-controls').submit();" class="btn-primary" style="display:inline-flex; align-items:center; gap:8px; padding:12px 24px; font-size:14px; font-weight:600; border-radius:8px; border: none; cursor: pointer;">
-        <i class="fa-solid fa-play"></i> Cargar Listado Oficial
-    </button>
-</div>
-<?php endif; ?>
+</section>
+<?php else: ?><div class="report-empty animate-fade-in"><i class="fa-solid fa-sliders"></i><strong>Seleccione los criterios del reporte</strong><span>Puede combinar fecha, ID, estado, proveedor, categoría y búsqueda general.</span></div><?php endif; ?>
 
-<?php if ($tabActivo === 'items' && !empty($datosReporte)): ?>
-<script>
-var _repItems = <?php echo json_encode(array_values($datosReporte)); ?>;
-var _repPage = 1;
-var _repLimit = 50;
-
-function renderReporteItems(page) {
-    if (!page) page = 1;
-    _repPage = page;
-
-    var tbody = document.getElementById('reporte-items-tbody');
-    if (!tbody) return;
-
-    var start = (page - 1) * _repLimit;
-    var end = Math.min(start + _repLimit, _repItems.length);
-    var html = '';
-
-    for (var idx = start; idx < end; idx++) {
-        var r = _repItems[idx];
-        var cant = parseFloat(r.cantidad) || 0;
-        var valor = parseFloat(r.valor) || 0;
-        var total = cant * valor;
-
-        var statusBadge = '';
-        if (cant <= 0) {
-            statusBadge = '<span class="status-badge inactive" style="font-weight:700;">Agotado (0)</span>';
-        } else if (cant <= 5) {
-            statusBadge = '<span class="status-badge pending" style="font-weight:700;">Crítico (' + cant + ')</span>';
-        } else {
-            statusBadge = '<span class="status-badge active" style="font-weight:700;">' + cant + ' ' + (r.unidad_abreviatura || 'u.') + '</span>';
-        }
-
-        html += '<tr>' +
-            '<td class="secuencial-cell">' + (r.secuencial || '') +
-                '<br><small style="color:var(--text-muted);">ID #' + (r.id || '') +
-                (r.producto_codigo ? ' · ' + r.producto_codigo : '') + '</small></td>' +
-            '<td style="font-weight: 600; color: var(--text-color);">' + (r.nombre || '') + '</td>' +
-            '<td><strong>' + (r.marca || '') + '</strong></td>' +
-            '<td><span class="status-badge transit" style="font-size:11px;">' + (r.categoria_nombre || '') + '</span></td>' +
-            '<td style="text-align:center;">' + statusBadge + '</td>' +
-            '<td style="text-align:right; font-weight:600; color:var(--text-color);">$ ' + valor.toLocaleString('es-EC', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
-            '<td style="text-align:right; font-weight:700; color:var(--primary);">$ ' + total.toLocaleString('es-EC', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
-        '</tr>';
-    }
-
-    tbody.innerHTML = html;
-    renderReportePaginacion(_repItems.length, _repLimit, page);
-}
-
-function renderReportePaginacion(total, limit, activePage) {
-    var rangoSpan = document.getElementById('rep-pag-rango');
-    var totalSpan = document.getElementById('rep-pag-total');
-    var botonesDiv = document.getElementById('rep-pag-botones');
-
-    if (!rangoSpan || !totalSpan || !botonesDiv) return;
-
-    totalSpan.textContent = total;
-
-    var totalPages = Math.ceil(total / limit);
-    var start = (activePage - 1) * limit + 1;
-    var end = Math.min(activePage * limit, total);
-    rangoSpan.textContent = start + ' - ' + end;
-
-    var html = '';
-    
-    // Botón Anterior
-    var prevDisabled = activePage === 1 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : '';
-    html += '<button type="button" class="btn-outline" style="padding:6px 12px;font-size:12px;border-radius:6px;" onclick="renderReporteItems(' + (activePage - 1) + ')" ' + prevDisabled + '><i class="fa-solid fa-angle-left"></i> Anterior</button>';
-
-    // Rango de páginas (máximo 5 botones)
-    var startPage = Math.max(1, activePage - 2);
-    var endPage = Math.min(totalPages, activePage + 2);
-
-    if (startPage > 1) {
-        html += '<button type="button" class="btn-outline" style="padding:6px 10px;font-size:12px;border-radius:6px;" onclick="renderReporteItems(1)">1</button>';
-        if (startPage > 2) html += '<span style="color:var(--text-muted);padding:0 4px;font-size:12px;">...</span>';
-    }
-
-    for (var p = startPage; p <= endPage; p++) {
-        var activeStyle = p === activePage ? 'background:var(--primary);color:white;border-color:var(--primary);font-weight:700;' : '';
-        html += '<button type="button" class="btn-outline" style="padding:6px 10px;font-size:12px;border-radius:6px;' + activeStyle + '" onclick="renderReporteItems(' + p + ')">' + p + '</button>';
-    }
-
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) html += '<span style="color:var(--text-muted);padding:0 4px;font-size:12px;">...</span>';
-        html += '<button type="button" class="btn-outline" style="padding:6px 10px;font-size:12px;border-radius:6px;" onclick="renderReporteItems(' + totalPages + ')">' + totalPages + '</button>';
-    }
-
-    // Botón Siguiente
-    var nextDisabled = activePage === totalPages ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : '';
-    html += '<button type="button" class="btn-outline" style="padding:6px 12px;font-size:12px;border-radius:6px;" onclick="renderReporteItems(' + (activePage + 1) + ')" ' + nextDisabled + '>Siguiente <i class="fa-solid fa-angle-right"></i></button>';
-
-    botonesDiv.innerHTML = html;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    renderReporteItems(1);
-});
-</script>
-<?php endif; ?>
+<?php if ($generarReporte && $datosReporte): ?><script>
+(function(){var rows=[].slice.call(document.querySelectorAll('[data-report-row]')),page=1,size=50,total=Math.ceil(rows.length/size),info=document.getElementById('report-page-info'),prev=document.getElementById('report-prev'),next=document.getElementById('report-next');function render(){var start=(page-1)*size,end=Math.min(start+size,rows.length);rows.forEach(function(row,i){row.style.display=i>=start&&i<end?'':'none';});info.textContent='Mostrando '+(start+1)+' a '+end+' de '+rows.length+' registros';prev.disabled=page<=1;next.disabled=page>=total;}prev.addEventListener('click',function(){if(page>1){page--;render();}});next.addEventListener('click',function(){if(page<total){page++;render();}});render();})();
+</script><?php endif; ?>

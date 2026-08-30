@@ -17,10 +17,10 @@ return [
                 'permission_label' => 'Consulta general',
             ],
             'inventario' => [
-                'label' => 'Inventario General',
-                'icon' => 'fa-ship',
-                'title' => 'Inventario General de Bienes',
-                'permission_label' => 'Inventario y existencias',
+                'label' => 'Dashboard general',
+                'icon' => 'fa-chart-line',
+                'title' => 'Dashboard general de inventario y operaciones',
+                'permission_label' => 'Dashboard general',
             ],
             'items' => [
                 'label' => 'Catálogo de Ítems',
@@ -37,12 +37,12 @@ return [
         ],
     ],
     'consultas' => [
-        'titulo_seccion' => 'Consulta Reportes',
+        'titulo_seccion' => 'Reportes',
         'items' => [
             'reportes' => [
-                'label' => 'Reportes Varios',
-                'icon' => 'fa-chart-pie',
-                'title' => 'Listados y Reportes Varios de Control',
+                'label' => 'Centro de reportes',
+                'icon' => 'fa-file-lines',
+                'title' => 'Reportes integrales de todas las operaciones',
                 'permission_label' => 'Consulta e impresión de reportes',
             ],
         ],
@@ -104,6 +104,12 @@ return [
                 'icon' => 'fa-list-ol',
                 'title' => 'Contadores Automáticos',
                 'permission_label' => 'Contadores automáticos',
+            ],
+            'inv_parametros' => [
+                'label' => 'Parámetros monetarios',
+                'icon' => 'fa-sliders',
+                'title' => 'Precisión de precios e importes',
+                'permission_label' => 'Parámetros monetarios',
             ],
         ],
     ],
