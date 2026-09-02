@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El CORE de Portal APM — Guía interactiva</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --panel3:#222c45; --border:#2a3450;
+  --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+  --primary:#4f7fff; --primary-soft:rgba(79,127,255,.14);
+  --ok:#22c55e; --ok-soft:rgba(34,197,94,.14);
+  --warn:#f59e0b; --warn-soft:rgba(245,158,11,.14);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,.14);
+  --purple:#a78bfa; --purple-soft:rgba(167,139,250,.14);
+  --gray:#8b96b3; --gray-soft:rgba(139,150,179,.14);
+  --radius:12px; --mono:Consolas,"SF Mono",Menlo,monospace;
+  --sidebar-w:288px;
+}
+html[data-theme="light"]{
+  --bg:#f4f6fb; --panel:#ffffff; --panel2:#eef1f8; --panel3:#e4e9f5; --border:#d8deec;
+  --text:#1b2237; --text-muted:#5b6584; --text-light:#8992ab;
+  --primary:#3358e0; --primary-soft:rgba(51,88,224,.1);
+  --ok:#16a34a; --ok-soft:rgba(22,163,74,.1);
+  --warn:#d97706; --warn-soft:rgba(217,119,6,.1);
+  --danger:#dc2626; --danger-soft:rgba(220,38,38,.1);
+  --purple:#7c5cd6; --purple-soft:rgba(124,92,214,.1);
+  --gray:#5b6584; --gray-soft:rgba(91,101,132,.1);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; line-height:1.6; transition:background .15s,color .15s;}
+a{color:var(--primary); text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:var(--mono); background:var(--panel3); color:var(--primary); padding:2px 7px; border-radius:5px; font-size:.86em;}
+b{color:var(--text);}
+::selection{background:var(--primary); color:#fff;}
+
+/* ---------- layout ---------- */
+.layout{display:flex; min-height:100vh;}
+.sidebar{
+  position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w); overflow-y:auto;
+  background:var(--panel); border-right:1px solid var(--border); padding:20px 16px 40px;
+  display:flex; flex-direction:column; gap:16px; z-index:40;
+}
+.content{margin-left:var(--sidebar-w); flex:1; min-width:0; padding:32px 40px 100px; max-width:980px;}
+@media(max-width:960px){
+  .sidebar{transform:translateX(-100%); transition:transform .2s; box-shadow:0 0 40px rgba(0,0,0,.5);}
+  .sidebar.open{transform:translateX(0);}
+  .content{margin-left:0; padding:24px 18px 100px;}
+  .menu-btn{display:flex !important;}
+}
+
+/* ---------- sidebar ---------- */
+.brand{display:flex; align-items:center; gap:10px; padding:2px 4px 4px;}
+.brand-ico{width:34px; height:34px; border-radius:9px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem; flex-shrink:0;}
+.brand-txt strong{display:block; font-size:.92rem; line-height:1.2;}
+.brand-txt span{display:block; font-size:.68rem; color:var(--text-light);}
+
+.side-search{position:relative;}
+.side-search input{
+  width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+  border-radius:9px; padding:9px 32px 9px 12px; font-size:.82rem; font-family:inherit;
+}
+.side-search input:focus{outline:none; border-color:var(--primary);}
+.side-search .clear{position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-light); cursor:pointer; font-size:.9rem; padding:4px; display:none;}
+.side-search .clear.show{display:block;}
+.search-count{font-size:.68rem; color:var(--text-light); padding:0 2px;}
+
+.filters{display:flex; flex-wrap:wrap; gap:5px;}
+.chip{
+  font-size:.65rem; font-weight:700; padding:4px 9px; border-radius:99px; cursor:pointer; border:1px solid var(--border);
+  background:var(--panel2); color:var(--text-muted); user-select:none; text-transform:uppercase; letter-spacing:.03em;
+}
+.chip[data-active="1"]{border-color:currentColor;}
+.chip.f-real[data-active="1"]{background:var(--ok-soft); color:var(--ok);}
+.chip.f-muerto[data-active="1"]{background:var(--danger-soft); color:var(--danger);}
+.chip.f-gotcha[data-active="1"]{background:var(--warn-soft); color:var(--warn);}
+.chip.f-vestigio[data-active="1"]{background:var(--purple-soft); color:var(--purple);}
+.chip.f-all[data-active="1"]{background:var(--primary-soft); color:var(--primary);}
+
+nav.tree-nav{display:flex; flex-direction:column; gap:2px; font-size:.83rem;}
+nav.tree-nav .grp{margin-top:12px; font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-light); font-weight:800; padding:0 8px 4px;}
+nav.tree-nav a{
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px; color:var(--text-muted); font-weight:600;
+  border-left:2px solid transparent;
+}
+nav.tree-nav a:hover{background:var(--panel2); text-decoration:none; color:var(--text);}
+nav.tree-nav a.active{background:var(--primary-soft); color:var(--primary); border-left-color:var(--primary);}
+nav.tree-nav a .num{
+  width:20px; height:20px; border-radius:6px; background:var(--panel3); color:var(--text-light);
+  display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:800; flex-shrink:0;
+}
+nav.tree-nav a.active .num{background:var(--primary); color:#fff;}
+
+.side-foot{margin-top:auto; display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--border);}
+.icon-btn{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--panel2); border:1px solid var(--border);
+  color:var(--text-muted); border-radius:9px; padding:8px; cursor:pointer; font-size:.74rem; font-weight:700; font-family:inherit;
+}
+.icon-btn:hover{border-color:var(--primary); color:var(--primary);}
+
+.menu-btn{
+  display:none; position:fixed; top:14px; left:14px; z-index:50; width:40px; height:40px; border-radius:10px;
+  background:var(--panel); border:1px solid var(--border); color:var(--text); align-items:center; justify-content:center; cursor:pointer; font-size:1.1rem;
+}
+.scrim{display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:39;}
+.scrim.show{display:block;}
+
+/* ---------- hero + stats ---------- */
+header.hero{
+  text-align:center; padding:40px 24px 32px; margin-bottom:28px;
+  background:linear-gradient(160deg,var(--panel),var(--panel2));
+  border:1px solid var(--border); border-radius:var(--radius);
+}
+header.hero .kicker{font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--primary); margin-bottom:10px;}
+header.hero h1{margin:0 0 12px; font-size:2rem;}
+header.hero p{margin:0 auto; max-width:680px; color:var(--text-muted); font-size:.95rem;}
+header.hero .upd{margin-top:14px; font-size:.74rem; color:var(--text-light);}
+
+.stats-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:36px;}
+.stat-card{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; cursor:pointer;}
+.stat-card:hover{border-color:var(--primary);}
+.stat-card .val{font-size:1.6rem; font-weight:800; color:var(--primary);}
+.stat-card.ok .val{color:var(--ok);} .stat-card.danger .val{color:var(--danger);} .stat-card.warn .val{color:var(--warn);}
+.stat-card .lbl{font-size:.76rem; color:var(--text-muted); margin-top:2px;}
+
+section{margin-bottom:46px; scroll-margin-top:20px;}
+section > .sec-head{margin-bottom:18px;}
+section > .sec-head h2{font-size:1.45rem; margin:0 0 6px; display:flex; align-items:center; gap:10px;}
+section > .sec-head h2 .tag-num{font-size:.62rem; background:var(--panel3); color:var(--text-light); padding:3px 8px; border-radius:6px; font-weight:800;}
+section > .sec-head p{margin:0; color:var(--text-muted); font-size:.92rem;}
+
+/* ---------- badges ---------- */
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; padding:4px 9px; border-radius:99px; white-space:nowrap;}
+.badge.real{background:var(--ok-soft); color:var(--ok);}
+.badge.muerto{background:var(--danger-soft); color:var(--danger);}
+.badge.gotcha{background:var(--warn-soft); color:var(--warn);}
+.badge.vestigio{background:var(--purple-soft); color:var(--purple);}
+.badge.legacy{background:var(--gray-soft); color:var(--gray);}
+
+/* ---------- cards ---------- */
+.card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:16px; scroll-margin-top:20px;}
+.card-head{display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); background:var(--panel2); border-radius:var(--radius) var(--radius) 0 0; flex-wrap:wrap;}
+.card-head .ico{width:34px; height:34px; border-radius:9px; background:var(--primary-soft); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; font-weight:800;}
+.card-head h3{margin:0; font-size:1.05rem; flex-shrink:0;}
+.card-head .path{margin-left:auto; font-size:.74rem; color:var(--text-light); font-family:var(--mono);}
+.card-body{padding:18px 20px;}
+.card-body > p{margin:0 0 12px; font-size:.9rem; color:var(--text-muted);}
+.card-body > p:last-child{margin-bottom:0;}
+.card-body ul, .card-body ol{margin:0 0 12px; padding-left:20px; font-size:.88rem; color:var(--text-muted);}
+.card-body li{margin-bottom:6px;}
+.card-body li b, .card-body p b{color:var(--text);}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media(max-width:760px){.two-col{grid-template-columns:1fr;}}
+.mini-card{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+.mini-card h4{margin:0 0 8px; font-size:.86rem; display:flex; align-items:center; gap:8px;}
+.mini-card p, .mini-card ul{margin:0; font-size:.82rem; color:var(--text-muted);}
+.mini-card ul{padding-left:18px;}
+.mini-card ul li{margin-bottom:4px;}
+
+.note{margin:14px 0 0; font-size:.82rem; color:var(--text-muted); background:var(--panel2); border-left:3px solid var(--primary); padding:10px 14px; border-radius:0 8px 8px 0;}
+.note.warn{border-left-color:var(--warn);}
+.note.danger{border-left-color:var(--danger);}
+.note.ok{border-left-color:var(--ok);}
+.note b{color:var(--text);}
+
+/* ---------- code ---------- */
+.codebox{position:relative; margin:14px 0; border-radius:10px; overflow:hidden; border:1px solid var(--border);}
+.codebox .cb-head{display:flex; align-items:center; justify-content:space-between; background:var(--panel3); padding:6px 12px; font-size:.68rem; color:var(--text-light); font-weight:700; text-transform:uppercase; letter-spacing:.04em;}
+.codebox .cb-copy{background:none; border:1px solid var(--border); color:var(--text-light); border-radius:6px; padding:3px 9px; cursor:pointer; font-size:.68rem; font-family:inherit;}
+.codebox .cb-copy:hover{color:var(--primary); border-color:var(--primary);}
+.codebox pre{margin:0; padding:14px 16px; overflow-x:auto; background:var(--panel2);}
+.codebox code{background:none; padding:0; color:var(--text); font-size:.82rem; white-space:pre;}
+.tok-kw{color:var(--primary); font-weight:700;} .tok-fn{color:var(--ok);} .tok-str{color:var(--warn);} .tok-com{color:var(--text-light); font-style:italic;} .tok-var{color:var(--purple);}
+
+/* ---------- directory tree ---------- */
+.tree{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:6px; font-size:.86rem;}
+.tree details{margin:0;}
+.tree summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:7px;}
+.tree summary::-webkit-details-marker{display:none;}
+.tree summary:hover{background:var(--panel3);}
+.tree summary::before{content:"▸"; color:var(--text-light); font-size:.7rem; transition:transform .15s; width:10px;}
+.tree details[open] > summary::before{transform:rotate(90deg);}
+.tree .fico{color:var(--primary); font-weight:800;}
+.tree .fname{font-family:var(--mono); font-size:.84rem;}
+.tree .fdesc{color:var(--text-light); font-size:.76rem; margin-left:4px;}
+.tree .branch{margin-left:22px; border-left:1px dashed var(--border); padding-left:4px;}
+.tree .leaf{display:flex; align-items:center; gap:8px; padding:6px 10px 6px 20px; border-radius:7px;}
+.tree .leaf:hover{background:var(--panel3);}
+
+/* ---------- timeline (ciclo de vida) ---------- */
+.timeline{display:flex; flex-direction:column; gap:0;}
+.tstep{display:flex; gap:14px; position:relative;}
+.tstep .dot-col{display:flex; flex-direction:column; align-items:center; flex-shrink:0;}
+.tstep .dot{width:30px; height:30px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.8rem; flex-shrink:0;}
+.tstep .line{flex:1; width:2px; background:var(--border); margin:2px 0;}
+.tstep:last-child .line{display:none;}
+.tstep .tbody{padding-bottom:22px; flex:1; min-width:0;}
+.tstep .tbody h4{margin:2px 0 6px; font-size:.92rem;}
+.tstep .tbody p{margin:0; font-size:.85rem; color:var(--text-muted);}
+
+/* ---------- gotchas ---------- */
+.gotcha{display:flex; gap:12px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:0 10px 10px 0; padding:14px 18px; margin-bottom:10px;}
+.gotcha .gi{color:var(--warn); font-size:1.1rem; flex-shrink:0;}
+.gotcha p{margin:0; font-size:.87rem; color:var(--text-muted);}
+.gotcha b{color:var(--text);}
+
+/* ---------- dead-code gallery ---------- */
+.dead-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;}
+.dead-card{background:var(--panel); border:1px solid var(--danger); border-radius:10px; padding:14px 16px; position:relative; overflow:hidden;}
+.dead-card::before{content:""; position:absolute; inset:0; background:repeating-linear-gradient(135deg,var(--danger-soft),var(--danger-soft) 8px,transparent 8px,transparent 16px); opacity:.35; pointer-events:none;}
+.dead-card h4{margin:0 0 6px; font-size:.88rem; font-family:var(--mono); position:relative;}
+.dead-card p{margin:0; font-size:.8rem; color:var(--text-muted); position:relative;}
+
+/* ---------- flow / puente ---------- */
+.flow{display:flex; align-items:stretch; gap:10px; overflow-x:auto; padding:6px 0;}
+.fbox{flex:1; min-width:150px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center;}
+.fbox.hi{border-color:var(--primary); background:var(--primary-soft);}
+.fbox h5{margin:0 0 4px; font-size:.8rem;}
+.fbox span{font-size:.72rem; color:var(--text-light);}
+.farrow{display:flex; align-items:center; color:var(--text-light); font-size:1.1rem; flex-shrink:0;}
+
+.back-top{
+  position:fixed; bottom:24px; right:24px; background:var(--primary); color:#fff; border:none;
+  width:46px; height:46px; border-radius:50%; font-size:1.1rem; cursor:pointer; box-shadow:0 6px 20px -6px rgba(79,127,255,.6);
+  display:flex; align-items:center; justify-content:center; z-index:30; opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.back-top.show{opacity:1; pointer-events:auto;}
+
+.searchable.hide{display:none !important;}
+mark{background:var(--warn); color:#1b2237; border-radius:3px; padding:0 2px;}
+
+.tbl-wrap{overflow-x:auto; margin:14px 0;}
+table.tbl{width:100%; border-collapse:collapse; font-size:.82rem; min-width:640px;}
+table.tbl th{text-align:left; padding:9px 12px; background:var(--panel3); color:var(--text-light); font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; font-weight:800; border-bottom:1px solid var(--border);}
+table.tbl td{padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text-muted); vertical-align:top;}
+table.tbl tr:last-child td{border-bottom:none;}
+table.tbl td b, table.tbl td.app{color:var(--text); font-weight:700;}
+
+.footer-note{text-align:center; color:var(--text-light); font-size:.78rem; padding:30px 0 10px; border-top:1px solid var(--border); margin-top:20px;}
+.footer-note a{color:var(--text-muted);}
+
+.no-results{display:none; text-align:center; padding:40px 20px; color:var(--text-light); font-size:.9rem;}
+.no-results.show{display:block;}
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
+<div class="scrim" id="scrim"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-ico">C</div>
+      <div class="brand-txt"><strong>El CORE — Portal APM</strong><span>Guía interactiva</span></div>
+    </div>
+
+    <div class="side-search">
+      <input type="text" id="searchInput" placeholder="Buscar en la guía…" autocomplete="off">
+      <button class="clear" id="searchClear" aria-label="Limpiar búsqueda">✕</button>
+    </div>
+    <div class="search-count" id="searchCount"></div>
+
+    <div class="filters" id="filters">
+      <span class="chip f-all" data-filter="all" data-active="1">Todo</span>
+      <span class="chip f-real" data-filter="real" data-active="0">🟢 Real</span>
+      <span class="chip f-muerto" data-filter="muerto" data-active="0">⚫ Muerto</span>
+      <span class="chip f-gotcha" data-filter="gotcha" data-active="0">⚠️ Gotcha</span>
+      <span class="chip f-vestigio" data-filter="vestigio" data-active="0">🟣 Vestigio</span>
+    </div>
+
+    <nav class="tree-nav">
+      <div class="grp">Fundamentos</div>
+      <a href="#s0"><span class="num">0</span> Qué es "el CORE"</a>
+      <a href="#s1"><span class="num">1</span> Ciclo de vida de un request</a>
+      <div class="grp">Framework MVC</div>
+      <a href="#s2"><span class="num">2</span> Router</a>
+      <a href="#s3"><span class="num">3</span> Controller</a>
+      <a href="#s4"><span class="num">4</span> Database</a>
+      <a href="#s5"><span class="num">5</span> Model y View</a>
+      <div class="grp">Seguridad y permisos</div>
+      <a href="#s6"><span class="num">6</span> ModuleSecurity</a>
+      <a href="#s8"><span class="num">8</span> Helpers nativos</a>
+      <a href="#s11"><span class="num">11</span> MfaHelper (TOTP)</a>
+      <div class="grp">Infraestructura compartida</div>
+      <a href="#s6bis"><span class="num">6b</span> libs/</a>
+      <a href="#s8bis"><span class="num">8b</span> js/</a>
+      <a href="#s9"><span class="num">9</span> config/</a>
+      <a href="#s9bis"><span class="num">9b</span> db/</a>
+      <div class="grp">Puentes entre módulos</div>
+      <a href="#s10"><span class="num">10</span> SyncPermisosModulo</a>
+      <a href="#s14"><span class="num">14</span> Identidad sin re-login</a>
+      <div class="grp">Vestigios y gotchas</div>
+      <a href="#s7"><span class="num">7</span> Código muerto</a>
+      <a href="#s12"><span class="num">12</span> Gotchas reales</a>
+      <div class="grp">Alcance</div>
+      <a href="#s13"><span class="num">13</span> Qué NO cubre</a>
+    </nav>
+
+    <div class="side-foot">
+      <button class="icon-btn" id="themeBtn">🌙 Tema</button>
+      <button class="icon-btn" id="expandBtn">⤢ Expandir todo</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <header class="hero">
+      <div class="kicker">Portal APM · Documentación técnica</div>
+      <h1>El CORE nativo de Portal APM</h1>
+      <p>Portal APM <b>no tiene lógica de negocio propia</b> — es un hub: login, sesión, permisos por
+      rol, menú, y el framework mínimo que hace correr los controladores de <code>modules/Central/</code>,
+      más la infraestructura compartida que usan TODAS las apps del sistema (portal + TH + Bienes +
+      Bitácoras). Esta guía es interactiva: buscá, filtrá por estado (real/muerto/gotcha) y navegá
+      el árbol real del proyecto.</p>
+      <div class="upd">Última actualización del contenido: 2026-08-29 · No cubre los módulos embebidos
+      (cada uno tiene su propio <code>core/</code>) ni las funciones de negocio de Central.</div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card" data-jump="#s0"><div class="val">11</div><div class="lbl">clases en core/ (~45 KB)</div></div>
+      <div class="stat-card" data-jump="#s2"><div class="val">~100</div><div class="lbl">rutas planas GET/POST</div></div>
+      <div class="stat-card" data-jump="#s6bis"><div class="val">4</div><div class="lbl">apps que comparten libs/ y js/</div></div>
+      <div class="stat-card ok" data-jump="#s6"><div class="val">4</div><div class="lbl">mecanismos reales (audit, SsoClient…)</div></div>
+      <div class="stat-card ok" data-jump="#s14"><div class="val">3</div><div class="lbl">puentes de sesión distintos, sin re-login</div></div>
+      <div class="stat-card danger" data-jump="#s7"><div class="val">6</div><div class="lbl">vestigios de código muerto</div></div>
+      <div class="stat-card warn" data-jump="#s12"><div class="val">8</div><div class="lbl">gotchas reales documentados</div></div>
+    </div>
+
+    <!-- ============ SECCIÓN 0 ============ -->
+    <section id="s0">
+      <div class="sec-head">
+        <h2><span class="tag-num">§0</span> Qué es "el CORE" en este proyecto</h2>
+        <p>Vive en 6 lugares. Árbol real y navegable — abrí cada carpeta para ver qué hace cada archivo.</p>
+      </div>
+      <div class="card searchable" data-status="all" data-search="core que es hub login sesion permisos menu framework minimo modules central">
+        <div class="card-body">
+          <p>Nada de esto usa <b>Composer</b> ni <b>PDO</b>. La conexión a SQL Server es <b>sqlsrv nativo</b>
+          en todo el árbol — decisión de arquitectura, no limitación temporal (ver §4).</p>
+
+          <div class="tree">
+            <details open><summary><span class="fico">📁</span><span class="fname">portal_apm/</span></summary>
+              <div class="branch">
+                <div class="leaf"><span class="fico">⚙️</span><span class="fname">.htaccess / web.config</span><span class="fdesc">— enrutamiento a nivel de servidor, §1</span></div>
+                <div class="leaf"><span class="fico">🚪</span><span class="fname">index.php</span><span class="fdesc">— front controller, bootstrap completo</span></div>
+                <div class="leaf"><span class="fico">🗺️</span><span class="fname">routes.php</span><span class="fdesc">— ~100 rutas planas GET/POST</span></div>
+
+                <details><summary><span class="fico">📁</span><span class="fname">config/</span></summary>
+                  <div class="branch">
+                    <div class="leaf"><span class="fname">app.php</span><span class="fdesc">— constantes de entorno (editar SOLO este)</span></div>
+                    <div class="leaf"><span class="fname">connections.php</span><span class="fdesc">— fuente única de conexión SQL, NO va a git</span></div>
+                    <div class="leaf"><span class="fname">connections.example.php</span></div>
+                    <div class="leaf"><span class="fname">header.php</span><span class="fdesc">— <span class="badge muerto">muerto</span> legacy Portuaria, §9</span></div>
+                    <div class="leaf"><span class="fname">export_analytics_env.php</span><span class="fdesc">— script CLI, §9</span></div>
+                  </div>
+                </details>
+
+                <details><summary><span class="fico">📁</span><span class="fname">core/</span><span class="fdesc">11 clases, ~45 KB</span></summary>
+                  <div class="branch">
+                    <div class="leaf"><span class="fname">Router.php</span></div>
+                    <div class="leaf"><span class="fname">Controller.php</span><span class="fdesc">— clase base de todos los controladores</span></div>
+                    <div class="leaf"><span class="fname">Model.php</span><span class="fdesc">— clase base de todos los modelos</span></div>
+                    <div class="leaf"><span class="fname">View.php</span></div>
+                    <div class="leaf"><span class="fname">Database.php</span><span class="fdesc">— singleton sqlsrv</span></div>
+                    <div class="leaf"><span class="fname">ModuleSecurity.php</span><span class="fdesc">— SSO <span class="badge muerto">muerto</span>, MOIS <span class="badge muerto">muerto</span>, auditoría <span class="badge real">real</span></span></div>
+                    <div class="leaf"><span class="fname">MfaHelper.php</span><span class="fdesc">— TOTP</span></div>
+                    <div class="leaf"><span class="fname">CatalogoModulos.php</span><span class="fdesc">— caché de CORE_Modulos</span></div>
+                    <div class="leaf"><span class="fname">SyncPermisosModulo.php</span><span class="fdesc">— replica permisos hacia TH/Bienes</span></div>
+                    <div class="leaf"><span class="fname">Env.php</span><span class="fdesc">— <span class="badge muerto">vestigial</span>, §7</span></div>
+                    <div class="leaf"><span class="fname">SqlSrvStatement.php</span><span class="fdesc">— <span class="badge muerto">vestigial</span>, §7</span></div>
+                  </div>
+                </details>
+
+                <details><summary><span class="fico">📁</span><span class="fname">helpers/</span><span class="fdesc">funciones estáticas, cargadas siempre</span></summary>
+                  <div class="branch">
+                    <div class="leaf"><span class="fname">security_helper.php</span><span class="fdesc">— CSRF, peppering, headers HTTP</span></div>
+                    <div class="leaf"><span class="fname">session_helper.php</span></div>
+                    <div class="leaf"><span class="fname">url_helper.php</span></div>
+                    <div class="leaf"><span class="fname">form_helper.php</span></div>
+                    <div class="leaf"><span class="fname">hub_charts_helper.php</span></div>
+                    <div class="leaf"><span class="fname">module_stats_helper.php</span></div>
+                    <div class="leaf"><span class="fname">polyfills_php74.php</span><span class="fdesc">— compat PHP 7.4</span></div>
+                  </div>
+                </details>
+
+                <details><summary><span class="fico">📁</span><span class="fname">libs/</span><span class="fdesc">compartida entre TODAS las apps, §6b</span></summary>
+                  <div class="branch">
+                    <div class="leaf"><span class="fname">SsoClient.php</span><span class="fdesc">— <span class="badge real">real</span> el SSO activo</span></div>
+                    <div class="leaf"><span class="fname">XlsxWriter.php</span></div>
+                    <div class="leaf"><span class="fname">ReportPdf.php</span></div>
+                    <div class="leaf"><span class="fname">fpdf/</span></div>
+                  </div>
+                </details>
+
+                <details><summary><span class="fico">📁</span><span class="fname">js/</span><span class="fdesc">infraestructura de cliente compartida, §8b</span></summary>
+                  <div class="branch">
+                    <div class="leaf"><span class="fname">password-hash.js</span><span class="fdesc">— SHA-256 en navegador antes del submit</span></div>
+                    <div class="leaf"><span class="fname">inactivity-warning.js</span><span class="fdesc">— aviso de inactividad centralizado real</span></div>
+                    <div class="leaf"><span class="fname">alerts.js</span><span class="fdesc">— window.PortalAlert</span></div>
+                  </div>
+                </details>
+
+                <div class="leaf"><span class="fico">📁</span><span class="fname">db/</span><span class="fdesc">— scripts .sql + utilidades PHP, NO es core de runtime, §9b</span></div>
+                <div class="leaf"><span class="fico">📁</span><span class="fname">apis/</span><span class="fdesc">— vacío hoy, reservado</span></div>
+                <div class="leaf"><span class="fico">📁</span><span class="fname">includes/</span><span class="fdesc">— vacío hoy, sin uso</span></div>
+                <div class="leaf"><span class="fico">📁</span><span class="fname">controllers/ · models/ · views/</span><span class="fdesc">— <span class="badge legacy">legacy</span> pre-modules/, casi vacíos (1, 1, 9 archivos)</span></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 1 ============ -->
+    <section id="s1">
+      <div class="sec-head">
+        <h2><span class="tag-num">§1</span> Ciclo de vida de un request</h2>
+        <p>Desde que Apache/IIS recibe la URL hasta que <code>index.php</code> termina de armar la respuesta.</p>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="1a servidor htaccess web config apache iis rewrite">
+        <div class="card-head"><div class="ico">1a</div><h3>Antes de index.php: enrutamiento de servidor</h3></div>
+        <div class="card-body">
+          <p>Dos archivos de configuración, uno por plataforma, <b>con una discrepancia real entre ellos</b>:</p>
+          <div class="two-col">
+            <div class="mini-card">
+              <h4>🟢 .htaccess (Apache / XAMPP / Wamp)</h4>
+              <p>Si la URL no es directorio ni archivo real, reescribe TODO a <code>index.php</code>
+              <b>sin</b> query string. <code>index.php</code> lee <code>REQUEST_URI</code> directo — calza perfecto.</p>
+            </div>
+            <div class="mini-card">
+              <h4><span class="badge gotcha">gotcha</span> web.config (IIS)</h4>
+              <p>Reescribe a <code>index.php?url={R:1}</code> <b>con</b> parámetro <code>url</code>. Pero
+              <code>index.php</code> <b>nunca lee <code>$_GET['url']</code></b> — no rompe nada (usa
+              <code>REQUEST_URI</code> igual) pero es evidencia de que <code>web.config</code> quedó
+              desactualizado. No hay despliegue IIS verificado en este proyecto.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="1b index.php orden ejecucion bootstrap polyfills sesion autoload rutas dispatch">
+        <div class="card-head"><div class="ico">1b</div><h3>index.php — orden exacto de ejecución</h3><span class="path">portal_apm/index.php</span></div>
+        <div class="card-body">
+          <p><b>No hay contenedor de dependencias, no hay middleware pipeline.</b> Cada <code>Controller</code>
+          resuelve sus propias dependencias llamando a <code>Database::getInstance()</code> — deliberadamente simple.</p>
+          <div class="timeline">
+            <div class="tstep"><div class="dot-col"><div class="dot">1</div><div class="line"></div></div><div class="tbody"><h4>Polyfills primero</h4><p><code>helpers/polyfills_php74.php</code> — antes que nada, porque el resto usa <code>str_starts_with()</code>/<code>str_contains()</code>/<code>str_ends_with()</code> sin guardas.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">2</div><div class="line"></div></div><div class="tbody"><h4>Modo <code>php -S</code></h4><p>Si la URL pedida es un archivo real en disco, <code>return false</code> y el servidor lo sirve tal cual (assets, legacy). En Apache lo hace <code>.htaccess</code>; este bloque replica el comportamiento para pruebas sin XAMPP.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">3</div><div class="line"></div></div><div class="tbody"><h4>Bootstrap de configuración</h4><p><code>core/Env.php</code> se carga pero no se usa (§7) → <code>config/app.php</code> define <code>ROOT</code>, <code>APP_URL</code>, <code>DEFAULT_TIMEZONE</code>, <code>SESSION_TIMEOUT</code>, y lee <code>connections.php</code> para espejar <code>DB_*</code>.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">4</div><div class="line"></div></div><div class="tbody"><h4>error_reporting</h4><p>Según <code>DEBUG_MODE</code> (constante en <code>app.php</code>, <code>true</code> en desarrollo).</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">5</div><div class="line"></div></div><div class="tbody"><h4>Sesión PHP</h4><p><code>session.gc_maxlifetime = SESSION_TIMEOUT</code>, <code>session.cookie_lifetime = 0</code> (cookie de sesión, no persistente), <code>session_start()</code>.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">6</div><div class="line"></div></div><div class="tbody"><h4>Autoload de las 9 clases core</h4><p>Vía <code>require_once</code> explícito — sin autoloader, a propósito: son pocas clases, más simple que un autoloader para 9 archivos.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">7</div><div class="line"></div></div><div class="tbody"><h4>Autoloader real</h4><p><code>spl_autoload_register</code> — solo para clases de <b>módulos</b>: busca en <code>modules/*/controllers</code>, <code>modules/*/models</code>, y los directorios legacy. Primera coincidencia gana.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">8</div><div class="line"></div></div><div class="tbody"><h4>Helpers cargados siempre</h4><p>5 archivos listados a mano, sin autoload. <code>libs/*</code> (§6b) NO se carga acá — cada controlador hace su propio <code>require</code> puntual.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">9</div><div class="line"></div></div><div class="tbody"><h4>Rutas + dispatch</h4><p><code>new Router()</code>, <code>require routes.php</code>, <code>$router->resolve($uri, $method)</code> dentro de un <code>try/catch (Throwable)</code> — 500 genérico en producción, stack trace completo en <code>DEBUG_MODE</code>.</p></div></div>
+            <div class="tstep"><div class="dot-col"><div class="dot">10</div></div><div class="tbody"><h4>Normalización de URI</h4><p>Antes de <code>resolve()</code>, se quita el subdirectorio del script (<code>dirname($_SERVER['SCRIPT_NAME'])</code>) — así <code>/portal_apm/dashboard</code> y <code>/dashboard</code> resuelven igual sin importar raíz de dominio o subcarpeta.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 2 ============ -->
+    <section id="s2">
+      <div class="sec-head"><h2><span class="tag-num">§2</span> Router — mapeo de URLs</h2><p><code>core/Router.php</code>, 62 líneas.</p></div>
+      <div class="card searchable" data-status="all" data-search="router mapeo urls get post match regex parametros dispatch 404">
+        <div class="card-body">
+          <div class="codebox">
+            <div class="cb-head"><span>PHP</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-var">$router</span>-&gt;<span class="tok-fn">get</span>(<span class="tok-str">'/dashboard'</span>, <span class="tok-str">'DashboardController@index'</span>);
+<span class="tok-var">$router</span>-&gt;<span class="tok-fn">post</span>(<span class="tok-str">'/login'</span>,    <span class="tok-str">'AuthController@login'</span>);</code></pre>
+          </div>
+          <ul>
+            <li><b>Match exacto primero.</b> Si no hay, recorre rutas con <code>{param}</code> y las convierte a regex (<code>{id}</code> → <code>([^/]+)</code>) — sin caché de compilación, se recompila cada request (irrelevante: ~100 rutas).</li>
+            <li><b>Cast automático de parámetros numéricos:</b> un <code>{id}</code> que matchea solo dígitos se castea a <code>int</code> antes de pasarlo — un controlador declara <code>ver(int $id)</code> sin <code>(int)</code> manual.</li>
+            <li><code>dispatch()</code> instancia el controlador (<code>new $class()</code>, sin inyección de nada) y llama al método con <code>...$castParams</code> (spread).</li>
+            <li><b>404:</b> si nada matchea, JSON <code>{"error":"Not found"}</code> para AJAX (header <code>X-Requested-With</code>) o <code>404.php</code> para el resto.</li>
+          </ul>
+          <div class="note">No hay grupos de rutas, prefijos, ni "middleware" declarativo — el control de acceso vive
+          <b>dentro de cada controlador</b>, llamando a <code>$this->requireAuth()</code> / <code>requireLevel()</code> como primera línea (§3).</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 3 ============ -->
+    <section id="s3">
+      <div class="sec-head"><h2><span class="tag-num">§3</span> Controller — la clase base real</h2><p><code>core/Controller.php</code>, abstracta, 195 líneas. Todo controlador de <code>modules/Central/controllers/</code> extiende de acá.</p></div>
+
+      <div class="card searchable" data-status="all" data-search="constructor session start security headers">
+        <div class="card-head"><div class="ico">◆</div><h3>Constructor</h3></div>
+        <div class="card-body">
+          <div class="codebox">
+            <div class="cb-head"><span>PHP</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-kw">public function</span> <span class="tok-fn">__construct</span>() {
+    <span class="tok-kw">if</span> (session_status() === PHP_SESSION_NONE) session_start();
+    SecurityHelper::setSecurityHeaders();
+}</code></pre>
+          </div>
+          <p>Se ejecuta en <b>cada</b> instanciación. <code>session_start()</code> es defensivo (ya se llamó en
+          <code>index.php</code>, pero un controlador podría instanciarse fuera del flujo normal en tests) y los
+          headers de seguridad se fijan siempre, autenticado o no.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="vestigio" data-search="requireAuth autenticacion inactividad timeout cascada usuario modulo global vestigio">
+        <div class="card-head"><div class="ico">◆</div><h3>requireAuth(?string $module = null)</h3><span class="badge vestigio">parámetro vestigial</span></div>
+        <div class="card-body">
+          <p>Guard de autenticación básico. Si no hay <code>$_SESSION['user_id']</code>, redirige a <code>/login</code>
+          (o 401 JSON si es AJAX). <b>El parámetro <code>$module</code> está declarado pero no se usa dentro del
+          método</b> — vestigial de un diseño anterior; el control por módulo real pasa por <code>requireLevel()</code>.</p>
+          <p><b>Timeout de inactividad real — no es un valor fijo.</b> Llama a <code>resolveInactividad()</code>:</p>
+          <div class="flow">
+            <div class="fbox hi"><h5>1. Caché de sesión</h5><span>&lt; 5 min → lo usa, evita golpear la BD</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>2. SQL Server</h5><span><code>fn_InactividadSegundos</code> / <code>fn_InactividadAvisoSegundos</code> — cascada usuario → módulo → global</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>3. Fallback</h5><span>BD no responde → 1800s/60s por defecto, nunca deja sin timeout</span></div>
+          </div>
+          <p style="margin-top:12px">Mismas funciones SQL que usan TH, Bienes y Bitácoras — mecanismo real detrás del
+          "sistema de inactividad centralizado". Front-end: <code>js/inactivity-warning.js</code> (§8b). Si venció,
+          destruye la sesión y redirige con <code>?timeout=1</code>; si no, <b>actualiza <code>last_activity</code> en
+          cada request</b> — timeout deslizante, no absoluto.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="requireLevel control acceso real nivel jerarquia nodo mois granular crud">
+        <div class="card-head"><div class="ico">◆</div><h3>requireLevel(int $minLevel, ?array $nodo = null)</h3><span class="badge real">el control de acceso real</span></div>
+        <div class="card-body">
+          <div class="codebox">
+            <div class="cb-head"><span>PHP</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-kw">protected function</span> <span class="tok-fn">requireLevel</span>(<span class="tok-kw">int</span> <span class="tok-var">$minLevel</span>, ?<span class="tok-kw">array</span> <span class="tok-var">$nodo</span> = <span class="tok-kw">null</span>): <span class="tok-kw">void</span> {
+    <span class="tok-var">$this</span>-&gt;<span class="tok-fn">requireAuth</span>();
+    <span class="tok-kw">if</span> ((<span class="tok-var">$_SESSION</span>[<span class="tok-str">'nivel_jerarquia'</span>] ?? 0) &lt; <span class="tok-var">$minLevel</span>) <span class="tok-var">$this</span>-&gt;<span class="tok-fn">denyAccess</span>();
+    <span class="tok-kw">if</span> (<span class="tok-var">$nodo</span> !== <span class="tok-kw">null</span> &amp;&amp; !<span class="tok-var">$this</span>-&gt;<span class="tok-fn">tienePermisoNodo</span>(...<span class="tok-var">$nodo</span>)) <span class="tok-var">$this</span>-&gt;<span class="tok-fn">denyAccess</span>();
+}</code></pre>
+          </div>
+          <p>Dos capas de control, ambas opcionales de combinar:</p>
+          <div class="two-col">
+            <div class="mini-card">
+              <h4>1. Nivel de jerarquía</h4>
+              <p><code>$_SESSION['nivel_jerarquia']</code>, entero 1-4, poblado en login desde <code>CORE_Usuarios</code>.
+              Check "grueso": ¿AL MENOS este nivel? No distingue módulo ni pantalla.</p>
+            </div>
+            <div class="mini-card">
+              <h4>2. Nodo MOIS granular (opcional)</h4>
+              <p>Tupla <code>[id_modulo, opcion, items, subitems, nivel_crud_minimo]</code> contra
+              <code>fn_TienePermisoNodo(...)</code>. CRUD: 1=Ver, 2=Crear, 3=Editar, 4=Total.</p>
+            </div>
+          </div>
+          <p style="margin-top:12px">Ej.: <code>requireLevel(2, [11, 3, 0, 0, 2])</code> exige nivel ≥2 <b>y</b>
+          permiso "Crear" sobre el nodo (módulo TH, opción 3) configurado en <code>/admin/roles/{id}/permisos</code>.
+          <b>Sin <code>$nodo</code></b>, comportamiento histórico (solo nivel) — así queda explícito qué pantallas
+          migraron a permisos granulares.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="csrf json redirect sanitize input currentUser">
+        <div class="card-head"><div class="ico">◆</div><h3>CSRF, JSON, redirect, sanitización</h3></div>
+        <div class="card-body">
+          <ul>
+            <li><code>csrfToken()</code>/<code>verifyCsrf()</code> delegan 100% a <code>SecurityHelper</code> (§8) — el Controller no reimplementa nada.</li>
+            <li><code>json($data, $status=200)</code>: siempre <code>exit</code> después de imprimir — nunca sigue ejecutando código del controlador.</li>
+            <li><code>redirect($path)</code>: si no empieza con <code>http(s)://</code>, lo ancla a <code>APP_URL</code> — funciona igual en raíz de dominio o en <code>/portal_apm</code>.</li>
+            <li><code>input($key, $source='both', $default=null)</code>: lee de <code>$_POST</code>/<code>$_GET</code>/ambos, <code>trim()</code> automático. <b>No sanitiza contra XSS</b> — para eso <code>sanitize()</code> aparte.</li>
+            <li><code>currentUser()</code>: array plano desde <code>$_SESSION</code> — forma estándar de leer "quién es el usuario actual".</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 4 ============ -->
+    <section id="s4">
+      <div class="sec-head"><h2><span class="tag-num">§4</span> Database — singleton sqlsrv, sin PDO</h2><p><code>core/Database.php</code>, 109 líneas.</p></div>
+      <div class="card searchable" data-status="gotcha" data-search="database singleton sqlsrv pdo warnings configure lastInsertId scope identity output inserted">
+        <div class="card-body">
+          <p>Decisión de arquitectura explícita en el comentario de cabecera: <b>NO PDO, exclusivamente el driver
+          nativo <code>sqlsrv_*</code></b>.</p>
+          <ul>
+            <li><b>Singleton real</b> (<code>self::$instance</code>, constructor <code>private</code>) — una sola conexión por request, reutilizada por todos los <code>Model</code>.</li>
+            <li>Configura <code>sqlsrv_configure("WarningsReturnAsErrors", 0)</code> <b>antes</b> de conectar
+            <span class="badge gotcha">gotcha</span> — sin esto, un <code>PRINT</code> o warning SQLSTATE 01 dentro
+            de un SP hace que <code>sqlsrv_query()</code> devuelva <code>false</code> como si hubiera fallado de verdad.</li>
+            <li><code>query($sql, $params=[])</code>: sin parámetros usa <code>sqlsrv_query()</code> directo; con
+            parámetros, <code>sqlsrv_prepare()</code> + <code>sqlsrv_execute()</code>. Cada valor se normaliza —
+            array (OUTPUT/INOUT) se respeta tal cual, valor simple se envuelve como <code>[$valor, SQLSRV_PARAM_IN]</code>.</li>
+            <li><code>fetch()</code>/<code>fetchAll()</code> devuelven arrays asociativos, nunca objetos.</li>
+            <li><code>lastInsertId()</code> usa <code>SELECT SCOPE_IDENTITY()</code> en query aparte
+            <span class="badge gotcha">gotcha</span> — puede devolver <code>NULL</code> si INSERT y SELECT no van
+            en el mismo scope. Alternativa usada en el resto del proyecto: <code>OUTPUT INSERTED.id</code> directo en el INSERT.</li>
+            <li><code>beginTransaction()</code>/<code>commit()</code>/<code>rollback()</code>: pasamanos directos a <code>sqlsrv_begin_transaction/commit/rollback</code>, sin anidamiento ni savepoints.</li>
+            <li><code>Database::reset()</code> existe <b>solo para tests</b> — nada del flujo normal lo llama.</li>
+          </ul>
+          <div class="note warn"><b>Conexión a otras bases</b> (Talento_Humano, inventario, PortuariaDemo…) <b>no
+          pasa por esta clase</b> — cada lugar abre su propio <code>sqlsrv_connect()</code> ad-hoc leyendo
+          <code>connections.php</code> directo (<code>SyncPermisosModulo</code> §10, <code>SsoClient</code> §6b,
+          <code>NotificacionGeneradorModel</code>). <code>Database</code> es exclusivamente <code>PORTAL_APM</code>.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 5 ============ -->
+    <section id="s5">
+      <div class="sec-head"><h2><span class="tag-num">§5</span> Model y View — minimalismo deliberado</h2></div>
+      <div class="two-col searchable" data-status="all" data-search="model view thin wrapper orm render layout shell ajax partial extract">
+        <div class="mini-card">
+          <h4>📦 Model (55 líneas)</h4>
+          <p>Abstracta, puro <i>thin wrapper</i> sobre <code>Database::getInstance()</code>: <code>query()</code>,
+          <code>fetch()</code>, <code>fetchAll()</code>, <code>rowsAffected()</code>, <code>lastInsertId()</code>,
+          transacciones, y <code>outParam()</code> (arma el array para parámetros OUTPUT de un SP).</p>
+          <p style="margin-top:8px"><b>No hay ORM</b>, no hay mapeo de columnas a propiedades, no hay validación —
+          cada modelo escribe su SQL a mano.</p>
+        </div>
+        <div class="mini-card">
+          <h4>🖼️ View (66 líneas)</h4>
+          <ul>
+            <li><code>render($view, $data, $useLayout=true)</code>: <code>extract($data, EXTR_SKIP)</code>, decide
+            si envolver en el shell. <b>AJAX nunca recibe el shell</b> (mismo header <code>X-Requested-With</code>).</li>
+            <li>Resolución: <code>"Central/dashboard/index"</code> → <code>modules/Central/views/dashboard/index.php</code>, con fallback legacy.</li>
+            <li><code>partial()</code> = azúcar para <code>render(..., useLayout: false)</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 6 ============ -->
+    <section id="s6">
+      <div class="sec-head">
+        <h2><span class="tag-num">§6</span> ModuleSecurity — 3 responsabilidades, 3 destinos distintos</h2>
+        <p><code>core/ModuleSecurity.php</code>, 193 líneas. La sección más importante para entender qué es "real" en este proyecto.</p>
+      </div>
+
+      <div class="card searchable" data-status="muerto" data-search="sso token jwt hmac generateSSOToken verifySSOToken muerto sin caller">
+        <div class="card-head"><div class="ico">⚫</div><h3>generateSSOToken() / verifySSOToken()</h3><span class="badge muerto">código muerto</span></div>
+        <div class="card-body">
+          <p>SSO token JWT-like casero — payload <code>{id, cedula, ip, exp}</code> en base64url + firma
+          HMAC-SHA256 (<code>base64.firma</code>, no JWT estándar). Expira a los 1800s. Atado a IP (excepción
+          <code>127.0.0.1</code> para desarrollo). Secreto (<code>SSO_SECRET</code>) desde <code>CORE_Config</code>,
+          con fallback hardcodeado solo si la BD no responde.</p>
+          <p><b>Búsqueda directa en todo el repo: ningún archivo fuera de <code>ModuleSecurity.php</code> llama a
+          estos dos métodos.</b> El SSO real y activo es <code>libs/SsoClient.php</code> (§6b). Candidato a eliminar
+          si se confirma que nada externo lo invoca tampoco.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="muerto" data-search="checkAccess permisos mois standalone muerto sin caller mapa duplicado">
+        <div class="card-head"><div class="ico">⚫</div><h3>checkAccess()</h3><span class="badge muerto">código muerto</span></div>
+        <div class="card-body">
+          <p>Mismo mecanismo que <code>Controller::requireLevel()</code> con <code>$nodo</code> (§3), pero como
+          método estático standalone — pensado para código que no es un controlador. Trae su propio mapa
+          <code>$moduleCode → id_modulo</code> (<code>'TH'</code>→11, <code>'BIENES'</code>→9, <code>'ACCESO'</code>→5…)
+          <span class="badge gotcha">gotcha</span> <b>duplicado</b> respecto al que usa <code>CatalogoModulos</code>/<code>CORE_Modulos</code>.</p>
+          <p><b>Búsqueda directa confirma cero callers en todo el repo</b> — el control de acceso real siempre pasa
+          por <code>Controller::requireLevel()</code>, no por acá.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="audit auditoria real sp RegistrarAuditoria caller AdminController ModuloController AuthController">
+        <div class="card-head"><div class="ico">🟢</div><h3>audit()</h3><span class="badge real">este sí tiene caller real</span></div>
+        <div class="card-body">
+          <p>Escribe a la tabla de auditoría central llamando a <code>sp_RegistrarAuditoria</code> con 11
+          parámetros posicionales. El código documenta un bug real ya corregido: la firma anterior no calzaba
+          con el orden de parámetros del SP (el user-agent terminaba en la columna <code>@resultado</code>) — no
+          se detectó en producción porque nada lo llamaba todavía en ese momento.</p>
+          <p><b>Hoy sí tiene caller real, muchos:</b></p>
+          <ul>
+            <li><code>AdminController.php</code> — 17 puntos: usuarios, roles, permisos individuales, departamentos, config.</li>
+            <li><code>ModuloController.php</code> — alta/edición de módulos.</li>
+            <li><code>Credenciales/AuthController.php</code> — activar/desactivar MFA.</li>
+          </ul>
+          <p>Es la ruta de auditoría real del portal nativo, a diferencia de los dos métodos anteriores.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 6-bis ============ -->
+    <section id="s6bis">
+      <div class="sec-head">
+        <h2><span class="tag-num">§6b</span> libs/ — infraestructura PHP compartida entre TODAS las apps</h2>
+        <p>A diferencia de <code>core/</code> (solo el portal), <code>libs/</code> lo consume cualquier módulo/app con un <code>require</code> puntual.</p>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="ssoclient sso real activo sp_SSO_Login validate logout ApiSsoController verifyPassword">
+        <div class="card-head"><div class="ico">🟢</div><h3>SsoClient.php</h3><span class="path">9.8 KB</span><span class="badge real">el SSO real y activo</span></div>
+        <div class="card-body">
+          <p>Documentado en detalle en <code>GUIA_SSO_LOGIN_ENTRE_MODULOS.md</code>. Este es el mecanismo a usar
+          cuando se piensa en "SSO del Portal APM" — <b>no</b> el de <code>ModuleSecurity</code> (§6, muerto).</p>
+          <ul>
+            <li>Clase standalone, propia <code>sqlsrv_connect()</code> a <code>PORTAL_APM</code> (no reutiliza <code>Database</code> — apps externas pueden no tener el resto del framework cargado).</li>
+            <li><code>login()</code>/<code>validate()</code>/<code>logout()</code> llaman a <code>sp_SSO_Login</code>/<code>sp_SSO_ConfirmarLogin</code>/<code>sp_SSO_ValidarToken</code>/<code>sp_SSO_Logout</code>/<code>sp_SSO_RegistrarFallo</code> — nunca <code>SELECT</code> directo a <code>CORE_Usuarios</code>.</li>
+            <li><b>Verificación de contraseña replicada, no reusada:</b> <code>verifyPassword()</code> (privado)
+            reimplementa el mismo esquema que <code>SecurityHelper::verifyPassword()</code> a propósito, porque
+            apps externas solo tienen acceso SQL, sin el resto del código PHP cargado.</li>
+            <li><b>Superficie HTTP:</b> <code>ApiSsoController.php</code> expone <code>POST /api/sso/{login,validate,logout}</code>
+            — cadena completa <code>routes.php → ApiSsoController → SsoClient → sp_SSO_*</code> confirmada activa.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="mini-card searchable" data-status="real" data-search="xlsxwriter xlsx zip crc32 sin composer sin zip archive AdminController">
+          <h4>🟢 XlsxWriter.php</h4>
+          <p>Construye el ZIP a mano ("stored", sin compresión, + CRC32) — sin Composer ni <code>ZipArchive</code>.
+          Caller real: <code>AdminController.php</code>.</p>
+          <p style="margin-top:8px"><span class="badge gotcha">gotcha</span> No confundir con
+          <code>apps/talento_humano/core/XlsxWriter.php</code> — implementación DISTINTA (usa DEFLATE real vía
+          <code>gzdeflate()</code>), no comparten código.</p>
+        </div>
+        <div class="mini-card searchable" data-status="real" data-search="reportpdf fpdf tabla ficha AdminController exit inline">
+          <h4>🟢 ReportPdf.php + fpdf/</h4>
+          <p><code>tabla()</code> (reporte con membrete, encabezado repetido, zebra) y <code>ficha()</code>
+          (clave/valor por secciones), sobre <code>fpdf</code> vendorizada. Envían el PDF inline y hacen
+          <code>exit</code>. Caller real: <code>AdminController.php</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 7 ============ -->
+    <section id="s7">
+      <div class="sec-head">
+        <h2><span class="tag-num">§7</span> Vestigios reales — código cargado pero no usado</h2>
+        <p>Confirmados por búsqueda directa en el repo. Documentados para que nadie pierda tiempo entendiendo "para qué sirve esto".</p>
+      </div>
+      <div class="dead-grid">
+        <div class="dead-card searchable" data-status="muerto" data-search="Env.php vestigial requireonce load nunca se llama">
+          <h4>core/Env.php</h4>
+          <p><code>require_once</code> en <code>index.php</code> ("compat con scripts PS1") pero
+          <code>Env::load()</code> <b>nunca se llama</b> — <code>app.php</code> lee <code>connections.php</code> directo. Candidata segura a eliminar si ningún .ps1 depende de ella.</p>
+        </div>
+        <div class="dead-card searchable" data-status="muerto" data-search="SqlSrvStatement wrapper oop fetch nunca instanciado">
+          <h4>core/SqlSrvStatement.php</h4>
+          <p>Wrapper OOP completo sobre un statement sqlsrv. Se carga en <code>index.php</code> pero <b>no hay
+          un solo <code>new SqlSrvStatement(...)</code></b> en todo el repo. Diseño más limpio que no se terminó de adoptar.</p>
+        </div>
+        <div class="dead-card searchable" data-status="muerto" data-search="ModuleSecurity generateSSOToken verifySSOToken checkAccess cero callers">
+          <h4>ModuleSecurity: 3 métodos</h4>
+          <p><code>generateSSOToken()</code>, <code>verifySSOToken()</code>, <code>checkAccess()</code> — ver §6, cero callers confirmados.</p>
+        </div>
+        <div class="dead-card searchable" data-status="muerto" data-search="web.config regla reescritura desactualizada IIS url">
+          <h4>web.config</h4>
+          <p>Regla de reescritura desactualizada (§1a) — manda un parámetro <code>url</code> que <code>index.php</code> nunca lee.</p>
+        </div>
+        <div class="dead-card searchable" data-status="muerto" data-search="config header.php raiz portal huerfano migracion bitacoras apps bitacoras">
+          <h4>config/header.php</h4>
+          <p>Config del encabezado de Portuaria (raíz del portal) — <b>cero callers</b>. Bitácoras migró a
+          <code>apps/bitacoras</code> con su PROPIA copia. Huérfano tras la migración — candidato seguro a eliminar.</p>
+        </div>
+        <div class="dead-card searchable" data-status="vestigio" data-search="requireAuth module parametro vestigial no se usa">
+          <h4>Controller::requireAuth($module)</h4>
+          <p>Parámetro declarado pero no usado dentro del método (§3) — vestigio menor del mismo tipo.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 8 ============ -->
+    <section id="s8">
+      <div class="sec-head"><h2><span class="tag-num">§8</span> Helpers nativos que se cargan siempre</h2></div>
+
+      <div class="card searchable" data-status="all" data-search="SecurityHelper csrf peppering headers seguridad hashPassword verifyPassword pepper bcrypt getClientIp">
+        <div class="card-head"><div class="ico">🛡️</div><h3>SecurityHelper</h3><span class="path">helpers/security_helper.php, 177 líneas</span><span class="badge real">el más importante</span></div>
+        <div class="card-body">
+          <div class="two-col">
+            <div class="mini-card">
+              <h4>CSRF</h4>
+              <p><code>csrfToken()</code> genera/reutiliza <code>$_SESSION['_csrf_token']</code> (32 bytes random).
+              <code>verifyCsrf()</code> compara con <code>hash_equals()</code>; si falla, <b>ya no muere con JSON
+              crudo</b> — AJAX recibe JSON con <code>redirect</code>, cualquier otro POST va a
+              <code>/login?timeout=1</code> (un mismatch de CSRF casi siempre es sesión vencida, no un ataque).</p>
+            </div>
+            <div class="mini-card">
+              <h4>Peppering de contraseñas</h4>
+              <p><code>hashPassword()</code>: <code>HMAC-SHA256(password, PASSWORD_PEPPER)</code> y <b>después</b>
+              <code>password_hash(..., PASSWORD_BCRYPT)</code>, prefijo <code>'peppered:'</code>.
+              <code>verifyPassword()</code> acepta el esquema nuevo Y el viejo (bcrypt directo) — migración
+              perezosa, nadie queda bloqueado. <code>passwordNeedsRehash()</code> avisa cuándo regrabar.</p>
+            </div>
+          </div>
+          <p style="margin-top:12px"><code>PASSWORD_PEPPER</code> se autogenera (<code>random_bytes(32)</code>) y
+          se persiste en <code>CORE_Config</code> — mismo mecanismo que <code>SSO_SECRET</code> y
+          <code>MFA_ENCRYPTION_KEY</code>, nunca hardcodeado real (el fallback de SSO es la única excepción, solo
+          si la BD está caída). El paso "SHA-256 en el navegador" lo hace <code>js/password-hash.js</code> (§8b) —
+          sin ese script, el hash final sigue siendo válido pero se pierde la garantía de "la contraseña real
+          nunca sale del navegador".</p>
+          <p><b>Headers de seguridad</b> (<code>setSecurityHeaders()</code>, en cada <code>Controller::__construct()</code>):
+          <code>X-Frame-Options</code>, <code>X-Content-Type-Options</code>, <code>X-XSS-Protection</code>,
+          <code>Referrer-Policy</code>, y un CSP que arma <code>frame-src</code> dinámico para embeber el Dashboard
+          Ejecutivo (Streamlit) de Portuaria si aplica.</p>
+          <p><code>getClientIp()</code>: revisa <code>CF-Connecting-IP</code> → <code>X-Forwarded-For</code> →
+          <code>X-Real-IP</code> → <code>REMOTE_ADDR</code>, valida con <code>filter_var(FILTER_VALIDATE_IP)</code>.</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="mini-card searchable" data-status="all" data-search="SessionHelper wrapper session login logout regenera">
+          <h4>SessionHelper (71 líneas)</h4>
+          <p>Wrapper delgado sobre <code>$_SESSION</code> (<code>get</code>/<code>set</code>/<code>has</code>/<code>remove</code>/<code>flash</code>)
+          más <code>login(array $user)</code> (regenera ID de sesión, cachea <code>_requiere_mfa</code>) y
+          <code>logout()</code> (limpia sesión, borra cookie, <code>session_destroy()</code>).</p>
+        </div>
+        <div class="mini-card searchable" data-status="all" data-search="UrlHelper base asset current isActive redirect back APP_URL">
+          <h4>UrlHelper (33 líneas)</h4>
+          <p><code>base()</code>/<code>asset()</code>/<code>current()</code>/<code>isActive()</code>/<code>redirect()</code>/<code>back()</code>
+          — todo anclado a <code>APP_URL</code>, funcionan igual en cualquier entorno.</p>
+        </div>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-light);margin-top:10px"><i><code>form_helper.php</code>,
+      <code>hub_charts_helper.php</code>, <code>module_stats_helper.php</code> son utilidades de más alto nivel
+      para vistas/dashboards de Central — no documentadas función por función acá.</i></p>
+    </section>
+
+    <!-- ============ SECCIÓN 8-bis ============ -->
+    <section id="s8bis">
+      <div class="sec-head">
+        <h2><span class="tag-num">§8b</span> js/ — infraestructura de cliente compartida</h2>
+        <p>Contraparte de navegador de <code>libs/</code> — cada app embebida la referencia vía <code>PORTAL_ROOT_URL</code> en vez de tener su propia copia.</p>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="password-hash.js sha256 crypto subtle hashPasswordFieldsBeforeSubmit">
+        <div class="card-head"><div class="ico">🔑</div><h3>password-hash.js</h3></div>
+        <div class="card-body"><p><code>window.hashPasswordFieldsBeforeSubmit(form, fieldNames)</code>: SHA-256
+        (vía <code>crypto.subtle</code>) sobre cada campo, in-place, antes del submit real — la contraseña en
+        texto plano nunca sale del navegador. Requiere contexto seguro (HTTPS/localhost); si <code>crypto.subtle</code>
+        no está, la función queda <code>undefined</code> (fallback: se manda sin hashear, el servidor lo procesa
+        igual pero se pierde la garantía). Campos vacíos no se tocan (necesario para "editar usuario" sin cambiar clave).</p></div>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="inactivity-warning.js sweetalert2 countdown centralizado bugs doLogout keepalive ping">
+        <div class="card-head"><div class="ico">⏱️</div><h3>inactivity-warning.js</h3><span class="badge real">el aviso centralizado real</span></div>
+        <div class="card-body">
+          <p>SweetAlert2 con anillo SVG de cuenta regresiva — usado por Portal, TH, Bienes y Bitácoras por igual.
+          Requiere <code>window.APP_INACTIVIDAD = {timeoutSegundos, avisoSegundos, keepaliveUrl, logoutUrl}</code>
+          antes de cargar (TH además soporta <code>csrfToken</code>/<code>logoutViaPost</code>).</p>
+          <p><b>Dos bugs reales ya corregidos</b> (documentados en el propio código):</p>
+          <ol>
+            <li><code>doLogout()</code> tenía 3 caminos casi simultáneos (countdown, SweetAlert2, <code>logoutTimer</code>
+            sin cancelar) → 2-3 <code>GET /logout</code> casi a la vez desincronizaban el <code>_csrf_token</code>.
+            Fix: guardia <code>loggedOut</code> de una sola disparada.</li>
+            <li>El keepalive cerraba sesión ante CUALQUIER fallo del <code>fetch</code> (incluida desconexión
+            momentánea) → cambiado a solo cerrar cuando el servidor confirma explícitamente sesión expirada.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="gotcha" data-search="alerts.js window.PortalAlert sweetalert2 const window.X gotcha SPA re-ejecuta">
+        <div class="card-head"><div class="ico">💬</div><h3>alerts.js — window.PortalAlert</h3></div>
+        <div class="card-body">
+          <p>Envoltorio delgado sobre SweetAlert2 (<code>success</code>/<code>warning</code>/<code>error</code>,
+          toasts en <code>top-end</code>) que reemplaza <code>confirm()</code>/<code>alert()</code> nativos.</p>
+          <div class="note warn"><b>Gotcha repetido en memoria del proyecto:</b> declarar esto con
+          <code>const PortalAlert = ...</code> en vez de <code>window.PortalAlert = ...</code> lo rompe en
+          cualquier vista que re-ejecute sus <code>&lt;script&gt;</code> inline por navegación SPA sin reload
+          completo — por eso el patrón <code>window.X</code> explícito se repite en los 3 archivos de esta sección.</div>
+        </div>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-light);margin-top:10px"><i><code>main.js</code>, <code>datatables-init.js</code>
+      son utilidades de UI de más alto nivel — no documentadas función por función.</i></p>
+    </section>
+
+    <!-- ============ SECCIÓN 9 ============ -->
+    <section id="s9">
+      <div class="sec-head"><h2><span class="tag-num">§9</span> config/ — una sola fuente de verdad para credenciales</h2></div>
+      <div class="card searchable" data-status="all" data-search="connections.php credenciales sql server fuente unica databases portal talento portuaria inventario app.php export_analytics_env">
+        <div class="card-body">
+          <p><code>config/connections.php</code> (NO versionado en git — copiar de <code>connections.example.php</code>)
+          es el archivo del que <b>todo el sistema</b> lee credenciales de SQL Server: el portal (vía <code>app.php</code>),
+          <code>apps/talento_humano</code> y <code>apps/control_bienes</code>, <code>libs/SsoClient.php</code>/<code>core/SyncPermisosModulo.php</code>
+          (leído directo, sin pasar por <code>Database</code>), y <code>export_analytics_env.php</code>. Archivo de
+          <b>datos puro</b> (<code>return [...]</code>, sin <code>define()</code>) a propósito.</p>
+          <p><b>Estructura real:</b> <code>server_default</code>, <code>credentials</code> (vacío = Windows Auth),
+          <code>options</code> (<code>trust_cert</code>, <code>encrypt</code>, <code>charset</code>), y
+          <code>databases</code> (mapa nombre-lógico → nombre-real + servidor opcional) — <code>portal</code>,
+          <code>talento</code>, <code>portuaria</code>, <code>portuaria_ext</code>, <code>inventario</code>.</p>
+          <p><code>config/app.php</code> es el único archivo que se edita para cambiar entorno (<code>APP_ENV</code>,
+          <code>DEBUG_MODE</code>, zona horaria, timeout de sesión).</p>
+          <div class="note"><b>config/export_analytics_env.php</b> — script CLI (<code>php config/export_analytics_env.php</code>)
+          que regenera <code>analytics/.env</code> desde <code>connections.php</code>, para un dashboard Python
+          externo. Correr manualmente después de tocar <code>connections.php</code>.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 9-bis ============ -->
+    <section id="s9bis">
+      <div class="sec-head"><h2><span class="tag-num">§9b</span> db/ — scripts de operación, NO es core de runtime</h2></div>
+      <div class="card searchable" data-status="all" data-search="db scripts sql migraciones run_sql list_tables alter_sp caja herramientas no bootstrap">
+        <div class="card-body">
+          <p>Colección de <code>.sql</code> sueltos (migraciones puntuales ya aplicadas: <code>bloqueo_login_escalado.sql</code>,
+          <code>mfa_portal_central.sql</code>, <code>notificaciones_reales.sql</code>, <code>permisos_centrales_fase*.sql</code>…)
+          más utilidades PHP CLI: <code>run_sql.php</code> (ejecutor universal, divide por <code>GO</code>),
+          <code>list_tables.php</code>, <code>alter_sp.php</code>.</p>
+          <div class="note warn"><b>Nada de esto se carga en el bootstrap de <code>index.php</code> ni corre como
+          parte de un request real</b> — es la caja de herramientas de quien administra la base de datos, no del
+          framework en ejecución.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 10 ============ -->
+    <section id="s10">
+      <div class="sec-head">
+        <h2><span class="tag-num">§10</span> SyncPermisosModulo — el puente de permisos</h2>
+        <p><code>core/SyncPermisosModulo.php</code>, 130 líneas.</p>
+      </div>
+      <div class="card searchable" data-status="real" data-search="SyncPermisosModulo puente permisos centralHaciaTh centralHaciaBienes CORE_Roles_Modulo_Map NODOS_TH NODOS_BIENES merge">
+        <div class="card-body">
+          <p>Cuando un admin cambia la matriz de permisos de un rol del portal en <code>/admin/roles/{id}/permisos</code>,
+          esto <b>replica</b> el cambio hacia el RBAC nativo de TH y Bienes, si ese rol tiene contraparte mapeada
+          en <code>CORE_Roles_Modulo_Map</code>. Caller real: <code>AdminController.php</code>.</p>
+          <div class="flow">
+            <div class="fbox hi"><h5>Portal</h5><span>/admin/roles/{id}/permisos</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>centralHaciaTh()</h5><span>UPDATE th_permisos_rol · NODOS_TH (14)</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>centralHaciaBienes()</h5><span>MERGE inv_permisos_rol · NODOS_BIENES (15)</span></div>
+          </div>
+          <ul style="margin-top:14px">
+            <li>Cada función abre su propia conexión sqlsrv al destino (lee <code>connections.php</code> directo, no usa <code>Database</code>) y traduce la opción a un <code>codigo_modulo</code> real vía mapa fijo.</li>
+            <li>Registra la sincronización vía <code>sp_th_registrar_auditoria</code> — auditoría en la BD destino, no en <code>PORTAL_APM</code>.</li>
+            <li>Si el rol no tiene mapeo, retorna sin hacer nada — <b>silenciosamente</b>, no es un error.</li>
+            <li>Si la conexión al destino falla, se registra el fallo vía <code>ModuleSecurity::audit()</code> <b>en PORTAL_APM</b> (porque justo ahí no se pudo conectar).</li>
+          </ul>
+          <div class="note"><b>Solo cubre nodos de "opción"</b> (<code>items===0 && subitems===0</code>) — la
+          granularidad de sub-ítem del portal no tiene forma de reflejarse en el RBAC más simple de TH/Bienes.
+          Límite consciente, no un bug.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 14 ============ -->
+    <section id="s14">
+      <div class="sec-head">
+        <h2><span class="tag-num">§14</span> Cómo se enlazan los usuarios entre módulos, sin re-login</h2>
+        <p>Esta sección faltaba en la guía original — verificada línea por línea contra el código real de
+        las 3 apps embebidas, no asumida. Responde: ¿cómo navega alguien de TH a Bienes a Bitácoras sin
+        volver a loguearse, y cómo se sincroniza el tiempo de inactividad entre todas?</p>
+      </div>
+
+      <div class="card searchable" data-status="all" data-search="dos caminos SSO embebido externo patron b puente sesion sp_SSO stored procedures GUIA_SSO_LOGIN_ENTRE_MODULOS">
+        <div class="card-body">
+          <p><b>Dos mecanismos totalmente distintos conviven, y no hay que confundirlos:</b></p>
+          <div class="two-col">
+            <div class="mini-card">
+              <h4>🔗 Apps embebidas (esta sección) — TH, Bienes, Bitácoras</h4>
+              <p>Viven en el <b>mismo servidor</b>, bajo <code>apps/*</code>. No usan token ni contraseña de
+              nuevo — leen la sesión PHP que el login del portal ya dejó escrita (en disco, mismo motor de
+              sesiones), cada una a su manera. <b>Cero llamadas HTTP, cero SQL de por medio</b> para el
+              puente en sí.</p>
+            </div>
+            <div class="mini-card">
+              <h4>🌐 Apps externas — <code>sp_SSO_*</code></h4>
+              <p>Para lo que <b>no</b> comparte sesión PHP con el portal (otro servidor, app móvil, servicio
+              en otro lenguaje). Token + procedimientos almacenados, documentado en detalle en
+              <code>GUIA_SSO_LOGIN_ENTRE_MODULOS.md</code> (no repetido acá — ver §6b para el resumen).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="tres patrones distintos talento humano control de bienes bitacoras comparacion tabla session name cookie propia compartida apm_auth loginTrusted hydrateFromPortal">
+        <div class="card-head"><div class="ico">⇄</div><h3>3 apps, 3 mecanismos reales — no son el mismo patrón</h3></div>
+        <div class="card-body">
+          <p>Los 3 módulos son "Patrón B" (puente de sesión, no SSO por token) pero cada uno lo resuelve
+          distinto. Verificado leyendo <code>apps/talento_humano/index.php</code>+<code>core/Auth.php</code>,
+          <code>apps/control_bienes/index.php</code>+<code>AuthController.php</code>, y
+          <code>apps/bitacoras/includes/bit_auth_guard.php</code>+<code>modules/Portuaria/models/Auth.php</code>:</p>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <tr><th>Módulo</th><th>Sesión PHP</th><th>Cómo lee al portal</th><th>Login propio</th><th>Puente inverso</th></tr>
+              <tr>
+                <td class="app">Talento Humano</td>
+                <td>Propia, separada — cookie <code>APMSESSID</code>, carpeta privada</td>
+                <td>Cierra su sesión, abre la del portal <b>solo para leerla</b> (nombre+ruta originales), cierra, vuelve a abrir la suya con su mismo id</td>
+                <td>Sí, completo (usuario/clave/MFA propios) + acepta cédula del portal para super admin</td>
+                <td>Sí — <code>syncPortalSession()</code> escribe en la sesión del portal al loguearse nativo en TH</td>
+              </tr>
+              <tr>
+                <td class="app">Control de Bienes</td>
+                <td><b>La misma</b> que el portal — nunca cambia nombre/ruta de sesión</td>
+                <td>Directo: <code>$_SESSION['user_id']</code> ya está ahí, ni siquiera hace falta "ir a buscarlo"</td>
+                <td>Sí, propio (<code>inv_usuarios</code>) + cruza cédula contra el portal</td>
+                <td>Sí — el login propio también puebla las claves de sesión del portal si la cédula matchea</td>
+              </tr>
+              <tr>
+                <td class="app">Bitácoras</td>
+                <td><b>La misma</b> que el portal — igual que Bienes</td>
+                <td>Directo, pero lo <b>traduce</b> a <code>$_SESSION['apm_auth']</code> (forma que espera el código nativo pre-integración)</td>
+                <td><b>No tiene</b> — sin sesión del portal, redirige a <code>/login</code> del portal</td>
+                <td>No aplica (no tiene login propio del que volver)</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="talento humano puente dual sesion loginTrusted syncPortalSession admin_apm CORE_Usuarios id_empleado_th session_name session_save_path use_strict_mode">
+        <div class="card-head"><div class="ico">1</div><h3>Talento Humano — el más elaborado: sesión propia + "espionaje" temporal de la del portal</h3><span class="path">index.php + core/Auth.php</span></div>
+        <div class="card-body">
+          <p>TH tiene su propia identidad completa (login, MFA, bloqueo, sesión cifrada con claims AES-256-GCM
+          en <code>$_SESSION['auth_token']</code>) — el puente no la reemplaza, se agrega encima. En cada
+          request, si TH <b>todavía no tiene sesión propia activa</b>:</p>
+          <div class="flow">
+            <div class="fbox"><h5>1. Cierra sesión TH</h5><span><code>session_write_close()</code></span></div>
+            <div class="farrow">→</div>
+            <div class="fbox hi"><h5>2. Abre la del portal</h5><span>nombre+ruta originales, <code>use_strict_mode=0</code> — solo lectura</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>3. Lee y cierra</h5><span><code>user_id</code>, <code>nivel_jerarquia</code></span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>4. Vuelve a TH</h5><span>restaura su config, mismo id de sesión TH</span></div>
+          </div>
+          <p style="margin-top:14px">El paso 2 es la parte no obvia: <code>session_save_path()</code> es un
+          ajuste global por request — cambiar solo el <i>nombre</i> de la sesión no alcanza, hay que restaurar
+          también la <i>ruta</i> o TH terminaría buscando "la sesión del portal" dentro de su propia carpeta
+          privada. Y <code>use_strict_mode</code> se apaga solo para este vistazo puntual: con esa bandera en
+          1 (como la deja <code>Auth::configureSession()</code> para TH), un id de sesión sin archivo real en
+          disco haría que PHP genere uno nuevo y lo mande por <code>Set-Cookie</code> — exactamente lo que
+          pisaría la cookie real del portal si alguien sin sesión ahí navega a TH primero.</p>
+          <div class="codebox">
+            <div class="cb-head"><span>PHP — apps/talento_humano/index.php</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-kw">if</span> (!Auth::<span class="tok-fn">check</span>()) {
+    <span class="tok-var">$__thSid</span> = session_id();
+    session_write_close();
+    ini_set(<span class="tok-str">'session.use_strict_mode'</span>, <span class="tok-str">'0'</span>);
+    session_save_path(PORTAL_SESSION_SAVE_PATH);
+    session_name(PORTAL_SESSION_NAME);
+    <span class="tok-kw">if</span> (isset(<span class="tok-var">$_COOKIE</span>[PORTAL_SESSION_NAME])) session_id(<span class="tok-var">$_COOKIE</span>[PORTAL_SESSION_NAME]);
+    session_start();
+    <span class="tok-var">$__portalUserId</span> = <span class="tok-var">$_SESSION</span>[<span class="tok-str">'user_id'</span>] ?? <span class="tok-kw">null</span>;
+    <span class="tok-var">$__portalNivel</span>   = (<span class="tok-kw">int</span>)(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'nivel_jerarquia'</span>] ?? 0);
+    session_write_close();
+
+    Auth::<span class="tok-fn">configureSession</span>(); <span class="tok-com">// restaura nombre+ruta+cookie propios de TH</span>
+    session_id(<span class="tok-var">$__thSid</span>);
+    session_start();
+
+    <span class="tok-kw">if</span> (<span class="tok-var">$__portalUserId</span> !== <span class="tok-kw">null</span>) Auth::<span class="tok-fn">loginTrusted</span>(<span class="tok-var">$__portalUserId</span>, <span class="tok-var">$__portalNivel</span>);
+}</code></pre>
+          </div>
+          <p><code>loginTrusted()</code> no crea una sesión "genérica" — busca la cuenta REAL de
+          <code>th_usuarios_sistema</code> correspondiente: si <code>nivel_jerarquia≥4</code> (super admin del
+          portal) resuelve siempre a la cuenta fija <code>admin_apm</code> (no tiene <code>empleado_id</code>,
+          no hay cédula que buscar); si no, hace <code>JOIN</code> por
+          <code>CORE_Usuarios.id_empleado_th = th_usuarios_sistema.empleado_id</code>. Sin cuenta
+          correspondiente, simplemente no hay puente — la persona ve el login propio de TH.</p>
+          <div class="note ok"><b>Puente inverso — <code>syncPortalSession()</code>:</b> si alguien entra
+          directo por el login nativo de TH (no vino del portal), TH hace la MISMA maniobra pero al revés —
+          abre la sesión del portal (esta vez para <b>escribir</b>), puebla <code>user_id</code>,
+          <code>nivel_jerarquia</code>, etc., y vuelve a la suya. Así el botón "Volver al Portal APM"
+          funciona y del otro lado ya está autenticado, sin importar por cuál puerta entró primero.</p>
+        </div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="control de bienes sesion compartida misma cookie sin puente complejo rol mapeado nivel jerarquia administrador supervisor operador">
+        <div class="card-head"><div class="ico">2</div><h3>Control de Bienes — sesión literalmente compartida, sin maniobra</h3><span class="path">apps/control_bienes/index.php</span></div>
+        <div class="card-body">
+          <p>Bienes <b>nunca</b> llama <code>session_name()</code> ni <code>session_save_path()</code> — usa
+          el nombre/ruta de sesión por defecto de PHP, igual que el portal. Resultado: <b>es la misma sesión</b>,
+          no hay nada que "espiar" ni sincronizar entre archivos distintos. En cada request, si todavía no
+          armó su propio <code>$_SESSION['usuario']</code> pero ya existe <code>$_SESSION['user_id']</code>
+          (del portal), lo arma ahí mismo:</p>
+          <div class="codebox">
+            <div class="cb-head"><span>PHP — apps/control_bienes/index.php</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-kw">if</span> (empty(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'usuario'</span>]) &amp;&amp; !empty(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'user_id'</span>])) {
+    <span class="tok-var">$nivelPortal</span> = (<span class="tok-kw">int</span>)(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'nivel_jerarquia'</span>] ?? 0);
+    <span class="tok-var">$rolApp</span> = <span class="tok-var">$nivelPortal</span> &gt;= 3 ? <span class="tok-str">'Administrador'</span> : (<span class="tok-var">$nivelPortal</span> === 2 ? <span class="tok-str">'Supervisor'</span> : <span class="tok-str">'Operador'</span>);
+    <span class="tok-var">$_SESSION</span>[<span class="tok-str">'usuario'</span>] = [<span class="tok-str">'id'</span> =&gt; <span class="tok-var">$_SESSION</span>[<span class="tok-str">'user_id'</span>], <span class="tok-str">'nombre'</span> =&gt; ..., <span class="tok-str">'rol'</span> =&gt; <span class="tok-var">$rolApp</span>];
+    <span class="tok-com">// + id_usuario, usuario_id, rol a nivel raíz de $_SESSION</span>
+}</code></pre>
+          </div>
+          <p>El nivel jerárquico del portal (1-4) se traduce a un rol de Bienes por umbral fijo — no hay tabla
+          de mapeo de roles como en TH/permisos granulares (§10), es una regla simple codificada acá mismo.</p>
+          <div class="note warn"><b>Gotcha real documentado en el propio código:</b> el control de inactividad
+          propio de Bienes hacía <code>$_SESSION = []</code> cuando veía <code>ultimo_acceso</code> viejo —
+          eso borraría TAMBIÉN la sesión del portal (es la misma). Por eso, con sesión de portal activa, cada
+          request refresca <code>$_SESSION['ultimo_acceso']</code>/<code>['last_activity']</code> ANTES de que
+          el chequeo de inactividad de Bienes pueda evaluarlo.</div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="bitacoras portuaria sesion compartida apm_auth hydrateFromPortal traduccion compatibilidad legacy sin login propio bit_auth_guard">
+        <div class="card-head"><div class="ico">3</div><h3>Bitácoras — sesión compartida + capa de traducción para código legacy</h3><span class="path">includes/bit_auth_guard.php + Portuaria/models/Auth.php</span></div>
+        <div class="card-body">
+          <p>Igual que Bienes, Bitácoras comparte la sesión PHP del portal directamente — pero el código
+          nativo de Portuaria (anterior a la integración al portal) espera sus propios datos de usuario en
+          <code>$_SESSION['apm_auth']</code> (<code>id_usuario</code>, <code>nombres</code>, <code>cedula</code>,
+          <code>nom_departa</code>...). <code>Auth::hydrateFromPortal()</code> traduce uno al otro, y se
+          re-ejecuta solo cuando detecta que el usuario del portal cambió:</p>
+          <div class="codebox">
+            <div class="cb-head"><span>PHP — modules/Portuaria/models/Auth.php</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+            <pre><code><span class="tok-var">$needsHydrate</span> = empty(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'apm_auth'</span>][<span class="tok-str">'id_usuario_portal'</span>])
+    || (<span class="tok-kw">int</span>)<span class="tok-var">$_SESSION</span>[<span class="tok-str">'apm_auth'</span>][<span class="tok-str">'id_usuario_portal'</span>] !== (<span class="tok-kw">int</span>)<span class="tok-var">$_SESSION</span>[<span class="tok-str">'user_id'</span>]
+    || empty(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'apm_auth'</span>][<span class="tok-str">'id_usuario'</span>]);</code></pre>
+          </div>
+          <p><code>bit_auth_guard.php</code> (incluido al inicio de cada página/API del módulo) simplemente
+          revisa si <code>apm_auth</code> ya quedó poblado — si no, <code>header('Location: '.APP_URL.'/login')</code>
+          directo al login del <b>portal</b>. <b>Bitácoras no tiene login propio</b>: a diferencia de TH y
+          Bienes, no hay puerta alterna — todo el que entra, entra siempre por el portal primero.</p>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="inactividad sincronizada cascada usuario modulo global fn_InactividadSegundos fn_InactividadAvisoSegundos cache 5 minutos inactivity-warning.js portal TH Bienes Bitacoras">
+        <div class="card-head"><div class="ico">⏱️</div><h3>Inactividad sincronizada entre los 4 — mismas funciones SQL, mismo JS</h3></div>
+        <div class="card-body">
+          <p>Verificado con búsqueda directa: <b>Portal, TH, Bienes y Bitácoras</b> llaman a las mismas dos
+          funciones cross-DB (<code>PORTAL_APM.dbo.fn_InactividadSegundos</code> /
+          <code>fn_InactividadAvisoSegundos</code>) y cargan el mismo <code>js/inactivity-warning.js</code>
+          (§8b) — no es "cada módulo con su propio timer", es una sola configuración real.</p>
+          <div class="flow">
+            <div class="fbox hi"><h5>Config</h5><span>/admin/inactividad — override por usuario, por módulo, o global</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>Cascada SQL</h5><span>fn_InactividadSegundos(id_usuario, módulo) — usuario &gt; módulo &gt; global</span></div>
+            <div class="farrow">→</div>
+            <div class="fbox"><h5>Cada app</h5><span>cachea el resultado 5 min en SU sesión, propia o compartida</span></div>
+          </div>
+          <p style="margin-top:14px">En TH, la cascada se resuelve pasando su propio <code>_portal_user_id_link</code>
+          (el id de portal vinculado, <code>0</code> si la cuenta es TH-only) y el código de módulo fijo
+          <code>'TALENTO_HUMANO'</code> — así un override configurado específicamente para esa persona aplica
+          igual, entre por donde entre. El resultado se cachea 5 minutos en <code>$_SESSION</code> para no
+          golpear la base en cada request; <code>invalidarCacheInactividad()</code> existe para el caso real
+          de que un admin cambie la config y quiera que aplique sin esperar esos 5 minutos ni cerrar sesión.</p>
+          <div class="note">Consecuencia práctica: si el administrador sube el timeout global a 60 minutos
+          desde <code>/admin/inactividad</code>, una persona navegando entre TH y Bienes en la misma sesión de
+          trabajo ve el mismo comportamiento en ambas — no hay que configurarlo por separado en cada módulo.</div>
+        </div>
+      </div>
+
+      <div class="card searchable" data-status="real" data-search="MFA re-check gateway /ir ModuleGateController ventana frescura MFA_FRESCURA_SEGUNDOS 20 minutos segundo factor entre modulos">
+        <div class="card-head"><div class="ico">🔐</div><h3>MFA al cambiar de módulo — el gateway /ir</h3><span class="path">ModuleGateController.php</span></div>
+        <div class="card-body">
+          <p>El puente de sesión (arriba) resuelve identidad, pero un usuario con MFA activo en el portal no
+          debería poder saltar a un módulo integrado esquivando el segundo factor. Los links del sidebar hacia
+          <code>apps/*</code> no apuntan directo — pasan por <code>/ir?destino=...</code>, un único punto que
+          decide si hace falta reconfirmar.</p>
+          <p><b>No es en cada click:</b> usa una ventana de frescura
+          (<code>CORE_Config.MFA_FRESCURA_SEGUNDOS</code>, 20 minutos por defecto). Si
+          <code>$_SESSION['_mfa_verificado_en']</code> es más reciente que esa ventana, pasa directo; si no,
+          pide el código TOTP de nuevo (misma pantalla, sin repetir usuario/clave) antes de continuar al
+          destino. <code>destinoSeguro()</code> valida que el destino empiece con <code>apps/</code> y no
+          contenga <code>://</code> — nunca redirige a una URL externa arbitraria.</p>
+        </div>
+      </div>
+
+      <div class="note" style="margin:0 0 20px">Detalle completo de identidad, código-a-código: <a href="#s6bis">§6b libs/SsoClient.php</a>
+      (para módulos que SÍ requieren el mecanismo de token) y <code>GUIA_SSO_LOGIN_ENTRE_MODULOS.md</code>
+      (los 5 <code>sp_SSO_*</code>, cómo dar de alta una app nueva, manejo de errores). Esta sección cubre el
+      camino real que usan HOY los 3 módulos embebidos — que no es ese mecanismo.</div>
+    </section>
+
+    <!-- ============ SECCIÓN 11 ============ -->
+    <section id="s11">
+      <div class="sec-head"><h2><span class="tag-num">§11</span> MfaHelper — TOTP nativo del portal</h2><p><code>core/MfaHelper.php</code>, 161 líneas.</p></div>
+      <div class="card searchable" data-status="real" data-search="MfaHelper TOTP RFC6238 encryptSecret decryptSecret AES-256-GCM anti-replay verify">
+        <div class="card-body">
+          <p>Mismo algoritmo RFC 6238 que ya usa <code>apps/talento_humano/core/Auth.php</code> — no se reinventó
+          la matemática, se replicó el patrón validado en producción. La clave de cifrado del secreto TOTP vive
+          en <code>CORE_Config</code> (mismo mecanismo que <code>SSO_SECRET</code>/<code>PASSWORD_PEPPER</code>).
+          Caller real: <code>ModuleGateController.php</code> y <code>Credenciales/AuthController.php</code>.</p>
+          <ul>
+            <li><code>generateSecret()</code>: 20 bytes random en base32.</li>
+            <li><code>encryptSecret()</code>/<code>decryptSecret()</code>: AES-256-GCM, IV de 12 bytes + tag de 16 + AAD fijo — el secreto TOTP nunca en claro.</li>
+            <li><code>verify($secret, $code, $lastStep, &$matchedStep)</code>: ventana ±1 paso de 30s con
+            <b>anti-replay real</b> — un <code>$lastStep</code> ya usado nunca vuelve a aceptarse.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN 12 ============ -->
+    <section id="s12">
+      <div class="sec-head"><h2><span class="tag-num">§12</span> Gotchas reales — si vas a tocar este código</h2><p>8 casos reales documentados, no hipotéticos.</p></div>
+
+      <div class="gotcha searchable" data-status="gotcha" data-search="WarningsReturnAsErrors sqlsrv_configure antes conexion PRINT stored procedure false"><span class="gi">⚠️</span><p><b>sqlsrv_configure("WarningsReturnAsErrors", 0)</b> tiene que ejecutarse ANTES de cualquier conexión — si se agrega una conexión sqlsrv nueva sin este flag, un SP con <code>PRINT</code> puede reportarse como fallido sin haberlo hecho.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="Database getInstance singleton proceso php request php -S apache mod_php credenciales caliente"><span class="gi">⚠️</span><p><b>Database::getInstance() es singleton por PROCESO PHP</b>, no por request — bajo <code>php -S</code> (proceso persistente) puede importar si cambian credenciales en caliente; en Apache/mod_php cada request es proceso/hilo nuevo, no es problema real ahí.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="lastInsertId SCOPE_IDENTITY null scope OUTPUT INSERTED id"><span class="gi">⚠️</span><p><b>lastInsertId() vía SCOPE_IDENTITY() en query separada</b> puede devolver NULL si el driver sqlsrv no mantiene el mismo scope — usar <code>OUTPUT INSERTED.id</code> en el INSERT mismo cuando el ID importa de verdad.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="mapa modulos ModuleSecurity checkAccess duplicado CORE_Modulos CatalogoModulos muerto"><span class="gi">⚠️</span><p><b>El mapa de módulos de ModuleSecurity::checkAccess() está duplicado</b> respecto a CORE_Modulos/CatalogoModulos — pero como ese método está muerto (§6), en la práctica no hay dos lugares que mantener sincronizados hoy; si se revive, revisar esto primero.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="SyncPermisosModulo SsoClient conexiones sqlsrv nuevas cada vez no reutilizan loop costo"><span class="gi">⚠️</span><p><b>SyncPermisosModulo/SsoClient abren conexiones sqlsrv nuevas cada vez que corren</b>, no reutilizan Database::getInstance() (apuntan a BD distinta) — costo irrelevante hoy, a tener en cuenta si se llaman en loop.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="CORE_Config no valida existe SSO_SECRET MFA_ENCRYPTION_KEY PASSWORD_PEPPER excepcion SQL instalacion nueva"><span class="gi">⚠️</span><p><b>Nada en core/libs/ valida que CORE_Config exista</b> antes de leer SSO_SECRET/MFA_ENCRYPTION_KEY/PASSWORD_PEPPER — si la tabla no existe (instalación nueva sin script de esquema completo), estos métodos fallan con excepción SQL, no un mensaje claro.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="web.config reescribe url index.php nunca lee GET url IIS"><span class="gi">⚠️</span><p><b>web.config reescribe con ?url=... pero index.php nunca lee $_GET['url']</b> (§1a) — no confiar en ese parámetro si algún día se toca soporte IIS.</p></div>
+      <div class="gotcha searchable" data-status="gotcha" data-search="XlsxWriter portal talento humano distintas implementaciones no asumir fix aplica"><span class="gi">⚠️</span><p><b>libs/XlsxWriter.php (portal) y apps/talento_humano/core/XlsxWriter.php son implementaciones DISTINTAS</b> — no asumir que un fix en una aplica a la otra.</p></div>
+    </section>
+
+    <!-- ============ SECCIÓN 13 ============ -->
+    <section id="s13">
+      <div class="sec-head"><h2><span class="tag-num">§13</span> Qué NO cubre este documento</h2></div>
+      <div class="card searchable" data-status="all" data-search="que no cubre GUIA_CENTRAL_FUNCIONES GUIA_SSO_LOGIN_ENTRE_MODULOS GUIA_SEGURIDAD_CONTRASENAS GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES DOCUMENTACION_SISTEMA">
+        <div class="card-body">
+          <ul>
+            <li>Lógica de negocio de <code>modules/Central/</code> (dashboards, notificaciones, usuarios, roles) → <code>GUIA_CENTRAL_FUNCIONES.html</code>.</li>
+            <li>SSO real entre módulos en detalle (los 5 <code>sp_SSO_*</code>, API key, cómo registrar una app nueva) → <code>GUIA_SSO_LOGIN_ENTRE_MODULOS.md</code>.</li>
+            <li>Esquema híbrido de contraseñas en detalle → <code>GUIA_SEGURIDAD_CONTRASENAS.html</code>.</li>
+            <li>Cómo integrar/actualizar un módulo embebido → <code>GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md</code>.</li>
+            <li>El core PROPIO de cada módulo embebido (<code>apps/talento_humano/core/</code>, <code>apps/control_bienes/core/</code>) — independiente de este, en <code>DOCUMENTACION_SISTEMA.md</code>.</li>
+            <li>Los scripts <code>.sql</code> individuales de <code>db/</code> — historial de cambios ya aplicados, no arquitectura viva.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="no-results" id="noResults">Sin resultados para esa búsqueda/filtro.</div>
+
+    <div class="footer-note">Generado a partir de <code>GUIA_CORE_PORTAL_APM.md</code> — Portal APM ·
+      documentación interna, no cubre módulos embebidos ni lógica de negocio de Central.</div>
+  </main>
+</div>
+
+<button class="back-top" id="backTop" aria-label="Volver arriba">↑</button>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeBtn');
+  function applyTheme(t){
+    if(t==='light'){ root.setAttribute('data-theme','light'); themeBtn.textContent='☀️ Tema'; }
+    else{ root.removeAttribute('data-theme'); themeBtn.textContent='🌙 Tema'; }
+  }
+  var saved = null;
+  try{ saved = localStorage.getItem('apm_core_theme'); }catch(e){}
+  applyTheme(saved || 'dark');
+  themeBtn.addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme')==='light' ? 'light' : 'dark';
+    var next = cur==='light' ? 'dark' : 'light';
+    applyTheme(next);
+    try{ localStorage.setItem('apm_core_theme', next); }catch(e){}
+  });
+
+  /* ---------- mobile sidebar ---------- */
+  var sidebar = document.getElementById('sidebar'), scrim = document.getElementById('scrim'), menuBtn = document.getElementById('menuBtn');
+  function openMenu(){ sidebar.classList.add('open'); scrim.classList.add('show'); }
+  function closeMenu(){ sidebar.classList.remove('open'); scrim.classList.remove('show'); }
+  menuBtn.addEventListener('click', openMenu);
+  scrim.addEventListener('click', closeMenu);
+  sidebar.querySelectorAll('nav.tree-nav a').forEach(function(a){ a.addEventListener('click', closeMenu); });
+
+  /* ---------- scrollspy ---------- */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('nav.tree-nav a'));
+  var sections = navLinks.map(function(a){ return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  var byId = {};
+  navLinks.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        navLinks.forEach(function(a){ a.classList.remove('active'); });
+        var link = byId[entry.target.id];
+        if(link) link.classList.add('active');
+      }
+    });
+  }, {rootMargin:'-15% 0px -70% 0px', threshold:0});
+  sections.forEach(function(s){ io.observe(s); });
+
+  /* ---------- back to top ---------- */
+  var backTop = document.getElementById('backTop');
+  window.addEventListener('scroll', function(){
+    backTop.classList.toggle('show', window.scrollY > 500);
+  });
+  backTop.addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
+
+  /* ---------- stat card jump ---------- */
+  document.querySelectorAll('.stat-card[data-jump]').forEach(function(c){
+    c.addEventListener('click', function(){
+      var target = document.querySelector(c.getAttribute('data-jump'));
+      if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+
+  /* ---------- expand/collapse all <details> ---------- */
+  var expandBtn = document.getElementById('expandBtn');
+  var expanded = false;
+  expandBtn.addEventListener('click', function(){
+    expanded = !expanded;
+    document.querySelectorAll('details').forEach(function(d){ d.open = expanded; });
+    expandBtn.textContent = expanded ? '⤡ Colapsar todo' : '⤢ Expandir todo';
+  });
+
+  /* ---------- copy code ---------- */
+  window.copyCode = function(btn){
+    var pre = btn.closest('.codebox').querySelector('code');
+    var txt = pre.innerText;
+    var old = btn.textContent;
+    // Deliberadamente NO usa navigator.clipboard.writeText() -- probado
+    // real contra este entorno: la promesa puede quedar colgada sin
+    // resolver NI rechazar nunca (prompt de permiso que no llega a
+    // mostrarse), y eso bloquea el renderer entero (reproducido 2 veces,
+    // pestaña sin responder 30s+) -- ni siquiera un setTimeout de
+    // seguridad alcanza a dispararse en ese estado. El metodo de
+    // textarea+execCommand es sincrono, no pide permiso, y no puede
+    // colgarse de esta forma -- es el mecanismo principal, no un fallback.
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e) { ok = false; }
+    document.body.removeChild(ta);
+    btn.textContent = ok ? '✓ Copiado' : '⚠ No se pudo copiar';
+    setTimeout(function(){ btn.textContent = old; }, 1400);
+  };
+
+  /* ---------- search + status filter ---------- */
+  var searchInput = document.getElementById('searchInput');
+  var searchClear = document.getElementById('searchClear');
+  var searchCount = document.getElementById('searchCount');
+  var noResults = document.getElementById('noResults');
+  var searchable = Array.prototype.slice.call(document.querySelectorAll('.searchable'));
+  var activeFilter = 'all';
+
+  function normalize(s){ return (s||'').toLowerCase(); }
+
+  function applyFilters(){
+    var q = normalize(searchInput.value.trim());
+    searchClear.classList.toggle('show', q.length>0);
+    var visibleCount = 0;
+
+    searchable.forEach(function(el){
+      var status = el.getAttribute('data-status') || 'all';
+      var statusOk = (activeFilter==='all') || (status==='all') || (status===activeFilter);
+      var text = normalize(el.getAttribute('data-search') || el.textContent);
+      var searchOk = !q || text.indexOf(q) !== -1;
+      var visible = statusOk && searchOk;
+      el.classList.toggle('hide', !visible);
+      if(visible) visibleCount++;
+    });
+
+    // ocultar secciones cuyo unico contenido searchable quedo oculto
+    document.querySelectorAll('section[id]').forEach(function(sec){
+      var items = sec.querySelectorAll('.searchable');
+      if(items.length === 0) return;
+      var anyVisible = Array.prototype.some.call(items, function(el){ return !el.classList.contains('hide'); });
+      sec.style.display = anyVisible ? '' : 'none';
+    });
+
+    if(q){
+      searchCount.textContent = visibleCount + ' resultado' + (visibleCount===1?'':'s');
+    } else {
+      searchCount.textContent = '';
+    }
+    noResults.classList.toggle('show', visibleCount===0);
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  searchClear.addEventListener('click', function(){ searchInput.value=''; applyFilters(); searchInput.focus(); });
+
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.chip').forEach(function(c){ c.setAttribute('data-active','0'); });
+      chip.setAttribute('data-active','1');
+      activeFilter = chip.getAttribute('data-filter');
+      applyFilters();
+    });
+  });
+
+  applyFilters();
+})();
+</script>
+</body>
+</html>

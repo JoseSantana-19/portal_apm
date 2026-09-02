@@ -1952,8 +1952,41 @@ td.acciones-cell.columna-acciones .btn-accion {
         transform: none;
     }
 
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .45);
+        z-index: 9;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .3s;
+    }
+
+    .sidebar.mobile-open ~ .sidebar-backdrop {
+        opacity: 1;
+        visibility: visible;
+    }
+
     .global-search {
         width: 200px;
+    }
+
+    /* .notifications-dropdown / .user-dropdown / #global-search-results son
+       position:absolute con right:0 relativo a un contenedor chico (el botón
+       de campana/avatar), no al viewport — en mobile ese botón casi nunca
+       está pegado al borde real de la pantalla, así que el panel se sigue
+       saliendo por la izquierda aunque su ancho esté clampeado con min().
+       Encontrado en vivo (sesión real, 390px). Fix real: en mobile, fijarlos
+       al viewport en vez de al contenedor del botón. */
+    .notifications-dropdown,
+    .user-dropdown,
+    #global-search-results {
+        position: fixed !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        top: 64px !important;
     }
 
     .stats-row {
@@ -2004,7 +2037,10 @@ td.acciones-cell.columna-acciones .btn-accion {
     position: absolute;
     top: 50px;
     right: 0;
-    width: 360px;
+    /* min(): 360px fijo + right:0 se sale del viewport en pantallas
+       angostas (320-375px), tapando sus propios botones. Mismo patrón que
+       TH (topbar-enhanced.css .topbar-panel) y Portal (.notif-dropdown). */
+    width: min(360px, calc(100vw - 24px));
     background-color: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
@@ -2210,7 +2246,9 @@ td.acciones-cell.columna-acciones .btn-accion {
     position: absolute;
     top: 50px;
     right: 0;
-    width: 240px;
+    /* min(): mismo bug de .notifications-dropdown — clamp contra overflow
+       en pantallas angostas. */
+    width: min(240px, calc(100vw - 24px));
     background-color: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
@@ -2235,7 +2273,10 @@ td.acciones-cell.columna-acciones .btn-accion {
     position: absolute;
     right: 24px;
     top: 110px;
-    width: 480px;
+    /* min(): 480px fijo es más ancho que casi cualquier celular — sin
+       clamp, el panel de resultados de búsqueda global se sale del
+       viewport garantizado en mobile. */
+    width: min(480px, calc(100vw - 48px));
     max-height: 480px;
     overflow-y: auto;
     z-index: 999;

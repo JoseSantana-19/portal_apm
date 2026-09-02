@@ -564,6 +564,10 @@ a { text-decoration: none; color: inherit; }
     border: 1px solid var(--border-app);
     border-radius: 12px;
     width: 320px;
+    /* min(): en pantallas angostas (320-375px) un ancho fijo de 320px con
+       right:0 se sale por la izquierda del viewport y tapa sus propios
+       botones — clamped a 100vw menos margen, sin tocar el look desktop. */
+    width: min(320px, calc(100vw - 24px));
     max-height: 440px;
     overflow: hidden;
     box-shadow: var(--shadow-xl);
@@ -721,6 +725,16 @@ a { text-decoration: none; color: inherit; }
     background: var(--bg-app);
 }
 
+/* Backdrop del sidebar: default oculto en desktop. DEBE ir antes del
+   @media de abajo — misma especificidad que su override ahí adentro
+   (display:block), así que en cascada CSS gana el que aparece último en
+   el archivo sin importar el media query. Puesto después (como estaba),
+   este `display:none` le ganaba SIEMPRE al `display:block` responsive y
+   el backdrop nunca se veía en mobile — bug real, encontrado en vivo. */
+.sidebar-backdrop {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .sidebar {
@@ -734,6 +748,23 @@ a { text-decoration: none; color: inherit; }
     .sidebar.collapsed {
         width: 0px !important;
         visibility: hidden !important;
+    }
+
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .45);
+        z-index: 999; /* debajo del sidebar (1000), encima del resto */
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity var(--ease);
+    }
+
+    .sidebar:not(.collapsed) ~ .sidebar-backdrop,
+    .sidebar-backdrop.show {
+        opacity: 1;
+        visibility: visible;
     }
 }
 

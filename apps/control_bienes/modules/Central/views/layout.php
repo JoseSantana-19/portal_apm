@@ -379,6 +379,10 @@ unset($grupoMenu);
         </div>
     </aside>
 
+    <!-- Backdrop oscuro detrás del sidebar en mobile (<=768px, .mobile-open)
+         -- un click afuera lo cierra, igual que un item de menú. -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
     <!-- Área de Contenido Principal -->
     <main class="main-content">
         <!-- Header Unificado -->
@@ -701,6 +705,16 @@ unset($grupoMenu);
                         }
                     });
                 });
+
+                // Backdrop oscuro (mobile, <=768px): un click afuera del
+                // sidebar lo cierra, mismo criterio que un item de menú.
+                const backdrop = document.getElementById('sidebar-backdrop');
+                if (backdrop) {
+                    backdrop.addEventListener('click', () => {
+                        sidebar.classList.remove('mobile-open');
+                        hamburgerBtn.setAttribute('aria-expanded', 'false');
+                    });
+                }
 
                 if (typeof mediaMovil.addEventListener === 'function') {
                     mediaMovil.addEventListener('change', aplicarEstadoMenu);

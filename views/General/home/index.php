@@ -57,12 +57,25 @@ $sinContenido = !$tieneNoticias && !$tieneConsejos;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            /* flex-wrap: sin esto, en pantallas angostas el logo y el grupo de
+               botones (Directorio/Iniciar sesión/Soporte) no caben en una sola
+               fila y ninguno de los dos puede achicarse más allá de su ancho
+               intrínseco de contenido — el nav se desborda horizontalmente.
+               Con wrap, el grupo de botones baja a una segunda fila. */
+            flex-wrap: wrap;
+            row-gap: 14px;
             /* Fijo con el mismo azul institucional del menú lateral de portal_apm
                (ver css/style.css .sidebar --bg-sidebar) — sin foto de fondo. */
             background: #075177;
             border-bottom: 2px solid var(--border-app);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
             position: relative;
+        }
+
+        @media (max-width: 480px) {
+            .portal-nav {
+                padding: 16px 20px;
+            }
         }
 
         .portal-logo-text {

@@ -64,9 +64,18 @@ document.addEventListener("DOMContentLoaded", function() {
     // guardada) mantiene el comportamiento de siempre: abierto en desktop,
     // cerrado en mobile. Con preferencia guardada, esta manda siempre,
     // incluso en desktop, para que "cerrado y recargo" se respete.
+    //
+    // EXCEPCIÓN mobile (<=1024px): acá el sidebar es overlay a pantalla
+    // completa (position:fixed + backdrop, ver @media 1024px), no un panel
+    // que empuja contenido. Si se respeta ciegamente una preferencia
+    // "abierto" guardada desde una sesión de escritorio previa, el celular
+    // carga con el sidebar tapando toda la pantalla — bug real, encontrado
+    // en vivo. En mobile siempre arranca cerrado; la preferencia guardada
+    // solo aplica en desktop.
     if (sidebar) {
         const savedCollapsed = localStorage.getItem('apm_sidebar_collapsed');
-        const shouldBeOpen = savedCollapsed !== null ? savedCollapsed === '0' : window.innerWidth > 1024;
+        const isMobile = window.innerWidth <= 1024;
+        const shouldBeOpen = isMobile ? false : (savedCollapsed !== null ? savedCollapsed === '0' : window.innerWidth > 1024);
         sidebar.classList.toggle("collapsed", !shouldBeOpen);
         const icon = document.getElementById("hamburgerIcon");
         if (icon) {
@@ -113,6 +122,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (toggleBtn) toggleBtn.addEventListener("click", toggleSidebar);
     if (closeBtn) closeBtn.addEventListener("click", function() { setSidebarCollapsed(true); });
+
+    // Backdrop oscuro (mobile/tablet, <=1024px): un click afuera del
+    // sidebar lo cierra, mismo comportamiento que el botón "X" de cerrar.
+    const backdrop = document.getElementById("sidebar-backdrop");
+    if (backdrop) backdrop.addEventListener("click", function() { setSidebarCollapsed(true); });
 
     // 2. User Dropdown & Notification Toggle
     const userMenuBtn   = document.getElementById("user-menu-btn");

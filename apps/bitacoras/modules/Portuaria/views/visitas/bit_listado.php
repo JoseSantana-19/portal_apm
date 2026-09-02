@@ -19,6 +19,20 @@ $soloLectura = (!$puedeRegistrarIngreso && !$puedeRegistrarSalida && !$puedeEdit
         table-layout: fixed !important;
         width: 100% !important;
     }
+    /* La tabla tiene 12 columnas — table-layout:fixed + width:100% (arriba)
+       arregla el desfase header/body en desktop, pero en pantallas angostas
+       fuerza esas 12 columnas a caber en ~300px: cada th se comprime hasta
+       partir el texto letra por letra (encontrado en vivo, sesión real,
+       390px). El wrapper .table-responsive ya sabe scrollear horizontal —
+       solo hace falta devolverle a la tabla su ancho natural para que haya
+       algo que scrollear. */
+    @media (max-width: 992px) {
+        #tablaVisitas {
+            table-layout: auto !important;
+            width: auto !important;
+            min-width: 1100px;
+        }
+    }
     /* Contenedor DataTables: nunca más ancho que el main (sidebar push) */
     .apm-listado-visitas-page {
         min-width: 0;

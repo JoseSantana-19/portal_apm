@@ -37,6 +37,12 @@
     <!-- SIDEBAR -->
     <?php require __DIR__ . '/sidebar.php'; ?>
 
+    <!-- Backdrop oscuro detrás del sidebar en mobile/tablet (<=1024px) --
+         solo visible cuando el sidebar está abierto en ese rango; en
+         desktop el sidebar empuja el contenido, no lo tapa, así que acá
+         no hace falta oscurecer nada. -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
     <!-- MAIN WRAPPER -->
     <div class="main-wrapper" id="main-wrapper">
 
