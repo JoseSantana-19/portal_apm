@@ -9,7 +9,6 @@ final class Auth
     // global desde PORTAL_APM (misma fn_InactividadSegundos/fn_InactividadAvisoSegundos
     // que usan el portal nativo, Control de Bienes y Bitácoras).
     private const IDLE_TTL_DEFAULT = 1800;   // 30 minutos sin actividad
-    private const SESSION_NAME = 'APMSESSID';
     private const MAX_LOGIN_ATTEMPTS = 5;
     private const LOCK_MINUTES = 15;
     private const MFA_TTL = 300;
@@ -76,11 +75,6 @@ final class Auth
         return !str_starts_with($hash, self::PEPPER_PREFIX);
     }
 
-    public static function sessionName(): string
-    {
-        return self::SESSION_NAME;
-    }
-
     public static function configureSession(): void
     {
         $sessionPath = Config::privateDirectory() . DIRECTORY_SEPARATOR . 'sessions';
@@ -91,7 +85,7 @@ final class Auth
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         ini_set('session.cookie_httponly', '1');
-        session_name(self::SESSION_NAME);
+        session_name('APMSESSID');
         session_set_cookie_params([
             'lifetime' => 0,
             'path' => '/',
@@ -352,8 +346,7 @@ final class Auth
             return;
         }
         self::audit(self::username(), 'ACCESO_DENEGADO', "Permiso denegado: {$module}.{$action}");
-        http_response_code(403);
-        exit('Acceso denegado. Su rol no tiene permisos para realizar esta operacion.');
+        ErrorHandler::abort(403);
     }
 
     public static function username(): string

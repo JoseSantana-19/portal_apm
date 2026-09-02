@@ -64,6 +64,55 @@ final class Config
         return trim((string)(getenv('PORTAL_MAP_ATTRIBUTION') ?: '&copy; Esri, OpenStreetMap contributors'));
     }
 
+    /** Configuración del transporte SMTP institucional. */
+    public static function smtp(): array
+    {
+        $enabled = filter_var(getenv('PORTAL_SMTP_ENABLED') ?: 'false', FILTER_VALIDATE_BOOL);
+        $host = trim((string)(getenv('PORTAL_SMTP_HOST') ?: ''));
+        $port = (int)(getenv('PORTAL_SMTP_PORT') ?: 587);
+        $encryption = strtolower(trim((string)(getenv('PORTAL_SMTP_ENCRYPTION') ?: 'tls')));
+        $username = trim((string)(getenv('PORTAL_SMTP_USER') ?: ''));
+        $password = (string)(getenv('PORTAL_SMTP_PASSWORD') ?: '');
+        $fromAddress = trim((string)(getenv('PORTAL_SMTP_FROM_ADDRESS') ?: ''));
+        $fromName = trim((string)(getenv('PORTAL_SMTP_FROM_NAME') ?: 'Autoridad Portuaria de Manta'));
+        $timeout = (int)(getenv('PORTAL_SMTP_TIMEOUT') ?: 10);
+        $verifyPeer = filter_var(getenv('PORTAL_SMTP_VERIFY_PEER') ?: 'true', FILTER_VALIDATE_BOOL);
+
+        if (!in_array($encryption, ['tls', 'ssl', 'none'], true)) {
+            throw new RuntimeException('PORTAL_SMTP_ENCRYPTION debe ser tls, ssl o none.');
+        }
+        if ($port < 1 || $port > 65535) {
+            throw new RuntimeException('PORTAL_SMTP_PORT debe estar entre 1 y 65535.');
+        }
+        if ($timeout < 2 || $timeout > 60) {
+            throw new RuntimeException('PORTAL_SMTP_TIMEOUT debe estar entre 2 y 60 segundos.');
+        }
+        if ($enabled) {
+            if ($host === '' || !filter_var($fromAddress, FILTER_VALIDATE_EMAIL)) {
+                throw new RuntimeException('SMTP habilitado sin servidor o remitente válido.');
+            }
+            if (($username === '') !== ($password === '')) {
+                throw new RuntimeException('PORTAL_SMTP_USER y PORTAL_SMTP_PASSWORD deben configurarse juntos.');
+            }
+            if (self::isProduction() && ($encryption === 'none' || !$verifyPeer)) {
+                throw new RuntimeException('Producción exige SMTP cifrado y validación del certificado.');
+            }
+        }
+
+        return [
+            'enabled' => $enabled,
+            'host' => $host,
+            'port' => $port,
+            'encryption' => $encryption,
+            'username' => $username,
+            'password' => $password,
+            'from_address' => $fromAddress,
+            'from_name' => $fromName,
+            'timeout' => $timeout,
+            'verify_peer' => $verifyPeer,
+        ];
+    }
+
     /** Origen HTTPS seguro que debe autorizarse en img-src para los mosaicos. */
     public static function mapTileOrigin(): string
     {
@@ -95,6 +144,14 @@ final class Config
             }
         }
 
+        $read = static function (string $env, string $key, ?string $default = null) use ($fileConfig): ?string {
+            $value = getenv($env);
+            if ($value !== false && $value !== '') {
+                return $value;
+            }
+            return isset($fileConfig[$key]) ? (string)$fileConfig[$key] : $default;
+        };
+
         // Config única del sistema (config/connections.php en la raíz de
         // portal_apm) — misma fuente que usan el portal nativo y las demás
         // apps embebidas (apps/control_bienes, apps/bitacoras). Se consulta
@@ -109,14 +166,6 @@ final class Config
                 $portalConn = $loaded;
             }
         }
-
-        $read = static function (string $env, string $key, ?string $default = null) use ($fileConfig): ?string {
-            $value = getenv($env);
-            if ($value !== false && $value !== '') {
-                return $value;
-            }
-            return isset($fileConfig[$key]) ? (string)$fileConfig[$key] : $default;
-        };
 
         $portalDefault = static function (string $key) use ($portalConn): ?string {
             if ($portalConn === null) {
@@ -203,7 +252,7 @@ final class Config
         return $key;
     }
 
-    /** Clave independiente para cifrar borradores de formularios (feature form_drafts). */
+    /** Clave independiente para cifrar borradores de formularios. */
     public static function draftKey(): string
     {
         $env = getenv('PORTAL_DRAFT_KEY');

@@ -95,4 +95,72 @@ function portalConfirm({ title = 'Confirmar acción', message = '', confirmText 
     });
 }
 
+/** Solicita un motivo dentro de la interfaz institucional, sin prompts nativos. */
+function portalPrompt({ title = 'Registrar motivo', message = '', confirmText = 'Continuar', cancelText = 'Cancelar', placeholder = '', maxLength = 500, icon = 'bi-pencil-square' } = {}) {
+    if (typeof HTMLDialogElement === 'undefined') {
+        const value = window.prompt(message);
+        return Promise.resolve(value === null ? null : String(value).trim().slice(0, maxLength));
+    }
+
+    return new Promise(resolve => {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'portal-confirm portal-prompt';
+        const card = document.createElement('div');
+        card.className = 'portal-confirm-card';
+        const iconBox = document.createElement('div');
+        iconBox.className = 'portal-confirm-icon';
+        const iconElement = document.createElement('i');
+        iconElement.className = `bi ${icon}`;
+        iconBox.append(iconElement);
+        const heading = document.createElement('h2');
+        heading.textContent = title;
+        const copy = document.createElement('p');
+        copy.textContent = message;
+        const field = document.createElement('textarea');
+        field.className = 'portal-prompt-field';
+        field.rows = 4;
+        field.maxLength = maxLength;
+        field.placeholder = placeholder;
+        field.setAttribute('aria-label', title);
+        const error = document.createElement('small');
+        error.className = 'portal-prompt-error';
+        error.setAttribute('role', 'alert');
+        const actions = document.createElement('div');
+        actions.className = 'portal-confirm-actions';
+        const cancel = document.createElement('button');
+        cancel.type = 'button'; cancel.className = 'btn btn-outline'; cancel.textContent = cancelText;
+        const accept = document.createElement('button');
+        accept.type = 'button'; accept.className = 'btn btn-primary';
+        accept.append(Object.assign(document.createElement('i'), { className: 'bi bi-check-lg' }), document.createTextNode(String(confirmText)));
+        actions.append(cancel, accept);
+        card.append(iconBox, heading, copy, field, error, actions);
+        dialog.append(card);
+        document.body.append(dialog);
+
+        let finished = false;
+        const finish = value => {
+            if (finished) return;
+            finished = true;
+            dialog.close();
+            dialog.remove();
+            resolve(value);
+        };
+        cancel.addEventListener('click', () => finish(null));
+        accept.addEventListener('click', () => {
+            const value = field.value.trim();
+            if (!value) {
+                error.textContent = 'El motivo es obligatorio.';
+                field.focus();
+                return;
+            }
+            finish(value);
+        });
+        dialog.addEventListener('cancel', event => { event.preventDefault(); finish(null); });
+        dialog.addEventListener('click', event => { if (event.target === dialog) finish(null); });
+        dialog.showModal();
+        field.focus();
+    });
+}
+
 window.portalConfirm = portalConfirm;
+window.portalPrompt = portalPrompt;

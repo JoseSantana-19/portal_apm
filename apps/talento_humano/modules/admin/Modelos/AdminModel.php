@@ -122,6 +122,7 @@ final class AdminModel extends Model
             return ['exito' => 0, 'mensaje' => 'Revise correo y rol. La clave no llegó correctamente -- recargue la página e intente de nuevo.'];
         }
 
+
         try {
             $stmt = $this->db->prepare(
                 'EXEC dbo.sp_th_crear_usuario_sistema :usuario,:hash,:correo,:nombre,:empleado,:rol'

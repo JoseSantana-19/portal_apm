@@ -15,7 +15,7 @@ if ($sql === false) {
 try {
     $config = Config::database();
     $dsn = sprintf(
-        'sqlsrv:Driver={%s};Server=%s;Database=%s;Encrypt=%s;TrustServerCertificate=%s',
+        'sqlsrv:Driver=%s;Server=%s;Database=%s;Encrypt=%s;TrustServerCertificate=%s',
         $config['driver'],
         $config['server'],
         $config['database'],

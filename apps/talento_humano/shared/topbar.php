@@ -52,22 +52,30 @@ $topbarIdentification = trim((string)($topbarContext['identification'] ?? ''));
 
     <div class="topbar-actions">
         <?php if ($topbarShowSearch): ?>
-        <form class="search global-search-form" action="<?= BASE_URL ?>/talento-humano/directorio" method="get" role="search">
+        <form class="search global-search-form" action="<?= BASE_URL ?>/talento-humano/directorio" method="get" role="search"
+              data-search-endpoint="<?= BASE_URL ?>/talento-humano/empleado/buscar-selector">
             <button type="submit" aria-label="Buscar personal" title="Buscar personal">
                 <i class="bi bi-search" aria-hidden="true"></i>
             </button>
             <input type="search" id="globalSearch" name="q" value="<?= htmlspecialchars((string)($_GET['q'] ?? '')) ?>"
-                   placeholder="Buscar personal en la plataforma" autocomplete="off" aria-label="Buscar personal">
+                   placeholder="Buscar funcionario..." autocomplete="off" aria-label="Buscar personal"
+                   role="combobox" aria-autocomplete="list" aria-controls="globalSearchResults" aria-expanded="false">
+            <div class="global-search-results" id="globalSearchResults" role="listbox" hidden
+                 aria-label="Funcionarios encontrados"></div>
         </form>
         <?php endif; ?>
 
-        <div class="icon-chip topbar-date-chip" title="Fecha actual">
+        <div class="icon-chip topbar-date-chip" title="Fecha institucional">
             <i class="bi bi-calendar-event" aria-hidden="true"></i><span id="currentDate" data-institutional-date="<?= htmlspecialchars(InstitutionalClock::todayIso()) ?>">--</span>
         </div>
 
-        <button class="topbar-icon-button" id="themeToggle" type="button"
-                aria-label="Activar modo oscuro" title="Activar modo oscuro">
-            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
+        <button class="theme-toggle-pill" id="themeToggle" type="button"
+                aria-label="Cambiar tema" title="Claro / Oscuro" aria-pressed="false">
+            <span class="theme-toggle-track">
+                <span class="theme-toggle-thumb"></span>
+                <i class="bi bi-brightness-high-fill theme-toggle-icon theme-toggle-icon--sun" aria-hidden="true"></i>
+                <i class="bi bi-moon-stars-fill theme-toggle-icon theme-toggle-icon--moon" aria-hidden="true"></i>
+            </span>
         </button>
 
         <div class="topbar-popover">

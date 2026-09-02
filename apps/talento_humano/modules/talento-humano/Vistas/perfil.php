@@ -91,6 +91,7 @@ $secciones = [
             ['Grupo ocupacional', $valor($empleado, ['grupo_ocupacional'], 'No registrado'), 'bi-people'],
             ['Grado laboral', $valor($empleado, ['grado_laboral'], 'No registrado'), 'bi-bar-chart-steps'],
             ['Partida individual', $valor($empleado, ['partida_individual'], 'No registrada'), 'bi-receipt'],
+            ['Régimen laboral', strtoupper((string)($empleado['regimen_laboral'] ?? 'LOSEP')) === 'CODIGO_TRABAJO' ? 'Código del Trabajo' : 'LOSEP', 'bi-shield-check'],
             ['Tipo de contrato', $valor($empleado, ['tipo_contrato'], 'No especificado'), 'bi-file-earmark-text'],
             ['Jornada', $valor($empleado, ['jornada'], 'No registrada').' · '.$valor($empleado, ['horas_jornada'], '0').' horas', 'bi-clock'],
             ['Fecha de ingreso', $fecha($empleado['fecha_ingreso'] ?? null), 'bi-calendar-check'],
@@ -167,7 +168,7 @@ $secciones = [
 <div class="app">
     <?php require_once ROOT . '/shared/menu.php'; ?>
     <section class="content">
-        <?php $topbarShowSearch=false; $topbarBackUrl=BASE_URL.'/talento-humano/directorio'; $topbarBackLabel='Volver al Directorio'; require ROOT.'/shared/topbar.php'; ?>
+        <?php $topbarShowSearch=true; $topbarBackUrl=BASE_URL.'/talento-humano/directorio'; $topbarBackLabel='Volver al Directorio'; require ROOT.'/shared/topbar.php'; ?>
         <main class="main">
             <div class="content-shell profile-page">
                 <div class="readonly-badge"><i class="bi bi-lock-fill"></i> Expediente digital en modo de consulta. La edición se realiza desde el Nómina de Personal.</div>
@@ -201,6 +202,9 @@ $secciones = [
                         <a href="<?= BASE_URL ?>/talento-humano/empleado/editar?id=<?= (int)$empleado['empleado_id'] ?>" class="perfil-action"><i class="bi bi-pencil-square"></i> Editar expediente</a>
                         <?php endif; ?>
                         <a target="_blank" href="<?= BASE_URL ?>/talento-humano/empleado/imprimir-ficha?id=<?= (int)$empleado['empleado_id'] ?>" class="perfil-action"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</a>
+                        <?php if(Auth::can('documentos_firmados','visualizar')): ?>
+                        <a href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=FICHA_PERSONAL&amp;origen_id=<?= (int)$empleado['empleado_id'] ?>" class="perfil-action"><i class="bi bi-file-earmark-check"></i> Documento firmado</a>
+                        <?php endif; ?>
                     </div>
                 </section>
 

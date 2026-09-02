@@ -28,6 +28,16 @@ jobs:
         run: php tests/environment_static.php
       - name: Local frontend dependencies
         run: php tests/frontend_assets_static.php
+      - name: DataTables integration
+        run: php tests/datatables_static.php
+      - name: Light and dark visual consistency
+        run: php tests/visual_polish_static.php
+      - name: SMTP notification transport
+        run: |
+          php tests/smtp_static.php
+          php tests/smtp_config.php
+      - name: Release readiness controls
+        run: php tests/release_readiness_static.php
       - name: Centralized error handling
         run: php tests/error_handling_static.php
       - name: Operational monitoring and retention
@@ -55,6 +65,17 @@ jobs:
         run: php tests/workforce_improvements_static.php
       - name: Position-based roles
         run: php tests/role_position_static.php
+      - name: Labor regime and assistant role
+        run: |
+          php tests/regimen_laboral_static.php
+          php tests/rbac_asistente_talento_static.php
+          php tests/periodos_vinculacion_static.php
+          php tests/formulario_abreviado_pdf.php
+      - name: Signed document repository
+        run: |
+          php tests/signed_documents_static.php
+          php tests/signed_document_pdf_validation.php
+          php tests/paz_salvo_pdf.php
       - name: Talent operations and report UI
         run: |
           php tests/talent_operation_static.php

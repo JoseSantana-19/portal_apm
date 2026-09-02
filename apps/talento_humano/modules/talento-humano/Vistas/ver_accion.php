@@ -5,6 +5,9 @@
 
 $a   = $accion    ?? [];
 $nro = $a['numero_accion'] ?? "Sin número";
+$esAbreviado = strtoupper((string)($a['tipo_documento'] ?? '')) === 'FORMULARIO_ABREVIADO'
+    || strtoupper((string)($a['regimen_laboral'] ?? '')) === 'CODIGO_TRABAJO';
+$nombreDocumento = $esAbreviado ? 'Formulario Laboral Abreviado' : 'Acción de Personal';
 
 // Formatear fechas
 $fmtFecha = function(?string $ts): string {
@@ -17,8 +20,8 @@ $fmtFecha = function(?string $ts): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acción de Personal <?= htmlspecialchars($nro) ?> | Talento Humano APM</title>
-    <meta name="description" content="Documento de Acción de Personal <?= htmlspecialchars($nro) ?> — Autoridad Portuaria de Manta.">
+    <title><?= htmlspecialchars($nombreDocumento) ?> <?= htmlspecialchars($nro) ?> | Talento Humano APM</title>
+    <meta name="description" content="<?= htmlspecialchars($nombreDocumento) ?> <?= htmlspecialchars($nro) ?> — Autoridad Portuaria de Manta.">
     <?php require ROOT . '/shared/head_assets.php'; ?>
     <style>
         /* ── Vista del documento guardado ───────────────────────────── */
@@ -104,7 +107,7 @@ $fmtFecha = function(?string $ts): string {
     <?php require_once ROOT . '/shared/menu.php'; ?>
 
     <section class="content">
-        <?php $topbarShowSearch=false;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
+        <?php $topbarShowSearch=true;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
 
         <main class="main">
             <div class="content-shell">
@@ -114,7 +117,7 @@ $fmtFecha = function(?string $ts): string {
                     <div style="text-align:center; padding:60px 20px;">
                         <i class="bi bi-file-earmark-x" style="font-size:3rem; color:var(--ink-600);"></i>
                         <h3 style="margin:16px 0 8px;">Documento no encontrado</h3>
-                        <p style="color:var(--ink-600);">La Acción de Personal con ID <?= (int)($accion_id ?? 0) ?> no existe o fue eliminada.</p>
+                        <p style="color:var(--ink-600);">El documento laboral con ID <?= (int)($accion_id ?? 0) ?> no existe o fue eliminado.</p>
                         <a href="<?= BASE_URL ?>/talento-humano/directorio" class="btn btn-primary" style="margin-top:16px;">
                             <i class="bi bi-arrow-left"></i> Volver al directorio
                         </a>
@@ -124,8 +127,8 @@ $fmtFecha = function(?string $ts): string {
                     <!-- Encabezado del documento -->
                     <div class="doc-header">
                         <div>
-                            <h2><i class="bi bi-file-earmark-text-fill"></i> Acción de Personal</h2>
-                            <p>Documento oficial registrado en el sistema. Solo lectura.</p>
+                            <h2><i class="bi bi-file-earmark-text-fill"></i> <?= htmlspecialchars($nombreDocumento) ?></h2>
+                            <p><?= $esAbreviado ? 'Documento para personal sujeto al Código del Trabajo.' : 'Documento oficial para personal sujeto a LOSEP.' ?> Solo lectura.</p>
                         </div>
                         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                             <span class="doc-num"><?= htmlspecialchars($nro) ?></span>
@@ -133,6 +136,11 @@ $fmtFecha = function(?string $ts): string {
                                target="_blank" class="btn btn-primary" id="btn-imprimir-accion">
                                 <i class="bi bi-printer"></i> Imprimir PDF
                             </a>
+                            <?php if(Auth::can('documentos_firmados','visualizar')): ?>
+                            <a href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=ACCION_PERSONAL&amp;origen_id=<?= (int)($accion_id ?? 0) ?>" class="btn btn-outline">
+                                <i class="bi bi-file-earmark-check"></i> Documento firmado
+                            </a>
+                            <?php endif; ?>
                             <a href="<?= BASE_URL ?>/talento-humano/accion-personal" class="btn btn-outline">
                                 <i class="bi bi-plus-circle"></i> Nueva Acción
                             </a>
@@ -141,7 +149,7 @@ $fmtFecha = function(?string $ts): string {
 
                     <div class="readonly-banner">
                         <i class="bi bi-lock-fill"></i>
-                        Este documento es de solo lectura. Para modificarlo, genere una nueva Acción de Personal.
+                        Este documento es de solo lectura. Para modificarlo, edite el borrador antes de aprobarlo o genere un nuevo documento laboral.
                     </div>
 
                     <!-- Sección 1: Datos del Servidor -->

@@ -48,7 +48,12 @@ $assert(str_contains($html,'id="notificationToggle"')&&str_contains($html,'id="n
 $assert(str_contains($html,'topbar-notification-badge')&&str_contains($html,'>2</span>'),'El contador de notificaciones no refleja los avisos.');
 $assert(str_contains($html,'id="profileToggle"')&&str_contains($html,'id="profilePanel"'),'Falta el menú de perfil.');
 $assert(str_contains($html,'Foto de María Prueba')&&str_contains($html,'/talento-humano/empleado/perfil/1300000001'),'La imagen o el enlace al perfil institucional no se renderiza.');
-$assert(str_contains($html,'global-search-form')&&str_contains($html,'Buscar personal en la plataforma'),'El buscador superior no está disponible.');
+$assert(
+    str_contains($html,'global-search-form')
+    && str_contains($html,'id="globalSearch"')
+    && str_contains($html,'id="globalSearchResults"'),
+    'El buscador superior con resultados accesibles no está disponible.'
+);
 $assert(str_contains($html,'action="/logout"')&&str_contains($html,'csrf-topbar-test'),'El cierre de sesión no mantiene protección CSRF.');
 
 $head=(string)file_get_contents(ROOT.'/shared/head_assets.php');

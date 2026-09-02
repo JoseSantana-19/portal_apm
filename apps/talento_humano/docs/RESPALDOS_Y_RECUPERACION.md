@@ -40,6 +40,26 @@ Esta consulta no crea respaldos ni altera trabajos. Una revisión válida debe m
 - revisar semanalmente el historial de los cuatro trabajos;
 - nunca incorporar credenciales ni archivos `.bak`/`.trn` al repositorio Git.
 
+El script `database/administracion/configurar_respaldo_externo_alertas.sql` instala un respaldo diario `COPY_ONLY` cifrado con AES-256 hacia una ruta UNC, ejecuta `RESTORE VERIFYONLY WITH CHECKSUM`, notifica fallos de los trabajos APM y crea alertas para los errores SQL 823, 824 y 825. Debe ejecutarse únicamente después de:
+
+- crear en `master` el certificado `APM_BackupEncryptionCert`;
+- exportar la clave privada del certificado a una custodia diferente del repositorio de respaldos;
+- conceder a la cuenta del servicio SQL acceso mínimo a la ruta UNC;
+- configurar y probar un perfil de Database Mail;
+- definir un operador institucional que reciba las alertas.
+
+Ejemplo sin guardar secretos en el repositorio:
+
+```powershell
+sqlcmd -S SQL-PRODUCCION -E -b `
+  -i database\administracion\configurar_respaldo_externo_alertas.sql `
+  -v ExternalBackupPath="\\servidor-respaldo\portal-apm" `
+     OperatorEmail="infraestructura@institucion.gob.ec" `
+     MailProfile="APM Database Mail"
+```
+
+El archivo externo no es recuperable sin el certificado y su clave privada; por eso ambos deben respaldarse por separado conforme a la política institucional.
+
 La tabla `th_respaldo_normalizacion_20260729` conserva valores previos de área, cargo, contrato y título por empleado. Es un respaldo lógico de conciliación y no reemplaza los respaldos de SQL Server.
 
 ## Simulacro integral de restauración

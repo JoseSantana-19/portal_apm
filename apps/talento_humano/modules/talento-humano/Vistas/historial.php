@@ -279,6 +279,8 @@
                         foreach (($jornadasEspeciales ?? []) as $jornada) $jornadasPorEmpleado[(int)$jornada['empleado_id']][]=$jornada;
                         $vigenciasPorEmpleado=[];
                         foreach (($vigenciasLaborales ?? []) as $vigencia) $vigenciasPorEmpleado[(int)$vigencia['empleado_id']][]=$vigencia;
+                        $eventosPorEmpleado=[];
+                        foreach (($eventosLaborales ?? []) as $evento) $eventosPorEmpleado[(int)$evento['empleado_id']][]=$evento;
                         ?>
 
                         <?php foreach ($porFuncionario as $persona): ?>
@@ -321,6 +323,11 @@
                                                  $vigenciasPorEmpleado[(int)$p['empleado_id']] ?? [],
                                                  static fn(array $v):bool=>(string)($v['fecha_hasta']??'9999-12-31') >= $inicioPeriodo
                                                      && (string)($v['fecha_desde']??'9999-12-31') <= $finPeriodo
+                                             ));
+                                             $detallePeriodo['eventos_laborales']=array_values(array_filter(
+                                                 $eventosPorEmpleado[(int)$p['empleado_id']] ?? [],
+                                                 static fn(array $v):bool=>(string)($v['fecha_evento']??'9999-12-31') >= $inicioPeriodo
+                                                     && (string)($v['fecha_evento']??'0001-01-01') <= $finPeriodo
                                              ));
                                             ?>
                                             <div class="periodo-card periodo-detalle <?= $esActual ? 'actual-card' : '' ?>" role="button" tabindex="0"
@@ -381,6 +388,11 @@
                                                     </div>
                                                 <?php endif; ?>
                                                 <div class="detalle-hint"><i class="bi bi-eye"></i> Ver detalle completo del periodo</div>
+                                                <?php if(!empty($detallePeriodo['eventos_laborales'])): ?>
+                                                    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                                                        <span class="badge-anios"><i class="bi bi-activity"></i> <?= count($detallePeriodo['eventos_laborales']) ?> evento(s)</span>
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
@@ -422,7 +434,7 @@
 <div class="history-modal" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
     <div class="history-dialog">
         <div class="history-dialog-head"><div><small>Detalle del periodo laboral</small><h3 id="historyModalTitle" style="margin:4px 0 0"></h3></div><button type="button" class="btn btn-ghost" id="closeHistoryModal" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></div>
-        <div class="history-dialog-body"><div class="history-detail-grid" id="historyDetailGrid"></div><div id="historyAssignments"></div><div id="historySchedules"></div></div>
+        <div class="history-dialog-body"><div class="history-detail-grid" id="historyDetailGrid"></div><div id="historyEvents"></div><div id="historyAssignments"></div><div id="historySchedules"></div></div>
     </div>
 </div>
 
@@ -450,6 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('historySchedules').innerHTML=jornadas.length?`<h4 style="margin:22px 0 10px">Jornadas temporales registradas</h4>${jornadas.map(j=>`<div class="history-detail" style="margin-bottom:8px"><strong>${formato(j.tipo_novedad)}</strong><br><small>${fecha(j.fecha_desde)} — ${fecha(j.fecha_hasta)} · ${formato(j.horas_diarias)} horas · ${formato(j.numero_accion)}</small></div>`).join('')}`:'';
         const vigencias=p.vigencias_laborales||[];
         document.getElementById('historyAssignments').innerHTML=vigencias.length?`<h4 style="margin:22px 0 10px">Vigencias laborales y retornos</h4>${vigencias.map(v=>`<div class="history-detail" style="margin-bottom:8px"><strong>${formato(v.tipo_vigencia)} · ${formato(v.estado)}</strong><br><small>${fecha(v.fecha_desde)} — ${fecha(v.fecha_hasta)} · ${formato(v.area_propuesta)} · ${formato(v.cargo_propuesto)} · ${formato(v.numero_accion)}</small><br><small>Situación de retorno: ${formato(v.area_original)} · ${formato(v.cargo_original)}</small></div>`).join('')}`:'';
+        const eventos=p.eventos_laborales||[];
+        // Las jornadas ya tienen una sección detallada con horas y vigencia. Se
+        // conservan como eventos en SQL, pero no se dibujan dos veces en el modal.
+        const eventosVisibles=eventos.filter(e=>e.categoria!=='JORNADA');
+        const etiquetas={ACCION_PERSONAL:'Acción de Personal',VACACIONES:'Vacaciones',JORNADA:'Jornada temporal',MOVIMIENTO_INTERNO:'Movimiento interno',FORMULARIO:'Formulario registrado',DOCUMENTO_FIRMADO:'Documento firmado'};
+        const escapeHtml=valor=>formato(valor).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+        const enlaceEvento=e=>{const id=Number(e.origen_id||0);if(!id)return'';let url='';if(e.origen_tipo==='ACCION_PERSONAL')url=`<?= BASE_URL ?>/talento-humano/accion-personal/ver?id=${id}`;if(e.origen_tipo==='ESTUDIO_SOCIOECONOMICO')url=`<?= BASE_URL ?>/talento-humano/estudio-seguridad?estudio_id=${id}`;if(e.origen_tipo==='PAZ_SALVO')url=`<?= BASE_URL ?>/talento-humano/paz-salvo/ver?id=${id}`;if(e.origen_tipo==='DOCUMENTO_FIRMADO')url=`<?= BASE_URL ?>/talento-humano/documentos-firmados/descargar?id=${id}`;return url?`<a class="btn btn-outline" style="margin-top:8px" href="${url}" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Abrir respaldo</a>`:''};
+        document.getElementById('historyEvents').innerHTML=eventosVisibles.length?`<h4 style="margin:22px 0 10px">Eventos del expediente</h4>${eventosVisibles.map(e=>`<div class="history-detail" style="margin-bottom:8px"><small>${escapeHtml(etiquetas[e.categoria]||e.categoria)} · ${escapeHtml(e.estado)}</small><strong style="display:block;margin-top:4px">${escapeHtml(e.subtipo||e.titulo)}${e.numero_documento?` · ${escapeHtml(e.numero_documento)}`:''}</strong><small>${fecha(e.fecha_desde)}${e.fecha_hasta?` — ${fecha(e.fecha_hasta)}`:''}${e.detalle?` · ${escapeHtml(e.detalle)}`:''}</small>${enlaceEvento(e)}</div>`).join('')}`:'<h4 style="margin:22px 0 10px">Eventos del expediente</h4><p style="color:var(--text-muted)">No existen novedades adicionales dentro de este periodo.</p>';
         modal.classList.add('open');document.body.style.overflow='hidden';document.getElementById('closeHistoryModal').focus();
     };
     document.querySelectorAll('.periodo-detalle').forEach(card=>{card.addEventListener('click',()=>abrir(card));card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir(card)}})});

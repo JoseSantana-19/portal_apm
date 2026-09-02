@@ -323,7 +323,7 @@ $modoImpresion  = $modoImpresion ?? false;
         <?php require_once ROOT . '/shared/menu.php'; ?>
 
         <section class="content">
-            <?php $topbarShowSearch=false;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
+            <?php $topbarShowSearch=true;$topbarBackUrl=BASE_URL.'/talento-humano/biblioteca';$topbarBackLabel='Volver a Biblioteca';require ROOT.'/shared/topbar.php'; ?>
 
             <main class="main">
                 <div class="content-shell">
@@ -1204,7 +1204,7 @@ $modoImpresion  = $modoImpresion ?? false;
                                     <div style="font-size:.82rem;color:var(--ink-600);display:flex;align-items:center;gap:8px;"><i class="bi bi-shield-lock-fill" style="color:#6366f1;"></i> Código: <?= $codigoFormato ?> | Página 4 de 4</div>
                                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
                                         <button type="button" class="btn-seg btn-seg--ghost" onclick="switchParte(3)"><i class="bi bi-arrow-left"></i> Parte 3</button>
-                                        <?php if (!empty($e['estudio_id'])): ?><a class="btn-seg btn-seg--outline-red" target="_blank" href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>"><i class="bi bi-file-earmark-pdf-fill"></i> PDF oficial (4 páginas)</a><?php endif; ?>
+                                        <?php if (!empty($e['estudio_id'])): ?><a class="btn-seg btn-seg--outline-red" target="_blank" href="<?= BASE_URL ?>/talento-humano/estudio-seguridad/imprimir?estudio_id=<?= (int)$e['estudio_id'] ?>"><i class="bi bi-file-earmark-pdf-fill"></i> PDF oficial (4 páginas)</a><?php if(Auth::can('documentos_firmados','visualizar')): ?><a class="btn-seg btn-seg--primary" href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=ESTUDIO_SOCIOECONOMICO&amp;origen_id=<?= (int)$e['estudio_id'] ?>"><i class="bi bi-file-earmark-check"></i> Documento firmado</a><?php endif; ?><?php endif; ?>
                                         <button type="submit" class="btn-seg btn-seg--primary" id="btnGuardarEstudio"><i class="bi bi-save"></i> Guardar formulario</button>
                                     </div>
                                 </div>

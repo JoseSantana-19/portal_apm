@@ -244,8 +244,13 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         }
         .preview-modal--records th:last-child,
         .preview-modal--records td:last-child {
-            min-width: 180px;
+            min-width: 420px;
         }
+        .record-action-group { display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;white-space:normal; }
+        .record-action-group form { display:inline-flex;margin:0; }
+        .record-action-group .btn-lib { width:auto;padding:6px 10px;white-space:nowrap;box-shadow:none; }
+        .record-action-edit { display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid #c4b5fd;border-radius:8px;background:#f5f3ff;color:#6d28d9;font-size:.78rem;font-weight:700;text-decoration:none; }
+        .record-action-reject { border:1px solid #fecaca!important;background:#fff1f2!important;color:#b91c1c!important; }
         .preview-overlay.open .preview-modal { transform: translateY(0); }
         .preview-modal-header {
             background: linear-gradient(135deg, var(--navy-900), var(--ocean-700));
@@ -519,7 +524,10 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($empleados ?? []) ?> expediente(s) registrado(s)</span>
                 </div>
                 <div class="records-table-wrap">
-                    <table id="tabla-expediente" style="width:100%;border-collapse:collapse;font-size:.88rem;">
+                    <table id="tabla-expediente" data-apm-datatable data-dt-searching="false" data-dt-page-length="25"
+                           data-dt-order='[[1,"asc"]]' data-dt-order-disabled="5" data-dt-compact="true"
+                           data-dt-empty="No hay expedientes registrados aún."
+                           style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,var(--navy-900),var(--ocean-700));color:#fff;">
                                 <th style="padding:10px 14px;text-align:left;font-weight:600;">Cédula</th>
@@ -559,10 +567,11 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#f0fdf4;color:#166534;border:1px solid rgba(22,101,52,.2);font-size:.8rem;text-decoration:none;">
                                         <i class="bi bi-printer-fill"></i> PDF
                                     </a>
+                                    <?php if(Auth::can('documentos_firmados','visualizar')): ?><a href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=FICHA_PERSONAL&amp;origen_id=<?= $empId ?>" title="Subir o consultar documento firmado" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#ecfeff;color:#0e7490;border:1px solid rgba(14,116,144,.22);font-size:.8rem;text-decoration:none;margin-left:4px"><i class="bi bi-file-earmark-check"></i> Firmado</a><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; else: ?>
-                            <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay expedientes registrados aún.</td></tr>
+                            <tr data-dt-empty><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay expedientes registrados aún.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -571,18 +580,18 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         </div>
     </div>
 
-    <!-- REGISTROS: Acción de Personal -->
+    <!-- REGISTROS: documentos laborales -->
     <div class="preview-overlay" id="registros-accion" role="dialog" aria-modal="true">
         <div class="preview-modal preview-modal--records">
             <div class="preview-modal-header" style="background:linear-gradient(135deg,#0e7490,#0891b2);">
-                <h4><i class="bi bi-file-earmark-text-fill"></i> Registros — Acción de Personal (APM-TH-FO-002)</h4>
+                <h4><i class="bi bi-file-earmark-text-fill"></i> Registros — Documentos Laborales</h4>
                 <button class="preview-modal-close" onclick="cerrarPreview('registros-accion')" aria-label="Cerrar">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="preview-modal-toolbar">
                 <a href="<?= BASE_URL ?>/talento-humano/accion-personal" class="btn-lib btn-lib--primary">
-                    <i class="bi bi-plus-circle"></i> Nueva acción
+                    <i class="bi bi-plus-circle"></i> Nuevo documento laboral
                 </a>
             </div>
             <div class="preview-modal-body" style="padding:0;">
@@ -590,15 +599,18 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <input type="text" placeholder="Buscar por cédula o nombre..." id="busq-accion"
                            oninput="filtrarTabla('tabla-accion','busq-accion')"
                            style="border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.88rem;flex:1;min-width:180px;">
-                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($acciones ?? []) ?> acción(es) registrada(s)</span>
+                    <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($acciones ?? []) ?> documento(s) registrado(s)</span>
                 </div>
                 <div class="records-table-wrap">
-                    <table id="tabla-accion" style="width:100%;border-collapse:collapse;font-size:.88rem;">
+                    <table id="tabla-accion" data-apm-datatable data-dt-searching="false" data-dt-page-length="25"
+                           data-dt-order='[[3,"desc"]]' data-dt-order-disabled="5" data-dt-compact="true"
+                           data-dt-empty="No hay documentos laborales registrados aún."
+                           style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,#0e7490,#0891b2);color:#fff;">
                                 <th style="padding:10px 14px;text-align:left;">N° Doc.</th>
                                 <th style="padding:10px 14px;text-align:left;">Funcionario</th>
-                                <th style="padding:10px 14px;text-align:left;">Tipo de Acción</th>
+                                <th style="padding:10px 14px;text-align:left;">Documento / movimiento</th>
                                 <th style="padding:10px 14px;text-align:left;">Fecha</th>
                                 <th style="padding:10px 14px;text-align:center;">Estado</th>
                                 <th style="padding:10px 14px;text-align:center;">Acciones</th>
@@ -611,33 +623,43 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                 $cedula = $accion['identificacion'] ?? '';
                                 $nro = $accion['numero_accion'] ?? '';
                                 $accionId = (int)($accion['accion_id'] ?? 0);
+                                $esAbreviado = strtoupper((string)($accion['tipo_documento'] ?? '')) === 'FORMULARIO_ABREVIADO'
+                                    || strtoupper((string)($accion['regimen_laboral'] ?? '')) === 'CODIGO_TRABAJO';
                             ?>
                             <tr style="border-bottom:1px solid var(--line);<?= $i%2===0?'background:#fff;':'background:#f0fdfb;' ?>" data-search="<?= strtolower(htmlspecialchars($cedula.' '.$nombre)) ?>">
                                 <td style="padding:10px 14px;font-family:monospace;font-size:.82rem;"><?= htmlspecialchars($nro) ?></td>
                                 <td style="padding:10px 14px;font-weight:500;"><?= htmlspecialchars($nombre) ?></td>
-                                <td style="padding:10px 14px;"><span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:.8rem;"><?= htmlspecialchars($accion['tipo_accion'] ?? '') ?></span></td>
-                                <td style="padding:10px 14px;color:var(--text-muted);"><?= !empty($accion['fecha_elaboracion']) ? date('d/m/Y',strtotime($accion['fecha_elaboracion'])) : '' ?></td>
+                                <td style="padding:10px 14px;">
+                                    <strong style="display:block;font-size:.76rem;color:<?= $esAbreviado?'#7c3aed':'#0369a1' ?>;"><?= $esAbreviado?'FORMULARIO ABREVIADO':'ACCIÓN DE PERSONAL LOSEP' ?></strong>
+                                    <span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:.8rem;"><?= htmlspecialchars($accion['tipo_accion'] ?? '') ?></span>
+                                </td>
+                                <td data-order="<?= htmlspecialchars((string)($accion['fecha_elaboracion'] ?? '')) ?>" style="padding:10px 14px;color:var(--text-muted);"><?= !empty($accion['fecha_elaboracion']) ? date('d/m/Y',strtotime($accion['fecha_elaboracion'])) : '' ?></td>
                                 <?php $estadoAccion=strtoupper((string)($accion['estado_documento'] ?? 'BORRADOR')); ?>
-                                <td style="padding:10px 14px;text-align:center;"><span style="background:<?= $estadoAccion==='APROBADO'?'#dcfce7':($estadoAccion==='ANULADO'?'#fee2e2':'#fef3c7') ?>;color:<?= $estadoAccion==='APROBADO'?'#166534':($estadoAccion==='ANULADO'?'#991b1b':'#92400e') ?>;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;"><?= htmlspecialchars($estadoAccion) ?></span></td>
-                                <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
+                                <?php $estadoEtiqueta=$estadoAccion==='ANULADO'?'RECHAZADO':$estadoAccion; ?>
+                                <td style="padding:10px 14px;text-align:center;"><span style="background:<?= $estadoAccion==='APROBADO'?'#dcfce7':($estadoAccion==='ANULADO'?'#fee2e2':'#fef3c7') ?>;color:<?= $estadoAccion==='APROBADO'?'#166534':($estadoAccion==='ANULADO'?'#991b1b':'#92400e') ?>;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;"><?= htmlspecialchars($estadoEtiqueta) ?></span></td>
+                                <td style="padding:10px 14px;text-align:center;">
+                                    <div class="record-action-group">
                                     <a target="_blank" href="<?= BASE_URL ?>/talento-humano/accion-personal/imprimir-accion?id=<?= $accionId ?>"
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#eff6ff;color:#1d4ed8;border:1px solid rgba(29,78,216,.2);font-size:.8rem;text-decoration:none;">
                                         <i class="bi bi-file-earmark-pdf"></i> PDF
                                     </a>
+                                    <?php if(Auth::can('documentos_firmados','visualizar')): ?><a href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=ACCION_PERSONAL&amp;origen_id=<?= $accionId ?>" title="Subir o consultar documento firmado" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#ecfeff;color:#0e7490;border:1px solid rgba(14,116,144,.22);font-size:.8rem;text-decoration:none;margin-left:4px"><i class="bi bi-file-earmark-check"></i> Firmado</a><?php endif; ?>
                                     <?php if (in_array($estadoAccion,['BORRADOR','PENDIENTE'],true) && Auth::can('acciones','editar')): ?>
-                                    <form method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/aprobar" style="display:inline" onsubmit="return confirm('¿Aprobar y aplicar esta acción al historial laboral?');">
+                                    <a class="record-action-edit" href="<?= BASE_URL ?>/talento-humano/accion-personal?editar=<?= $accionId ?>" title="Editar el borrador antes de resolverlo"><i class="bi bi-pencil-square"></i> Editar</a>
+                                    <form class="js-action-approve" method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/aprobar">
                                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="accion_id" value="<?= $accionId ?>">
-                                        <button class="btn-lib btn-lib--primary" style="padding:5px 9px" type="submit" title="Aprobar"><i class="bi bi-check-circle"></i></button>
+                                        <button class="btn-lib btn-lib--primary" type="submit" title="Aprobar y aplicar"><i class="bi bi-check-circle"></i> Aprobar</button>
                                     </form>
-                                    <form method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/anular" style="display:inline" onsubmit="const m=prompt('Motivo de anulación:');if(!m)return false;this.motivo.value=m;return true;">
+                                    <form class="js-action-reject" method="post" action="<?= BASE_URL ?>/talento-humano/accion-personal/anular">
                                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="accion_id" value="<?= $accionId ?>"><input type="hidden" name="motivo" value="">
-                                        <button class="btn-lib btn-lib--doc" style="padding:5px 9px" type="submit" title="Anular"><i class="bi bi-x-circle"></i></button>
+                                        <button class="btn-lib record-action-reject" type="submit" title="Rechazar con motivo"><i class="bi bi-x-circle"></i> Rechazar</button>
                                     </form>
                                     <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; else: ?>
-                            <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay acciones de personal registradas aún.</td></tr>
+                            <tr data-dt-empty><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay documentos laborales registrados aún.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -668,7 +690,10 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                     <span style="font-size:.82rem;color:var(--text-muted);"><i class="bi bi-info-circle"></i> <?= count($estudios ?? []) ?> estudio(s) registrado(s)</span>
                 </div>
                 <div class="records-table-wrap">
-                    <table id="tabla-seguridad" style="width:100%;border-collapse:collapse;font-size:.88rem;">
+                    <table id="tabla-seguridad" data-apm-datatable data-dt-searching="false" data-dt-page-length="25"
+                           data-dt-order='[[3,"desc"]]' data-dt-order-disabled="5" data-dt-compact="true"
+                           data-dt-empty="No hay estudios de seguridad registrados aún."
+                           style="width:100%;border-collapse:collapse;font-size:.88rem;">
                         <thead>
                             <tr style="background:linear-gradient(135deg,#3730a3,#4f46e5);color:#fff;">
                                 <th style="padding:10px 14px;text-align:left;">Código</th>
@@ -690,7 +715,7 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                 <td style="padding:10px 14px;font-family:monospace;font-size:.82rem;"><?= htmlspecialchars($cod) ?></td>
                                 <td style="padding:10px 14px;font-weight:500;"><?= htmlspecialchars($nombre) ?></td>
                                 <td style="padding:10px 14px;color:var(--text-muted);"><?= htmlspecialchars($cedula) ?></td>
-                                <td style="padding:10px 14px;color:var(--text-muted);"><?= !empty($estudio['fecha_creacion']) ? date('d/m/Y',strtotime($estudio['fecha_creacion'])) : '' ?></td>
+                                <td data-order="<?= htmlspecialchars((string)($estudio['fecha_creacion'] ?? '')) ?>" style="padding:10px 14px;color:var(--text-muted);"><?= !empty($estudio['fecha_creacion']) ? date('d/m/Y',strtotime($estudio['fecha_creacion'])) : '' ?></td>
                                 <td style="padding:10px 14px;text-align:center;"><span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;"><?= !empty($estudio['estado']) ? 'Registrado' : 'Inactivo' ?></span></td>
                                 <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
                                     <a href="<?= BASE_URL ?>/talento-humano/estudio-seguridad?estudio_id=<?= $estudioId ?>"
@@ -701,10 +726,11 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#fff1f2;color:#be123c;border:1px solid rgba(190,18,60,.2);font-size:.8rem;text-decoration:none;margin-left:4px;">
                                         <i class="bi bi-file-earmark-pdf"></i> PDF
                                     </a>
+                                    <?php if(Auth::can('documentos_firmados','visualizar')): ?><a href="<?= BASE_URL ?>/talento-humano/documentos-firmados?tipo=ESTUDIO_SOCIOECONOMICO&amp;origen_id=<?= $estudioId ?>" title="Subir o consultar documento firmado" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:#ecfeff;color:#0e7490;border:1px solid rgba(14,116,144,.22);font-size:.8rem;text-decoration:none;margin-left:4px"><i class="bi bi-file-earmark-check"></i> Firmado</a><?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; else: ?>
-                            <tr><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay estudios de seguridad registrados aún.</td></tr>
+                            <tr data-dt-empty><td colspan="6" style="padding:28px;text-align:center;color:var(--text-muted);"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay estudios de seguridad registrados aún.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -1134,13 +1160,18 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
 
         /* Abrir modal de registros guardados */
         function abrirRegistros(id) {
-            document.getElementById(id).classList.add('open');
+            const modal=document.getElementById(id);
+            modal.classList.add('open');
             document.body.style.overflow = 'hidden';
+            modal.dispatchEvent(new CustomEvent('apm:modal-opened',{bubbles:true}));
         }
 
         /* Filtrar tabla de registros */
         function filtrarTabla(tablaId, inputId) {
             const q = document.getElementById(inputId).value.toLowerCase();
+            const table=document.getElementById(tablaId);
+            const dataTable=window.apmDataTables?.get(table);
+            if(dataTable){dataTable.search(q).page('first').draw();return;}
             document.querySelectorAll('#' + tablaId + ' tbody tr').forEach(tr => {
                 const txt = (tr.dataset.search || tr.textContent).toLowerCase();
                 tr.style.display = txt.includes(q) ? '' : 'none';
@@ -1161,6 +1192,35 @@ $usuarioRol    = $usuarioRol    ?? 'Administrador TH';
         document.querySelectorAll('.preview-overlay').forEach(el => {
             el.addEventListener('click', e => {
                 if (e.target === el) cerrarPreview(el.id);
+            });
+        });
+
+        document.querySelectorAll('.js-action-approve').forEach(form => {
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const confirmed = await window.portalConfirm({
+                    title: 'Aprobar documento laboral',
+                    message: 'La acción se aplicará al historial laboral del funcionario.',
+                    confirmText: 'Aprobar y aplicar',
+                    icon: 'bi-check-circle'
+                });
+                if (confirmed) HTMLFormElement.prototype.submit.call(form);
+            });
+        });
+
+        document.querySelectorAll('.js-action-reject').forEach(form => {
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const motivo = await window.portalPrompt({
+                    title: 'Rechazar documento laboral',
+                    message: 'Indique el motivo. Quedará registrado en la auditoría y el documento no se aplicará.',
+                    placeholder: 'Detalle el error o la razón del rechazo…',
+                    confirmText: 'Rechazar documento',
+                    icon: 'bi-x-circle'
+                });
+                if (!motivo) return;
+                form.elements.motivo.value = motivo;
+                HTMLFormElement.prototype.submit.call(form);
             });
         });
 

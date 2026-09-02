@@ -110,6 +110,16 @@ html[data-theme="dark"] .topbar-profile-popover.is-open .topbar-profile-trigger 
 
 html[data-theme="dark"] .topbar-notification-badge { border-color: #081c28; }
 
+html[data-theme="dark"] .theme-toggle-pill {
+    background: linear-gradient(135deg, #818cf8, #6366f1, #22d3ee);
+}
+
+html[data-theme="dark"] .theme-toggle-pill:hover,
+html[data-theme="dark"] .theme-toggle-pill:focus-visible {
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, .30);
+}
+
+
 html[data-theme="dark"] .topbar-panel {
     background: #102b3b;
     border-color: #315165;

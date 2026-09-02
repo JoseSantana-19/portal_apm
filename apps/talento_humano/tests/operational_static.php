@@ -26,7 +26,7 @@ $assert(!str_contains($directorio, '$i * 0.04'), 'El directorio conserva la demo
 $assert(str_contains($directorio, 'opacity:1;animation:none'), 'Las filas del directorio todavía esperan una animación antes de mostrarse.');
 $assert(str_contains($directorio, 'class="row-actions"'), 'Las acciones del Directorio no están agrupadas dentro de una celda de tabla estable.');
 $assert(str_contains($layout, '.directory-page .table-wrap') && str_contains($layout, 'overflow-x: auto'), 'El Directorio puede recortar los botones de acción en pantallas estrechas.');
-$assert(str_contains($directorio, 'tablePagination') && str_contains($directorio, 'selectionToolbar'), 'El Directorio no tiene paginación o acciones contextuales.');
+$assert(str_contains($directorio, 'data-apm-datatable') && str_contains($directorio, 'selectionToolbar'), 'El Directorio no tiene paginación DataTables o acciones contextuales.');
 $assert(str_contains($directorio, '$puedeEliminar') && str_contains($directorio, '$puedeMover'), 'Los botones del Directorio no respetan permisos.');
 $assert(str_contains($directorio, '$mostrarMovimiento') && str_contains($directorio, 'if(!$modoMovimiento)'), 'El Directorio normal todavía mezcla controles de movimiento interno.');
 $assert(str_contains($directorio, 'btnMovimientoGrupal" onclick') && str_contains($directorio, "classList.toggle('hidden',seleccion.length<2)"), 'El movimiento grupal no se muestra de forma contextual.');
@@ -37,7 +37,7 @@ $assert(str_contains($layout, 'right: var(--directory-actions-width)') && str_co
 $assert(str_contains($layout, '.selection-toolbar.hidden'), 'La barra de selección puede reaparecer con cero seleccionados.');
 $assert(str_contains($sidebarJs, 'sessionStorage') && str_contains($sidebarJs, 'SIDEBAR_SCROLL_KEY') && str_contains($sidebarJs, 'pagehide'), 'El menú lateral no conserva su posición entre páginas.');
 $assert(str_contains($directorio, 'requestAnimationFrame'), 'El filtro inmediato del directorio no está activo.');
-$assert(str_contains($directorio, 'searchIndex'), 'El directorio no precalcula el índice de búsqueda.');
+$assert(str_contains($directorio, 'directoryTable.search(query)') && str_contains($directorio, 'directoryTable.column('), 'El directorio no conecta sus filtros con DataTables.');
 $assert(str_contains($accion, 'PERSONAL_ACCION'), 'Acción de Personal no incluye autocompletado por nombre/cédula.');
 $assert(str_contains($accion, "emp.unidad_id     ?? 0"), 'Acción de Personal asigna incorrectamente la unidad actual.');
 $assert(str_contains($socio, 'busquedaPersonalSocio'), 'El socioeconómico no permite seleccionar servidor.');

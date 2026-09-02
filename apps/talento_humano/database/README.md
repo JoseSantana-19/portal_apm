@@ -1,6 +1,6 @@
 # Migraciones de base de datos
 
-Para una base `Talento_Humano` ya existente, el cierre funcional de julio de 2026 requiere:
+Para una base `Talento_Humano` ya existente, el cierre funcional vigente requiere exactamente estas 20 migraciones:
 
 1. `migracion_critica_2026.sql`
 2. `migracion_formatos_oficiales_2026.sql`
@@ -38,8 +38,25 @@ Para una base `Talento_Humano` ya existente, el cierre funcional de julio de 202
 16. `migracion_roles_por_puesto_20260826.sql`
     - Vincula puestos institucionales con los roles RBAC autorizados y deriva el usuario desde la cédula del funcionario.
     - Aplica `Funcionario (Lectura)` como perfil seguro para puestos sin excepción, restringe Dirección y Analistas de Talento Humano a sus roles correspondientes y valida el alta en SQL Server.
+17. `migracion_expediente_documental_historial_20260827.sql`
+    - Incorpora un repositorio lógico, privado y versionado para el PDF completo que se imprime, firma, escanea y vuelve a cargar, sin alterar ningún formato autorizado.
+    - Valida origen y funcionario, conserva SHA-256, tamaño, usuario, IP y fecha de cada versión, y marca como vigente únicamente el último documento firmado.
+    - Unifica en el historial laboral las Acciones de Personal, vacaciones, jornadas temporales, movimientos internos, estudios socioeconómicos, Paz y Salvo y documentos legalizados.
+18. `migracion_rol_asistente_talento_20260827.sql`
+    - Incorpora el rol operativo `Asistente de Talento Humano` y lo asocia a las denominaciones institucionales existentes, incluida la variante histórica `ASITENTE DE TTHH`.
+    - Limita el menú a Principal, Gestión de Talento Humano, Biblioteca, Estructura y cargos y Reportes Generales; excluye usuarios, roles, políticas, auditoría administrativa y prototipos.
+    - Conserva control total para `Super Administrador` y habilita los permisos contextuales necesarios para completar expedientes y custodiar documentos firmados.
+19. `migracion_regimen_laboral_20260829.sql`
+    - Separa el régimen `LOSEP` de `CODIGO_TRABAJO` en el expediente, la situación laboral efectiva, el historial y cada documento laboral.
+    - Restringe los contratos por régimen y asigna `Contrato Indefinido` al personal sujeto al Código del Trabajo.
+    - Parametriza y asigna transaccionalmente la serie anual `CdgT-###-AAAA` para el Formulario Laboral Abreviado, sin mezclarla con los correlativos LOSEP.
+20. `migracion_integridad_periodos_20260830.sql`
+    - Reconcilia expedientes creados después de la migración operativa que todavía no poseen período de vinculación.
+    - Crea el trigger idempotente `tr_th_empleados_crear_periodo_inicial` para garantizar el período inicial en cada nueva alta.
+    - Instala `sp_th_actualizar_borrador_accion_personal` y concede solo `EXECUTE` al rol de la aplicación para editar borradores sin permiso directo sobre la tabla.
+    - No modifica períodos existentes ni altera el cálculo de reingresos.
 
-Todos deben ejecutarse con `sqlcmd -b`, respaldo previo y una cuenta DBA. La última migración es idempotente y crea RBAC, seguridad de cuentas, repositorio documental, flujo de aprobación, protección de auditoría, respaldo lógico y rol SQL de aplicación.
+Todos deben ejecutarse con `sqlcmd -b`, respaldo previo y una cuenta DBA. Las migraciones 17 a 20 son idempotentes para facilitar una verificación controlada: incorporan, respectivamente, el expediente documental, el rol Asistente de Talento Humano, el régimen laboral con serie `CdgT` y la integridad de períodos de vinculación. Las capacidades anteriores permanecen definidas por sus migraciones originales; ninguna migración aislada sustituye la ejecución ordenada de las 20.
 
 Después de la cuarta migración, ejecutar una sola vez `php scripts/sincronizar_nacionalidades.php` con una conexión DBA temporal. El script carga el catálogo ISO/gentilicios; la aplicación continúa operando con la cuenta restringida `portal_app`.
 
@@ -57,7 +74,7 @@ Las cuatro migraciones históricas sustituidas fueron retiradas del árbol actua
 
 La migración de cierre crea `th_schema_migrations`, unifica los tipos de proceso, limita a tres las filas autorizadas de hijos, capacitaciones y experiencias, protege un único estudio vigente por funcionario, agrega el índice de paginación de auditoría y completa los permisos mínimos de administración de roles.
 
-La novena migración incorpora segundo factor TOTP cifrado, protección contra reutilización de códigos, un índice de auditoría por usuario y la vista consolidada `vw_th_resumen_auditoria_usuarios`. La décima garantiza códigos RBAC únicos y elimina la ambigüedad histórica del permiso `maestros`. La undécima cierra la gestión laboral integral y debe aplicarse antes de probar los nuevos formularios, borradores y exportaciones. La duodécima (`migracion_vigencias_temporales_20260820.sql`) incorpora modalidad permanente/temporal explícita, situación laboral efectiva por fecha, restitución automática y el trabajo de SQL Agent para seguimiento de vigencias. La decimotercera amplía este flujo con licencia por paternidad y la regla común de cero horas para licencias parentales.
+La novena migración incorpora segundo factor TOTP cifrado, protección contra reutilización de códigos, un índice de auditoría por usuario y la vista consolidada `vw_th_resumen_auditoria_usuarios`. La décima garantiza códigos RBAC únicos y elimina la ambigüedad histórica del permiso `maestros`. La undécima cierra la gestión laboral integral y debe aplicarse antes de probar los nuevos formularios, borradores y exportaciones. La duodécima (`migracion_vigencias_temporales_20260820.sql`) incorpora modalidad permanente/temporal explícita, situación laboral efectiva por fecha, restitución automática y el trabajo de SQL Agent para seguimiento de vigencias. La decimotercera amplía este flujo con licencia por paternidad y la regla común de cero horas para licencias parentales. La decimoséptima no modifica el contenido ni la composición de los PDF oficiales: agrega exclusivamente la custodia del escaneo firmado y la trazabilidad integral del expediente.
 
 Los SQL no son cargados por PHP durante la ejecución del portal. Deben permanecer en el repositorio privado para recuperación, auditoría y creación de nuevos ambientes, pero pueden excluirse del artefacto publicado en el servidor web.
 
@@ -69,7 +86,7 @@ No deben eliminarse del repositorio por el hecho de que los objetos ya existan e
 
 `administracion/verificar_respaldos.sql` es de solo lectura: informa el modelo de recuperación, estado y última ejecución de los trabajos, y los respaldos recientes con su indicador de checksum. Debe formar parte de la revisión operativa semanal.
 
-`administracion/reconciliar_historial_migraciones.sql` registra las diez migraciones históricas que fueron aplicadas antes de existir `th_schema_migrations`. No vuelve a ejecutar cambios: primero exige las firmas de objetos distintivos y valida el SHA-256 de cada archivo vigente. Las migraciones posteriores se agregan normalmente al ledger y la compuerta administrativa conserva al menos las dieciséis versiones esperadas.
+`administracion/reconciliar_historial_migraciones.sql` registra las diez migraciones históricas que fueron aplicadas antes de existir `th_schema_migrations`. No vuelve a ejecutar cambios: primero exige las firmas de objetos distintivos y valida el SHA-256 de cada archivo vigente. Las migraciones posteriores se agregan normalmente al ledger y la compuerta administrativa exige exactamente las 20 versiones esperadas.
 
 En el espejo local, `deployment/close-local-database.php` centraliza el cierre administrativo. Recibe `PORTAL_DBA_USER` y `PORTAL_DBA_PASSWORD` únicamente como variables temporales, exige conexión cifrada y `sysadmin`, valida base, trabajos y respaldos, y solo concilia el ledger cuando se añade `--reconcile`. No contiene ni persiste credenciales.
 
@@ -78,3 +95,5 @@ Para aplicar una migración nueva en el espejo Windows se utiliza una consola el
 `powershell -ExecutionPolicy Bypass -File deployment\apply-local-migration.ps1`
 
 El script exige `sysadmin`, cifra la conexión, genera un respaldo `COPY_ONLY` con checksum en la carpeta oficial de SQL Server, ejecuta con aborto ante error, registra el SHA-256 de cada migración vigente y verifica los objetos distintivos antes de finalizar. La transcripción queda fuera del repositorio en `C:\ProgramData\PortalAPM`.
+
+Cuando la consola no puede elevarse pero dispone de una cuenta DBA temporal, `deployment/apply-migration-pdo.php` ofrece la misma compuerta esencial mediante PDO_SQLSRV: exige TLS validado, comprueba `sysadmin`, crea y verifica el respaldo, procesa los lotes `GO`, registra checksums y valida los objetos. Las credenciales se suministran solo como variables de proceso `PORTAL_DB_USER` y `PORTAL_DB_PASSWORD`; nunca se escriben en el repositorio.

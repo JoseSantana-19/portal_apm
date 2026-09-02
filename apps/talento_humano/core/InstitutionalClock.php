@@ -6,11 +6,6 @@ declare(strict_types=1);
  *
  * Las pruebas pueden fijar PORTAL_TEST_TODAY=YYYY-MM-DD sin alterar el reloj
  * del sistema operativo ni SQL Server.
- *
- * NOTA compatibilidad (adaptado de origen para PHP 7.4/8.3/8.5 simultáneo,
- * ver helpers/polyfills_php74.php): nextBirthday() sin tipo unión
- * `DateTimeInterface|string` (PHP 8.0+, queda sin tipo) y sin
- * DateTimeImmutable::createFromInterface() (PHP 8.0+, conversión manual).
  */
 final class InstitutionalClock
 {
@@ -41,20 +36,12 @@ final class InstitutionalClock
         return self::today()->format('Y-m-d');
     }
 
-    /**
-     * @param DateTimeInterface|string $birthDate
-     * @return array{date:DateTimeImmutable,days:int,label:string}
-     */
-    public static function nextBirthday($birthDate): array
+    /** @return array{date:DateTimeImmutable,days:int,label:string} */
+    public static function nextBirthday(DateTimeInterface|string $birthDate): array
     {
-        if ($birthDate instanceof DateTimeInterface) {
-            // DateTimeImmutable::createFromInterface() es PHP 8.0+ -- conversión
-            // manual equivalente, compatible con 7.4.
-            $birth = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $birthDate->format('Y-m-d H:i:s'));
-            $birth = $birth !== false ? $birth->setTimezone(self::timezone()) : new DateTimeImmutable('now', self::timezone());
-        } else {
-            $birth = new DateTimeImmutable((string)$birthDate, self::timezone());
-        }
+        $birth = $birthDate instanceof DateTimeInterface
+            ? DateTimeImmutable::createFromInterface($birthDate)->setTimezone(self::timezone())
+            : new DateTimeImmutable((string)$birthDate, self::timezone());
         $today = self::today();
         $year = (int)$today->format('Y');
         $month = (int)$birth->format('m');

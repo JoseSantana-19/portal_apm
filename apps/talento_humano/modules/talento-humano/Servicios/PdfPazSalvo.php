@@ -24,7 +24,7 @@ class PdfPazSalvo extends FPDF
 
     public function Footer(): void{$this->SetY(-10);$this->SetFont('Arial','',7);$this->Cell(0,5,$this->t('Portal Portuario APM · Documento auditable · Página '.$this->PageNo()),0,0,'C');}
 
-    public function render(bool $blanco=false,string $destino='I',?string $rutaSalida=null): void
+    public function render(bool $blanco=false,string $destino='I',?string $rutaSalida=null): never
     {
         $this->AddPage();$d=$blanco?[]:($this->documento??[]);
         $this->section('DATOS DEL FUNCIONARIO Y DESVINCULACIÓN');
@@ -62,5 +62,5 @@ class PdfPazSalvo extends FPDF
     }
     private function full(array $d):string{return trim(($d['apellidos']??'').' '.($d['nombres']??''));}
     private function date(?string $v):string{return $v?date('d/m/Y',strtotime($v)):'';}
-    private function t($v):string{return mb_convert_encoding((string)$v,'Windows-1252','UTF-8');}
+    private function t(mixed $v):string{return mb_convert_encoding((string)$v,'Windows-1252','UTF-8');}
 }

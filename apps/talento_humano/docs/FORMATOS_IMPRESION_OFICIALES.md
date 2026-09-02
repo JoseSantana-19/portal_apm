@@ -6,6 +6,7 @@ Implementación: 29 de julio de 2026.
 
 - Formulario Principal de Registro: PDF A4 de 2 páginas (`APM-TH-FO-001`) con todos los campos del alta de personal: información personal, foto, nacionalidades, datos laborales, contacto, formación, observaciones, declaración y firmas.
 - Acción de Personal: PDF A4 de 2 páginas, con datos del registro, casilleros, situación actual/propuesta, posesión, aprobaciones, recepción, responsables y notificación.
+- Formulario Laboral Abreviado: PDF A4 de 2 páginas para personal sujeto al Código del Trabajo, con datos personales, movimiento, situación actual/propuesta, elaboración, registro y control, y notificación de Talento Humano. Excluye los bloques legales exclusivos de LOSEP y no incluye Responsable de Revisión.
 - Estudio de Seguridad Socioeconómico: PDF A4 de 4 páginas, con datos generales, contacto, bienes, banco, cónyuge, hijos, formación, tres capacitaciones, tres experiencias, vivienda y vehículo.
 - Paz y Salvo: PDF A4 de 2 páginas para desvinculación, con certificaciones de Jefatura inmediata, Talento Humano, Financiero, Administrativo y TIC, responsables, observaciones y firmas.
 - Página 4 socioeconómica: ubicación domiciliaria con mapa, coordenadas, enlace universal, referencias, QR y firmas de verificación.
@@ -28,11 +29,16 @@ Implementación: 29 de julio de 2026.
 - Formulario principal con datos: `/talento-humano/empleado/imprimir-ficha?id={empleado_id}`
 - Formato vacío de Acción de Personal: `/talento-humano/accion-personal/formato-blanco`
 - Acción guardada: `/talento-humano/accion-personal/imprimir-accion?id={accion_id}`
+
+La plantilla se resuelve exclusivamente desde el régimen laboral guardado en el expediente: `LOSEP` genera la Acción de Personal completa y `CODIGO_TRABAJO` genera el Formulario Laboral Abreviado con serie parametrizada `CdgT-###-AAAA`. El usuario no puede cambiar la plantilla manipulando la URL.
 - Formato vacío socioeconómico: `/talento-humano/estudio-seguridad/imprimir?blank=1`
 - Estudio guardado: `/talento-humano/estudio-seguridad/imprimir?estudio_id={estudio_id}`
 - Edición de estudio: `/talento-humano/estudio-seguridad?estudio_id={estudio_id}`
 - Paz y Salvo vacío: `/talento-humano/paz-salvo/formato-blanco`
 - Paz y Salvo registrado: `/talento-humano/paz-salvo/imprimir?id={paz_salvo_id}`
+- Custodia del PDF completo firmado: `/talento-humano/documentos-firmados?tipo={tipo}&origen_id={id}`
+
+La custodia firmada es una capa adicional del expediente y no altera las plantillas ni los generadores anteriores. Los tipos válidos son `FICHA_PERSONAL`, `ACCION_PERSONAL`, `ESTUDIO_SOCIOECONOMICO` y `PAZ_SALVO`.
 
 ## Verificación técnica
 

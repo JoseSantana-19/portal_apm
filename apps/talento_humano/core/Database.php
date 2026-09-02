@@ -15,6 +15,7 @@ class Conexion
         if (self::$conexion === null) {
             try {
                 $config    = Config::database();
+                $driver    = (string)($config['driver'] ?? 'ODBC Driver 18 for SQL Server');
                 $servidor  = $config['server'];
                 $baseDatos = $config['database'];
                 // '' (config/connections.php en desarrollo) => Autenticación de
@@ -25,17 +26,22 @@ class Conexion
 
                 // DSN limpio y estándar para evitar errores de sintaxis de palabras clave
                 // PDO_SQLSRV documenta estas opciones como 1/0 o true/false.
-                $encrypt = !empty($config['encrypt']) ? 'true' : 'false';
-                $trustCertificate = !empty($config['trust_server_certificate']) ? 'true' : 'false';
-                // Driver ODBC explícito (permite elegir entre 17/18 cuando hay
-                // varios instalados en la máquina) -- whitelist para que un
-                // valor de config nunca inyecte texto arbitrario en el DSN.
-                $driver = (string)($config['driver'] ?? 'ODBC Driver 18 for SQL Server');
-                $driversPermitidos = ['ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server'];
+                $driversPermitidos = [
+                    'ODBC Driver 18 for SQL Server',
+                    'ODBC Driver 17 for SQL Server',
+                ];
                 if (!in_array($driver, $driversPermitidos, true)) {
                     throw new RuntimeException('El controlador ODBC configurado no está permitido.');
                 }
-                $dsn = "sqlsrv:Driver={{$driver}};Server=$servidor;Database=$baseDatos;Encrypt=$encrypt;TrustServerCertificate=$trustCertificate";
+
+                $encrypt = !empty($config['encrypt']) ? 'true' : 'false';
+                $trustCertificate = !empty($config['trust_server_certificate']) ? 'true' : 'false';
+                // PDO_SQLSRV recibe el nombre del driver como valor plano. Las
+                // llaves pertenecen a cadenas PDO_ODBC; aquí provocan que el
+                // controlador configurado sea ignorado y se use uno anterior
+                // (bug real corregido por el origen -- $driver y la whitelist
+                // ya se declararon arriba, no hace falta repetirlos acá).
+                $dsn = "sqlsrv:Driver=$driver;Server=$servidor;Database=$baseDatos;Encrypt=$encrypt;TrustServerCertificate=$trustCertificate";
 
                 // Opciones de inicialización segura con codificación forzada de Microsoft
                 self::$conexion = new PDO($dsn, $usuario, $clave, [
@@ -107,19 +113,10 @@ class Conexion
             return;
         }
 
-        // RECTIFICADO: Control estricto de visualización por entorno
-        if (Config::isProduction()) {
-            // En producción: NUNCA se exponen rutas internas ni mensajes técnicos
-            die("Error de comunicación institucional: El servicio no se encuentra disponible. La incidencia ha sido reportada a la Dirección de TI.");
-        } else {
-            // En desarrollo: muestra el cuadro rojo detallado para depuración
-            echo "<div style='background:#f8d7da; color:#721c24; padding:20px; border:1px solid #f5c6cb; font-family:monospace; margin:10px;'>";
-            echo "<h3>&#9888; Excepción del Framework MVC — Módulo: " . htmlspecialchars($modulo) . "</h3>";
-            echo "<p><b>Mensaje:</b> " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<p><b>Archivo:</b> " . htmlspecialchars($e->getFile()) . " (Línea " . $e->getLine() . ")</p>";
-            echo "<p><b>Log guardado en:</b> storage/logs/" . htmlspecialchars($moduloNormalizado) . "/log_" . $fechaActual . ".txt</p>";
-            echo "</div>";
-            exit;
+        if (class_exists('ErrorHandler')) {
+            ErrorHandler::abort(503);
         }
+        throw new RuntimeException('El servicio de datos no se encuentra disponible.', 0, $e);
+
     }
 }

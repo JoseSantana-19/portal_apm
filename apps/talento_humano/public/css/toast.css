@@ -80,6 +80,14 @@
 
 .portal-confirm h2 { margin: 0 0 9px; font: 700 1.25rem/1.25 var(--font-display); }
 .portal-confirm p { margin: 0 auto; max-width: 370px; color: var(--ink-600); line-height: 1.55; }
+.portal-prompt-field {
+    width: 100%; margin-top: 18px; padding: 12px 14px; resize: vertical;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface, var(--card)); color: var(--ink-900);
+    font: inherit; line-height: 1.45;
+}
+.portal-prompt-field:focus { outline: 2px solid rgba(14,116,144,.25); border-color: var(--ocean-600); }
+.portal-prompt-error { display: block; min-height: 1.2em; margin-top: 6px; color: #b91c1c; text-align: left; }
 .portal-confirm-actions { display: flex; justify-content: center; gap: 12px; margin-top: 24px; }
 .portal-confirm-actions .btn { min-width: 132px; justify-content: center; }
 

@@ -9,6 +9,13 @@ $hist = $historialLab ?? [];
 $nro  = $nroAccion   ?? ('APM-TH-' . date('Y') . '-001');
 $preselCedula = $preselCedula ?? '';
 $tipoPreseleccionado = $tipoPreseleccionado ?? '';
+$accionEdicion = $accionEdicion ?? null;
+$esEdicion = is_array($accionEdicion) && !empty($accionEdicion['accion_id']);
+$accionIdEdicion = $esEdicion ? (int)$accionEdicion['accion_id'] : 0;
+$regimenDocumento = strtoupper((string)($regimenDocumento ?? $accionEdicion['regimen_laboral'] ?? $emp['regimen_laboral'] ?? 'LOSEP'));
+$usuarioDocumento = Auth::user() ?? [];
+$responsableDocumento = trim((string)($usuarioDocumento['name'] ?? Auth::username()));
+$puestoResponsableDocumento = trim((string)($usuarioDocumento['role'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -48,7 +55,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
             top: var(--topbar-height, 86px);
             z-index: 24;
             display: grid;
-            grid-template-columns: minmax(190px,1.2fr) repeat(3,minmax(135px,.8fr));
+            grid-template-columns: minmax(175px,1.15fr) repeat(4,minmax(115px,.75fr));
             gap: 10px;
             margin: -12px 14px 18px;
             padding: 11px;
@@ -58,6 +65,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
             box-shadow: 0 12px 28px rgba(15,39,64,.12);
             backdrop-filter: blur(12px);
         }
+        .document-summary.is-abbreviated { grid-template-columns:minmax(175px,1.15fr) repeat(3,minmax(130px,.8fr)); }
         .document-summary__item { min-width:0;padding:7px 11px;border-right:1px solid #dbe8ef; }
         .document-summary__item:last-child { border-right:0; }
         .document-summary__label { display:block;margin-bottom:3px;color:#64748b;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase; }
@@ -173,6 +181,8 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
         .accion-field select:disabled { background: rgba(15,23,42,.04); color: #64748b; cursor: default; }
         .accion-field .req { color: #ef4444; margin-left: 2px; }
         .vigencia-selector,.capture-selector { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:10px 0 16px; }
+        #resumenVigenciaItem[hidden],
+        [data-losep-only][hidden] { display:none !important; }
         .vigencia-option,.capture-option { display:flex;gap:10px;align-items:flex-start;padding:13px 15px;border:1px solid #cbdce7;border-radius:12px;background:#f8fafc;cursor:pointer; }
         .vigencia-option:has(input:checked),.capture-option:has(input:checked) { border-color:#0e7490;background:#ecfeff;box-shadow:0 0 0 2px rgba(14,116,144,.08); }
         .vigencia-option input,.capture-option input { width:auto;margin-top:3px;accent-color:#0e7490; }
@@ -234,6 +244,16 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
             margin-top: 24px;
             flex-wrap: wrap;
         }
+        .email-recipient-box { margin-top:8px;padding:9px;border:1px solid rgba(15,23,42,.18);border-radius:10px;background:#f8fafc; }
+        .email-recipient-box.is-disabled { opacity:.55;pointer-events:none; }
+        .email-recipient-row { display:flex;gap:7px;align-items:center; }
+        .email-recipient-row input { margin:0; }
+        .email-recipient-add { flex:0 0 auto;border:0;border-radius:8px;padding:9px 11px;background:#0e7490;color:#fff;cursor:pointer;font-weight:700; }
+        .email-recipient-chips { display:flex;flex-wrap:wrap;gap:6px;margin-top:8px; }
+        .email-recipient-chip { display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 8px;border:1px solid #bae6fd;border-radius:8px;background:#ecfeff;color:#155e75;font-size:.74rem;font-weight:600; }
+        .email-recipient-chip span { overflow:hidden;text-overflow:ellipsis; }
+        .email-recipient-chip button { border:0;background:transparent;color:#dc2626;cursor:pointer;padding:0;line-height:1; }
+        .edit-lock-note { margin:0 0 18px;padding:10px 14px;border-left:4px solid #d97706;border-radius:9px;background:#fffbeb;color:#92400e;font-size:.78rem; }
     </style>
 </head>
 <body>
@@ -248,9 +268,9 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
 
     <section class="content">
         <?php
-        $topbarShowSearch=false;
-        $topbarBackUrl=BASE_URL.'/talento-humano/directorio';
-        $topbarBackLabel='Volver al Directorio';
+        $topbarShowSearch=true;
+        $topbarBackUrl=BASE_URL.($esEdicion?'/talento-humano/biblioteca':'/talento-humano/directorio');
+        $topbarBackLabel=$esEdicion?'Volver a Biblioteca':'Volver al Directorio';
         require ROOT.'/shared/topbar.php';
         ?>
 
@@ -259,50 +279,55 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                 <!-- ENCABEZADO DEL DOCUMENTO -->
                 <div class="accion-header">
                     <div>
-                        <h2><i class="bi bi-file-earmark-text"></i> Formulario de Acción de Personal</h2>
-                        <p>Art. 21 LOSEP — Registro oficial de movimiento de personal de la APM</p>
+                        <h2 id="tituloDocumentoLaboral"><i class="bi bi-file-earmark-text"></i> <?= $regimenDocumento==='CODIGO_TRABAJO'?'Formulario Abreviado Laboral':($esEdicion?'Editar borrador de Acción de Personal':'Formulario de Acción de Personal') ?></h2>
+                        <p id="subtituloDocumentoLaboral"><?= $regimenDocumento==='CODIGO_TRABAJO'?'Código del Trabajo — documento laboral abreviado de la APM':($esEdicion?'Corrija la información antes de aprobar o rechazar el documento.':'Art. 21 LOSEP — Registro oficial de movimiento de personal de la APM') ?></p>
                     </div>
                 </div>
 
-                <section class="document-summary" aria-label="Resumen del documento">
+                <section class="document-summary<?= $regimenDocumento==='CODIGO_TRABAJO'?' is-abbreviated':'' ?>" aria-label="Resumen del documento">
                     <div class="document-summary__item">
                         <span class="document-summary__label">Código previsto</span>
                         <span class="document-summary__value"><i class="bi bi-upc-scan"></i><span class="accion-num" id="displayNroAccion"><?= htmlspecialchars($nro) ?></span></span>
-                        <small class="document-summary__note">SQL Server confirma el correlativo definitivo al guardar.</small>
+                        <small class="document-summary__note"><?= $esEdicion?'La serie y el funcionario permanecen protegidos.':'SQL Server confirma el correlativo definitivo al guardar.' ?></small>
                     </div>
                     <div class="document-summary__item">
                         <span class="document-summary__label">Tipo de acción</span>
                         <span class="document-summary__value" id="displayTipoAccion"><i class="bi bi-list-check"></i> Pendiente de selección</span>
                     </div>
                     <div class="document-summary__item">
+                        <span class="document-summary__label">Régimen / plantilla</span>
+                        <span class="document-summary__value" id="displayRegimen"><i class="bi bi-shield-check"></i> <?= $regimenDocumento==='CODIGO_TRABAJO'?'Código del Trabajo · Abreviado':'LOSEP · Completo' ?></span>
+                    </div>
+                    <div class="document-summary__item" id="resumenVigenciaItem" <?= $regimenDocumento==='CODIGO_TRABAJO'?'hidden':'' ?>>
                         <span class="document-summary__label">Vigencia</span>
                         <span class="document-summary__value" id="displayVigencia"><i class="bi bi-infinity"></i> Permanente</span>
                     </div>
                     <div class="document-summary__item">
                         <span class="document-summary__label">Estado</span>
-                        <span class="document-summary__value"><i class="bi bi-pencil-square"></i> Borrador</span>
+                        <span class="document-summary__value"><i class="bi bi-pencil-square"></i> <?= $esEdicion?'Editando borrador':'Borrador' ?></span>
                     </div>
                 </section>
 
                 <!-- BUSCADOR DE FUNCIONARIO (conectado a BD real via AJAX) -->
+                <?php if($esEdicion): ?><div class="edit-lock-note"><i class="bi bi-shield-lock"></i> Está editando un documento pendiente. Puede corregir fechas, situación propuesta, motivación y notificación; el funcionario, el tipo y el código documental no se reemplazan.</div><?php endif; ?>
                 <div class="buscador-banner">
                     <span>
                         <i class="bi bi-person-badge" style="color:#0e7490;"></i>
-                        <strong>Buscar funcionario:</strong>
-                        Escriba la cédula, nombres o apellidos. Los resultados aparecen mientras escribe.
+                        <strong><?= $esEdicion?'Funcionario del documento:':'Buscar funcionario:' ?></strong>
+                        <?= $esEdicion?'La identidad está bloqueada para conservar la trazabilidad.':'Escriba la cédula, nombres o apellidos. Los resultados aparecen mientras escribe.' ?>
                     </span>
                     <div style="display:flex; flex-direction:column; gap:6px; min-width:340px;">
                         <div style="display:flex; gap:8px; align-items:center;">
                             <div class="personal-autocomplete">
                             <input type="search" id="inputBuscarCedula"
-                                   placeholder="Cédula, nombres o apellidos..."
+                                   placeholder="Cédula o Nombres"
                                    maxlength="100" autocomplete="off"
                                    style="padding:9px 14px; border:1.5px solid rgba(14,116,144,.4); border-radius:10px;
                                           font-size:.83rem; font-weight:600; background:#ecfeff; width:100%;
                                           outline:none; transition:border-color .2s; letter-spacing:.05em;"
                                    onfocus="this.style.borderColor='#0e7490'"
                                    onblur="this.style.borderColor='rgba(14,116,144,.4)'"
-                                   aria-autocomplete="list" aria-controls="resultadosPersonalAccion">
+                                   aria-autocomplete="list" aria-controls="resultadosPersonalAccion" <?= $esEdicion?'readonly':'' ?>>
                             <div id="resultadosPersonalAccion" class="personal-results" role="listbox"></div>
                             </div>
                             <button type="button" onclick="buscarPersonaAccion()"
@@ -311,7 +336,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                            border-radius:10px; font-size:.83rem; font-weight:700; cursor:pointer;
                                            transition:background .2s; white-space:nowrap;"
                                     onmouseover="this.style.background='#0891b2'"
-                                    onmouseout="this.style.background='#0e7490'">
+                                    onmouseout="this.style.background='#0e7490'" <?= $esEdicion?'disabled':'' ?>>
                                 <i class="bi bi-search"></i> Seleccionar
                             </button>
                         </div>
@@ -324,8 +349,10 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                 <!-- FORMULARIO PRINCIPAL -->
                 <section class="card form-card">
                     <form method="POST" action="<?= BASE_URL ?>/talento-humano/accion-personal/guardar"
-                          id="formAccionPersonal" data-draft-context="accion-personal:nueva">
+                          id="formAccionPersonal" data-draft-context="accion-personal:<?= $esEdicion?'editar-'.$accionIdEdicion:'nueva' ?>"
+                          onsubmit="return validarFormulario()">
                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>">
+                        <input type="hidden" name="accion_id" value="<?= $accionIdEdicion ?>">
 
                         <!-- Campos ocultos: identificación y claves de situación actual -->
                         <input type="hidden" name="numero_accion"              id="nroAccionInput"        value="<?= htmlspecialchars($nro) ?>">
@@ -353,11 +380,11 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                        value="<?= htmlspecialchars($emp['apellidos_nombres'] ?? $emp['nombres'] ?? '') ?>">
                             </div>
                         </div>
-                        <div class="vigencia-selector" role="radiogroup" aria-label="Modalidad de vigencia">
+                        <div class="vigencia-selector" id="bloqueVigenciaLosep" data-losep-only role="radiogroup" aria-label="Modalidad de vigencia">
                             <label class="vigencia-option"><input type="radio" name="modalidad_vigencia" value="PERMANENTE" checked onchange="actualizarVigencia()"><span><strong>Permanente</strong><small>El cambio se mantiene hasta una nueva Acción de Personal.</small></span></label>
                             <label class="vigencia-option"><input type="radio" name="modalidad_vigencia" value="TEMPORAL" onchange="actualizarVigencia()"><span><strong>Temporal con retorno automático</strong><small>Al vencer, reaparece la situación laboral anterior sin emitir otra acción.</small></span></label>
                         </div>
-                        <div class="vigencia-help" id="vigenciaHelp"><i class="bi bi-infinity"></i> Vigencia permanente: deje únicamente la fecha desde.</div>
+                        <div class="vigencia-help" id="vigenciaHelp" data-losep-only><i class="bi bi-infinity"></i> Vigencia permanente: deje únicamente la fecha desde.</div>
                         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
                             <div class="accion-field">
                                 <label>Fecha de Elaboración</label>
@@ -369,14 +396,14 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                 <input type="date" name="rige_desde" id="inpRigeDesde"
                                        value="<?= InstitutionalClock::todayIso() ?>" required>
                             </div>
-                            <div class="accion-field">
+                            <div class="accion-field" id="campoRigeHasta" data-losep-only>
                                 <label>Rige hasta <span class="req" id="reqRigeHasta" style="display:none">*</span></label>
                                 <input type="date" name="rige_hasta" id="inpRigeHasta" disabled>
                             </div>
                         </div>
 
                         <!-- ══ SECCIÓN 2: TIPO DE ACCIÓN ════════════════════════════════════ -->
-                        <div class="section-sep"><span><i class="bi bi-list-check"></i> 2 · Motivo de la Acción (Art. 21 LOSEP)</span></div>
+                        <div class="section-sep"><span id="tituloTipoDocumento"><i class="bi bi-list-check"></i> 2 · Motivo de la Acción (Art. 21 LOSEP)</span></div>
                         <input type="hidden" name="tipo_accion" id="hidTipoAccion" required>
                         <div class="tipo-accion-grid" id="tipoAccionGrid">
                             <?php foreach([
@@ -401,11 +428,11 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
 
                         <!-- ══ SECCIÓN 3: COMPARATIVA SITUACIÓN ACTUAL VS PROPUESTA ════════ -->
                         <div class="section-sep"><span><i class="bi bi-columns-gap"></i> 3 · Situación Actual vs. Situación Propuesta</span></div>
-                        <div class="capture-selector" role="radiogroup" aria-label="Tipo de captura">
+                        <div class="capture-selector" id="bloqueCapturaLosep" data-losep-only role="radiogroup" aria-label="Tipo de captura">
                             <label class="capture-option"><input type="radio" name="modo_captura" value="CAMBIO_LABORAL" checked onchange="actualizarModoCaptura()"><span><strong>Cambio laboral</strong><small>Área, cargo, RMU, contrato u otras condiciones.</small></span></label>
                             <label class="capture-option"><input type="radio" name="modo_captura" value="JORNADA_TEMPORAL" onchange="actualizarModoCaptura()"><span><strong>Solo jornada temporal</strong><small>Lactancia, maternidad, sustitución u horario especial.</small></span></label>
                         </div>
-                        <div class="compact-schedule-note" id="compactScheduleNote"><i class="bi bi-clock-history"></i> Complete únicamente la jornada temporal y sus fechas. El cargo y el área permanentes no serán modificados.</div>
+                        <div class="compact-schedule-note" id="compactScheduleNote" data-losep-only><i class="bi bi-clock-history"></i> Complete únicamente la jornada temporal y sus fechas. El cargo y el área permanentes no serán modificados.</div>
                         <div class="split-wrap">
 
                             <!-- ── LADO IZQUIERDO: SITUACIÓN ACTUAL (readonly, BD) ── -->
@@ -437,7 +464,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                 <div class="accion-field"><label>Grado</label><input type="text" id="inpGradoActual" name="actual_grado" readonly value="<?= htmlspecialchars($hist['grado_laboral'] ?? $hist['grado'] ?? '') ?>"></div>
                                 <div class="accion-field"><label>Partida Individual</label><input type="text" id="inpPartidaActual" name="actual_partida_presupuestaria" readonly value="<?= htmlspecialchars($hist['partida_individual'] ?? $hist['partida_presupuestaria'] ?? '') ?>"></div>
                                 <?php $jornadaBase=(string)($hist['jornada']??'Completa');$horasBase=(float)($hist['horas_jornada']??8); ?>
-                                <div class="accion-field schedule-current"><label>Jornada base vigente</label><input type="text" id="inpJornadaActualResumen" readonly value="<?= htmlspecialchars($jornadaBase.' — '.rtrim(rtrim(number_format($horasBase,1,'.',''),'0'),'.').' horas diarias') ?>"><input type="hidden" id="inpJornadaActual" name="actual_jornada" value="<?= htmlspecialchars($jornadaBase) ?>"><input type="hidden" id="inpHorasActual" name="actual_horas_jornada" value="<?= htmlspecialchars((string)$horasBase) ?>"></div>
+                                <div class="accion-field schedule-current" data-losep-only><label>Jornada base vigente</label><input type="text" id="inpJornadaActualResumen" readonly value="<?= htmlspecialchars($jornadaBase.' — '.rtrim(rtrim(number_format($horasBase,1,'.',''),'0'),'.').' horas diarias') ?>"><input type="hidden" id="inpJornadaActual" name="actual_jornada" value="<?= htmlspecialchars($jornadaBase) ?>"><input type="hidden" id="inpHorasActual" name="actual_horas_jornada" value="<?= htmlspecialchars((string)$horasBase) ?>"></div>
                                 <div class="accion-field">
                                     <label>Remuneración Mensual Unificada ($)</label>
                                     <input type="text" id="inpSueldoActual" name="actual_remuneracion" readonly
@@ -475,7 +502,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                 <div class="accion-field"><label>Nivel de Gestión Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_nivel_gestion"></div>
                                 <div class="accion-field">
                                     <div class="label-with-action"><label for="propUnidad">Nueva Unidad Administrativa <span class="req">*</span></label><?php if(Auth::can('maestros','crear')): ?><button class="quick-add-button" type="button" onclick="abrirCatalogoRapido('unidad')" title="Crear unidad" aria-label="Crear unidad administrativa"><i class="bi bi-plus-lg"></i></button><?php endif; ?></div>
-                                    <select class="inputs-propuesta" name="propuesta_unidad_id" id="propUnidad">
+                                    <select class="inputs-propuesta" name="propuesta_unidad_id" id="propUnidad" data-searchable-select data-search-placeholder="Buscar unidad administrativa…">
                                         <option value="">Seleccione el área...</option>
                                         <?php foreach (($areas ?? []) as $area): ?>
                                         <option value="<?= (int)$area['unidad_id'] ?>">
@@ -506,7 +533,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                 <div class="accion-field"><label>Grupo Ocupacional Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_grupo_ocupacional"></div>
                                 <div class="accion-field"><label>Grado Propuesto</label><input class="inputs-propuesta" type="text" name="propuesta_grado"></div>
                                 <div class="accion-field"><label>Partida Individual Propuesta</label><input class="inputs-propuesta" type="text" name="propuesta_partida_presupuestaria"></div>
-                                <div class="accion-field">
+                                <div class="accion-field" id="campoContratoPropuesto">
                                     <label>Tipo de Contrato Propuesto</label>
                                     <select class="inputs-propuesta" name="propuesta_contrato" id="propContrato">
                                         <option value="">Sin cambio</option>
@@ -516,20 +543,20 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                     </select>
                                 </div>
                                 </div>
-                                <div class="accion-field">
+                                <div class="accion-field" data-losep-only>
                                     <label id="labelJornadaPropuesta">Jornada propuesta</label>
                                     <select class="inputs-propuesta" name="propuesta_jornada" id="propJornada">
                                         <option value="">Sin cambio</option><option value="Completa">Completa</option><option value="Parcial">Parcial</option><option value="Rotativa">Rotativa</option><option value="Especial">Especial</option><option value="Licencia">Licencia</option>
                                     </select>
                                 </div>
-                                <div class="accion-field"><label id="labelHorasPropuestas">Horas diarias propuestas</label><input class="inputs-propuesta" type="number" name="propuesta_horas_jornada" id="propHoras" min="1" max="24" step="0.5"><small id="ayudaHorasPropuestas">Déjelo vacío si la jornada no cambia.</small></div>
-                                <div class="accion-field">
+                                <div class="accion-field" data-losep-only><label id="labelHorasPropuestas">Horas diarias propuestas</label><input class="inputs-propuesta" type="number" name="propuesta_horas_jornada" id="propHoras" min="1" max="24" step="0.5"><small id="ayudaHorasPropuestas">Déjelo vacío si la jornada no cambia.</small></div>
+                                <div class="accion-field" data-losep-only>
                                     <label>Novedad temporal de jornada</label>
                                     <select class="inputs-propuesta" name="tipo_novedad_jornada" id="tipoNovedadJornada" onchange="toggleJornadaTemporal()">
                                         <option id="optionNovedadVacia" value="">No aplica</option><option value="LACTANCIA">Lactancia</option><option value="MATERNIDAD">Licencia por maternidad</option><option value="PATERNIDAD">Licencia por paternidad</option><option value="SUSTITUTO">Jornada temporal por condición de sustituto</option><option value="DISCAPACIDAD">Discapacidad</option><option value="OTRA JORNADA ESPECIAL">Otra jornada especial</option>
                                     </select>
                                 </div>
-                                <div id="bloqueJornadaTemporal" style="display:none;padding:14px;border:1px solid rgba(14,116,144,.25);border-radius:12px;background:#ecfeff;">
+                                <div id="bloqueJornadaTemporal" data-losep-only style="display:none;padding:14px;border:1px solid rgba(14,116,144,.25);border-radius:12px;background:#ecfeff;">
                                     <div class="accion-field"><label>Horario temporal</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input type="time" name="hora_entrada_propuesta"><input type="time" name="hora_salida_propuesta"></div></div>
                                     <div class="accion-field"><label>Días aplicables</label><input type="text" name="dias_jornada_propuesta" placeholder="Ej.: lunes a viernes"></div>
                                     <div class="accion-field"><label>Documento de respaldo</label><input type="text" name="documento_jornada" placeholder="Memorando, resolución o certificado"></div>
@@ -539,14 +566,14 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                         </div><!-- /split-wrap -->
 
                         <!-- ══ SECCIÓN 4: MOTIVACIÓN Y NOTIFICACIÓN ══════════════════════ -->
-                        <div class="section-sep"><span><i class="bi bi-chat-quote-fill"></i> 4 · Motivación y Notificación</span></div>
+                        <div class="section-sep"><span id="tituloCierreDocumento"><i class="bi bi-chat-quote-fill"></i> 4 · Motivación y Notificación</span></div>
                         <div class="firma-grid">
-                            <div class="accion-field" style="grid-column:1/-1;">
+                            <div class="accion-field" data-losep-only style="grid-column:1/-1;">
                                 <label>Motivación / Fundamento Legal <span class="req">*</span></label>
                                 <textarea name="motivacion_texto" rows="4" required
                                           placeholder="Describa el fundamento legal y la justificación institucional para esta acción de personal (Art. 21 LOSEP)..."></textarea>
                             </div>
-                            <div class="accion-field">
+                            <div class="accion-field" id="campoDeclaracionJurada" data-losep-only>
                                 <label>Presentó Declaración Juramentada</label>
                                 <select name="presento_declaracion">
                                     <option value="NO APLICA">No aplica</option>
@@ -554,41 +581,48 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
                                     <option value="NO">No presentó</option>
                                 </select>
                             </div>
-                            <div class="accion-field">
+                            <div class="accion-field" data-losep-only>
                                 <label>
                                     <input type="checkbox" name="notificacion_electronica"
                                            id="chkNotificacion" onchange="toggleNotificacion()"
                                            style="width:auto; margin-right:6px;">
-                                    Notificar por correo electrónico
+                                    Notificar por correo electrónico a una o más áreas
                                 </label>
-                                <input type="email" name="correo_notificacion" id="inpCorreoNotif"
-                                       placeholder="correo@apm.gob.ec" disabled
-                                       style="margin-top:8px;">
+                                <input type="hidden" name="correo_notificacion" id="inpCorreoNotif" disabled>
+                                <div class="email-recipient-box is-disabled" id="emailRecipientBox">
+                                    <div class="email-recipient-row">
+                                        <input type="email" id="emailRecipientInput" list="correosFrecuentes"
+                                               placeholder="Escriba un correo y presione Enter" autocomplete="email">
+                                        <button type="button" class="email-recipient-add" id="btnAgregarCorreo" title="Agregar destinatario"><i class="bi bi-plus-lg"></i></button>
+                                    </div>
+                                    <datalist id="correosFrecuentes"></datalist>
+                                    <div class="email-recipient-chips" id="emailRecipientChips" aria-live="polite"></div>
+                                    <small>Máximo 8 destinatarios y 150 caracteres en total. Los correos usados quedarán disponibles como sugerencias en este equipo.</small>
+                                </div>
                             </div>
-                            <div class="accion-field"><label>Fecha y hora de notificación</label><input type="datetime-local" name="fecha_notificacion"></div>
-                            <div class="accion-field"><label>Medio de notificación</label><input type="text" name="medio_notificacion" placeholder="Correo, Quipux, entrega física..."></div>
-                            <div class="accion-field"><label>Número de documento/notificación</label><input type="text" name="documento_notificacion"></div>
-                            <div class="accion-field"><label>Responsable Talento Humano</label><input type="text" name="responsable_th_nombre"><input type="text" name="responsable_th_puesto" placeholder="Puesto" style="margin-top:6px"></div>
-                            <div class="accion-field"><label>Autoridad nominadora/delegado</label><input type="text" name="autoridad_nombre"><input type="text" name="autoridad_puesto" placeholder="Puesto" style="margin-top:6px"></div>
-                            <div class="accion-field"><label>Responsable de elaboración</label><input type="text" name="elaborador_nombre"><input type="text" name="elaborador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
-                            <div class="accion-field"><label>Responsable de revisión</label><input type="text" name="revisor_nombre"><input type="text" name="revisor_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field" data-losep-only><label>Fecha y hora de notificación</label><input type="datetime-local" name="fecha_notificacion"></div>
+                            <div class="accion-field" data-losep-only><label>Medio de notificación</label><input type="text" name="medio_notificacion" placeholder="Correo, Quipux, entrega física..."></div>
+                            <div class="accion-field" data-losep-only><label>Número de documento/notificación</label><input type="text" name="documento_notificacion"></div>
+                            <div class="accion-field" id="campoResponsableTh" data-losep-only><label>Responsable Talento Humano</label><input type="text" name="responsable_th_nombre"><input type="text" name="responsable_th_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field" id="campoAutoridadNominadora" data-losep-only><label>Autoridad nominadora/delegado</label><input type="text" name="autoridad_nombre"><input type="text" name="autoridad_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field"><label>Responsable de elaboración</label><input type="text" name="elaborador_nombre" value="<?= htmlspecialchars($responsableDocumento) ?>" readonly><input type="text" name="elaborador_puesto" value="<?= htmlspecialchars($puestoResponsableDocumento) ?>" readonly placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field" id="campoResponsableRevision" data-losep-only><label>Responsable de revisión</label><input type="text" name="revisor_nombre"><input type="text" name="revisor_puesto" placeholder="Puesto" style="margin-top:6px"></div>
                             <div class="accion-field"><label>Responsable de registro y control</label><input type="text" name="registrador_nombre"><input type="text" name="registrador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
-                            <div class="accion-field"><label>Responsable que notificó</label><input type="text" name="notificador_nombre"><input type="text" name="notificador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
+                            <div class="accion-field" data-losep-only><label>Responsable que notificó</label><input type="text" name="notificador_nombre"><input type="text" name="notificador_puesto" placeholder="Puesto" style="margin-top:6px"></div>
                         </div>
 
                         <!-- ══ ACCIONES ══════════════════════════════════════════════════ -->
                         <div class="accion-actions">
-                            <a href="<?= BASE_URL ?>/talento-humano/directorio" class="btn btn-outline"
+                            <a href="<?= BASE_URL ?><?= $esEdicion?'/talento-humano/biblioteca':'/talento-humano/directorio' ?>" class="btn btn-outline"
                                id="btn-cancelar-accion">
                                 <i class="bi bi-x-circle"></i> Cancelar
                             </a>
-                            <button type="button" class="btn btn-ghost" onclick="showToast('Genere el documento y ábralo desde Biblioteca para imprimir el PDF oficial de 2 páginas.','info')"
+                            <button type="button" class="btn btn-ghost" onclick="abrirModalVistaPrevia()"
                                     id="btn-imprimir-accion">
-                                <i class="bi bi-eye-fill"></i> Vista previa PDF oficial
+                                <i class="bi bi-eye-fill"></i> Vista previa e impresión
                             </button>
-                            <button type="submit" class="btn btn-primary" id="btn-generar-accion"
-                                    onclick="return validarFormulario()">
-                                <i class="bi bi-file-earmark-check-fill"></i> Generar Documento
+                            <button type="submit" class="btn btn-primary" id="btn-generar-accion">
+                                <i class="bi bi-file-earmark-check-fill"></i> <?= $esEdicion?'Guardar correcciones':'Generar Documento' ?>
                             </button>
                         </div>
 
@@ -603,7 +637,7 @@ $tipoPreseleccionado = $tipoPreseleccionado ?? '';
 <div class="preview-overlay" id="modal-vista-previa" role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:1000;background:rgba(5,15,30,.65);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .3s;">
     <div style="background:#fff;border-radius:20px;width:100%;max-width:860px;box-shadow:0 30px 80px rgba(0,0,0,.35);transform:translateY(30px);transition:transform .3s;overflow:hidden;" id="modal-vp-inner">
         <div style="background:linear-gradient(135deg,var(--navy-900),var(--ocean-700));padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
-            <h4 style="color:#fff;margin:0;font-size:1rem;"><i class="bi bi-file-earmark-text-fill"></i> Vista Previa — Acción de Personal</h4>
+            <h4 id="tituloModalDocumento" style="color:#fff;margin:0;font-size:1rem;"><i class="bi bi-file-earmark-text-fill"></i> Vista Previa — Acción de Personal</h4>
             <button onclick="cerrarModalVistaPrevia()" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:grid;place-items:center;font-size:1.1rem;" aria-label="Cerrar">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -649,6 +683,9 @@ endif; ?>
 
 /* BASE_URL inyectado desde PHP para que fetch() funcione en cualquier entorno */
 const BASE_URL = '<?= BASE_URL ?>';
+const ACCION_EDICION = <?= json_encode($accionEdicion ?: null, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const IS_EDITING = Boolean(ACCION_EDICION?.accion_id);
+let REGIMEN_DOCUMENTO = <?= json_encode($regimenDocumento, JSON_UNESCAPED_UNICODE) ?>;
 const PERSONAL_ACCION = <?= json_encode($selectorPersonal ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const normalizarBusquedaPersonal = valor => String(valor ?? '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
@@ -693,9 +730,11 @@ async function cargarServidorPorId(id) {
         estado.innerHTML = `<i class="bi bi-check-circle-fill" style="color:#059669"></i> Expediente cargado: ${escaparResultadoPersonal(json.data.apellidos)} ${escaparResultadoPersonal(json.data.nombres)}`;
         estado.style.color = '#059669';
         document.getElementById('resultadosPersonalAccion').classList.remove('open');
+        return json.data;
     } catch (error) {
         estado.innerHTML = `<i class="bi bi-x-circle-fill" style="color:#dc2626"></i> ${escaparResultadoPersonal(error.message)}`;
         estado.style.color = '#dc2626';
+        return null;
     }
 }
 
@@ -712,7 +751,7 @@ function buscarPersonaAccion() {
 }
 
 /* ── 1. Inicialización al cargar la página ───────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Si la URL trae ?cedula= o ?id=, autocompletar al cargar (viene del Directorio)
     const params  = new URLSearchParams(window.location.search);
     const cedUrl  = params.get('cedula');
@@ -733,7 +772,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!event.target.closest('.personal-autocomplete')) document.getElementById('resultadosPersonalAccion').classList.remove('open');
     });
 
-    if (cedUrl) {
+    if (IS_EDITING) {
+        await cargarServidorPorId(Number(ACCION_EDICION.empleado_id));
+        aplicarAccionEdicion(ACCION_EDICION);
+    } else if (cedUrl) {
         // Modo cédula: el link del directorio puede traer la cédula directamente
         document.getElementById('inputBuscarCedula').value = cedUrl;
         buscarPorCedula();
@@ -741,11 +783,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Modo ID: buscar por ID interno y mostrar la cédula al completar
         cargarServidorPorId(parseInt(idUrl));
     }
-    actualizarVigencia();
-    actualizarModoCaptura();
-    const tipoInicial=<?= json_encode($tipoPreseleccionado,JSON_UNESCAPED_UNICODE) ?>;
-    const chipInicial=[...document.querySelectorAll('.tipo-chip')].find(chip=>chip.dataset.value===tipoInicial);
-    if(chipInicial)seleccionarTipo(chipInicial);
+    if (!IS_EDITING) {
+        actualizarVigencia();
+        actualizarModoCaptura();
+        const tipoInicial=<?= json_encode($tipoPreseleccionado,JSON_UNESCAPED_UNICODE) ?>;
+        const chipInicial=[...document.querySelectorAll('.tipo-chip')].find(chip=>chip.dataset.value===tipoInicial);
+        if(chipInicial)seleccionarTipo(chipInicial);
+    }
+    inicializarDestinatariosCorreo();
 });
 
 /* ── 2. Búsqueda AJAX del funcionario por cédula ───────────────────────────── */
@@ -797,6 +842,7 @@ async function buscarPorCedula() {
 
 /* ── 3. Llenar formulario con datos reales desde la BD ───────────────────── */
 function llenarFormularioConEmpleado(emp) {
+    REGIMEN_DOCUMENTO = String(emp.regimen_laboral || 'LOSEP').toUpperCase();
     // Campos de cabecera del formulario
     document.getElementById('inpCedula').value      = emp.cedula        ?? '';
     document.getElementById('inpNombres').value     = `${emp.apellidos ?? ''} ${emp.nombres ?? ''}`.trim();
@@ -825,6 +871,217 @@ function llenarFormularioConEmpleado(emp) {
 
     // Limpiar lado propuesta para comenzar desde cero
     limpiarPropuesta();
+    actualizarPresentacionRegimen();
+    if (!IS_EDITING) {
+        const tipoInicial = <?= json_encode($tipoPreseleccionado ?: 'INGRESO', JSON_UNESCAPED_UNICODE) ?>;
+        const chipInicial = [...document.querySelectorAll('.tipo-chip')].find(chip => chip.dataset.value === tipoInicial);
+        if (chipInicial) seleccionarTipo(chipInicial);
+    }
+}
+
+function actualizarPresentacionRegimen() {
+    const codigo = REGIMEN_DOCUMENTO === 'CODIGO_TRABAJO';
+    const titulo = document.getElementById('tituloDocumentoLaboral');
+    const subtitulo = document.getElementById('subtituloDocumentoLaboral');
+    const resumen = document.getElementById('displayRegimen');
+    if (titulo) titulo.innerHTML = `<i class="bi bi-file-earmark-text"></i> ${codigo ? 'Formulario Abreviado Laboral' : (IS_EDITING ? 'Editar borrador de Acción de Personal' : 'Formulario de Acción de Personal')}`;
+    if (subtitulo) subtitulo.textContent = codigo
+        ? 'Código del Trabajo — documento laboral abreviado de la APM'
+        : (IS_EDITING ? 'Corrija la información antes de aprobar o rechazar el documento.' : 'Art. 21 LOSEP — Registro oficial de movimiento de personal de la APM');
+    if (resumen) resumen.innerHTML = `<i class="bi bi-shield-check"></i> ${codigo ? 'Código del Trabajo · Abreviado' : 'LOSEP · Completo'}`;
+    const resumenDocumento = document.querySelector('.document-summary');
+    resumenDocumento?.classList.toggle('is-abbreviated', codigo);
+    const resumenVigencia = document.getElementById('resumenVigenciaItem');
+    if (resumenVigencia) resumenVigencia.hidden = codigo;
+    document.querySelectorAll('[data-losep-only]').forEach(bloque => {
+        bloque.hidden = codigo;
+        bloque.querySelectorAll('input,select,textarea,button').forEach(control => {
+            control.disabled = codigo;
+        });
+    });
+    const tituloTipo = document.getElementById('tituloTipoDocumento');
+    if (tituloTipo) tituloTipo.innerHTML = codigo
+        ? '<i class="bi bi-list-check"></i> 2 · Tipo de movimiento laboral'
+        : '<i class="bi bi-list-check"></i> 2 · Motivo de la Acción (Art. 21 LOSEP)';
+    const tituloCierre = document.getElementById('tituloCierreDocumento');
+    if (tituloCierre) tituloCierre.innerHTML = codigo
+        ? '<i class="bi bi-pen"></i> 4 · Responsables del documento'
+        : '<i class="bi bi-chat-quote-fill"></i> 4 · Motivación y Notificación';
+    const contrato = document.getElementById('propContrato');
+    const campoContrato = document.getElementById('campoContratoPropuesto');
+    if (contrato) {
+        contrato.disabled = codigo;
+        if (codigo) contrato.value = '';
+    }
+    if (campoContrato) campoContrato.hidden = codigo;
+    const motivacion = document.querySelector('[name="motivacion_texto"]');
+    if (motivacion) {
+        motivacion.required = !codigo;
+        motivacion.placeholder = 'Describa el fundamento legal y la justificación institucional para esta acción de personal (Art. 21 LOSEP)...';
+    }
+    if (codigo) {
+        const permanente = document.querySelector('input[name="modalidad_vigencia"][value="PERMANENTE"]');
+        const cambioLaboral = document.querySelector('input[name="modo_captura"][value="CAMBIO_LABORAL"]');
+        if (permanente) permanente.checked = true;
+        if (cambioLaboral) cambioLaboral.checked = true;
+        const hasta = document.getElementById('inpRigeHasta');
+        if (hasta) { hasta.value = ''; hasta.required = false; hasta.disabled = true; }
+        const notificacion = document.getElementById('chkNotificacion');
+        if (notificacion) notificacion.checked = false;
+    } else {
+        actualizarVigencia();
+        actualizarModoCaptura();
+        toggleNotificacion();
+    }
+    if (!IS_EDITING) actualizarNumeroPrevistoPorRegimen();
+}
+
+function actualizarNumeroPrevistoPorRegimen() {
+    const tipo = document.getElementById('hidTipoAccion')?.value || 'INGRESO';
+    const series={'CAMBIO ADMINISTRATIVO':'CA','LICENCIA':'LI','SANCIONES':'RD','VACACIONES':'VAC'};
+    const serie=REGIMEN_DOCUMENTO==='CODIGO_TRABAJO' ? 'CdgT' : (series[tipo]||'MP');
+    const numero=`${serie}-001-<?= InstitutionalClock::today()->format('Y') ?>`;
+    document.getElementById('displayNroAccion').textContent=numero;
+    document.getElementById('nroAccionInput').value=numero;
+}
+
+function aplicarAccionEdicion(accion) {
+    const asignar = (selector, valor) => {
+        const control = document.querySelector(selector);
+        if (control && valor !== null && valor !== undefined) control.value = String(valor);
+    };
+    const modalidad = String(accion.modalidad_vigencia || 'PERMANENTE').toUpperCase();
+    const radioVigencia = document.querySelector(`input[name="modalidad_vigencia"][value="${modalidad}"]`);
+    if (radioVigencia) radioVigencia.checked = true;
+    asignar('[name="fecha_elaboracion"]', String(accion.fecha_elaboracion || '').slice(0,10));
+    asignar('[name="rige_desde"]', String(accion.fecha_rige_desde || '').slice(0,10));
+    const hasta = document.getElementById('inpRigeHasta');
+    hasta.disabled = modalidad !== 'TEMPORAL';
+    asignar('[name="rige_hasta"]', String(accion.fecha_rige_hasta || '').slice(0,10));
+
+    const modo = accion.tipo_novedad_jornada ? 'JORNADA_TEMPORAL' : 'CAMBIO_LABORAL';
+    const radioModo = document.querySelector(`input[name="modo_captura"][value="${modo}"]`);
+    if (radioModo) radioModo.checked = true;
+
+    const chip = [...document.querySelectorAll('.tipo-chip')].find(item => item.dataset.value === accion.tipo_accion);
+    if (chip) seleccionarTipo(chip);
+    document.querySelectorAll('.tipo-chip').forEach(item => {
+        item.setAttribute('aria-disabled', item === chip ? 'false' : 'true');
+        if (item !== chip) item.style.opacity = '.48';
+    });
+
+    const campos = {
+        '[name="explicacion_otro"]':'detalle_otro','[name="propuesta_proceso"]':'propuesta_proceso',
+        '[name="propuesta_nivel_gestion"]':'propuesta_nivel_gestion','[name="propuesta_unidad_id"]':'propuesta_unidad_id',
+        '[name="propuesta_puesto_id"]':'propuesta_puesto_id','[name="propuesta_remuneracion"]':'propuesta_remuneracion',
+        '[name="propuesta_lugar_trabajo"]':'propuesta_lugar_trabajo','[name="propuesta_grupo_ocupacional"]':'propuesta_grupo_ocupacional',
+        '[name="propuesta_grado"]':'propuesta_grado','[name="propuesta_partida_presupuestaria"]':'propuesta_partida_presupuestaria',
+        '[name="propuesta_contrato"]':'propuesta_tipo_contrato','[name="propuesta_jornada"]':'propuesta_jornada',
+        '[name="propuesta_horas_jornada"]':'propuesta_horas_jornada','[name="tipo_novedad_jornada"]':'tipo_novedad_jornada',
+        '[name="hora_entrada_propuesta"]':'hora_entrada_propuesta','[name="hora_salida_propuesta"]':'hora_salida_propuesta',
+        '[name="dias_jornada_propuesta"]':'dias_jornada_propuesta','[name="documento_jornada"]':'documento_jornada',
+        '[name="motivacion_texto"]':'explicacion_legal','[name="presento_declaracion"]':'presento_declaracion',
+        '[name="fecha_notificacion"]':'fecha_notificacion','[name="medio_notificacion"]':'medio_notificacion',
+        '[name="documento_notificacion"]':'documento_notificacion','[name="responsable_th_nombre"]':'responsable_th_nombre',
+        '[name="responsable_th_puesto"]':'responsable_th_puesto','[name="autoridad_nombre"]':'autoridad_nombre',
+        '[name="autoridad_puesto"]':'autoridad_puesto','[name="elaborador_nombre"]':'elaborador_nombre',
+        '[name="elaborador_puesto"]':'elaborador_puesto','[name="revisor_nombre"]':'revisor_nombre',
+        '[name="revisor_puesto"]':'revisor_puesto','[name="registrador_nombre"]':'registrador_nombre',
+        '[name="registrador_puesto"]':'registrador_puesto','[name="notificador_nombre"]':'notificador_nombre',
+        '[name="notificador_puesto"]':'notificador_puesto'
+    };
+    Object.entries(campos).forEach(([selector, campo]) => {
+        let valor = accion[campo];
+        if (campo === 'fecha_notificacion' && valor) valor = String(valor).replace(' ', 'T').slice(0,16);
+        asignar(selector, valor ?? '');
+    });
+    actualizarVigencia();
+    actualizarModoCaptura();
+    toggleJornadaTemporal();
+
+    destinatariosCorreo = separarCorreos(accion.correo_notificacion || '');
+    const notificar = Number(accion.notificacion_electronica || 0) === 1 || destinatariosCorreo.length > 0;
+    document.getElementById('chkNotificacion').checked = notificar;
+    toggleNotificacion();
+    renderizarDestinatariosCorreo();
+}
+
+function actualizarVigencia() {
+    const novedad = document.getElementById('tipoNovedadJornada')?.value ?? '';
+    if (novedad) document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+    const temporal = document.querySelector('input[name="modalidad_vigencia"]:checked')?.value === 'TEMPORAL';
+    const hasta = document.getElementById('inpRigeHasta');
+    hasta.disabled = !temporal;
+    hasta.required = temporal;
+    if (!temporal) hasta.value = '';
+    document.getElementById('reqRigeHasta').style.display = temporal ? 'inline' : 'none';
+    document.getElementById('vigenciaHelp').innerHTML = temporal
+        ? '<i class="bi bi-arrow-counterclockwise"></i> Al finalizar la fecha indicada, el sistema mostrará nuevamente la situación anterior y lo registrará en auditoría.'
+        : '<i class="bi bi-infinity"></i> Vigencia permanente: el cambio se mantendrá hasta una nueva Acción de Personal.';
+    const resumen = document.getElementById('displayVigencia');
+    if (resumen) resumen.innerHTML = temporal
+        ? '<i class="bi bi-arrow-counterclockwise"></i> Temporal con retorno'
+        : '<i class="bi bi-infinity"></i> Permanente';
+}
+
+function actualizarModoCaptura() {
+    const compacto = document.querySelector('input[name="modo_captura"]:checked')?.value === 'JORNADA_TEMPORAL';
+    document.getElementById('camposCambioLaboral').style.display = compacto ? 'none' : 'block';
+    document.getElementById('compactScheduleNote').style.display = compacto ? 'block' : 'none';
+    document.getElementById('panelActual').classList.toggle('compact-schedule-current', compacto);
+    document.querySelectorAll('#camposCambioLaboral input, #camposCambioLaboral select').forEach(control => {
+        control.disabled = compacto;
+    });
+    document.getElementById('labelJornadaPropuesta').textContent = compacto ? 'Jornada temporal propuesta' : 'Jornada propuesta';
+    document.getElementById('labelHorasPropuestas').textContent = compacto ? 'Horas temporales diarias' : 'Horas diarias propuestas';
+    const novedad = document.getElementById('tipoNovedadJornada');
+    novedad.required = compacto;
+    document.getElementById('optionNovedadVacia').textContent = compacto ? 'Seleccione la novedad temporal…' : 'No aplica';
+    if (compacto) {
+        document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+        actualizarVigencia();
+        novedad.focus();
+    }
+    toggleJornadaTemporal();
+}
+
+function toggleJornadaTemporal() {
+    const tipo = document.getElementById('tipoNovedadJornada').value;
+    const activa = tipo !== '';
+    const parental = ['MATERNIDAD','PATERNIDAD'].includes(tipo);
+    document.getElementById('bloqueJornadaTemporal').style.display = activa ? 'block' : 'none';
+    const horas = document.getElementById('propHoras');
+    const ayuda = document.getElementById('ayudaHorasPropuestas');
+    horas.readOnly = false;
+    horas.min = '1';
+    if (activa) {
+        document.querySelector('input[name="modalidad_vigencia"][value="TEMPORAL"]').checked = true;
+        if (parental) {
+            document.getElementById('propJornada').value = 'Licencia';
+            horas.value = '0';
+            horas.min = '0';
+            horas.required = false;
+            horas.readOnly = true;
+            if (ayuda) ayuda.textContent = 'La licencia por maternidad o paternidad se registra automáticamente con 0 horas.';
+            const licencia = document.querySelector('.tipo-chip[data-value="LICENCIA"]');
+            if (licencia) seleccionarTipo(licencia);
+        } else {
+            document.getElementById('propJornada').value = 'Especial';
+            horas.required = true;
+            if (tipo === 'SUSTITUTO') {
+                horas.value = '6'; horas.readOnly = true;
+                if (ayuda) ayuda.textContent = 'La jornada temporal por condición de sustituto utiliza 6 horas.';
+            } else {
+                if (!Number(horas.value)) horas.value = tipo === 'LACTANCIA' ? '6' : '';
+                if (ayuda) ayuda.textContent = 'Ingrese las horas que estarán vigentes únicamente durante el periodo indicado.';
+            }
+        }
+        actualizarVigencia();
+    } else {
+        horas.required = false;
+        horas.readOnly = false;
+        if (ayuda) ayuda.textContent = 'Déjelo vacío si la jornada no cambia.';
+    }
 }
 
 function actualizarVigencia() {
@@ -907,17 +1164,17 @@ function toggleJornadaTemporal() {
 
 /* ── 6. Selección del tipo de acción (chips interactivos) ─────────────────── */
 function seleccionarTipo(chip) {
+    if (IS_EDITING && chip.dataset.value !== ACCION_EDICION.tipo_accion) {
+        showToast?.('El tipo de acción no puede cambiarse porque define la serie documental. Puede rechazar este borrador y crear uno nuevo si la clasificación es incorrecta.', 'info');
+        return;
+    }
     document.querySelectorAll('.tipo-chip').forEach(c => c.classList.remove('selected'));
     chip.classList.add('selected');
     const valor = chip.dataset.value;
     document.getElementById('hidTipoAccion').value = valor;
-    const series={'CAMBIO ADMINISTRATIVO':'CA','LICENCIA':'LI','SANCIONES':'RD','VACACIONES':'VAC'};
-    const serie=series[valor]||'MP';
-    const actual=document.getElementById('displayNroAccion')?.textContent||'';
-    const partes=actual.split('-');const consecutivo=(partes.length>=3&&/^\d+$/.test(partes[1]))?partes[1]:'001';
-    const numero=`${serie}-${consecutivo}-<?= InstitutionalClock::today()->format('Y') ?>`;
-    document.getElementById('displayNroAccion').textContent=numero;
-    document.getElementById('nroAccionInput').value=numero;
+    if (!IS_EDITING) {
+        actualizarNumeroPrevistoPorRegimen();
+    }
     const resumenTipo=document.getElementById('displayTipoAccion');
     if(resumenTipo) resumenTipo.innerHTML=`<i class="bi bi-list-check"></i> ${escaparResultadoPersonal(valor)}`;
 
@@ -946,11 +1203,97 @@ function aplicarReglasNegocio(accion) {
 }
 
 /* ── 7. Notificación por correo ───────────────────────────────────────────── */
+const EMAIL_STORAGE_KEY = 'portal_apm_correos_notificacion_frecuentes';
+let destinatariosCorreo = [];
+
+function separarCorreos(valor) {
+    return [...new Set(String(valor || '').toLowerCase().split(/[\s,;]+/).map(item => item.trim()).filter(Boolean))];
+}
+
+function correoValido(correo) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+}
+
+function correosFrecuentesGuardados() {
+    try {
+        const valor = JSON.parse(localStorage.getItem(EMAIL_STORAGE_KEY) || '[]');
+        return Array.isArray(valor) ? valor.filter(correoValido).slice(0, 30) : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function actualizarSugerenciasCorreo() {
+    const lista = document.getElementById('correosFrecuentes');
+    if (!lista) return;
+    lista.innerHTML = correosFrecuentesGuardados()
+        .map(correo => `<option value="${escaparResultadoPersonal(correo)}"></option>`).join('');
+}
+
+function guardarCorreoFrecuente(correo) {
+    const guardados = correosFrecuentesGuardados().filter(item => item !== correo);
+    guardados.unshift(correo);
+    localStorage.setItem(EMAIL_STORAGE_KEY, JSON.stringify(guardados.slice(0, 30)));
+    actualizarSugerenciasCorreo();
+}
+
+function renderizarDestinatariosCorreo() {
+    const oculto = document.getElementById('inpCorreoNotif');
+    const contenedor = document.getElementById('emailRecipientChips');
+    const combinado = destinatariosCorreo.join('; ');
+    oculto.value = combinado;
+    contenedor.innerHTML = destinatariosCorreo.length
+        ? destinatariosCorreo.map((correo, indice) => `<span class="email-recipient-chip"><i class="bi bi-envelope-check"></i><span>${escaparResultadoPersonal(correo)}</span><button type="button" data-remove-email="${indice}" aria-label="Quitar ${escaparResultadoPersonal(correo)}"><i class="bi bi-x-lg"></i></button></span>`).join('')
+        : '<small>No hay destinatarios agregados.</small>';
+}
+
+function agregarCorreoNotificacion() {
+    const entrada = document.getElementById('emailRecipientInput');
+    const nuevos = separarCorreos(entrada.value);
+    if (!nuevos.length || nuevos.some(correo => !correoValido(correo))) {
+        showToast?.('Ingrese un correo electrónico válido.', 'error');
+        entrada.focus();
+        return false;
+    }
+    const resultado = [...new Set([...destinatariosCorreo, ...nuevos])];
+    if (resultado.length > 8 || resultado.join('; ').length > 150) {
+        showToast?.('El campo admite hasta 8 destinatarios y 150 caracteres en total.', 'error');
+        return false;
+    }
+    destinatariosCorreo = resultado;
+    nuevos.forEach(guardarCorreoFrecuente);
+    entrada.value = '';
+    renderizarDestinatariosCorreo();
+    entrada.focus();
+    return true;
+}
+
+function inicializarDestinatariosCorreo() {
+    actualizarSugerenciasCorreo();
+    renderizarDestinatariosCorreo();
+    document.getElementById('btnAgregarCorreo').addEventListener('click', agregarCorreoNotificacion);
+    document.getElementById('emailRecipientInput').addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ',' || event.key === ';') {
+            event.preventDefault();
+            agregarCorreoNotificacion();
+        }
+    });
+    document.getElementById('emailRecipientChips').addEventListener('click', event => {
+        const boton = event.target.closest('[data-remove-email]');
+        if (!boton) return;
+        destinatariosCorreo.splice(Number(boton.dataset.removeEmail), 1);
+        renderizarDestinatariosCorreo();
+    });
+    toggleNotificacion();
+}
+
 function toggleNotificacion() {
-    const chk   = document.getElementById('chkNotificacion');
-    const input = document.getElementById('inpCorreoNotif');
-    input.disabled = !chk.checked;
-    if (!chk.checked) input.value = '';
+    const activo = document.getElementById('chkNotificacion').checked;
+    document.getElementById('inpCorreoNotif').disabled = !activo;
+    document.getElementById('emailRecipientBox').classList.toggle('is-disabled', !activo);
+    document.getElementById('emailRecipientInput').disabled = !activo;
+    document.getElementById('btnAgregarCorreo').disabled = !activo;
+    renderizarDestinatariosCorreo();
 }
 
 /* ── 8. Limpieza del formulario ───────────────────────────────────────────── */
@@ -987,6 +1330,11 @@ function limpiarFormulario() {
 
 /* ── 9. Validación antes de enviar ───────────────────────────────────────── */
 function validarFormulario() {
+    const codigoTrabajo = REGIMEN_DOCUMENTO === 'CODIGO_TRABAJO';
+    const correoPendiente = document.getElementById('emailRecipientInput').value.trim();
+    if (!codigoTrabajo && document.getElementById('chkNotificacion').checked && correoPendiente && !agregarCorreoNotificacion()) {
+        return false;
+    }
     const cedula = document.getElementById('inpCedula').value.trim();
     const tipo   = document.getElementById('hidTipoAccion').value.trim();
     const motiv  = document.querySelector('textarea[name="motivacion_texto"]').value.trim();
@@ -1003,20 +1351,29 @@ function validarFormulario() {
         showToast?.('Debe seleccionar el tipo de Acción de Personal.', 'error');
         return false;
     }
-    if (!motiv) {
+    if (!codigoTrabajo && !motiv) {
         showToast?.('Ingrese la motivación / fundamento legal de la acción.', 'error');
         return false;
     }
-    if (modalidad === 'TEMPORAL' && !hasta) {
+    if (!codigoTrabajo && modalidad === 'TEMPORAL' && !hasta) {
         showToast?.('La vigencia temporal requiere una fecha de finalización.', 'error');
         document.getElementById('inpRigeHasta').focus();
         return false;
     }
-    if (compacto && !novedad) {
+    if (!codigoTrabajo && compacto && !novedad) {
         showToast?.('Seleccione la novedad de jornada temporal que se aplicará.', 'error');
         document.getElementById('tipoNovedadJornada').focus();
         return false;
     }
+    if (!codigoTrabajo && document.getElementById('chkNotificacion').checked && destinatariosCorreo.length === 0) {
+        showToast?.('Agregue al menos un destinatario para la notificación electrónica.', 'error');
+        document.getElementById('emailRecipientInput').focus();
+        return false;
+    }
+    // Sincronización final: algunos restauradores de borrador reponen el valor
+    // inicial del hidden después de renderizar los chips. El servidor siempre
+    // debe recibir exactamente la lista visible que confirmó el operador.
+    document.getElementById('inpCorreoNotif').value = destinatariosCorreo.join('; ');
     showToast?.('Enviando documento al servidor...', 'info');
     return true;
 }
@@ -1042,11 +1399,36 @@ function abrirModalVistaPrevia() {
     const contratoProp = getT('propuesta_contrato') || '—';
     const motivacion   = document.querySelector('textarea[name="motivacion_texto"]')?.value || '';
     const declaracion  = getT('presento_declaracion') || 'No aplica';
+    const codigoTrabajo = REGIMEN_DOCUMENTO === 'CODIGO_TRABAJO';
+    const responsableElaboracion = <?= json_encode($responsableDocumento, JSON_UNESCAPED_UNICODE) ?>;
+    const puestoElaboracion = <?= json_encode($puestoResponsableDocumento, JSON_UNESCAPED_UNICODE) ?>;
 
     /* ── URL del logo usando constante PHP ── */
     const logoUrl  = '<?= IMG_URL ?>/logoapm.png';
     const fechaHoy = '<?= InstitutionalClock::today()->format('d/m/Y') ?>';
-    const nroDoc   = `APM-TH-<?= InstitutionalClock::today()->format('Y') ?>-${String(empId).padStart(3,'0')}`;
+    const nroDoc   = document.getElementById('displayNroAccion')?.textContent?.trim()
+        || `${codigoTrabajo ? 'CdgT' : 'APM-TH'}-001-<?= InstitutionalClock::today()->format('Y') ?>`;
+    const bloqueTipo = codigoTrabajo ? `
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            <tr><th colspan="2" style="border:1.5px solid #444;padding:7px 10px;background:#dce8f0;font-size:10.5pt;text-align:center;">TIPO DE MOVIMIENTO LABORAL</th></tr>
+            <tr><td style="border:1px solid #888;padding:6px 10px;width:35%;background:#f7f9fb;"><strong>Movimiento:</strong></td><td style="border:1px solid #888;padding:6px 10px;">${tipoAccion}</td></tr>
+        </table>` : `
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            <tr><th colspan="2" style="border:1.5px solid #444;padding:7px 10px;background:#dce8f0;font-size:10.5pt;text-align:center;letter-spacing:.05em;">TIPO Y MOTIVO DE ACCIÓN</th></tr>
+            <tr><td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;width:35%;background:#f7f9fb;"><strong>Tipo de Acción:</strong></td><td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;">${tipoAccion}</td></tr>
+            <tr><td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;background:#f7f9fb;"><strong>Motivación / Fund. Legal:</strong></td><td style="border:1px solid #888;padding:10px;font-size:9.5pt;line-height:1.6;">${motivacion.replace(/\n/g,'<br>')}</td></tr>
+            <tr><td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;background:#f7f9fb;"><strong>Declaración Juramentada:</strong></td><td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;">${declaracion}</td></tr>
+        </table>`;
+    const bloqueFirmas = codigoTrabajo ? `
+        <div style="margin-top:45px;display:flex;justify-content:space-between;gap:28px;">
+            <div style="text-align:center;flex:1;"><div style="border-top:1.5px solid #333;padding-top:6px;margin-top:60px;"><strong>Responsable de elaboración</strong><br><span>${responsableElaboracion}</span><br><small>${puestoElaboracion}</small></div></div>
+            <div style="text-align:center;flex:1;"><div style="border-top:1.5px solid #333;padding-top:6px;margin-top:60px;"><strong>Responsable de registro y control</strong></div></div>
+        </div>` : `
+        <div style="margin-top:50px;display:flex;justify-content:space-between;gap:24px;">
+            <div style="text-align:center;flex:1;"><div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;"><strong>Elaborado por</strong><br><span>${responsableElaboracion}</span><br><small>${puestoElaboracion}</small></div></div>
+            <div style="text-align:center;flex:1;"><div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;"><strong>Revisado por</strong><br><small>Director/a de TH</small></div></div>
+            <div style="text-align:center;flex:1;"><div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;"><strong>Aprobado por</strong><br><small>Autoridad nominadora</small></div></div>
+        </div>`;
 
     const html = `
     <div style="box-sizing:border-box;width:100%;max-width:794px;margin:28px auto;padding:30px 36px;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.1);font-family:'Times New Roman',serif;font-size:11pt;color:#111;line-height:1.55;">
@@ -1061,11 +1443,11 @@ function abrirModalVistaPrevia() {
                     <div style="font-size:7.5pt;font-weight:bold;margin-top:5px;">MANTA</div>
                 </td>
                 <td style="border:1.5px solid #333;text-align:center;padding:10px 16px;">
-                    <div style="font-size:14pt;font-weight:bold;letter-spacing:.03em;">ACCIÓN DE PERSONAL</div>
+                    <div style="font-size:14pt;font-weight:bold;letter-spacing:.03em;">${codigoTrabajo ? 'FORMULARIO ABREVIADO LABORAL' : 'ACCIÓN DE PERSONAL'}</div>
                     <div style="font-size:10pt;margin-top:4px;color:#444;">Autoridad Portuaria de Manta</div>
                 </td>
                 <td style="width:160px;border:1.5px solid #333;padding:8px 10px;font-size:9pt;vertical-align:top;line-height:1.8;">
-                    <strong>Código:</strong> APM-TH-FO-AP<br>
+                    <strong>Régimen:</strong> ${codigoTrabajo ? 'Código del Trabajo' : 'LOSEP'}<br>
                     <strong>N°:</strong> ${nroDoc}<br>
                     <strong>Fecha:</strong> ${fechaHoy}
                 </td>
@@ -1121,48 +1503,8 @@ function abrirModalVistaPrevia() {
             </tr>
         </table>
 
-        <!-- TIPO Y MOTIVO -->
-        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-            <tr>
-                <th colspan="2" style="border:1.5px solid #444;padding:7px 10px;background:#dce8f0;font-size:10.5pt;text-align:center;letter-spacing:.05em;">
-                    TIPO Y MOTIVO DE ACCIÓN
-                </th>
-            </tr>
-            <tr>
-                <td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;width:35%;background:#f7f9fb;"><strong>Tipo de Acción:</strong></td>
-                <td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;">${tipoAccion}</td>
-            </tr>
-            <tr>
-                <td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;background:#f7f9fb;"><strong>Motivación / Fund. Legal:</strong></td>
-                <td style="border:1px solid #888;padding:10px;font-size:9.5pt;min-height:60px;line-height:1.6;">${motivacion.replace(/\n/g,'<br>')}</td>
-            </tr>
-            <tr>
-                <td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;background:#f7f9fb;"><strong>Declaración Juramentada:</strong></td>
-                <td style="border:1px solid #888;padding:6px 10px;font-size:9.5pt;">${declaracion}</td>
-            </tr>
-        </table>
-
-        <!-- FIRMAS -->
-        <div style="margin-top:50px;display:flex;justify-content:space-between;gap:24px;">
-            <div style="text-align:center;flex:1;">
-                <div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;font-size:9.5pt;">
-                    <strong>Elaborado por</strong><br>
-                    <small style="color:#555;">Unidad de Talento Humano</small>
-                </div>
-            </div>
-            <div style="text-align:center;flex:1;">
-                <div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;font-size:9.5pt;">
-                    <strong>Revisado por</strong><br>
-                    <small style="color:#555;">Director/a de TH</small>
-                </div>
-            </div>
-            <div style="text-align:center;flex:1;">
-                <div style="border-top:1.5px solid #333;padding-top:6px;margin-top:70px;font-size:9.5pt;">
-                    <strong>Aprobado por</strong><br>
-                    <small style="color:#555;">Director General / Gerente</small>
-                </div>
-            </div>
-        </div>
+        ${bloqueTipo}
+        ${bloqueFirmas}
 
         <p style="font-size:8pt;color:#888;margin-top:24px;padding-top:10px;border-top:1px solid #e0e0e0;text-align:center;">
             Documento generado el ${fechaHoy} &nbsp;|&nbsp; Sistema de Talento Humano — Autoridad Portuaria de Manta
@@ -1170,6 +1512,7 @@ function abrirModalVistaPrevia() {
     </div>`;
 
     document.getElementById('modal-vp-body').innerHTML = html;
+    document.getElementById('tituloModalDocumento').innerHTML = `<i class="bi bi-file-earmark-text-fill"></i> Vista Previa — ${codigoTrabajo ? 'Formulario Abreviado Laboral' : 'Acción de Personal'}`;
 
     const overlay = document.getElementById('modal-vista-previa');
     overlay.style.opacity = '1';

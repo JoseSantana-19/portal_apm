@@ -63,7 +63,9 @@ final class PdfFormularioPrincipal
         $this->filaDoble('PROCESO INSTITUCIONAL',$this->v('proceso_institucional'),'NIVEL DE GESTION',$this->v('nivel_gestion'));
         $this->filaDoble('LUGAR DE TRABAJO',$this->v('lugar_trabajo'),'GRUPO OCUPACIONAL',$this->v('grupo_ocupacional'));
         $this->filaDoble('GRADO',$this->v('grado_laboral'),'PARTIDA INDIVIDUAL',$this->v('partida_individual'));
-        $this->filaDoble('CODIGO DE PUESTO',$this->v('codigo_puesto'),'TIPO DE CONTRATO',$this->v('tipo_contrato'));
+        $regimen=strtoupper($this->v('regimen_laboral','LOSEP'))==='CODIGO_TRABAJO'?'CODIGO DEL TRABAJO':'LOSEP';
+        $this->filaDoble('REGIMEN LABORAL',$regimen,'TIPO DE CONTRATO',$this->v('tipo_contrato'));
+        $this->filaCompleta('ACCION DE PERSONAL PERMITIDA',$regimen==='LOSEP'?'SI':'NO; GENERA FORMULARIO LABORAL ABREVIADO');
         $jornada=$this->v('jornada');$horas=$this->v('horas_jornada');if($horas!=='')$jornada.=' / '.$horas.' HORAS';
         $this->filaDoble('FECHA DE INGRESO',$this->fecha('fecha_ingreso'),'JORNADA',$jornada);
         $this->filaDoble('REMUNERACION MENSUAL',$this->dinero('sueldo_rmu'),'NUMERO IESS',$this->v('codigo_iess',$this->v('num_iess')));

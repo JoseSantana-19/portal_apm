@@ -5,6 +5,12 @@ $tituloForm = $modoEdicion ? 'Modificar expediente' : 'Registrar nuevo funcionar
 $iconoForm = $modoEdicion ? 'bi-pencil-square' : 'bi-person-badge';
 $nacSeleccionadas = $nacionalidadesEmpleado ?? [];
 $catalogoNacionalidades = $nacionalidades ?? [];
+$regimenLaboral = strtoupper((string)($e['regimen_laboral'] ?? ''));
+if ($regimenLaboral === '') {
+    $regimenLaboral = str_contains(mb_strtoupper((string)($e['tipo_contrato'] ?? ''), 'UTF-8'), 'CODIGO')
+        ? 'CODIGO_TRABAJO'
+        : 'LOSEP';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -28,7 +34,7 @@ $catalogoNacionalidades = $nacionalidades ?? [];
 
         <section class="content">
             <?php
-            $topbarShowSearch=false;
+            $topbarShowSearch=true;
             $topbarBackUrl=BASE_URL.'/talento-humano/directorio';
             $topbarBackLabel='Volver al directorio';
             require ROOT.'/shared/topbar.php';
@@ -246,7 +252,7 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                                 <label for="unidad_id">Departamento / Dirección <span class="required">*</span></label>
                                                 <?php if(Auth::can('maestros','crear')): ?><button type="button" class="quick-add-button" onclick="abrirCatalogoRapido('unidad')" title="Crear dirección o departamento" aria-label="Crear dirección o departamento"><i class="bi bi-plus-lg"></i></button><?php endif; ?>
                                             </div>
-                                            <select id="unidad_id" name="unidad_id" required>
+                                            <select id="unidad_id" name="unidad_id" required data-searchable-select data-search-placeholder="Buscar dirección o área…">
                                                 <option value="">Seleccione dirección...</option>
                                                 <?php
                                                 $areasDisp = $areas ?? [];
@@ -281,12 +287,23 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                                             </select>
                                         </div>
                                         <div class="field span-2">
-                                            <label for="tipo_contrato">Tipo de contrato</label>
-                                            <select id="tipo_contrato" name="tipo_contrato">
-                                                <?php foreach (['Nombramiento Permanente', 'Nombramiento Provisional', 'Contrato Ocasional', 'Codigo del Trabajo'] as $tc): ?>
-                                                    <option value="<?= $tc ?>" <?= ($e['tipo_contrato'] ?? '') === $tc ? 'selected' : '' ?>><?= $tc ?></option>
-                                                <?php endforeach; ?>
+                                            <label for="regimen_laboral">Régimen laboral <span class="required">*</span></label>
+                                            <select id="regimen_laboral" name="regimen_laboral" required>
+                                                <option value="LOSEP" <?= $regimenLaboral === 'LOSEP' ? 'selected' : '' ?>>LOSEP</option>
+                                                <option value="CODIGO_TRABAJO" <?= $regimenLaboral === 'CODIGO_TRABAJO' ? 'selected' : '' ?>>Código del Trabajo</option>
                                             </select>
+                                            <small>Define el régimen jurídico y la plantilla documental aplicable.</small>
+                                        </div>
+                                        <div class="field span-2" id="campo_accion_personal_permitida">
+                                            <label for="accion_personal_permitida">Acción de personal permitida</label>
+                                            <input id="accion_personal_permitida" type="text" value="Sí — formato LOSEP completo" readonly>
+                                        </div>
+                                        <div class="field span-2">
+                                            <label for="tipo_contrato">Tipo de contrato / nombramiento <span class="required">*</span></label>
+                                            <select id="tipo_contrato" name="tipo_contrato" required
+                                                    data-current-value="<?= htmlspecialchars((string)($e['tipo_contrato'] ?? '')) ?>">
+                                            </select>
+                                            <small id="ayuda_tipo_contrato"></small>
                                         </div>
                                         <div class="field span-2">
                                             <label for="fecha_ingreso">Fecha de ingreso</label>
@@ -504,7 +521,41 @@ $catalogoNacionalidades = $nacionalidades ?? [];
         /* Inicializar estado del bloque discapacidad al cargar en modo edición */
         window.addEventListener('DOMContentLoaded', () => {
             evaluarDiscapacidad();
+            inicializarRegimenLaboral();
         });
+
+        const CONTRATOS_POR_REGIMEN = Object.freeze({
+            LOSEP: ['Nombramiento Permanente', 'Nombramiento Provisional', 'Contrato Ocasional'],
+            CODIGO_TRABAJO: ['Contrato Indefinido']
+        });
+
+        function aplicarRegimenLaboral(conservarSeleccion = true) {
+            const regimen = document.getElementById('regimen_laboral');
+            const contrato = document.getElementById('tipo_contrato');
+            const permitido = document.getElementById('accion_personal_permitida');
+            const ayuda = document.getElementById('ayuda_tipo_contrato');
+            if (!regimen || !contrato) return;
+            const codigoTrabajo = regimen.value === 'CODIGO_TRABAJO';
+            const anterior = conservarSeleccion ? (contrato.value || contrato.dataset.currentValue || '') : '';
+            const opciones = CONTRATOS_POR_REGIMEN[regimen.value] || CONTRATOS_POR_REGIMEN.LOSEP;
+            contrato.innerHTML = opciones.map(valor => `<option value="${valor}">${valor}</option>`).join('');
+            contrato.value = opciones.includes(anterior) ? anterior : opciones[0];
+            contrato.disabled = codigoTrabajo;
+            if (permitido) permitido.value = codigoTrabajo
+                ? 'No — no se genera Acción de Personal'
+                : 'Sí — formato LOSEP completo';
+            ayuda.textContent = codigoTrabajo
+                ? 'Se asigna Contrato Indefinido y se habilita el Formulario Abreviado Laboral.'
+                : 'Las novedades se documentan mediante la Acción de Personal LOSEP completa.';
+        }
+
+        function inicializarRegimenLaboral() {
+            const regimen = document.getElementById('regimen_laboral');
+            const contrato = document.getElementById('tipo_contrato');
+            if (!regimen || !contrato) return;
+            aplicarRegimenLaboral(true);
+            regimen.addEventListener('change', () => aplicarRegimenLaboral(false));
+        }
 
         /* Previsualización de foto antes de guardar */
         function previewFoto(input) {
@@ -564,6 +615,22 @@ $catalogoNacionalidades = $nacionalidades ?? [];
         }
 
         document.getElementById('empleadoForm')?.addEventListener('submit', event => {
+            const cedula = document.getElementById('cedula');
+            if (!cedula?.value.trim()) {
+                event.preventDefault();
+                cedula?.setCustomValidity('Debe ingresar el número de cédula o pasaporte antes de guardar.');
+                cedula?.reportValidity();
+                cedula?.focus();
+                showToast?.('La cédula o pasaporte es obligatorio; el formulario no fue guardado.', 'error');
+                return;
+            }
+            cedula.setCustomValidity('');
+            const regimen = document.getElementById('regimen_laboral');
+            const contrato = document.getElementById('tipo_contrato');
+            if (regimen?.value === 'CODIGO_TRABAJO' && contrato) {
+                contrato.disabled = false;
+                contrato.value = 'Contrato Indefinido';
+            }
             // Bloquear envio si la cédula está marcada como existente (solo en creación)
             const alertaDiv = document.getElementById('alertaCedulaDuplicada');
             if (alertaDiv && alertaDiv.style.display !== 'none') {
@@ -579,6 +646,9 @@ $catalogoNacionalidades = $nacionalidades ?? [];
                 if(texto!==''&&!id){event.preventDefault();showToast?.('Seleccione cada nacionalidad desde la lista desplegable.','error');return;}
             }
             document.getElementById('nacionalidadPrincipal').value=filas[0]?.querySelector('input[list]')?.value?.trim()||'';
+        });
+        document.getElementById('cedula')?.addEventListener('input', function () {
+            this.setCustomValidity('');
         });
 
         <?php if (!$modoEdicion): ?>

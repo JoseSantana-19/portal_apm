@@ -144,7 +144,16 @@ class EmpleadoController extends Controller
             }
         }
 
-        header('Location: ' . BASE_URL . '/talento-humano?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
+        $parametros = ['msg' => $msg, 'ok' => $exito ? '1' : '0'];
+        if ($exito && $id === null && strtoupper((string)($_POST['regimen_laboral'] ?? '')) === 'CODIGO_TRABAJO') {
+            $nuevoEmpleado = $this->modelo->obtenerPorCedula(trim((string)($_POST['cedula'] ?? '')));
+            $nuevoEmpleadoId = (int)($nuevoEmpleado['id'] ?? $nuevoEmpleado['empleado_id'] ?? 0);
+            if ($nuevoEmpleadoId > 0) {
+                $parametros['nuevo_codigo_id'] = $nuevoEmpleadoId;
+            }
+        }
+
+        header('Location: ' . BASE_URL . '/talento-humano/directorio?' . http_build_query($parametros));
         exit;
     }
 
@@ -180,6 +189,7 @@ class EmpleadoController extends Controller
     private function validarEmpleado(array $data): ?string
     {
         $cedula=trim((string)($data['cedula']??''));
+        if($cedula==='')return 'Debe ingresar el número de cédula o pasaporte antes de guardar.';
         if(!preg_match('/^[0-9A-Za-z]{10,15}$/',$cedula))return 'La identificación debe contener entre 10 y 15 caracteres alfanuméricos.';
         foreach(['apellidos'=>'apellidos','nombres'=>'nombres'] as $campo=>$etiqueta){
             $valor=trim((string)($data[$campo]??''));
@@ -191,6 +201,12 @@ class EmpleadoController extends Controller
         }
         if(!empty($data['correo'])&&!filter_var($data['correo'],FILTER_VALIDATE_EMAIL))return 'El correo institucional no es válido.';
         if((int)($data['unidad_id']??0)<=0||(int)($data['puesto_id']??0)<=0)return 'Debe seleccionar un área y un cargo vigentes.';
+        $regimen=strtoupper(trim((string)($data['regimen_laboral']??'')));
+        $contrato=trim((string)($data['tipo_contrato']??''));
+        $contratosLosep=['Nombramiento Permanente','Nombramiento Provisional','Contrato Ocasional'];
+        if(!in_array($regimen,['LOSEP','CODIGO_TRABAJO'],true))return 'Debe seleccionar un régimen laboral válido.';
+        if($regimen==='LOSEP'&&!in_array($contrato,$contratosLosep,true))return 'El tipo de nombramiento o contrato no corresponde al régimen LOSEP.';
+        if($regimen==='CODIGO_TRABAJO'&&$contrato!=='Contrato Indefinido')return 'Código del Trabajo requiere Contrato Indefinido.';
         $horas=(float)($data['horas_jornada']??0);
         if($horas<=0||$horas>24)return 'Las horas de jornada deben estar entre 1 y 24.';
         if(($data['condicion_especial']??'')==='Sustituto' && (abs($horas-6)>0.001 || ($data['jornada']??'')!=='Especial'))return 'La condición Sustituto requiere jornada especial de 6 horas.';
@@ -317,6 +333,7 @@ class EmpleadoController extends Controller
             'historial'    => $this->modelo->obtenerReporteFiltrado($tipoCargo, $empleadoId),
             'jornadasEspeciales' => $this->modelo->obtenerJornadasEspeciales($empleadoId),
             'vigenciasLaborales' => $this->modelo->obtenerVigenciasLaborales($empleadoId),
+            'eventosLaborales' => $this->modelo->obtenerEventosLaborales($empleadoId),
             'filtro_cargo' => $tipoCargo,
         ];
         // RECTIFICADO: carga la vista historial.php (línea de tiempo cronológica)
@@ -499,6 +516,28 @@ class EmpleadoController extends Controller
         $estado=$estadoRaw===''?null:(in_array($estadoRaw,['0','1'],true)?(int)$estadoRaw:null);
         $rows=$this->modelo->buscarPersonal($termino,$unidad,$contrato,$estado);
         echo json_encode(['success'=>true,'ids'=>array_map(static fn($r)=>(int)$r['empleado_id'],$rows),'total'=>(int)($rows[0]['total_resultados']??0)],JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /** Selector global del encabezado, disponible en todos los módulos autenticados. */
+    public function buscarSelectorGlobal(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $termino = mb_substr(trim((string)($_GET['q'] ?? '')), 0, 100);
+        $estadoRaw = (string)($_GET['estado'] ?? '');
+        $estado = in_array($estadoRaw, ['0', '1'], true) ? (int)$estadoRaw : null;
+        $filas = $this->modelo->buscarSelectorGlobal($termino, $estado);
+        $items = array_map(static function (array $fila): array {
+            return [
+                'id' => (int)($fila['empleado_id'] ?? 0),
+                'cedula' => (string)($fila['cedula'] ?? ''),
+                'nombre' => trim((string)($fila['apellidos'] ?? '') . ' ' . (string)($fila['nombres'] ?? '')),
+                'cargo' => trim((string)($fila['cargo'] ?? '')),
+                'area' => trim((string)($fila['direccion_area'] ?? '')),
+                'estado' => (int)($fila['estado'] ?? 0) === 1 ? 'Activo' : 'Inactivo',
+            ];
+        }, $filas);
+        echo json_encode(['success' => true, 'items' => $items], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 

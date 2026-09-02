@@ -156,7 +156,9 @@
                         </div>
                     </form>
                     <div class="table-wrap">
-                        <table id="tablaLogs">
+                        <table id="tablaLogs" data-apm-datatable data-dt-paging="false" data-dt-searching="false"
+                               data-dt-info="false" data-dt-length-change="false" data-dt-order-disabled="7"
+                               data-dt-empty="No existen eventos para los filtros seleccionados.">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -200,6 +202,7 @@
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
+                            <?php if(!$registros): ?><tr data-dt-empty><td colspan="8">No existen eventos para los filtros seleccionados.</td></tr><?php endif; ?>
                             </tbody>
                         </table>
                         <div id="logNoData" class="no-data hidden">

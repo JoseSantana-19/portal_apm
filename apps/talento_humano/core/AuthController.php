@@ -46,7 +46,7 @@ final class AuthController extends Controller
 
     public function verifyMfa(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Método no permitido.');}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_POST['_csrf']??null);$result=Auth::verifyMfa((string)($_POST['codigo']??''));
         if($result['success']){header('Location: '.BASE_URL.'/talento-humano/inicio');exit;}
         $_SESSION['mfa_error']=$result['message'];
@@ -55,7 +55,7 @@ final class AuthController extends Controller
 
     public function cancelMfa(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Método no permitido.');}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_POST['_csrf']??null);Auth::cancelMfa();header('Location: '.BASE_URL.'/login');exit;
     }
 
@@ -86,7 +86,7 @@ final class AuthController extends Controller
 
     public function renewSession(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit;}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_SERVER['HTTP_X_CSRF_TOKEN']??($_POST['_csrf']??null));
         header('Content-Type: application/json; charset=UTF-8');
         if(!Auth::renewSession(($_POST['manual']??'0')==='1')){http_response_code(401);echo json_encode(['ok'=>false]);return;}
@@ -95,7 +95,7 @@ final class AuthController extends Controller
 
     public function expireSession(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit;}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         // Sin requireCsrf() a propósito: este endpoint SOLO cierra una
         // sesión que el propio cliente ya considera vencida (aviso de
         // inactividad, ver js/inactivity-warning.js). El _csrf que trae
@@ -112,8 +112,7 @@ final class AuthController extends Controller
     public function logout(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405);
-            exit('Metodo no permitido.');
+            ErrorHandler::abort(405);
         }
         Auth::requireCsrf($_POST['_csrf'] ?? null);
         Auth::logout();
@@ -129,7 +128,7 @@ final class AuthController extends Controller
 
     public function changePassword(): void
     {
-        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Metodo no permitido.');}
+        if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){ErrorHandler::abort(405);}
         Auth::requireCsrf($_POST['_csrf']??null);
         $new=(string)($_POST['nueva_clave']??'');$confirm=(string)($_POST['confirmar_clave']??'');
         if(!hash_equals($new,$confirm))$result=['success'=>false,'message'=>'La confirmación no coincide.'];

@@ -1,11 +1,5 @@
 <?php
-/**
- * Red de seguridad global para excepciones/errores fatales no capturados en
- * otro punto -- ver comentario en index.php. Adaptado de origen para PHP
- * 7.4/8.3/8.5 simultáneo (ver helpers/polyfills_php74.php): sin `: never`
- * (PHP 8.1+, usa `: void`), sin match() (PHP 8.0+, usa switch), sin
- * catch (Throwable) sin variable (PHP 8.0+, usa catch (Throwable $e)).
- */
+
 final class ErrorHandler
 {
     private static bool $registered = false;
@@ -27,13 +21,13 @@ final class ErrorHandler
         });
     }
 
-    public static function abort(int $status, ?string $message = null, ?Throwable $error = null): void
+    public static function abort(int $status, ?string $message = null, ?Throwable $error = null): never
     {
         if ($error !== null) self::log($error);
         self::render($status, $message);
     }
 
-    public static function render(int $status, ?string $message = null): void
+    public static function render(int $status, ?string $message = null): never
     {
         if (!in_array($status, [400, 401, 403, 404, 405, 419, 422, 500, 503], true)) $status = 500;
         $requestId = self::requestId();
@@ -67,13 +61,7 @@ final class ErrorHandler
     private static function requestId(): string
     {
         static $id = null;
-        if ($id === null) {
-            try {
-                $id = strtoupper(bin2hex(random_bytes(6)));
-            } catch (Throwable $e) {
-                $id = strtoupper(substr(hash('sha256', uniqid('', true)),0,12));
-            }
-        }
+        if ($id === null) try {$id = strtoupper(bin2hex(random_bytes(6)));} catch (Throwable) {$id = strtoupper(substr(hash('sha256', uniqid('', true)),0,12));}
         return $id;
     }
 
@@ -84,29 +72,11 @@ final class ErrorHandler
 
     private static function title(int $status): string
     {
-        switch ($status) {
-            case 400: case 422: return 'Solicitud no válida';
-            case 401: return 'Sesión requerida';
-            case 403: return 'Acceso denegado';
-            case 404: return 'Página no encontrada';
-            case 405: return 'Método no permitido';
-            case 419: return 'Formulario vencido';
-            case 503: return 'Servicio temporalmente no disponible';
-            default: return 'No fue posible completar la operación';
-        }
+        return match($status){400,422=>'Solicitud no válida',401=>'Sesión requerida',403=>'Acceso denegado',404=>'Página no encontrada',405=>'Método no permitido',419=>'Formulario vencido',503=>'Servicio temporalmente no disponible',default=>'No fue posible completar la operación'};
     }
 
     private static function defaultMessage(int $status): string
     {
-        switch ($status) {
-            case 400: case 422: return 'Revise la información enviada e inténtelo nuevamente.';
-            case 401: return 'Inicie sesión para continuar.';
-            case 403: return 'Su rol no tiene permisos para realizar esta operación.';
-            case 404: return 'El recurso solicitado no existe o ya no está disponible.';
-            case 405: return 'La operación no admite el método utilizado.';
-            case 419: return 'La sesión del formulario venció. Recargue la página e inténtelo nuevamente.';
-            case 503: return 'El servicio está temporalmente fuera de línea. Inténtelo más tarde.';
-            default: return 'La incidencia fue registrada. Comuníquese con la Dirección de TI e indique la referencia mostrada.';
-        }
+        return match($status){400,422=>'Revise la información enviada e inténtelo nuevamente.',401=>'Inicie sesión para continuar.',403=>'Su rol no tiene permisos para realizar esta operación.',404=>'El recurso solicitado no existe o ya no está disponible.',405=>'La operación no admite el método utilizado.',419=>'La sesión del formulario venció. Recargue la página e inténtelo nuevamente.',503=>'El servicio está temporalmente fuera de línea. Inténtelo más tarde.',default=>'La incidencia fue registrada. Comuníquese con la Dirección de TI e indique la referencia mostrada.'};
     }
 }

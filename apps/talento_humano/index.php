@@ -4,9 +4,34 @@
  * (embebido en el Portal APM). Toda petición HTTP pasa por aquí.
  */
 
+// Iniciar sesión PHP (necesario para $_SESSION en todos los módulos)
 define('ROOT', __DIR__);
 
 require_once dirname(ROOT, 2) . '/helpers/polyfills_php74.php';
+
+/*
+ * El servidor integrado de PHP ejecuta este archivo como router para todas las
+ * peticiones. Los recursos públicos existentes deben devolverse directamente;
+ * de lo contrario, una solicitud de CSS/JS/imagen recibe HTML del front
+ * controller y el navegador descarta los estilos por MIME incorrecto.
+ *
+ * Se limita expresamente la entrega directa a /public para no exponer core,
+ * configuración, migraciones, documentación ni otros archivos internos.
+ */
+if (PHP_SAPI === 'cli-server') {
+    $requestPath = rawurldecode((string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/'));
+    if (str_starts_with($requestPath, '/public/')) {
+        $publicRoot = realpath(ROOT . DIRECTORY_SEPARATOR . 'public');
+        $requestedFile = realpath(ROOT . str_replace('/', DIRECTORY_SEPARATOR, $requestPath));
+
+        if ($publicRoot !== false
+            && $requestedFile !== false
+            && is_file($requestedFile)
+            && str_starts_with($requestedFile, $publicRoot . DIRECTORY_SEPARATOR)) {
+            return false;
+        }
+    }
+}
 
 // BASE_URL autodetectada — app embebida en el Portal APM (subcarpeta
 // /portal_apm/apps/talento_humano en Apache; vacía en php -S), misma
@@ -131,6 +156,7 @@ require_once ROOT . '/modules/talento-humano/Modelos/AccionPersonalModel.php';
 require_once ROOT . '/modules/talento-humano/Controladores/BibliotecaController.php';
 require_once ROOT . '/modules/talento-humano/Controladores/EstudioSeguridadController.php';
 require_once ROOT . '/modules/talento-humano/Controladores/PazSalvoController.php';
+require_once ROOT . '/modules/talento-humano/Controladores/DocumentoFirmadoController.php';
 
 // ── Controladores del módulo Administración ───────────────────────────────────
 require_once ROOT . '/modules/admin/Controladores/AdminController.php';
@@ -176,6 +202,7 @@ $router->add('talento-humano/empleado/mover',           'EmpleadoController', 'm
 $router->add('talento-humano/empleado/movimiento-grupal','EmpleadoController', 'movimientoGrupal');
 $router->add('talento-humano/empleado/mover-lote',       'EmpleadoController', 'moverLote');
 $router->add('talento-humano/empleado/buscar-personal',  'EmpleadoController', 'buscarPersonal');
+$router->add('talento-humano/empleado/buscar-selector',  'EmpleadoController', 'buscarSelectorGlobal');
 $router->add('talento-humano/reporte',            'EmpleadoController', 'reporte');
 
 // Rutas del módulo Talento Humano – Gestión Operativa
@@ -192,6 +219,9 @@ $router->add('talento-humano/paz-salvo/guardar-seccion','PazSalvoController','gu
 $router->add('talento-humano/paz-salvo/cerrar',    'PazSalvoController','cerrar');
 $router->add('talento-humano/paz-salvo/imprimir',  'PazSalvoController','imprimir');
 $router->add('talento-humano/paz-salvo/formato-blanco','PazSalvoController','formatoBlanco');
+$router->add('talento-humano/documentos-firmados',          'DocumentoFirmadoController','index');
+$router->add('talento-humano/documentos-firmados/subir',    'DocumentoFirmadoController','subir');
+$router->add('talento-humano/documentos-firmados/descargar','DocumentoFirmadoController','descargar');
 
 // Rutas del módulo Talento Humano – Estudio de Seguridad Socioeconómico
 $router->add('talento-humano/estudio-seguridad',          'EstudioSeguridadController', 'index');
@@ -290,11 +320,13 @@ if (!$esRecursoEstatico && !in_array($_rutaSolicitada, $_rutasPublicas, true)) {
         ['#^talento-humano/empleado/guardar$#', 'empleados', empty($_POST['empId']) ? 'crear' : 'editar'],
         ['#^talento-humano/empleado/(?:movimiento|mover|movimiento-grupal|mover-lote)$#', 'movimientos', $method === 'GET' ? 'visualizar' : 'crear'],
         ['#^talento-humano/empleado/buscar-personal$#', 'directorio', 'visualizar'],
+        ['#^talento-humano/empleado/buscar-selector$#', 'directorio', 'visualizar'],
         ['#^talento-humano/empleado/exportar$#', 'directorio', 'visualizar'],
         ['#^talento-humano/(?:directorio|empleado/perfil|empleado/imprimir-ficha)(?:/|$)#', 'directorio', 'visualizar'],
         ['#^talento-humano/empleado/formato-principal-blanco$#', 'biblioteca', 'visualizar'],
         ['#^talento-humano/reporte(?:/|$)#', 'directorio', 'visualizar'],
         ['#^talento-humano/accion-personal/(?:aprobar|anular)$#', 'acciones', 'editar'],
+        ['#^talento-humano/accion-personal/guardar$#', 'acciones', empty($_POST['accion_id']) ? 'crear' : 'editar'],
         ['#^talento-humano/catalogo/(?:unidad|puesto)$#', 'maestros', 'crear'],
         ['#^talento-humano/accion-personal/catalogo/(?:unidad|puesto)$#', 'maestros', 'crear'],
         ['#^talento-humano/accion-personal(?:/|$)#', 'acciones', $method === 'GET' ? 'visualizar' : 'crear'],
@@ -306,6 +338,8 @@ if (!$esRecursoEstatico && !in_array($_rutaSolicitada, $_rutasPublicas, true)) {
         ['#^talento-humano/paz-salvo/(?:guardar|guardar-seccion)$#', 'paz_salvo', 'crear'],
         ['#^talento-humano/paz-salvo/cerrar$#', 'paz_salvo', 'editar'],
         ['#^talento-humano/paz-salvo(?:/|$)#', 'paz_salvo', 'visualizar'],
+        ['#^talento-humano/documentos-firmados/subir$#', 'documentos_firmados', 'crear'],
+        ['#^talento-humano/documentos-firmados(?:/|$)#', 'documentos_firmados', 'visualizar'],
         ['#^talento-humano/(?:asistencia|desempeno|capacitacion)(?:/|$)#', 'prototipos', 'visualizar'],
         ['#^(?:talento-humano(?:/inicio)?|)$#', 'dashboard', 'visualizar'],
     ];

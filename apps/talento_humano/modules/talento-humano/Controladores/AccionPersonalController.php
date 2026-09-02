@@ -35,8 +35,23 @@ class AccionPersonalController extends Controller
      */
     public function index(): void
     {
+        $editarId = isset($_GET['editar']) ? (int)$_GET['editar'] : 0;
+        $accionEdicion = null;
+        if ($editarId > 0) {
+            $accionEdicion = $this->modelo->obtenerPorId($editarId);
+            $estado = strtoupper(trim((string)($accionEdicion['estado_documento'] ?? '')));
+            if (!$accionEdicion || !in_array($estado, ['BORRADOR', 'PENDIENTE'], true)) {
+                header('Location: ' . BASE_URL . '/talento-humano/biblioteca?ok=0&msg=' . urlencode('Solo se pueden editar Acciones de Personal pendientes de aprobación.'));
+                exit;
+            }
+        }
+
         $id     = isset($_GET['id'])     ? (int)$_GET['id']     : null;
         $cedula = isset($_GET['cedula']) ? trim($_GET['cedula']) : null;
+        if ($accionEdicion) {
+            $id = (int)$accionEdicion['empleado_id'];
+            $cedula = null;
+        }
 
         $empleado    = null;
         $historialLab = null;
@@ -51,8 +66,11 @@ class AccionPersonalController extends Controller
         }
 
         // Secuencial real desde la BD (APM-TH-YYYY-NNN)
-        $tipoPreseleccionado=mb_strtoupper(trim((string)($_GET['tipo']??'INGRESO')),'UTF-8');
-        $nroAccion = $this->modelo->generarSiguienteSecuencial($tipoPreseleccionado);
+        $tipoPreseleccionado=mb_strtoupper(trim((string)($accionEdicion['tipo_accion'] ?? $_GET['tipo'] ?? 'INGRESO')),'UTF-8');
+        $regimenDocumento=(string)($accionEdicion['regimen_laboral'] ?? $empleado['regimen_laboral'] ?? 'LOSEP');
+        $nroAccion = $accionEdicion
+            ? (string)$accionEdicion['numero_accion']
+            : $this->modelo->generarSiguienteSecuencial($tipoPreseleccionado,$regimenDocumento);
 
         // Catálogos para los <select> de situación propuesta
         $areas   = $this->modeloEmp->listarAreas();
@@ -67,6 +85,8 @@ class AccionPersonalController extends Controller
             'cargos'        => $cargos,
             'selectorPersonal' => $this->modeloEmp->listarSelectorPersonal(),
             'tipoPreseleccionado' => $tipoPreseleccionado,
+            'accionEdicion' => $accionEdicion,
+            'regimenDocumento' => $regimenDocumento,
         ];
 
         $this->cargarVista('talento-humano', 'accion_personal', $datos);
@@ -145,12 +165,42 @@ class AccionPersonalController extends Controller
 
         Auth::requireCsrf($_POST['_csrf'] ?? null);
 
+        $accionId = (int)($_POST['accion_id'] ?? 0);
+        $accionExistente = $accionId > 0 ? $this->modelo->obtenerPorId($accionId) : null;
+        $usuarioSesion = Auth::user() ?? [];
+        $elaboradorSesion = trim((string)($usuarioSesion['name'] ?? Auth::username()));
+        $puestoElaboradorSesion = trim((string)($usuarioSesion['role'] ?? ''));
+        if ($accionId > 0) {
+            $estadoExistente = strtoupper(trim((string)($accionExistente['estado_documento'] ?? '')));
+            if (!$accionExistente || !in_array($estadoExistente, ['BORRADOR', 'PENDIENTE'], true)) {
+                header('Location: ' . BASE_URL . '/talento-humano/biblioteca?ok=0&msg=' . urlencode('La acción ya fue resuelta y no admite modificaciones.'));
+                exit;
+            }
+        }
+
+        $correosRaw = trim((string)($_POST['correo_notificacion'] ?? ''));
+        $correosNormalizados = $this->normalizarCorreos($correosRaw);
+        $notificacionElectronica = isset($_POST['notificacion_electronica']);
+        if ($notificacionElectronica && $correosNormalizados === null) {
+            $ruta = $accionId > 0 ? '/talento-humano/accion-personal?editar=' . $accionId : '/talento-humano/accion-personal';
+            $separador = str_contains($ruta, '?') ? '&' : '?';
+            header('Location: ' . BASE_URL . $ruta . $separador . 'msg=' . urlencode('Revise los destinatarios: use correos válidos y no supere 150 caracteres en total.') . '&ok=0');
+            exit;
+        }
+
         // ── Saneamiento del payload ───────────────────────────────────────
         $payload = [
             // Cabecera del documento
             'numero_accion'            => trim($_POST['numero_accion']      ?? ''),
-            'empleado_id'              => (int)($_POST['empleado_id']       ?? 0),
-            'tipo_accion'              => trim($_POST['tipo_accion']         ?? ''),
+            'fecha_elaboracion'         => $_POST['fecha_elaboracion'] ?? InstitutionalClock::todayIso(),
+            'empleado_id'              => $accionExistente
+                                            ? (int)$accionExistente['empleado_id']
+                                            : (int)($_POST['empleado_id'] ?? 0),
+            // El tipo conserva la serie documental ya asignada. Durante la
+            // edición se corrigen datos operativos, no la clasificación.
+            'tipo_accion'              => $accionExistente
+                                            ? (string)$accionExistente['tipo_accion']
+                                            : trim($_POST['tipo_accion'] ?? ''),
             'modo_captura'             => strtoupper(trim($_POST['modo_captura'] ?? 'CAMBIO_LABORAL')),
             'modalidad_vigencia'       => strtoupper(trim($_POST['modalidad_vigencia'] ?? 'PERMANENTE')),
             'fecha_rige_desde'         => $_POST['rige_desde']              ?? InstitutionalClock::todayIso(),
@@ -198,8 +248,8 @@ class AccionPersonalController extends Controller
             'documento_jornada'        => trim($_POST['documento_jornada'] ?? ''),
             'propuesta_tipo_contrato'  => trim($_POST['propuesta_contrato'] ?? ''),
 
-            'notificacion_electronica' => isset($_POST['notificacion_electronica']) ? 1 : 0,
-            'correo_notificacion'      => trim($_POST['correo_notificacion'] ?? ''),
+            'notificacion_electronica' => $notificacionElectronica ? 1 : 0,
+            'correo_notificacion'      => $notificacionElectronica ? (string)$correosNormalizados : '',
             'medio_notificacion'       => trim($_POST['medio_notificacion'] ?? ''),
             'documento_notificacion'   => trim($_POST['documento_notificacion'] ?? ''),
             'fecha_notificacion'       => !empty($_POST['fecha_notificacion']) ? str_replace('T',' ',$_POST['fecha_notificacion']) : null,
@@ -207,8 +257,8 @@ class AccionPersonalController extends Controller
             'responsable_th_puesto'    => trim($_POST['responsable_th_puesto'] ?? ''),
             'autoridad_nombre'         => trim($_POST['autoridad_nombre'] ?? ''),
             'autoridad_puesto'         => trim($_POST['autoridad_puesto'] ?? ''),
-            'elaborador_nombre'        => trim($_POST['elaborador_nombre'] ?? ''),
-            'elaborador_puesto'        => trim($_POST['elaborador_puesto'] ?? ''),
+            'elaborador_nombre'        => trim((string)($accionExistente['elaborador_nombre'] ?? $elaboradorSesion)),
+            'elaborador_puesto'        => trim((string)($accionExistente['elaborador_puesto'] ?? $puestoElaboradorSesion)),
             'revisor_nombre'           => trim($_POST['revisor_nombre'] ?? ''),
             'revisor_puesto'           => trim($_POST['revisor_puesto'] ?? ''),
             'registrador_nombre'       => trim($_POST['registrador_nombre'] ?? ''),
@@ -240,10 +290,40 @@ class AccionPersonalController extends Controller
             $payload['actual_jornada'] = trim((string)($empleadoActual['jornada'] ?? 'Completa'));
             $payload['actual_horas_jornada'] = (float)($empleadoActual['horas_jornada'] ?? 8);
             $payload['actual_tipo_contrato'] = trim((string)($empleadoActual['tipo_contrato'] ?? ''));
+            $payload['regimen_laboral'] = strtoupper(trim((string)($empleadoActual['regimen_laboral'] ?? 'LOSEP')));
+            $payload['tipo_documento'] = $payload['regimen_laboral']==='CODIGO_TRABAJO' ? 'FORMULARIO_ABREVIADO' : 'ACCION_PERSONAL_LOSEP';
+            if ($payload['regimen_laboral']==='CODIGO_TRABAJO') {
+                // El vínculo indefinido pertenece al expediente y no puede ser
+                // alterado desde el Formulario Laboral Abreviado.
+                $payload['propuesta_tipo_contrato']='';
+                $payload['modalidad_vigencia']='PERMANENTE';
+                $payload['fecha_rige_hasta']=null;
+                $payload['modo_captura']='CAMBIO_LABORAL';
+                // El procedimiento histórico exige una explicación no vacía. Se
+                // registra una referencia técnica, sin exponer el bloque legal
+                // de motivación LOSEP en la interfaz ni en el PDF abreviado.
+                $payload['explicacion_legal']='Formulario Abreviado Laboral generado para personal sujeto al Código del Trabajo.';
+                $payload['detalle_otro']='';
+                $payload['presento_declaracion']='NO APLICA';
+                $payload['notificacion_electronica']=0;
+                $payload['correo_notificacion']='';
+                $payload['medio_notificacion']='';
+                $payload['documento_notificacion']='';
+                $payload['fecha_notificacion']=null;
+                $payload['responsable_th_nombre']='';
+                $payload['responsable_th_puesto']='';
+                $payload['autoridad_nombre']='';
+                $payload['autoridad_puesto']='';
+                $payload['revisor_nombre']='';
+                $payload['revisor_puesto']='';
+                $payload['notificador_nombre']='';
+                $payload['notificador_puesto']='';
+            }
         }
 
         // ── Validación mínima antes de persistir ──────────────────────────
         $fechaDesde = DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_desde']);
+        $fechaElaboracion = DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_elaboracion']);
         $fechaHasta = $payload['fecha_rige_hasta'] ? DateTimeImmutable::createFromFormat('Y-m-d',(string)$payload['fecha_rige_hasta']) : null;
         $modalidadValida = in_array($payload['modalidad_vigencia'],['PERMANENTE','TEMPORAL'],true);
         $modoValido = in_array($payload['modo_captura'],['CAMBIO_LABORAL','JORNADA_TEMPORAL'],true);
@@ -258,27 +338,61 @@ class AccionPersonalController extends Controller
         $capturaValida = $payload['modo_captura']!=='JORNADA_TEMPORAL'
             || ($payload['modalidad_vigencia']==='TEMPORAL' && $payload['tipo_novedad_jornada']!=='');
         $vacacionValida=$payload['tipo_accion']!=='VACACIONES' || ($payload['modalidad_vigencia']==='TEMPORAL' && $fechaHasta!==null);
-        if (!$empleadoActual || !in_array($payload['tipo_accion'],$tiposOficiales,true) || empty($payload['explicacion_legal'])
-            || !$fechaDesde || !$modalidadValida || !$modoValido || !$vigenciaValida || !$capturaValida
-            || (str_starts_with($payload['tipo_accion'],'OTRO') && empty($payload['detalle_otro']))
+        $esCodigoTrabajo = ($payload['regimen_laboral'] ?? '') === 'CODIGO_TRABAJO';
+        $motivacionValida = $esCodigoTrabajo || $payload['explicacion_legal'] !== '';
+        $detalleOtroValido = $esCodigoTrabajo || !str_starts_with($payload['tipo_accion'],'OTRO') || $payload['detalle_otro'] !== '';
+        if (!$empleadoActual || !in_array($payload['tipo_accion'],$tiposOficiales,true) || !$motivacionValida
+            || !$fechaElaboracion || !$fechaDesde || !$modalidadValida || !$modoValido || !$vigenciaValida || !$capturaValida
+            || !$detalleOtroValido
             || !$jornadaValida || !$vacacionValida) {
             $msg = 'Datos incompletos: revise empleado, modalidad, fechas, tipo de acción, jornada y motivación legal.';
-            header('Location: ' . BASE_URL . '/talento-humano/accion-personal?msg=' . urlencode($msg) . '&ok=0');
+            $ruta = $accionId > 0 ? '/talento-humano/accion-personal?editar=' . $accionId : '/talento-humano/accion-personal';
+            $separador = str_contains($ruta, '?') ? '&' : '?';
+            header('Location: ' . BASE_URL . $ruta . $separador . 'msg=' . urlencode($msg) . '&ok=0');
             exit;
         }
 
         // ── Persistencia en BD ────────────────────────────────────────────
-        $nroAsignado = $this->modelo->registrarAccion($payload);
+        $nroAsignado = $accionId > 0
+            ? $this->modelo->actualizarBorrador($accionId, $payload)
+            : $this->modelo->registrarAccion($payload);
         $exito = $nroAsignado !== null;
         if ($exito) DraftService::deleteCurrent((string)($_POST['_draft_context'] ?? ''));
         $nro   = $nroAsignado ?? '';
 
+        $nombreDocumento=($payload['tipo_documento']??'')==='FORMULARIO_ABREVIADO' ? 'Formulario Abreviado Laboral' : 'Acción de Personal';
         $msg = $exito
-            ? "Acción de Personal {$nro} guardada como borrador para revisión."
-            : 'Error al guardar la Acción de Personal. La incidencia fue registrada en el log del sistema.';
+            ? ($accionId > 0
+                ? "{$nombreDocumento} {$nro} actualizado; continúa pendiente de aprobación."
+                : "{$nombreDocumento} {$nro} guardado como borrador para revisión.")
+            : "Error al guardar {$nombreDocumento}. La incidencia fue registrada en el log del sistema.";
 
-        header('Location: ' . BASE_URL . '/talento-humano/directorio?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
+        $destino = $accionId > 0 ? '/talento-humano/biblioteca' : '/talento-humano/directorio';
+        header('Location: ' . BASE_URL . $destino . '?msg=' . urlencode($msg) . '&ok=' . ($exito ? '1' : '0'));
         exit;
+    }
+
+    /**
+     * Normaliza una lista separada por comas, punto y coma o espacios.
+     * El campo existente en SQL Server admite hasta 150 caracteres.
+     */
+    private function normalizarCorreos(string $valor): ?string
+    {
+        if ($valor === '') {
+            return null;
+        }
+        $correos = preg_split('/[\s,;]+/', mb_strtolower($valor, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $correos = array_values(array_unique($correos));
+        if (!$correos || count($correos) > 8) {
+            return null;
+        }
+        foreach ($correos as $correo) {
+            if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                return null;
+            }
+        }
+        $normalizado = implode('; ', $correos);
+        return mb_strlen($normalizado, 'UTF-8') <= 150 ? $normalizado : null;
     }
 
     public function aprobar(): void
@@ -337,8 +451,49 @@ class AccionPersonalController extends Controller
             : $this->modelo->anular($id, trim((string)($_POST['motivo'] ?? '')));
         $ok = (int)($resultado['exito'] ?? 0) === 1;
         $msg = (string)($resultado['mensaje'] ?? 'No fue posible procesar la accion.');
+        if ($ok && $accion === 'aprobar') {
+            $smtp = $this->notificarAprobacionPorCorreo($id);
+            if ($smtp !== null) $msg .= ' '.$smtp;
+        }
+        if ($ok && $accion === 'anular') {
+            $msg = 'Acción de Personal rechazada. El motivo quedó registrado para auditoría.';
+        }
         header('Location: '.BASE_URL.'/talento-humano/biblioteca?ok='.($ok?'1':'0').'&msg='.urlencode($msg));
         exit;
+    }
+
+    /**
+     * Conserva la constancia documental y, si el relay está habilitado,
+     * comunica la aprobación a todos los destinatarios registrados.
+     */
+    private function notificarAprobacionPorCorreo(int $id): ?string
+    {
+        $documento = $this->modelo->obtenerAccionCruzada($id);
+        if (!$documento || empty($documento['notificacion_electronica']) || empty($documento['correo_notificacion'])) {
+            return null;
+        }
+
+        require_once ROOT.'/core/SmtpMailer.php';
+        try {
+            $destinatarios = SmtpMailer::normalizeRecipients([(string)$documento['correo_notificacion']]);
+            $numero = trim((string)($documento['numero_accion'] ?? ''));
+            $funcionario = trim((string)(($documento['apellidos'] ?? '').' '.($documento['nombres'] ?? '')));
+            $tipo = trim((string)($documento['tipo_accion'] ?? 'Acción de Personal'));
+            $fecha = !empty($documento['fecha_rige_desde']) ? date('d/m/Y', strtotime((string)$documento['fecha_rige_desde'])) : 'no registrada';
+            $resultado = (new SmtpMailer())->send(
+                $destinatarios,
+                'APM · Acción de Personal aprobada '.$numero,
+                "Se comunica que la Acción de Personal {$numero} fue aprobada.\n\n".
+                "Funcionario: {$funcionario}\nTipo de acción: {$tipo}\nVigencia desde: {$fecha}\n".
+                "Responsable de elaboración: ".trim((string)($documento['elaborador_nombre'] ?? Auth::username()))."\n\n".
+                "Esta comunicación fue generada por el Portal Portuario APM. La constancia legal y el documento firmado permanecen en el expediente institucional."
+            );
+            if ($resultado['skipped']) return 'La constancia quedó registrada; el transporte SMTP aún no está habilitado.';
+            return 'Notificación SMTP enviada a '.(int)$resultado['recipients'].' destinatario(s).';
+        } catch (Throwable $error) {
+            ErrorHandler::log($error, 'smtp');
+            return 'La acción fue aprobada, pero el relay SMTP no confirmó el envío; revise el log técnico.';
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -393,6 +548,11 @@ class AccionPersonalController extends Controller
         }
 
         $this->modelo->auditarImpresion($id);
+        if (($datos['tipo_documento'] ?? '') === 'FORMULARIO_ABREVIADO' || ($datos['regimen_laboral'] ?? '') === 'CODIGO_TRABAJO') {
+            require_once ROOT.'/modules/talento-humano/Servicios/PdfFormularioAbreviadoLaboral.php';
+            (new PdfFormularioAbreviadoLaboral())->render($datos);
+            return;
+        }
         require_once ROOT . '/libs/fpdf/fpdf.php';
         $this->generarPdfAccionOficial($datos);
     }

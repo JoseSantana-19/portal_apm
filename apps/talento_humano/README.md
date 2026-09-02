@@ -17,16 +17,22 @@ El entorno local de preproducción está operativo con IIS, PHP 8.5 NTS, HTTPS o
 - biblioteca de formularios oficiales;
 - usuarios, roles, permisos, MFA, auditoría y reportes;
 - asignación de cuentas y roles compatible con el puesto institucional;
-- respaldos y migraciones reproducibles.
+- perfil operativo de Asistente de Talento Humano con mínimo privilegio;
+- constancia documental y entrega SMTP configurable para notificaciones aprobadas;
+- respaldos y migraciones reproducibles;
+- gate manual de SQL Server, IIS y UAT para runner Windows de preproducción.
 
 Asistencia, Desempeño y Capacitación siguen siendo prototipos y no forman parte del alcance operativo. La página 4 del formato socioeconómico incorpora la ubicación domiciliaria autorizada por el proyecto: coordenadas, referencia, mapa privado y QR auditado.
 
 ## Puesta en marcha
 
 1. Consulte el [índice de documentación](docs/README.md).
-2. Prepare el equipo con la guía de [entorno local IIS](docs/ENTORNO_LOCAL_IIS.md).
-3. Revise el orden de [migraciones de base de datos](database/README.md).
-4. Ejecute las verificaciones:
+2. Para operación funcional consulte el [Manual de usuario](docs/MANUAL_USUARIO.md).
+3. Para estructura y gobierno de información consulte el [Diccionario de datos](docs/DICCIONARIO_DATOS.md).
+4. Prepare el equipo con la guía de [entorno local IIS](docs/ENTORNO_LOCAL_IIS.md).
+5. Para reproducir el sistema desde cero consulte [Instalación en un equipo nuevo](docs/INSTALACION_NUEVO_EQUIPO.md).
+6. Revise el orden de [migraciones de base de datos](database/README.md).
+7. Ejecute las verificaciones:
 
 ```powershell
 C:\php85-nts\php.exe scripts\preflight.php

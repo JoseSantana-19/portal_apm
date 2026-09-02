@@ -2,9 +2,21 @@
 
 class AccionPersonalModel extends Model
 {
-    public function generarSiguienteSecuencial(string $tipoAccion = 'INGRESO'): string
+    public function generarSiguienteSecuencial(string $tipoAccion = 'INGRESO', string $regimenLaboral = 'LOSEP'): string
     {
         $anio = (int)InstitutionalClock::today()->format('Y');
+        if (strtoupper(trim($regimenLaboral)) === 'CODIGO_TRABAJO') {
+            try {
+                $this->auditarLectura('Formulario Abreviado Laboral', 'Consulta del siguiente secuencial CdgT.');
+                $stmt=$this->db->prepare("SELECT TOP(1) prefijo,contador_actual+1 siguiente FROM dbo.th_secuencias_documentos WHERE regimen_laboral='CODIGO_TRABAJO' AND tipo_documento='FORMULARIO_ABREVIADO' AND activo=1 ORDER BY IIF(anio=:anio,0,1),anio DESC");
+                $stmt->execute([':anio'=>$anio]);$r=$stmt->fetch(PDO::FETCH_ASSOC);
+                $prefijo=(string)($r['prefijo']??'CdgT');$numero=(int)($r['siguiente']??1);
+                return $prefijo.'-'.str_pad((string)$numero,3,'0',STR_PAD_LEFT).'-'.$anio;
+            } catch (PDOException $e) {
+                Conexion::registrarErrorLog($e,'talento-humano',false);
+                return 'CdgT-001-'.$anio;
+            }
+        }
         $fallback=['CAMBIO ADMINISTRATIVO'=>'CA','LICENCIA'=>'LI','SANCIONES'=>'RD','VACACIONES'=>'VAC'];
         $serie=$fallback[mb_strtoupper(trim($tipoAccion),'UTF-8')]??'MP';
         try {
@@ -117,7 +129,11 @@ class AccionPersonalModel extends Model
                 ':ip' => $d['direccion_ip'],
             ]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            if((int)($result['exito']??0)!==1)return null;
+            if ((int)($result['exito'] ?? 0) !== 1) {
+                $message = trim((string)($result['mensaje'] ?? 'El procedimiento no confirmó el registro.'));
+                Conexion::registrarErrorLog(new RuntimeException($message), 'talento-humano', false);
+                return null;
+            }
             $accionId=(int)($result['accion_id']??0);$real=$this->db->prepare('SELECT numero_accion FROM dbo.th_acciones_personal WHERE accion_id=:id');$real->execute([':id'=>$accionId]);$numero=(string)($real->fetchColumn()?:$result['numero_accion']??'');
             $audit=$this->db->prepare("EXEC dbo.sp_th_registrar_auditoria :usuario,'Accion de Personal','ASIGNAR_SERIE',:detalle,:ip");$audit->execute([':usuario'=>$d['usuario_crea'],':detalle'=>"Serie documental definitiva {$numero} asignada a la acción #{$accionId}.",':ip'=>$d['direccion_ip']]);while($audit->nextRowset()){}
             return $numero;
@@ -135,6 +151,90 @@ class AccionPersonalModel extends Model
             $stmt->execute([':id' => $id]);
             return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
         } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'talento-humano', false);
+            return null;
+        }
+    }
+
+    /**
+     * Corrige una acción antes de su aprobación. El número, el funcionario y
+     * el tipo no cambian para preservar la serie documental asignada.
+     */
+    public function actualizarBorrador(int $id, array $d): ?string
+    {
+        try {
+            $stmt = $this->db->prepare(
+                'EXEC dbo.sp_th_actualizar_borrador_accion_personal
+                 @accion_id=:id,@fecha_elaboracion=:elaboracion,@modalidad_vigencia=:modalidad,
+                 @fecha_rige_desde=:desde,@fecha_rige_hasta=:hasta,@explicacion_legal=:explicacion,
+                 @detalle_otro=:detalle_otro,@presento_declaracion=:declaracion,
+                 @actual_unidad_id=:unidad_actual,@actual_puesto_id=:puesto_actual,
+                 @actual_lugar_trabajo=:lugar_actual,@actual_remuneracion=:rmu_actual,
+                 @actual_proceso=:proceso_actual,@actual_nivel_gestion=:nivel_actual,
+                 @actual_grupo_ocupacional=:grupo_actual,@actual_grado=:grado_actual,
+                 @actual_partida_presupuestaria=:partida_actual,
+                 @propuesta_unidad_id=:unidad_propuesta,@propuesta_puesto_id=:puesto_propuesto,
+                 @propuesta_lugar_trabajo=:lugar_propuesto,@propuesta_remuneracion=:rmu_propuesta,
+                 @propuesta_proceso=:proceso_propuesto,@propuesta_nivel_gestion=:nivel_propuesto,
+                 @propuesta_grupo_ocupacional=:grupo_propuesto,@propuesta_grado=:grado_propuesto,
+                 @propuesta_partida_presupuestaria=:partida_propuesta,
+                 @actual_jornada=:jornada_actual,@actual_horas_jornada=:horas_actual,
+                 @propuesta_jornada=:jornada_propuesta,@propuesta_horas_jornada=:horas_propuesta,
+                 @tipo_novedad_jornada=:novedad_jornada,@hora_entrada_propuesta=:hora_entrada,
+                 @hora_salida_propuesta=:hora_salida,@dias_jornada_propuesta=:dias_jornada,
+                 @documento_jornada=:documento_jornada,@actual_tipo_contrato=:contrato_actual,
+                 @propuesta_tipo_contrato=:contrato_propuesto,@notificacion_electronica=:notificacion,
+                 @correo_notificacion=:correo,@medio_notificacion=:medio,
+                 @documento_notificacion=:documento,@fecha_notificacion=:fecha_notificacion,
+                 @responsable_th_nombre=:responsable_th_nombre,@responsable_th_puesto=:responsable_th_puesto,
+                 @autoridad_nombre=:autoridad_nombre,@autoridad_puesto=:autoridad_puesto,
+                 @elaborador_nombre=:elaborador_nombre,@elaborador_puesto=:elaborador_puesto,
+                 @revisor_nombre=:revisor_nombre,@revisor_puesto=:revisor_puesto,
+                 @registrador_nombre=:registrador_nombre,@registrador_puesto=:registrador_puesto,
+                 @notificador_nombre=:notificador_nombre,@notificador_puesto=:notificador_puesto,
+                 @usuario=:usuario,@ip=:ip'
+            );
+            $parental = in_array(strtoupper((string)$d['tipo_novedad_jornada']), ['MATERNIDAD','PATERNIDAD'], true);
+            $stmt->execute([
+                ':elaboracion'=>$d['fecha_elaboracion'],':modalidad'=>$d['modalidad_vigencia'],':desde'=>$d['fecha_rige_desde'],':hasta'=>$d['fecha_rige_hasta'] ?: null,
+                ':explicacion'=>$d['explicacion_legal'],':detalle_otro'=>$d['detalle_otro'] ?: null,':declaracion'=>$d['presento_declaracion'] ?: null,
+                ':unidad_actual'=>$d['actual_unidad_id'] ?: null,':puesto_actual'=>$d['actual_puesto_id'] ?: null,
+                ':lugar_actual'=>$d['actual_lugar_trabajo'] ?: null,':rmu_actual'=>$d['actual_remuneracion'],
+                ':proceso_actual'=>$d['actual_proceso'] ?: null,':nivel_actual'=>$d['actual_nivel_gestion'] ?: null,
+                ':grupo_actual'=>$d['actual_grupo_ocupacional'] ?: null,':grado_actual'=>$d['actual_grado'] ?: null,
+                ':partida_actual'=>$d['actual_partida_presupuestaria'] ?: null,
+                ':unidad_propuesta'=>$d['propuesta_unidad_id'] ?: null,':puesto_propuesto'=>$d['propuesta_puesto_id'] ?: null,
+                ':lugar_propuesto'=>$d['propuesta_lugar_trabajo'] ?: null,
+                ':rmu_propuesta'=>(float)$d['propuesta_remuneracion'] > 0 ? $d['propuesta_remuneracion'] : null,
+                ':proceso_propuesto'=>$d['propuesta_proceso'] ?: null,':nivel_propuesto'=>$d['propuesta_nivel_gestion'] ?: null,
+                ':grupo_propuesto'=>$d['propuesta_grupo_ocupacional'] ?: null,':grado_propuesto'=>$d['propuesta_grado'] ?: null,
+                ':partida_propuesta'=>$d['propuesta_partida_presupuestaria'] ?: null,
+                ':jornada_actual'=>$d['actual_jornada'] ?: null,':horas_actual'=>$d['actual_horas_jornada'] ?: null,
+                ':jornada_propuesta'=>$d['propuesta_jornada'] ?: null,
+                ':horas_propuesta'=>$parental ? 0.0 : ((float)$d['propuesta_horas_jornada'] > 0 ? (float)$d['propuesta_horas_jornada'] : null),
+                ':novedad_jornada'=>$d['tipo_novedad_jornada'] ?: null,':hora_entrada'=>$d['hora_entrada_propuesta'] ?: null,
+                ':hora_salida'=>$d['hora_salida_propuesta'] ?: null,':dias_jornada'=>$d['dias_jornada_propuesta'] ?: null,
+                ':documento_jornada'=>$d['documento_jornada'] ?: null,':contrato_actual'=>$d['actual_tipo_contrato'] ?: null,
+                ':contrato_propuesto'=>$d['propuesta_tipo_contrato'] ?: null,':notificacion'=>$d['notificacion_electronica'],
+                ':correo'=>$d['correo_notificacion'] ?: null,':medio'=>$d['medio_notificacion'] ?: null,
+                ':documento'=>$d['documento_notificacion'] ?: null,':fecha_notificacion'=>$d['fecha_notificacion'] ?: null,
+                ':responsable_th_nombre'=>$d['responsable_th_nombre'] ?: null,':responsable_th_puesto'=>$d['responsable_th_puesto'] ?: null,
+                ':autoridad_nombre'=>$d['autoridad_nombre'] ?: null,':autoridad_puesto'=>$d['autoridad_puesto'] ?: null,
+                ':elaborador_nombre'=>$d['elaborador_nombre'] ?: null,':elaborador_puesto'=>$d['elaborador_puesto'] ?: null,
+                ':revisor_nombre'=>$d['revisor_nombre'] ?: null,':revisor_puesto'=>$d['revisor_puesto'] ?: null,
+                ':registrador_nombre'=>$d['registrador_nombre'] ?: null,':registrador_puesto'=>$d['registrador_puesto'] ?: null,
+                ':notificador_nombre'=>$d['notificador_nombre'] ?: null,':notificador_puesto'=>$d['notificador_puesto'] ?: null,
+                ':id'=>$id,':usuario'=>Auth::username(),':ip'=>Auth::clientIp(),
+            ]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            while ((!is_array($result) || !array_key_exists('exito', $result)) && $stmt->nextRowset()) {
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!is_array($result) || (int)($result['exito'] ?? 0) !== 1) {
+                throw new RuntimeException((string)($result['mensaje'] ?? 'No fue posible actualizar el borrador.'));
+            }
+            return (string)$result['numero_accion'];
+        } catch (Throwable $e) {
             Conexion::registrarErrorLog($e, 'talento-humano', false);
             return null;
         }
@@ -169,7 +269,7 @@ class AccionPersonalModel extends Model
             $audit=$this->db->prepare("EXEC dbo.sp_th_registrar_auditoria :usuario,'Accion de Personal','CONSULTAR_VISTA','Consulta de acciones desde Biblioteca',:ip");
             $audit->execute([':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);
             while($audit->nextRowset()){}
-            $stmt=$this->db->query("SELECT a.accion_id,a.numero_accion,a.fecha_elaboracion,a.tipo_accion,a.estado_documento,e.identificacion,e.nombres,e.apellidos FROM dbo.th_acciones_personal a JOIN dbo.th_empleados e ON e.empleado_id=a.empleado_id ORDER BY a.fecha_creacion DESC");
+            $stmt=$this->db->query("SELECT a.accion_id,a.numero_accion,a.fecha_elaboracion,a.tipo_accion,a.estado_documento,a.regimen_laboral,a.tipo_documento,e.identificacion,e.nombres,e.apellidos FROM dbo.th_acciones_personal a JOIN dbo.th_empleados e ON e.empleado_id=a.empleado_id ORDER BY a.fecha_creacion DESC");
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch(PDOException $e) {
             Conexion::registrarErrorLog($e,'talento-humano',false);

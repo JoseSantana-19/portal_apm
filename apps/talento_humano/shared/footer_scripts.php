@@ -5,15 +5,16 @@
  * Usar con: require_once ROOT . '/shared/footer_scripts.php';
  * justo antes del </body> de cada vista.
  */
+$assetVersion = static fn(string $path): string => (string)(@filemtime(ROOT . $path) ?: '1');
 ?>
 <div id="toastContainer" class="toast-container"></div>
 <?php if (defined('PORTAL_ROOT_URL')): ?>
 <script src="<?= PORTAL_ROOT_URL ?>/js/password-hash.js?v=<?= @filemtime(dirname(ROOT, 2) . '/js/password-hash.js') ?: time() ?>"></script>
 <?php endif; ?>
-<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/toast.js"></script>
-<script src="<?= BASE_URL ?>/public/js/topbar.js"></script>
-<script src="<?= BASE_URL ?>/public/js/talento_humano.js"></script>
+<script src="<?= BASE_URL ?>/public/js/layout_sidebar.js?v=<?= $assetVersion('/public/js/layout_sidebar.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/js/toast.js?v=<?= $assetVersion('/public/js/toast.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/js/topbar.js?v=<?= $assetVersion('/public/js/topbar.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/js/talento_humano.js?v=<?= $assetVersion('/public/js/talento_humano.js') ?>"></script>
 <?php if (defined('PORTAL_ROOT_URL')): ?>
 <!-- Aviso de inactividad centralizado (mismo SweetAlert2 que Portal, Control
      de Bienes y Bitácoras) en vez del modal propio de esta app -- decisión
@@ -21,11 +22,12 @@
      inactividad SIGUE siendo el propio de TH (Auth::renewSession()/
      expireForInactivity(), cascada usuario > módulo TALENTO_HUMANO > global
      leída de PORTAL_APM, ver Auth::resolveInactividad()) -- solo cambia la
-     interfaz que avisa. NOTA (actualización 2026-08-28): la versión origen
-     de TH trae ahora su propio widget "session_guard" (session_guard.css/js
-     + modal #sessionWarning) -- se descarta deliberadamente aquí para no
-     duplicar el aviso de inactividad; session_guard.css/js NO se referencian
-     en ninguna vista. -->
+     interfaz que avisa. NOTA (actualización 2026-09-02, TH-ULT): la versión
+     origen de TH sigue trayendo su propio widget "session_guard"
+     (session_guard.css/js + sección #sessionWarning) en cada actualización
+     -- se descarta deliberadamente de nuevo, mismo criterio que la
+     actualización anterior, para no duplicar el aviso de inactividad;
+     session_guard.css/js NO se referencian en ninguna vista. -->
 <script>
     window.APP_INACTIVIDAD = {
         timeoutSegundos: <?= (int)Auth::idleTtl() ?>,
@@ -42,5 +44,7 @@
 <script src="<?= PORTAL_ROOT_URL ?>/js/inactivity-warning.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 <script>window.BASE_URL=<?= json_encode(BASE_URL) ?>;</script>
-<script src="<?= BASE_URL ?>/public/js/form_drafts.js"></script>
-<script src="<?= BASE_URL ?>/public/js/searchable_select.js"></script>
+<script src="<?= BASE_URL ?>/public/js/form_drafts.js?v=<?= $assetVersion('/public/js/form_drafts.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/js/searchable_select.js?v=<?= $assetVersion('/public/js/searchable_select.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/vendor/datatables/dataTables.min.js?v=<?= $assetVersion('/public/vendor/datatables/dataTables.min.js') ?>"></script>
+<script src="<?= BASE_URL ?>/public/js/apm_datatables.js?v=<?= $assetVersion('/public/js/apm_datatables.js') ?>"></script>

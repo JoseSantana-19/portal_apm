@@ -56,15 +56,22 @@
                 <div class="field"><label>Nombre completo</label><input id="nombreCuenta" name="nombre" required></div>
                 <div class="field"><label>Correo</label><input id="correoCuenta" type="email" name="correo" required></div>
                 <div class="field"><label>Usuario <small style="color:#6b7280;font-weight:400">(se asigna desde la cédula)</small></label><input id="usuarioCuenta" name="usuario" readonly style="background:#f3f4f6;cursor:not-allowed;color:#374151" placeholder="Se autocompletará al seleccionar el funcionario" required></div>
-                <div class="field"><label>Rol</label><select name="rol_id" id="rolCuenta" required><?php foreach($roles as $r): ?><option value="<?= (int)$r['id'] ?>"><?= htmlspecialchars($r['nombre']) ?></option><?php endforeach; ?></select><small id="rolHint" style="color:#6b7280;display:none"></small></div>
+                <div class="field"><label>Rol</label><select name="rol_id" id="rolCuenta" required><?php foreach($roles as $r): if (!(bool)$r['estado']) continue; ?><option value="<?= (int)$r['id'] ?>"><?= htmlspecialchars($r['nombre']) ?></option><?php endforeach; ?></select><small id="rolHint" style="color:#6b7280;display:none"></small></div>
                 <div class="field"><label>Clave inicial segura</label><input type="password" name="password" minlength="12" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}" required autocomplete="new-password"><small>Mínimo 12 caracteres con mayúscula, minúscula, número y símbolo.</small></div>
                 <div class="admin-form-actions"><button class="btn btn-primary" type="submit"><i class="bi bi-person-plus"></i> Crear cuenta</button></div>
             </form></div>
         </details>
-        <section class="card admin-table-card"><div class="admin-table-scroll"><table><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>2FA</th><th>Último acceso</th><th>Acciones</th></tr></thead><tbody>
+        <section class="card admin-table-card">
+            <div class="apm-datatable-filters">
+                <label>Rol<select data-dt-filter-target="#usuariosTable" data-dt-column="2" data-dt-filter-mode="exact"><option value="">Todos</option><?php foreach($roles as $r): if (!(bool)$r['estado']) continue; ?><option><?= htmlspecialchars($r['nombre']) ?></option><?php endforeach; ?></select></label>
+                <label>Estado<select data-dt-filter-target="#usuariosTable" data-dt-column="3" data-dt-filter-mode="exact"><option value="">Todos</option><option>Activo</option><option>Inactivo</option></select></label>
+                <label>Segundo factor<select data-dt-filter-target="#usuariosTable" data-dt-column="4" data-dt-filter-mode="exact"><option value="">Todos</option><option>Activo</option><option>Pendiente</option></select></label>
+            </div>
+            <div class="admin-table-scroll"><table id="usuariosTable" data-apm-datatable data-dt-page-length="25" data-dt-order='[[1,"asc"]]' data-dt-order-disabled="6" data-dt-search-placeholder="Buscar usuario, nombre, correo o rol…" data-dt-empty="No existen usuarios registrados."><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>2FA</th><th>Último acceso</th><th>Acciones</th></tr></thead><tbody>
+        <?php if(!$usuarios): ?><tr data-dt-empty><td colspan="7">No existen usuarios registrados.</td></tr><?php endif; ?>
         <?php foreach($usuarios as $u): ?><tr>
             <td><?= htmlspecialchars($u['usuario']) ?></td><td><?= htmlspecialchars($u['nombre']) ?><br><small><?= htmlspecialchars($u['correo']) ?></small></td><td><?= htmlspecialchars($u['rol']) ?></td>
-            <td><?= $u['estado']?'Activo':'Inactivo' ?><?= $u['debe_cambiar_clave']?' · Cambio de clave pendiente':'' ?></td><td><span class="badge <?= $u['mfa_habilitado']?'badge-active':'badge-muted' ?>"><?= $u['mfa_habilitado']?'Activo':'Pendiente' ?></span></td><td><?= htmlspecialchars((string)($u['ultimo_acceso']??'Nunca')) ?></td>
+            <td data-search="<?= $u['estado']?'Activo':'Inactivo' ?>"><?= $u['estado']?'Activo':'Inactivo' ?><?= $u['debe_cambiar_clave']?' · Cambio de clave pendiente':'' ?></td><td data-search="<?= $u['mfa_habilitado']?'Activo':'Pendiente' ?>"><span class="badge <?= $u['mfa_habilitado']?'badge-active':'badge-muted' ?>"><?= $u['mfa_habilitado']?'Activo':'Pendiente' ?></span></td><td data-order="<?= htmlspecialchars((string)($u['ultimo_acceso']??'')) ?>"><?= htmlspecialchars((string)($u['ultimo_acceso']??'Nunca')) ?></td>
             <td><div class="admin-row-actions">
                 <form method="post" action="<?= BASE_URL ?>/admin/usuarios/estado" style="display:inline"><input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>"><input type="hidden" name="estado" value="<?= $u['estado']?0:1 ?>"><button class="btn btn-outline" type="submit"><?= $u['estado']?'Desactivar':'Activar' ?></button></form>
                 <form method="post" action="<?= BASE_URL ?>/admin/usuarios/resetear-clave" style="display:inline" onsubmit="return confirm('¿Restablecer la clave y cerrar sus sesiones?')"><input type="hidden" name="_csrf" value="<?= htmlspecialchars(Auth::csrfToken()) ?>"><input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>"><button class="btn btn-ghost" type="submit">Restablecer clave</button></form>
@@ -154,6 +161,7 @@ function aplicarSugerenciaRol(puestoId) {
 
     [...selectRol.options].forEach(opt => {
         const esValido = !opt.value || rolesVal.includes(parseInt(opt.value, 10));
+        opt.disabled        = Boolean(opt.value) && !esValido;
         opt.style.color     = esValido ? '' : '#9ca3af';
         opt.style.fontStyle = esValido ? '' : 'italic';
         opt.textContent = opt.textContent.replace(' ✓','').replace(' ⚠','');
@@ -162,7 +170,8 @@ function aplicarSugerenciaRol(puestoId) {
 
     if (rolesVal.length > 0) {
         selectRol.value         = String(rolesVal[0]);
-        rolHint.textContent     = '✓ Rol sugerido según el puesto del funcionario.';
+        const nombreRol = selectRol.options[selectRol.selectedIndex]?.textContent?.replace(' ✓', '') || 'Rol compatible';
+        rolHint.textContent     = `✓ ${nombreRol}: perfil autorizado para el puesto del funcionario.`;
         rolHint.style.color     = '#16a34a';
         rolHint.style.display   = 'block';
     } else if (puestoId) {
@@ -242,6 +251,12 @@ function limpiarSeleccion(focoInput = true) {
     document.getElementById('usuarioCuenta').value = '';
     listado.style.display     = 'none';
     rolHint.style.display     = 'none';
+    [...selectRol.options].forEach(opt => {
+        opt.disabled = false;
+        opt.style.color = '';
+        opt.style.fontStyle = '';
+        opt.textContent = opt.textContent.replace(' ✓','').replace(' ⚠','');
+    });
     if (focoInput) inputBuscar.focus();
 }
 

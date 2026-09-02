@@ -1,10 +1,11 @@
 <?php
 /**
  * shared/head_assets.php
- * Incluye todos los assets CSS necesarios (CDN + locales).
+ * Incluye todos los assets CSS locales necesarios.
  * Usar con: require_once ROOT . '/shared/head_assets.php';
  * dentro del <head> de cada vista, DESPUÉS de las etiquetas <meta>.
  */
+    $assetVersion = static fn(string $path): string => (string)(@filemtime(ROOT . $path) ?: '1');
 ?>
     <script>
         (() => {
@@ -17,17 +18,18 @@
             }
         })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/topbar-enhanced.css" media="screen">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/theme.css" media="screen">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/form_drafts.css" media="screen">
-    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/searchable_select.css" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/vendor/fonts/google-fonts.css?v=<?= $assetVersion('/public/vendor/fonts/google-fonts.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/vendor/bootstrap-icons/bootstrap-icons.min.css?v=<?= $assetVersion('/public/vendor/bootstrap-icons/bootstrap-icons.min.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/vendor/datatables/dataTables.dataTables.min.css?v=<?= $assetVersion('/public/vendor/datatables/dataTables.dataTables.min.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/variables.css?v=<?= $assetVersion('/public/css/variables.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/layout.css?v=<?= $assetVersion('/public/css/layout.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/toast.css?v=<?= $assetVersion('/public/css/toast.css') ?>">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/topbar-enhanced.css?v=<?= $assetVersion('/public/css/topbar-enhanced.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/theme.css?v=<?= $assetVersion('/public/css/theme.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/form_drafts.css?v=<?= $assetVersion('/public/css/form_drafts.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/searchable_select.css?v=<?= $assetVersion('/public/css/searchable_select.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/apm_datatables.css?v=<?= $assetVersion('/public/css/apm_datatables.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/public/css/visual-polish.css?v=<?= $assetVersion('/public/css/visual-polish.css') ?>" media="screen">
 <?php if (defined('PORTAL_ROOT_URL')): ?>
     <link rel="stylesheet" href="<?= PORTAL_ROOT_URL ?>/public/librerias/Otras_librerias/sweetalert2/sweetalert2.min.css">
 <?php endif; ?>

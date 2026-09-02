@@ -136,7 +136,11 @@ $empleadosListado   = $modoMovimiento
                         </button>
                     </div><?php endif; ?>
                     <div class="table-wrap">
-                        <table id="employeeTable">
+                        <table id="employeeTable" data-apm-datatable data-dt-page-length="50"
+                               data-dt-order='[[<?= $mostrarMovimiento ? 3 : 2 ?>,"asc"]]'
+                               data-dt-order-disabled="<?= $mostrarMovimiento ? '0,7' : '6' ?>"
+                               data-dt-searching="true" data-dt-search-control="false"
+                               data-dt-empty="No hay funcionarios disponibles.">
                             <thead>
                                 <tr>
                                     <?php if($mostrarMovimiento): ?><th class="selection-heading"><input type="checkbox" id="seleccionarVisibles" onchange="seleccionarFilasVisibles(this.checked)" aria-label="Seleccionar empleados visibles"></th><?php endif; ?>
@@ -151,7 +155,7 @@ $empleadosListado   = $modoMovimiento
                             </thead>
                             <tbody id="employeeTableBody">
                             <?php if (empty($empleadosListado)): ?>
-                                <tr><td colspan="<?= $mostrarMovimiento ? 8 : 7 ?>" style="text-align:center;padding:24px;">No hay funcionarios disponibles.</td></tr>
+                                <tr data-dt-empty><td colspan="<?= $mostrarMovimiento ? 8 : 7 ?>" style="text-align:center;padding:24px;">No hay funcionarios disponibles.</td></tr>
                             <?php else: foreach ($empleadosListado as $i => $emp):
                                 // Mapeo exacto con la vista view_th_iddatosempledo
                                 $nombre   = isset($emp['nombres'], $emp['apellidos'])
@@ -181,7 +185,7 @@ $empleadosListado   = $modoMovimiento
                                     data-cargo="<?= strtolower(htmlspecialchars($cargo)) ?>"
                                     data-contrato="<?= htmlspecialchars($contrato) ?>"
                                     data-estado="<?= htmlspecialchars($estado) ?>">
-                                    <?php if($mostrarMovimiento): ?><td class="selection-cell"><input type="checkbox" class="empleado-check" value="<?= $id ?>" onchange="actualizarSeleccion()" aria-label="Seleccionar <?= htmlspecialchars($nombre) ?>"></td><?php endif; ?>
+                                    <?php if($mostrarMovimiento): ?><td class="selection-cell"><input type="checkbox" class="empleado-check" value="<?= $id ?>" onchange="registrarSeleccion(this)" aria-label="Seleccionar <?= htmlspecialchars($nombre) ?>"></td><?php endif; ?>
                                     <td><?= $i + 1 ?></td>
                                     <td><?= htmlspecialchars($cedula) ?></td>
                                     <td>
@@ -275,26 +279,31 @@ $empleadosListado   = $modoMovimiento
                             <p>Ajuste los filtros de busqueda.</p>
                         </div>
                     </div>
-                    <div class="table-pagination" id="tablePagination">
-                        <label>Mostrar
-                            <select id="pageSize" onchange="cambiarTamanoPagina()">
-                                <option value="25">25</option>
-                                <option value="50" selected>50</option>
-                                <option value="100">100</option>
-                            </select>
-                            registros
-                        </label>
-                        <span id="pageSummary">Página 1 de 1</span>
-                        <div class="pagination-actions">
-                            <button type="button" class="btn btn-outline" id="prevPage" onclick="cambiarPagina(-1)" aria-label="Página anterior"><i class="bi bi-chevron-left"></i></button>
-                            <button type="button" class="btn btn-outline" id="nextPage" onclick="cambiarPagina(1)" aria-label="Página siguiente"><i class="bi bi-chevron-right"></i></button>
-                        </div>
-                    </div>
                 </section>
             </div>
         </main>
     </section>
 </div>
+
+<?php $nuevoCodigoId = filter_input(INPUT_GET, 'nuevo_codigo_id', FILTER_VALIDATE_INT) ?: 0; ?>
+<?php if ($nuevoCodigoId > 0): ?>
+<div class="labor-success-overlay" id="laborSuccessOverlay" role="dialog" aria-modal="true" aria-labelledby="laborSuccessTitle">
+    <div class="labor-success-dialog">
+        <div class="labor-success-icon"><i class="bi bi-file-earmark-check"></i></div>
+        <div>
+            <span class="labor-success-kicker">Expediente registrado</span>
+            <h3 id="laborSuccessTitle">El funcionario pertenece al Código del Trabajo</h3>
+            <p>El registro inicial quedó guardado. Puede abrir ahora el Formulario Abreviado Laboral, revisar los datos y generar su impresión.</p>
+        </div>
+        <div class="labor-success-actions">
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('laborSuccessOverlay').remove()">Continuar en Nómina</button>
+            <a class="btn btn-primary" href="<?= BASE_URL ?>/talento-humano/accion-personal?id=<?= (int)$nuevoCodigoId ?>&amp;tipo=INGRESO&amp;origen=alta">
+                <i class="bi bi-box-arrow-up-right"></i> Abrir Formulario Abreviado
+            </a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 
 <?php if (!empty($_GET['msg'])): ?>
@@ -306,54 +315,27 @@ $empleadosListado   = $modoMovimiento
 <?php endif; ?>
 
 <script>
-/* Filtros de tabla en el lado del cliente */
+/* DataTables conserva los filtros institucionales y los modos del directorio. */
 let searchFrame=null;
-let employeeRows=[];
-let filteredRows=[];
-let currentPage=1;
+let directoryTable=null;
+const selectedEmployeeIds=new Set();
 const movementMode=<?= $modoMovimiento ? 'true' : 'false' ?>;
-const normalizeSearchText = value => String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-function renderPage() {
-    const pageSize=Math.max(1,Number(document.getElementById('pageSize')?.value||50));
-    const totalPages=Math.max(1,Math.ceil(filteredRows.length/pageSize));
-    currentPage=Math.min(Math.max(1,currentPage),totalPages);
-    const start=(currentPage-1)*pageSize;
-    const pageRows=new Set(filteredRows.slice(start,start+pageSize));
-    employeeRows.forEach(tr=>{tr.style.display=pageRows.has(tr)?'':'none';});
-    document.getElementById('pageSummary').textContent=filteredRows.length
-        ? `Registros ${start+1}–${Math.min(start+pageSize,filteredRows.length)} de ${filteredRows.length}`
-        : 'Sin registros';
-    document.getElementById('prevPage').disabled=currentPage<=1;
-    document.getElementById('nextPage').disabled=currentPage>=totalPages;
-    document.getElementById('tablePagination').classList.toggle('hidden',filteredRows.length===0);
-    const selectAll=document.getElementById('seleccionarVisibles');
-    if(selectAll){selectAll.checked=false;selectAll.indeterminate=false;}
-}
-function filterTable(resetPage=true) {
-    const tokens   = normalizeSearchText(document.getElementById('searchInput').value).split(/\s+/).filter(Boolean);
-    const dept     = normalizeSearchText(document.getElementById('departmentFilter').value);
-    const contrato = normalizeSearchText(document.getElementById('contratoFilter').value);
+function filterTable() {
+    if(!directoryTable)return;
+    const query    = document.getElementById('searchInput').value.trim();
+    const dept     = document.getElementById('departmentFilter').value;
+    const contrato = document.getElementById('contratoFilter').value;
     const est      = document.getElementById('statusFilter').value;
-    filteredRows=employeeRows.filter(tr => {
-        const matchQ = tokens.every(token => tr.dataset.searchIndex.includes(token));
-        const matchD = !dept     || tr.dataset.deptIndex.includes(dept);
-        const matchC = !contrato || tr.dataset.contractIndex.includes(contrato);
-        const matchE = !est      || tr.dataset.estado === est;
-        return matchQ && matchD && matchC && matchE;
-    });
-    if(resetPage)currentPage=1;
-    document.getElementById('resultCount').textContent = filteredRows.length;
-    document.getElementById('noDataMessage').classList.toggle('hidden', filteredRows.length > 0);
-    renderPage();
+    const offset=movementMode?1:0;
+    directoryTable.search(query);
+    directoryTable.column(3+offset).search(dept);
+    directoryTable.column(4+offset).search(contrato);
+    directoryTable.column(5+offset).search(est);
+    directoryTable.page('first').draw();
 }
 function programarBusqueda(){
     if(searchFrame!==null)cancelAnimationFrame(searchFrame);
-    searchFrame=requestAnimationFrame(()=>{searchFrame=null;filterTable(true);});
+    searchFrame=requestAnimationFrame(()=>{searchFrame=null;filterTable();});
 }
 function resetFilters() {
     if(searchFrame!==null)cancelAnimationFrame(searchFrame);
@@ -363,12 +345,10 @@ function resetFilters() {
     document.getElementById('statusFilter').value       = movementMode ? 'Activo' : '';
     const globalSearch=document.getElementById('globalSearch');
     if(globalSearch)globalSearch.value='';
-    filterTable(true);
+    filterTable();
 }
-function cambiarTamanoPagina(){currentPage=1;renderPage();}
-function cambiarPagina(delta){currentPage+=delta;renderPage();document.querySelector('.table-card')?.scrollIntoView({behavior:'smooth',block:'start'});}
 function actualizarSeleccion(){
-    const seleccion=[...document.querySelectorAll('.empleado-check:checked')];
+    const seleccion=[...selectedEmployeeIds];
     const count=document.getElementById('seleccionCount');
     const button=document.getElementById('btnMovimientoGrupal');
     const toolbar=document.getElementById('selectionToolbar');
@@ -379,25 +359,39 @@ function actualizarSeleccion(){
         ? 'Seleccione al menos otro funcionario para habilitar el movimiento grupal.'
         : 'La selección está lista para registrarse como un solo movimiento.';
     if(toolbar)toolbar.classList.toggle('hidden',seleccion.length===0);
-    const visibles=[...document.querySelectorAll('#employeeTableBody tr.table-row')].filter(tr=>tr.style.display!=='none').map(tr=>tr.querySelector('.empleado-check')).filter(c=>c&&!c.disabled);
+    const visibles=directoryTable
+        ? directoryTable.rows({page:'current',search:'applied'}).nodes().toArray().map(tr=>tr.querySelector('.empleado-check')).filter(c=>c&&!c.disabled)
+        : [];
     const selectAll=document.getElementById('seleccionarVisibles');
     if(selectAll){const marcados=visibles.filter(c=>c.checked).length;selectAll.checked=visibles.length>0&&marcados===visibles.length;selectAll.indeterminate=marcados>0&&marcados<visibles.length;}
 }
+function registrarSeleccion(input){
+    const id=String(input.value);
+    if(input.checked)selectedEmployeeIds.add(id);else selectedEmployeeIds.delete(id);
+    actualizarSeleccion();
+}
 function seleccionarFilasVisibles(marcar){
-    document.querySelectorAll('#employeeTableBody tr.table-row').forEach(tr=>{const c=tr.querySelector('.empleado-check');if(c&&!c.disabled&&tr.style.display!=='none')c.checked=marcar;});actualizarSeleccion();
+    if(!directoryTable)return;
+    directoryTable.rows({page:'current',search:'applied'}).nodes().each(tr=>{const c=tr.querySelector('.empleado-check');if(c&&!c.disabled){c.checked=marcar;if(marcar)selectedEmployeeIds.add(String(c.value));else selectedEmployeeIds.delete(String(c.value));}});
+    actualizarSeleccion();
 }
 function abrirMovimientoGrupal(){
-    const ids=[...document.querySelectorAll('.empleado-check:checked')].map(c=>c.value);
+    const ids=[...selectedEmployeeIds];
     if(ids.length<2){showToast?.('Seleccione al menos dos empleados activos.','error');return;}
     window.location.href=`<?= BASE_URL ?>/talento-humano/empleado/movimiento-grupal?ids=${encodeURIComponent(ids.join(','))}`;
 }
-document.addEventListener('DOMContentLoaded', () => {
-    employeeRows=[...document.querySelectorAll('#employeeTableBody tr.table-row')];
-    employeeRows.forEach(tr=>{
-        tr.dataset.searchIndex=normalizeSearchText(`${tr.dataset.nombre} ${tr.dataset.cedula} ${tr.dataset.dept} ${tr.dataset.cargo} ${tr.dataset.contrato}`);
-        tr.dataset.deptIndex=normalizeSearchText(tr.dataset.dept);
-        tr.dataset.contractIndex=normalizeSearchText(tr.dataset.contrato);
+document.getElementById('employeeTable')?.addEventListener('apm:datatable-ready',event=>{
+    directoryTable=event.detail.instance;
+    directoryTable.on('draw',()=>{
+        const info=directoryTable.page.info();
+        document.getElementById('resultCount').textContent=info.recordsDisplay;
+        document.getElementById('noDataMessage').classList.add('hidden');
+        directoryTable.rows({page:'current',search:'applied'}).nodes().each(tr=>{const c=tr.querySelector('.empleado-check');if(c)c.checked=selectedEmployeeIds.has(String(c.value));});
+        actualizarSeleccion();
     });
+    filterTable();
+});
+document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('currentDate').textContent =
         new Date().toLocaleDateString('es-EC', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     const paramsIniciales=new URLSearchParams(window.location.search);
@@ -410,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(movementMode)document.getElementById('statusFilter').value='Activo';
     const global=document.getElementById('globalSearch');
     global?.addEventListener('input',()=>{document.getElementById('searchInput').value=global.value;programarBusqueda();});
-    filterTable(true);
     if(movementMode)showToast?.('Seleccione un funcionario para moverlo o dos o más para un movimiento grupal.','info');
 });
 </script>

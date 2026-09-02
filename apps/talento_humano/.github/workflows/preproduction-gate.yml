@@ -1,0 +1,36 @@
+name: Preproduction validation gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-apm-preproduction
+  cancel-in-progress: false
+
+jobs:
+  sql-iis-uat:
+    name: SQL Server, IIS and authenticated UAT
+    runs-on: [self-hosted, windows, portal-apm-preprod]
+    timeout-minutes: 30
+    environment: preproduction
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validation gate
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File .\deployment\run-local-validation-gate.ps1
+      - name: Publish sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preproduction-validation-evidence
+          path: |
+            C:\ProgramData\PortalAPM\local-validation-gate.log
+            C:\ProgramData\PortalAPM\local-validation-gate.exit
+            C:\ProgramData\PortalAPM\health-latest.json
+          if-no-files-found: warn
+          retention-days: 14

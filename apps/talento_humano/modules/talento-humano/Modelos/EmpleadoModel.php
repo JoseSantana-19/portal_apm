@@ -34,6 +34,35 @@ class EmpleadoModel extends Model
         }, $this->listarDirectorio());
     }
 
+    /** Resultados livianos para el selector global compartido del encabezado. */
+    public function buscarSelectorGlobal(string $termino, ?int $estado = null, int $limite = 24): array
+    {
+        try {
+            $limite = max(1, min($limite, 50));
+            $condiciones = [];
+            $parametros = [];
+            if ($estado !== null) {
+                $condiciones[] = 'v.estado=:estado';
+                $parametros[':estado'] = $estado;
+            }
+            $termino = trim(preg_replace('/\s+/u', ' ', $termino));
+            if ($termino !== '') {
+                $condiciones[] = "CONCAT(v.cedula,' ',v.apellidos,' ',v.nombres,' ',COALESCE(v.cargo,''),' ',COALESCE(v.direccion_area,'')) COLLATE Modern_Spanish_CI_AI LIKE :termino";
+                $parametros[':termino'] = '%' . $termino . '%';
+            }
+            $where = $condiciones ? ' WHERE ' . implode(' AND ', $condiciones) : '';
+            $sql = "SELECT TOP ({$limite}) v.id AS empleado_id,v.cedula,v.apellidos,v.nombres,v.cargo,v.direccion_area,v.estado
+                    FROM dbo.vw_th_directorio_empleados v{$where}
+                    ORDER BY CASE WHEN v.estado=1 THEN 0 ELSE 1 END,v.apellidos,v.nombres,v.id";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($parametros);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e, 'Talento_Humano', false);
+            return [];
+        }
+    }
+
     public function obtenerRbuVigente(): string
     {
         try {
@@ -259,6 +288,18 @@ class EmpleadoModel extends Model
         }
     }
 
+    public function obtenerEventosLaborales(?int $empleadoId = null): array
+    {
+        try {
+            $stmt=$this->db->prepare('EXEC dbo.sp_th_consultar_eventos_laborales :empleado,:usuario,:ip');
+            $stmt->execute([':empleado'=>$empleadoId,':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            Conexion::registrarErrorLog($e,'Talento_Humano',false);
+            return [];
+        }
+    }
+
     public function obtenerPeriodosVinculacion(?int $empleadoId = null): array
     {
         try {
@@ -389,6 +430,21 @@ class EmpleadoModel extends Model
                 return (string)($result['mensaje'] ?? 'Error al guardar el expediente.');
             }
             $empleadoId=$id ?? (int)($result['nuevo_id']??0);
+            while ($stmt->nextRowset()) {}
+            $regimen=$this->db->prepare('EXEC dbo.sp_th_asignar_regimen_empleado :id,:regimen,:contrato,:usuario,:ip');
+            $regimen->execute([
+                ':id'=>$empleadoId,
+                ':regimen'=>(string)($data['regimen_laboral']??'LOSEP'),
+                ':contrato'=>(string)($data['tipo_contrato']??''),
+                ':usuario'=>Auth::username(),
+                ':ip'=>Auth::clientIp(),
+            ]);
+            $regimenResult=$regimen->fetch(PDO::FETCH_ASSOC);
+            if((int)($regimenResult['exito']??0)!==1){
+                if($this->db->inTransaction())$this->db->rollBack();
+                return (string)($regimenResult['mensaje']??'No fue posible asignar el régimen laboral.');
+            }
+            while ($regimen->nextRowset()) {}
             $ids=array_values(array_unique(array_filter(array_map('intval',(array)($data['nacionalidad_ids']??[])))));
             $sync=$this->db->prepare('EXEC dbo.sp_th_sincronizar_nacionalidades_empleado :id,:json,:usuario,:ip');
             $sync->execute([':id'=>$empleadoId,':json'=>json_encode($ids),':usuario'=>Auth::username(),':ip'=>Auth::clientIp()]);

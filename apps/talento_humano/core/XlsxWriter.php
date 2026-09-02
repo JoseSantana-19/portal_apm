@@ -7,11 +7,6 @@ declare(strict_types=1);
  * El portal se distribuye sin Composer y PHP 8.5 no tiene ZipArchive. Esta
  * clase crea un contenedor ZIP válido (método DEFLATE) y hojas SpreadsheetML
  * modernas, por lo que la descarga resultante es un .xlsx real.
- *
- * NOTA compatibilidad (adaptado de origen para PHP 7.4/8.3/8.5 simultáneo,
- * ver helpers/polyfills_php74.php): sin `mixed` (PHP 8.0+, tipos quitados en
- * su lugar) ni `: never` (PHP 8.1+, usa `: void`) ni
- * DateTimeImmutable::createFromInterface() (PHP 8.0+, conversión manual).
  */
 final class XlsxWriter
 {
@@ -39,7 +34,7 @@ final class XlsxWriter
         $archive->close();
     }
 
-    public function download(string $filename): void
+    public function download(string $filename): never
     {
         $filename = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $filename) ?: 'reporte.xlsx';
         if (!str_ends_with(strtolower($filename), '.xlsx')) $filename .= '.xlsx';
@@ -130,7 +125,7 @@ final class XlsxWriter
         $headers = $rows !== [] ? array_keys($rows[0]) : ['Sin datos'];
         $matrix = [$headers];
         foreach ($rows as $row) {
-            $matrix[] = array_map(static function (string $header) use ($row) { return $row[$header] ?? null; }, $headers);
+            $matrix[] = array_map(static fn(string $header): mixed => $row[$header] ?? null, $headers);
         }
         $lastColumn = self::columnName(count($headers));
         $lastRow = count($matrix);
@@ -152,7 +147,7 @@ final class XlsxWriter
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:' . $lastColumn . $lastRow . '"/><sheetViews><sheetView showGridLines="0" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>' . $cols . '</cols><sheetData>' . $sheetData . '</sheetData>' . $filter . '<pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>';
     }
 
-    private function cellXml(string $reference, $value, string $header, bool $isHeader): string
+    private function cellXml(string $reference, mixed $value, string $header, bool $isHeader): string
     {
         if ($isHeader) return '<c r="' . $reference . '" t="inlineStr" s="1"><is><t>' . self::xml($value) . '</t></is></c>';
         if ($value === null || $value === '') return '<c r="' . $reference . '" s="0"/>';
@@ -185,14 +180,10 @@ final class XlsxWriter
         return (bool)preg_match('/(^id$|_id$|cedula|identificacion|pasaporte|telefono|cuenta|codigo|numero|partida|placa)/i', $header);
     }
 
-    /** @param mixed $value */
-    private function excelDate($value): ?int
+    private function excelDate(mixed $value): ?int
     {
-        if ($value instanceof DateTimeInterface) {
-            // DateTimeImmutable::createFromInterface() es PHP 8.0+ -- conversión
-            // manual equivalente, compatible con 7.4.
-            $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value->format('Y-m-d H:i:s')) ?: null;
-        } else {
+        if ($value instanceof DateTimeInterface) $date = DateTimeImmutable::createFromInterface($value);
+        else {
             $text = substr(trim((string)$value), 0, 10);
             $date = DateTimeImmutable::createFromFormat('!Y-m-d', $text) ?: null;
         }
@@ -207,16 +198,14 @@ final class XlsxWriter
         return mb_substr($name !== '' ? $name : 'Reporte', 0, 31);
     }
 
-    /** @param mixed $value */
-    private static function xml($value): string
+    private static function xml(mixed $value): string
     {
         $text = (string)($value ?? '');
         $text = preg_replace('/[^\x{0009}\x{000A}\x{000D}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]/u', '', $text) ?? '';
         return htmlspecialchars(mb_substr($text, 0, 32767), ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 
-    /** @param mixed $value */
-    private static function number($value): string
+    private static function number(mixed $value): string
     {
         return rtrim(rtrim(number_format((float)$value, 10, '.', ''), '0'), '.');
     }

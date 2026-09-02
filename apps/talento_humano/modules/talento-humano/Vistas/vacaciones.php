@@ -138,18 +138,21 @@
                         </form>
                     </div>
                     <div class="table-wrap">
-                        <table>
+                        <table id="vacacionesTable" data-apm-datatable data-dt-page-length="25"
+                               data-dt-order='[[3,"desc"]]' data-dt-order-disabled="6"
+                               data-dt-search-placeholder="Buscar por serie, funcionario, área o cargo…"
+                               data-dt-empty="No existen vacaciones aprobadas para este filtro.">
                             <thead><tr><th>Serie</th><th>Funcionario</th><th>Área / Cargo</th><th>Período</th><th>Días</th><th>Estado</th><th>Acción</th></tr></thead>
                             <tbody>
                             <?php if(!$vacaciones): ?>
-                                <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--ink-600)">No existen vacaciones aprobadas para este filtro.</td></tr>
+                                <tr data-dt-empty><td colspan="7" style="text-align:center;padding:30px;color:var(--ink-600)">No existen vacaciones aprobadas para este filtro.</td></tr>
                             <?php endif; ?>
                             <?php foreach($vacaciones as $v): $estado=strtolower((string)$v['estado_vacacion']); ?>
                                 <tr>
                                     <td><strong><?= htmlspecialchars($v['numero_accion']) ?></strong></td>
                                     <td><strong><?= htmlspecialchars(trim($v['apellidos'].' '.$v['nombres'])) ?></strong><small style="display:block"><?= htmlspecialchars($v['identificacion']) ?></small></td>
                                     <td><?= htmlspecialchars($v['area']??'Sin área') ?><small style="display:block"><?= htmlspecialchars($v['cargo']??'Sin cargo') ?></small></td>
-                                    <td><?= date('d/m/Y',strtotime($v['fecha_inicio'])) ?> → <?= $v['fecha_fin']?date('d/m/Y',strtotime($v['fecha_fin'])):'Sin fecha final' ?></td>
+                                    <td data-order="<?= htmlspecialchars((string)$v['fecha_inicio']) ?>"><?= date('d/m/Y',strtotime($v['fecha_inicio'])) ?> → <?= $v['fecha_fin']?date('d/m/Y',strtotime($v['fecha_fin'])):'Sin fecha final' ?></td>
                                     <td><?= (int)($v['dias_calendario']??0) ?></td>
                                     <td><span class="vac-status vac-status--<?= $estado ?>"><?= htmlspecialchars($v['estado_vacacion']) ?></span></td>
                                     <td><a class="btn btn-outline" href="<?= BASE_URL ?>/talento-humano/accion-personal/ver?id=<?= (int)$v['accion_id'] ?>"><i class="bi bi-eye"></i> Ver</a></td>

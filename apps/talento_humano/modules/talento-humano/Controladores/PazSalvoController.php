@@ -29,5 +29,5 @@ class PazSalvoController extends Controller
     public function formatoBlanco(): void{$this->modelo->auditarImpresion(0,true);require_once ROOT.'/modules/talento-humano/Servicios/PdfPazSalvo.php';(new PdfPazSalvo(null))->render(true);}
     private function post():void{if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);exit('Método no permitido.');}}
     private function fecha(string $v):?string{$d=DateTimeImmutable::createFromFormat('Y-m-d',$v);return $d&&$d->format('Y-m-d')===$v?$v:null;}
-    private function volver(string $msg,bool $ok,string $ruta='/talento-humano/paz-salvo'):void{header('Location: '.BASE_URL.$ruta.'?ok='.($ok?'1':'0').'&msg='.urlencode($msg));exit;}
+    private function volver(string $msg,bool $ok,string $ruta='/talento-humano/paz-salvo'):never{header('Location: '.BASE_URL.$ruta.'?ok='.($ok?'1':'0').'&msg='.urlencode($msg));exit;}
 }

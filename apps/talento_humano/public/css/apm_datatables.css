@@ -1,0 +1,219 @@
+/* Adaptación institucional de DataTables. La biblioteca base se conserva en public/vendor. */
+.apm-datatable-shell {
+    min-width: 0;
+}
+
+.apm-datatable-filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 16px 0;
+}
+
+.apm-datatable-filters label {
+    display: grid;
+    gap: 5px;
+    min-width: 160px;
+    color: var(--ink-600, #52647a);
+    font-size: .69rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.apm-datatable-filters select {
+    min-height: 39px;
+    border: 1px solid var(--line, #cbd5e1);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    color: var(--navy-900, #0f2c40);
+    padding: 7px 34px 7px 10px;
+    font: inherit;
+    font-size: .78rem;
+    text-transform: none;
+}
+
+.apm-datatable-shell .dt-layout-row {
+    gap: 14px;
+    margin: 0 0 14px;
+}
+
+.apm-datatable-shell .dt-layout-row.dt-layout-table {
+    margin-bottom: 12px;
+    overflow-x: auto;
+    border: 1px solid var(--line, #d8e4eb);
+    border-radius: 12px;
+}
+
+.apm-datatable-shell .dt-layout-row.dt-layout-table .dt-layout-cell {
+    min-width: 100%;
+}
+
+.apm-datatable-shell .dt-search,
+.apm-datatable-shell .dt-length {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-600, #52647a);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.apm-datatable-shell .dt-search input,
+.apm-datatable-shell .dt-length select {
+    min-height: 39px;
+    margin: 0;
+    border: 1px solid var(--line, #cbd5e1);
+    border-radius: 10px;
+    background: var(--card, #fff);
+    color: var(--navy-900, #0f2c40);
+    font: inherit;
+}
+
+.apm-datatable-shell .dt-search input {
+    width: min(320px, 42vw);
+    padding: 8px 12px 8px 36px;
+    background-image: linear-gradient(transparent, transparent);
+}
+
+.apm-datatable-shell .dt-search {
+    position: relative;
+}
+
+.apm-datatable-shell .dt-search::before {
+    position: absolute;
+    z-index: 1;
+    left: 13px;
+    bottom: 10px;
+    content: "\F52A";
+    color: var(--teal-700, #0e7490);
+    font-family: bootstrap-icons;
+    font-size: .9rem;
+    pointer-events: none;
+}
+
+.apm-datatable-shell .dt-search input:focus,
+.apm-datatable-shell .dt-length select:focus {
+    border-color: var(--teal-600, #0891b2);
+    outline: 3px solid rgba(8, 145, 178, .14);
+}
+
+.apm-datatable-shell table.dataTable {
+    width: 100% !important;
+    margin: 0 !important;
+    border-collapse: collapse !important;
+}
+
+.apm-datatable-shell table.dataTable > thead > tr > th {
+    background: #eff5fa;
+    color: var(--ink-600, #52647a);
+    font-size: .68rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.apm-datatable-shell table.dataTable > tbody > tr > td {
+    background: var(--card, #fff);
+    color: var(--navy-900, #0f2c40);
+    vertical-align: middle;
+}
+
+.apm-datatable-shell table.dataTable > tbody > tr:hover > td {
+    background: #f3fbfd;
+}
+
+.apm-datatable-shell .dt-info {
+    color: var(--ink-500, #64748b);
+    font-size: .76rem;
+}
+
+.apm-datatable-shell .dt-paging {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.apm-datatable-shell .dt-paging .dt-paging-button {
+    min-width: 36px;
+    min-height: 34px;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--line, #cbd5e1) !important;
+    border-radius: 9px;
+    background: var(--card, #fff) !important;
+    color: var(--teal-800, #155e75) !important;
+}
+
+.apm-datatable-shell .dt-paging .dt-paging-button.current,
+.apm-datatable-shell .dt-paging .dt-paging-button:hover:not(.disabled) {
+    border-color: var(--teal-600, #0891b2) !important;
+    background: var(--teal-700, #0e7490) !important;
+    color: #fff !important;
+}
+
+.apm-datatable-shell .dt-paging .dt-paging-button.disabled {
+    opacity: .45;
+}
+
+.apm-datatable-shell .dt-empty {
+    padding: 30px 16px !important;
+    color: var(--ink-500, #64748b) !important;
+    text-align: center !important;
+}
+
+.apm-datatable-shell.apm-datatable-compact .dt-layout-row:first-child {
+    margin-top: 12px;
+    padding: 0 14px;
+}
+
+.apm-datatable-shell.apm-datatable-compact .dt-layout-row:last-child {
+    margin-bottom: 12px;
+    padding: 0 14px;
+}
+
+html[data-theme="dark"] .apm-datatable-shell .dt-layout-row.dt-layout-table,
+html[data-theme="dark"] .apm-datatable-shell .dt-search input,
+html[data-theme="dark"] .apm-datatable-shell .dt-length select,
+html[data-theme="dark"] .apm-datatable-filters select,
+html[data-theme="dark"] .apm-datatable-shell .dt-paging .dt-paging-button {
+    border-color: #315165 !important;
+    background: #102b3b !important;
+    color: #dbeafe !important;
+}
+
+html[data-theme="dark"] .apm-datatable-shell table.dataTable > thead > tr > th {
+    background: #16384a;
+    color: #b9d4e4;
+}
+
+html[data-theme="dark"] .apm-datatable-shell table.dataTable > tbody > tr > td {
+    background: #102b3b;
+    color: #e5f1f7;
+}
+
+html[data-theme="dark"] .apm-datatable-shell table.dataTable > tbody > tr:hover > td {
+    background: #173b4e;
+}
+
+@media (max-width: 760px) {
+    .apm-datatable-shell .dt-layout-row:not(.dt-layout-table) {
+        display: grid;
+        gap: 10px;
+    }
+
+    .apm-datatable-shell .dt-layout-cell,
+    .apm-datatable-shell .dt-search,
+    .apm-datatable-shell .dt-length {
+        width: 100%;
+    }
+
+    .apm-datatable-shell .dt-search input {
+        width: 100%;
+    }
+
+    .apm-datatable-shell .dt-paging {
+        justify-content: center;
+    }
+}

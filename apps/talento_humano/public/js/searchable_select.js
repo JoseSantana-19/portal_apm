@@ -15,6 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const availableOptions=()=>[...select.options].filter(option=>option.value!=='');
         const updateValidity=()=>input.setCustomValidity(input.required&&!select.value?'Seleccione una opción válida del catálogo.':'');
         const syncInput=()=>{const option=select.selectedOptions[0];input.value=option?.value?option.textContent.trim():'';updateValidity();};
+        const syncState=()=>{
+            input.disabled=select.disabled;
+            wrapper.classList.toggle('is-disabled',select.disabled);
+            if(select.disabled) close();
+        };
         syncInput();
         const close=()=>{list.hidden=true;input.setAttribute('aria-expanded','false');};
         const render=()=>{
@@ -43,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if(event.key==='Escape'){close();input.focus();}
         });
         select.addEventListener('change',syncInput);
+        syncState();
+        new MutationObserver(mutations=>{
+            if(mutations.some(mutation=>mutation.type==='attributes'))syncState();
+            if(mutations.some(mutation=>mutation.type==='childList'))syncInput();
+        }).observe(select,{attributes:true,childList:true,subtree:true});
         document.addEventListener('click',event=>{if(!wrapper.contains(event.target))close();});
     });
 });
