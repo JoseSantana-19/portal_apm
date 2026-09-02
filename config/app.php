@@ -66,8 +66,9 @@ define('DB_ENCRYPT', $__conn['options']['encrypt']);
 // Acá solo quedan porque helpers/module_stats_helper.php (badges del
 // sidebar del portal) consulta PortuariaDemo directo para el contador
 // "Visitas en puerto".
-define('DB_PORTUARIA_NAME', $__conn['databases']['portuaria']['name']);
-define('DB_PORTUARIA_EXT_NAME', $__conn['databases']['portuaria_ext']['name']);
+define('DB_INV_NAME', $__conn['databases']['inventario']['name'] ?? 'inventario');
+define('DB_PORTUARIA_NAME', $__conn['databases']['portuaria']['name'] ?? 'PortuariaDemo');
+define('DB_PORTUARIA_EXT_NAME', $__conn['databases']['portuaria_ext']['name'] ?? 'PortuariaExterna');
 
 if (!defined('ROOT_PATH'))
     define('ROOT_PATH', ROOT);

@@ -18,6 +18,9 @@ class AdminController extends Controller {
         $this->requireAuth();
         $this->requireLevel(3, [...self::NODO_USUARIOS, 1]);
         $db = $this->db();
+        $dbTh  = defined('DB_TH_NAME') ? DB_TH_NAME : 'Talento_Humano';
+        $dbInv = defined('DB_INV_NAME') ? DB_INV_NAME : 'inventario';
+        $dbBit = defined('DB_PORTUARIA_NAME') ? DB_PORTUARIA_NAME : 'PortuariaDemo';
 
         // 1. Usuarios Centrales
         $coreUsers = $db->fetchAll($db->query(
@@ -40,7 +43,7 @@ class AdminController extends Controller {
                 'id_empleado_th'    => $u['id_empleado_th'] ?? null,
                 'cedula'            => $ced,
                 'nombre_usuario'    => $usr,
-                'nombre_completo'   => $u['nombre_completo'],
+                'nombre_completo'   => strip_tags((string)$u['nombre_completo']),
                 'correo'            => $u['correo'],
                 'departamento'      => $u['departamento'] ?? 'General',
                 'nivel_jerarquia'   => (int)$u['nivel_jerarquia'],
@@ -57,8 +60,8 @@ class AdminController extends Controller {
             $thUsers = $db->fetchAll($db->query(
                 "SELECT e.empleado_id, e.identificacion AS cedula, e.nombres + ' ' + e.apellidos AS nombre_completo,
                         e.correo_institucional, e.correo_personal, u.nombre_unidad, e.estado
-                 FROM Talento_Humano.dbo.th_empleados e
-                 LEFT JOIN Talento_Humano.dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
+                 FROM [{$dbTh}].dbo.th_empleados e
+                 LEFT JOIN [{$dbTh}].dbo.th_unidades_organizacionales u ON u.unidad_id = e.unidad_id
                  WHERE e.estado = 1"
             ));
             foreach ($thUsers as $th) {
@@ -77,7 +80,7 @@ class AdminController extends Controller {
                         'id_empleado_th'    => (int)$th['empleado_id'],
                         'cedula'            => $ced,
                         'nombre_usuario'    => $ced,
-                        'nombre_completo'   => $th['nombre_completo'],
+                        'nombre_completo'   => strip_tags((string)$th['nombre_completo']),
                         'correo'            => $th['correo_institucional'] ?: ($th['correo_personal'] ?: ''),
                         'departamento'      => $th['nombre_unidad'] ?? 'Talento Humano',
                         'nivel_jerarquia'   => 0,
@@ -94,7 +97,7 @@ class AdminController extends Controller {
         // 3. Control de Bienes / Inventario
         try {
             $invUsers = $db->fetchAll($db->query(
-                "SELECT id, nombre, usuario, rol, activo FROM inventario.dbo.inv_usuarios"
+                "SELECT id, nombre, usuario, rol, activo FROM [{$dbInv}].dbo.inv_usuarios"
             ));
             foreach ($invUsers as $inv) {
                 $usr = trim((string)($inv['usuario'] ?? ''));
@@ -110,7 +113,7 @@ class AdminController extends Controller {
                         'id_empleado_th'    => null,
                         'cedula'            => $ced ?: '—',
                         'nombre_usuario'    => $usr,
-                        'nombre_completo'   => $inv['nombre'],
+                        'nombre_completo'   => strip_tags((string)$inv['nombre']),
                         'correo'            => '',
                         'departamento'      => 'Control de Bienes (' . ($inv['rol'] ?? 'Operador') . ')',
                         'nivel_jerarquia'   => ($inv['rol'] === 'Administrador' ? 3 : 0),
@@ -127,7 +130,7 @@ class AdminController extends Controller {
         // 4. Bitácoras Portuarias
         try {
             $bitUsers = $db->fetchAll($db->query(
-                "SELECT id_usuario, cedula, nombres, id_departamento, estado FROM PortuariaDemo.dbo.bit_usuarios_apm"
+                "SELECT id_usuario, cedula, nombres, id_departamento, estado FROM [{$dbBit}].dbo.bit_usuarios_apm"
             ));
             foreach ($bitUsers as $bit) {
                 $ced = trim((string)($bit['cedula'] ?? ''));
@@ -142,7 +145,7 @@ class AdminController extends Controller {
                         'id_empleado_th'    => null,
                         'cedula'            => $ced,
                         'nombre_usuario'    => $ced,
-                        'nombre_completo'   => $bit['nombres'],
+                        'nombre_completo'   => strip_tags((string)$bit['nombres']),
                         'correo'            => '',
                         'departamento'      => 'Operaciones Portuarias',
                         'nivel_jerarquia'   => 0,
