@@ -79,7 +79,7 @@ Características clave:
 - **Contraseñas: híbrido cliente+servidor** — el navegador hashea con
   SHA-256 antes de enviar (`js/password-hash.js`), el servidor combina eso
   con un pepper compartido (`CORE_Config.PASSWORD_PEPPER`) y bcrypt. Mismo
-  esquema en las 4 apps. Ver §12 y `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+  esquema en las 4 apps. Ver §12 y `INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline`.
 - **Notificaciones reales** — `CORE_Notificaciones` (dashboard, campana,
   `/notificaciones`) ya no está vacía: un generador real (cross-DB) crea
   alertas a partir de eventos genuinos de TH/Bienes/Bitácoras/seguridad.
@@ -209,9 +209,8 @@ portal_apm/
 │   └── PortuariaExterna.sql          ← Esquema del maestro externo de personas que usa Portuaria
 │
 ├── INDICACIONES/                     ← Guías paso a paso (instalación, integrar/actualizar módulos)
-│   ├── GUIA_INSTALACION.html          ← Instalación completa: migrar este equipo tal cual, o instalar desde cero (XAMPP/Wamp)
 │   ├── GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md  ← Contrato para integrar un módulo nuevo (Patrón B) o actualizar uno existente
-│   ├── GUIA_SEGURIDAD_CONTRASENAS.html           ← Guía interactiva del esquema híbrido de contraseñas (v7.0)
+│   ├── GUIA_PORTAL_APM.html                  ← Guía unificada (todo lo que era HTML, con menú lateral)
 │   └── GUIA_SSO_LOGIN_ENTRE_MODULOS.md           ← Cómo usar sp_SSO_* / SsoClient.php para loguear un módulo nuevo (v7.0)
 │
 ├── config/
@@ -946,7 +945,7 @@ se refleja ahí automáticamente, sin mantener dos plantillas sincronizadas.
 ### Autenticación
 
 **Esquema de contraseña — híbrido cliente+servidor (v7.0).** Guía
-interactiva completa con demo en vivo: `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+interactiva completa con demo en vivo: `INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline`.
 Resumen:
 1. El navegador aplica SHA-256 a la contraseña **antes** de enviarla
    (`js/password-hash.js`, `crypto.subtle`, sin librerías) — el servidor
@@ -1171,7 +1170,7 @@ Ver `README.md` para instalación paso a paso completa tras clonar. Resumen:
    orden** entre sí (cada uno crea su base solo si no existe, y si otro ya
    la creó vacía la puebla igual) — no hay un orden obligatorio.
 6. Instalación 100% manual sin `SETUP_PROYECTO.ps1` (útil para WampServer o
-   para entender cada paso): `INDICACIONES/GUIA_INSTALACION.html`.
+   para entender cada paso): `INDICACIONES/GUIA_PORTAL_APM.html#resumen`.
 
 ---
 
@@ -1538,7 +1537,7 @@ una contraseña (cambio de clave, crear usuario, desactivar MFA) de Portal,
 Talento Humano y Control de Bienes; Bitácoras actualizado por completitud
 aunque su `PortUsuarioModel` no tiene caller real hoy. Guía interactiva
 completa con demo en vivo (calculadora de fuerza bruta, línea de tiempo,
-diagrama de arquitectura, mapa de archivos): `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`.
+diagrama de arquitectura, mapa de archivos): `INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline`.
 
 - **Consecuencia real descubierta a mitad de la implementación:** el
   cliente mandando SHA-256 en vez de la contraseña real rompe la

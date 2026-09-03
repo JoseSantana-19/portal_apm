@@ -110,7 +110,7 @@ EXEC dbo.sp_SSO_Login
 `peppered:` + `bcrypt(HMAC-SHA256(SHA-256(contraseña_real), PEPPER))`. El
 paso `SHA-256(contraseña_real)` es el mismo que hace el navegador con
 `js/password-hash.js` antes de que cualquier formulario del sistema llegue
-al servidor (ver `INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`). Si tu
+al servidor (ver `INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline`). Si tu
 módulo compara directo contra la contraseña cruda, **el login SIEMPRE va a
 fallar** para cualquier cuenta real del sistema. Usá `libs/SsoClient.php`
 (sección 5) para no tener que replicar esto a mano — ya lo hace bien.
@@ -383,7 +383,7 @@ comparaba la contraseña recibida directo contra el pepper (`hash_hmac`
 sobre la contraseña cruda), sin aplicar primero el paso de `SHA-256` que
 el navegador SÍ aplica en todos los formularios del sistema desde la
 sesión de trabajo del 2026-08-23/25 (ver
-`INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html`). Como consecuencia,
+`INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline`). Como consecuencia,
 `SsoClient::login()` **fallaba para el 100% de las cuentas reales** del
 sistema — nunca había sido probado end-to-end antes de hoy. Corregido:
 ahora `verifyPassword()` aplica `SHA-256(contraseña)` antes de la

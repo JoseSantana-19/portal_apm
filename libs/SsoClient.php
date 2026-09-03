@@ -165,7 +165,7 @@ class SsoClient
      * Verifica la contraseña contra el hash de CORE_Usuarios. Acepta el
      * esquema compartido de todo el sistema (SHA-256 en cliente + HMAC-SHA256
      * con PASSWORD_PEPPER + bcrypt, prefijo 'peppered:' -- ver
-     * helpers/security_helper.php del portal e INDICACIONES/GUIA_SEGURIDAD_CONTRASENAS.html)
+     * helpers/security_helper.php del portal e INDICACIONES/GUIA_PORTAL_APM.html#sec-timeline)
      * y, para cuentas todavía no migradas, bcrypt directo sobre la
      * contraseña real. Esta clase es standalone (la usan apps externas que
      * solo tienen acceso SQL a PORTAL_APM, sin el resto del código del
