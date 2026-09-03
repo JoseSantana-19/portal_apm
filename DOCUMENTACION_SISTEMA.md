@@ -209,7 +209,7 @@ portal_apm/
 │   └── PortuariaExterna.sql          ← Esquema del maestro externo de personas que usa Portuaria
 │
 ├── INDICACIONES/                     ← Guías paso a paso (instalación, integrar/actualizar módulos)
-│   ├── INSTALACION_MANUAL_WAMPSERVER.md          ← Instalación 100% manual en WampServer, sin SETUP_PROYECTO.ps1
+│   ├── GUIA_INSTALACION.html          ← Instalación completa: migrar este equipo tal cual, o instalar desde cero (XAMPP/Wamp)
 │   ├── GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md  ← Contrato para integrar un módulo nuevo (Patrón B) o actualizar uno existente
 │   ├── GUIA_SEGURIDAD_CONTRASENAS.html           ← Guía interactiva del esquema híbrido de contraseñas (v7.0)
 │   └── GUIA_SSO_LOGIN_ENTRE_MODULOS.md           ← Cómo usar sp_SSO_* / SsoClient.php para loguear un módulo nuevo (v7.0)
@@ -1171,7 +1171,7 @@ Ver `README.md` para instalación paso a paso completa tras clonar. Resumen:
    orden** entre sí (cada uno crea su base solo si no existe, y si otro ya
    la creó vacía la puebla igual) — no hay un orden obligatorio.
 6. Instalación 100% manual sin `SETUP_PROYECTO.ps1` (útil para WampServer o
-   para entender cada paso): `INDICACIONES/INSTALACION_MANUAL_WAMPSERVER.md`.
+   para entender cada paso): `INDICACIONES/GUIA_INSTALACION.html`.
 
 ---
 

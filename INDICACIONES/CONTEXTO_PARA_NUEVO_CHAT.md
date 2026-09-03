@@ -278,7 +278,7 @@ se describió en julio.
 |---|---|
 | "¿Cómo está estructurado X?" | `DOCUMENTACION_SISTEMA.md` |
 | "¿Cómo integro un módulo nuevo o actualizo uno existente?" | `INDICACIONES/GUIA_MODULOS_NUEVOS_Y_ACTUALIZACIONES.md` |
-| "¿Cómo instalo esto de cero?" | `README.md` (automático) o `INDICACIONES/INSTALACION_MANUAL_WAMPSERVER.md` (manual) |
+| "¿Cómo instalo esto de cero?" | `README.md` (automático) o `INDICACIONES/GUIA_INSTALACION.html` (manual) |
 | "¿Qué falta por hacer?" | `docs/superpowers/specs/2026-07-26-central-features-hardening-design.md` (verificar vigencia primero, ver arriba) |
 | Esquema real de un módulo integrado | `Z.BASES DE DATOS/*.sql` |
 | "¿Por qué el sidebar/la página se ve rara después de guardar algo?" | Revisar `data-bypass` en el `<form>` — ver regla de SweetAlert2 arriba |
