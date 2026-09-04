@@ -62,7 +62,35 @@ git clone https://github.com/JoseSantana-19/portal_apm.git
 cd portal_apm
 ```
 
-### 3.2. Base de datos principal — `PORTAL_APM`
+### 3.2. Base de datos — atajo recomendado: restaurar las 5 bases completas
+
+`Z.BASES DE DATOS/*_sql2014.sql` (`PORTAL_APM_sql2014.sql`, `Talento_Humano_sql2014.sql`,
+`inventario_sql2014.sql`, `PortuariaDemo_sql2014.sql`, `PortuariaExterna_sql2014.sql`) —
+un archivo por base, generados desde el servidor real con SMO
+(compatibilidad SQL Server 2014 en adelante), **cada uno ya trae esquema
+completo (tablas, índices, PK/FK/CHECK, disparadores, vistas, funciones,
+procedimientos) Y todos los datos reales actuales** — no hace falta correr
+ninguna migración incremental después, ya están todas incorporadas.
+
+```
+php db/run_sql.php "Z.BASES DE DATOS\PORTAL_APM_sql2014.sql" .\INSTANCIA
+php db/run_sql.php "Z.BASES DE DATOS\Talento_Humano_sql2014.sql" .\INSTANCIA
+php db/run_sql.php "Z.BASES DE DATOS\inventario_sql2014.sql" .\INSTANCIA
+php db/run_sql.php "Z.BASES DE DATOS\PortuariaDemo_sql2014.sql" .\INSTANCIA
+php db/run_sql.php "Z.BASES DE DATOS\PortuariaExterna_sql2014.sql" .\INSTANCIA
+```
+
+(o abrir cada uno en SSMS y ejecutar con F5 — el script crea la base solo si
+no existe, y se detiene sin tocar nada si ya existe con ese nombre). Los
+dumps de `Talento_Humano`/`inventario` pesan unos MB en texto — si
+`run_sql.php` corta con error de memoria, correr con
+`php -d memory_limit=2G db/run_sql.php ...`.
+
+Con este atajo, saltar directo a la <a href="#35-configurar-configconnectionsphp">sección 3.5</a> — el resto de 3.2/3.3/3.4 de abajo es
+el camino manual alternativo (base vacía + migraciones sueltas), útil solo
+si se quiere instalar sin datos reales.
+
+### 3.2b. Camino manual — base vacía + migraciones (alternativa sin datos reales)
 
 Ejecutá en orden (SSMS, o `php db/run_sql.php <archivo> <servidor> [usuario] [password]`
 para hacerlo sin SSMS):
@@ -70,9 +98,10 @@ para hacerlo sin SSMS):
 1. **`Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql`** — crea la base `PORTAL_APM`
    (si no existe) con toda la estructura base, menú, usuarios y permisos.
    ⚠️ Si la base ya existe, este script la recrea (borra datos previos).
-   Compatible con SQL Server 2014 en adelante. La misma carpeta guarda los
-   esquemas de referencia de los módulos integrados (`Talento_Humano.sql`,
-   `inventario.sql`, `PortuariaDemo.sql`), también 2014+.
+   Compatible con SQL Server 2014 en adelante. Para los otros 4 módulos por
+   este camino (sin datos reales), crear cada base vacía a mano y aplicar
+   sus migraciones — ver 3.3/3.4. Si en cambio se quieren con datos reales
+   completos, usar el atajo de la sección 3.2 en vez de este camino manual.
 2. Migraciones incrementales de `db/` (idempotentes, se pueden re-ejecutar),
    **en este orden**:
    ```

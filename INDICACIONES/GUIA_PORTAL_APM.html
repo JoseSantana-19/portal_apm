@@ -4972,17 +4972,17 @@ renderTests();
 
       <div class="card">
         <h3>7.2 · Base de datos — dos caminos, elegir uno</h3>
-        <p><b>Camino A — restaurar los backups reales (recomendado, trae datos):</b></p>
+        <p><b>Camino A — restaurar las 5 bases completas (recomendado, ya listo en el repo):</b></p>
         <ul>
-          <li>Este proyecto incluye <code>INDICACIONES/generar_backups_sql2014.ps1</code>, que genera un <code>.sql</code> autocontenido (CREATE + INSERT, formato compatible desde SQL Server 2014) por cada una de las 5 bases — pensado justamente para llevarlas a otro motor sin depender de un <code>.bak</code> binario atado a la versión exacta del SQL Server de origen.</li>
-          <li><code>INDICACIONES/backup_completo_5_bases.sql</code> es el script que genera un <code>.bak</code> nativo de las 5 bases (más simple si el SQL Server destino es igual o más nuevo que el de origen — los <code>.bak</code> de SQL Server solo restauran "hacia adelante", nunca a una versión más vieja).</li>
-          <li>Correr el que corresponda, copiar el resultado a la PC nueva, restaurar con SSMS (<code>RESTORE DATABASE</code> para <code>.bak</code>, o simplemente ejecutar el <code>.sql</code> generado).</li>
+          <li><code>Z.BASES DE DATOS/PORTAL_APM_sql2014.sql</code>, <code>Talento_Humano_sql2014.sql</code>, <code>inventario_sql2014.sql</code>, <code>PortuariaDemo_sql2014.sql</code>, <code>PortuariaExterna_sql2014.sql</code> — un archivo por base, generados directo del servidor real con SMO (compatibilidad SQL Server 2014). <b>Cada uno ya trae esquema completo (tablas, índices, PK/FK/CHECK, disparadores, vistas, funciones, procedimientos) Y todos los datos reales actuales</b> — no hace falta correr ninguna migración incremental después, ya están todas incorporadas al momento de generarse.</li>
+          <li>Ejecutar cada uno con SSMS (F5) o <code>php db\run_sql.php "Z.BASES DE DATOS\NombreBD_sql2014.sql" .\INSTANCIA</code>. El script crea la base solo si no existe — si ya existe con ese nombre en el servidor destino, se detiene sin tocar nada (para no pisarla por error).</li>
+          <li>Los dumps de <code>Talento_Humano</code>/<code>inventario</code> pesan varios MB de texto — si <code>run_sql.php</code> corta con error de memoria (carga el archivo entero con <code>file_get_contents</code>), correr con <code>php -d memory_limit=2G db\run_sql.php ...</code>.</li>
+          <li>Para regenerarlos más adelante (después de nuevos cambios en el servidor real): <code>INDICACIONES/generar_backups_sql2014.ps1</code> — mismo script que los generó, Windows PowerShell 5.1 (no PowerShell 7) por el módulo SMO/SQLPS.</li>
+          <li><code>INDICACIONES/backup_completo_5_bases.sql</code> es la alternativa en <code>.bak</code> nativo (más simple si el SQL Server destino es igual o más nuevo que el de origen — un <code>.bak</code> solo restaura "hacia adelante", nunca a una versión más vieja que la que lo generó).</li>
         </ul>
         <p><b>Camino B — esquema vacío + migraciones (sin datos reales, solo estructura):</b></p>
         <ul>
-          <li>En <code>Z.BASES DE DATOS/</code> hay un script por base (<code>PORTAL_APM_COMPLETO.sql</code>, <code>Talento_Humano.sql</code>, <code>inventario.sql</code>, <code>PortuariaDemo.sql</code>, <code>PortuariaExterna.sql</code>) — DROP + CREATE, compatibles desde SQL Server 2014. Ejecutar con SSMS o <code>php db\run_sql.php "ruta\al\script.sql" .\INSTANCIA</code>.</li>
-          <li><code>Talento_Humano.sql</code> trae datos reales completos (dump de referencia); los otros 3 (aparte de <code>PORTAL_APM_COMPLETO.sql</code>) son solo estructura, sin datos.</li>
-          <li><b>Obligatorio después:</b> correr las migraciones de TH y Bienes posteriores a esos scripts base, o el login propio/MFA/bloqueo de TH y algunas pantallas de Bienes fallan con "Invalid column name". Ver <code>apps/talento_humano/database/th_schema_migrations</code> (tabla de control) o simplemente correr, en orden, todo lo que hay en <code>apps/talento_humano/database/*.sql</code> que no esté ya reflejado ahí — el propio <code>run_sql.php</code> deja registro de lo aplicado. Mismo criterio para <code>apps/control_bienes/database/migrations/*.sql</code>.</li>
+          <li><code>Z.BASES DE DATOS/PORTAL_APM_COMPLETO.sql</code> — DROP + CREATE de solo <code>PORTAL_APM</code>, compatible desde SQL Server 2014 (es el que usa <code>SETUP_PROYECTO.ps1</code>). Para los otros 4 módulos por este camino hay que crear cada base vacía a mano y aplicar sus migraciones — ver <code>apps/talento_humano/database/*.sql</code> y <code>apps/control_bienes/database/migrations/*.sql</code> (el propio <code>run_sql.php</code> deja registro de lo aplicado). Usar el Camino A en vez de este si se quieren datos reales completos sin ese trabajo manual.</li>
         </ul>
       </div>
 
@@ -5004,8 +5004,9 @@ renderTests();
     </section>
 
     <section id="credenciales">
-      <h2><span class="n">8</span> Credenciales iniciales (solo instalación desde cero)</h2>
+      <h2><span class="n">8</span> Credenciales iniciales (solo Camino B, esquema vacío)</h2>
       <div class="card">
+        <p>Esto aplica <b>únicamente</b> si se instaló con el Camino B (esquema vacío) de la sección 7.2. Con el Camino A (restaurar las 5 bases <code>_sql2014.sql</code> completas), ya vienen las cuentas reales actuales tal como están en el servidor de origen — entrar con esas, no con esto.</p>
         <p>El login del portal es <b>solo por cédula</b> (no hay campo de usuario). El único usuario que trae el seed de <code>PORTAL_APM_COMPLETO.sql</code> es una cuenta técnica sin vínculo a un empleado real:</p>
         <table>
           <tr><th>Cédula</th><th>Contraseña</th></tr>
