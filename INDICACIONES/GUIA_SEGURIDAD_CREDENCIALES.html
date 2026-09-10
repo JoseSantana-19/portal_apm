@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad de credenciales — Portal APM</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --panel3:#222c45; --border:#2a3450;
+  --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+  --primary:#4f7fff; --primary-soft:rgba(79,127,255,.14);
+  --ok:#22c55e; --ok-soft:rgba(34,197,94,.14);
+  --warn:#f59e0b; --warn-soft:rgba(245,158,11,.14);
+  --danger:#ef4444; --danger-soft:rgba(239,68,68,.14);
+  --purple:#a78bfa; --purple-soft:rgba(167,139,250,.14);
+  --cyan:#22d3ee; --cyan-soft:rgba(34,211,238,.14);
+  --radius:14px; --mono:Consolas,"SF Mono",Menlo,monospace;
+}
+:root:not([data-theme="dark"]){
+  --bg:#f4f6fb; --panel:#ffffff; --panel2:#eef1f8; --panel3:#e4e9f5; --border:#d8deec;
+  --text:#1b2237; --text-muted:#5b6584; --text-light:#8992ab;
+  --primary:#3358e0; --primary-soft:rgba(51,88,224,.1);
+  --ok:#16a34a; --ok-soft:rgba(22,163,74,.1);
+  --warn:#d97706; --warn-soft:rgba(217,119,6,.1);
+  --danger:#dc2626; --danger-soft:rgba(220,38,38,.1);
+  --purple:#7c5cd6; --purple-soft:rgba(124,92,214,.1);
+  --cyan:#0891b2; --cyan-soft:rgba(8,145,178,.1);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --panel3:#222c45; --border:#2a3450;
+    --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+  }
+}
+[data-theme="dark"]{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2438; --panel3:#222c45; --border:#2a3450;
+  --text:#e8ecf5; --text-muted:#8b96b3; --text-light:#5c6785;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; line-height:1.65; font-size:1rem;}
+a{color:var(--primary); text-decoration:none;}
+code{font-family:var(--mono); background:var(--panel3); color:var(--primary); padding:2px 8px; border-radius:6px; font-size:.86em;}
+b{color:var(--text);}
+h2,h3,h4{color:var(--text);}
+
+.layout{display:flex; max-width:1220px; margin:0 auto;}
+.side{position:fixed; top:0; left:max(0px, calc(50% - 610px)); width:240px; height:100vh; overflow-y:auto; padding:26px 14px 60px; background:var(--panel); border-right:1px solid var(--border);}
+.side .brand{font-weight:800; font-size:.95rem; padding:4px 10px 16px; display:flex; align-items:center; gap:8px;}
+.side .brand .ico{width:30px;height:30px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;}
+.side a{display:block; padding:7px 11px; border-radius:8px; color:var(--text-muted); font-size:.83rem; font-weight:600; border-left:2px solid transparent;}
+.side a:hover{background:var(--panel2); color:var(--text);}
+.side a.active{background:var(--primary-soft); color:var(--primary); border-left-color:var(--primary);}
+.side .themebtn{margin:14px 8px 0; width:calc(100% - 16px); background:var(--panel2); border:1px solid var(--border); color:var(--text-muted); border-radius:9px; padding:9px; cursor:pointer; font-size:.78rem; font-family:inherit; font-weight:700;}
+@media(max-width:1000px){.side{display:none;}}
+
+.content{flex:1; min-width:0; margin-left:240px; padding:38px 30px 120px; max-width:920px;}
+@media(max-width:1000px){.content{margin-left:0;}}
+
+header.hero{text-align:center; padding:38px 26px; margin-bottom:28px; background:linear-gradient(160deg,var(--panel),var(--panel2)); border:1px solid var(--border); border-radius:var(--radius);}
+header.hero .kicker{font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--primary); margin-bottom:10px;}
+header.hero h1{margin:0 0 14px; font-size:1.95rem;}
+header.hero p{margin:0 auto; max-width:640px; color:var(--text-muted);}
+
+.big-idea{background:var(--ok-soft); border:2px solid var(--ok); border-radius:var(--radius); padding:20px 26px; margin-bottom:34px; font-size:1.05rem; font-weight:600;}
+.big-idea span{display:block; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; font-weight:800; color:var(--ok); margin-bottom:8px;}
+
+section{margin-bottom:52px; scroll-margin-top:20px;}
+section > h2{font-size:1.45rem; margin:0 0 6px; display:flex; align-items:center; gap:12px;}
+section > h2 .n{width:34px; height:34px; border-radius:10px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.95rem; font-weight:800; flex-shrink:0;}
+section > .sub{color:var(--text-muted); margin:0 0 22px; font-size:.95rem;}
+
+.card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px; margin-bottom:18px;}
+.card h3{margin:0 0 12px; font-size:1.08rem;}
+.card h4{margin:16px 0 8px; font-size:.96rem;}
+.card p{margin:0 0 12px; color:var(--text-muted);}
+.card p:last-child{margin-bottom:0;}
+.card ul,.card ol{margin:0 0 12px; padding-left:22px; color:var(--text-muted);}
+.card li{margin-bottom:7px;}
+.card li b{color:var(--text);}
+
+.eli5{background:var(--warn-soft); border-left:4px solid var(--warn); border-radius:0 12px 12px 0; padding:14px 18px; margin:14px 0; font-size:.94rem;}
+.eli5 .lbl{font-weight:800; color:var(--warn); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+.eli5 b{color:var(--text);}
+
+.danger-box{background:var(--danger-soft); border-left:4px solid var(--danger); border-radius:0 12px 12px 0; padding:14px 18px; margin:14px 0; font-size:.92rem;}
+.danger-box .lbl{font-weight:800; color:var(--danger); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+.ok-box{background:var(--ok-soft); border-left:4px solid var(--ok); border-radius:0 12px 12px 0; padding:14px 18px; margin:14px 0; font-size:.92rem;}
+.ok-box .lbl{font-weight:800; color:var(--ok); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+
+/* Flujo de 3 capas */
+.layers{display:flex; flex-direction:column; gap:0; margin:20px 0;}
+.lyr{display:flex; gap:16px;}
+.lyr .col{display:flex; flex-direction:column; align-items:center; flex-shrink:0;}
+.lyr .dot{width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; color:#fff;}
+.lyr:nth-child(1) .dot{background:var(--cyan);}
+.lyr:nth-child(3) .dot{background:var(--purple);}
+.lyr:nth-child(5) .dot{background:var(--ok);}
+.lyr .line{flex:1; width:2px; background:var(--border); min-height:18px;}
+.lyr .body{padding-bottom:22px; flex:1;}
+.lyr .body h4{margin:6px 0 4px; font-size:1rem;}
+.lyr .body p{margin:0 0 8px; font-size:.9rem; color:var(--text-muted);}
+.lyr .where{font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:3px 9px; border-radius:99px; display:inline-block;}
+.lyr:nth-child(1) .where{background:var(--cyan-soft); color:var(--cyan);}
+.lyr:nth-child(3) .where{background:var(--purple-soft); color:var(--purple);}
+.lyr:nth-child(5) .where{background:var(--ok-soft); color:var(--ok);}
+
+/* Demo interactivo */
+.demo{background:var(--panel2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin:18px 0;}
+.demo label{display:block; font-size:.8rem; font-weight:700; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em;}
+.demo input[type=text]{width:100%; padding:11px 14px; border-radius:9px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:.95rem; font-family:var(--mono);}
+.demo input:focus{outline:none; border-color:var(--primary);}
+.demo .step{margin-top:14px; padding:12px 14px; background:var(--panel); border:1px solid var(--border); border-radius:10px;}
+.demo .step .t{font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--text-light); margin-bottom:5px;}
+.demo .step .v{font-family:var(--mono); font-size:.82rem; word-break:break-all; color:var(--text);}
+.demo .step.c1 .t{color:var(--cyan);}
+.demo .step.c2 .t{color:var(--purple);}
+.demo .step.c3 .t{color:var(--ok);}
+.demo .arrow{text-align:center; color:var(--text-light); font-size:1.1rem; margin:2px 0;}
+
+/* TOTP demo */
+.totp{display:flex; align-items:center; gap:18px; flex-wrap:wrap; background:var(--panel2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:16px 0;}
+.totp .code{font-family:var(--mono); font-size:2.4rem; font-weight:800; letter-spacing:.15em; color:var(--primary);}
+.totp .ring{position:relative; width:56px; height:56px;}
+.totp .ring svg{transform:rotate(-90deg);}
+.totp .ring .t{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.9rem; font-weight:800;}
+.totp .meta{font-size:.85rem; color:var(--text-muted);}
+
+table{width:100%; border-collapse:collapse; margin:14px 0; font-size:.88rem;}
+th{text-align:left; color:var(--text-muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; padding:8px 12px; border-bottom:2px solid var(--border);}
+td{padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+
+.codebox{background:var(--panel3); border:1px solid var(--border); border-radius:10px; margin:14px 0; overflow:hidden;}
+.codebox .cb-head{display:flex; justify-content:space-between; align-items:center; padding:8px 14px; background:var(--panel2); border-bottom:1px solid var(--border); font-size:.76rem; color:var(--text-muted); font-weight:700;}
+.codebox .cb-copy{background:none; border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:3px 10px; font-size:.72rem; cursor:pointer; font-family:inherit;}
+.codebox .cb-copy:hover{border-color:var(--primary); color:var(--primary);}
+.codebox pre{margin:0; padding:14px 16px; overflow-x:auto; font-family:var(--mono); font-size:.82rem; line-height:1.55; color:var(--text);}
+.tok-kw{color:#c678dd;} .tok-str{color:#98c379;} .tok-fn{color:#61afef;} .tok-com{color:var(--text-light); font-style:italic;} .tok-var{color:#e06c75;}
+[data-theme="dark"] .tok-kw, :root:not([data-theme="light"]) .tok-kw{color:#c678dd;}
+
+.checklist{list-style:none; margin:0; padding:0;}
+.checklist li{display:flex; gap:11px; padding:10px 0; border-bottom:1px solid var(--border); color:var(--text-muted); cursor:pointer;}
+.checklist li:last-child{border-bottom:none;}
+.checklist li::before{content:"☐"; color:var(--primary); font-size:1.15rem; flex-shrink:0; line-height:1.3;}
+.checklist li.done::before{content:"☑";}
+.checklist li.done{color:var(--text-light); text-decoration:line-through;}
+.checklist li b{color:var(--text);}
+.checklist li.done b{color:var(--text-light);}
+
+.pill-row{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;}
+.pill{font-size:.72rem; font-weight:800; padding:4px 11px; border-radius:99px;}
+.pill.a{background:var(--cyan-soft); color:var(--cyan);}
+.pill.b{background:var(--purple-soft); color:var(--purple);}
+.pill.c{background:var(--ok-soft); color:var(--ok);}
+.pill.d{background:var(--warn-soft); color:var(--warn);}
+
+footer{text-align:center; padding:34px; color:var(--text-light); font-size:.82rem;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side" id="side">
+    <div class="brand"><span class="ico">🔐</span> Seguridad de credenciales</div>
+    <a href="#idea">La idea en 1 frase</a>
+    <a href="#capas">Las 3 capas</a>
+    <a href="#demo3">Demo: mirá transformarse tu clave</a>
+    <a href="#pepper">El "pepper" (ingrediente secreto)</a>
+    <a href="#migracion">Migración sin romper cuentas</a>
+    <a href="#tokens">Tokens — 4 tipos, no confundir</a>
+    <a href="#mfa">MFA / TOTP (código de 6 dígitos)</a>
+    <a href="#modulo-nuevo">Conectar un módulo NUEVO</a>
+    <a href="#checklist">Checklist de seguridad</a>
+    <a href="#errores">Errores que NO hay que cometer</a>
+    <button class="themebtn" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">☀️ / 🌙 Cambiar tema</button>
+  </nav>
+
+  <main class="content">
+    <header class="hero">
+      <div class="kicker">Portal APM · Autoridad Portuaria de Manta</div>
+      <h1>Cómo se protegen las contraseñas y los tokens</h1>
+      <p>Explicado de lo más simple a lo más técnico, con demos que podés tocar. Al final: cómo enchufar un módulo nuevo sin agujerear la seguridad. Complementa la sección "Seguridad de contraseñas" de <code>GUIA_PORTAL_APM.html</code> — acá el foco es <b>entenderlo y usarlo en un módulo nuevo</b>.</p>
+    </header>
+
+    <div class="big-idea">
+      <span>🎯 Lo único que hay que grabarse</span>
+      La contraseña de verdad <b>NUNCA</b> viaja por la red tal cual, y <b>NUNCA</b> se guarda en ninguna base de datos. Ni el navegador la manda, ni el servidor la conoce. Lo que se guarda es una huella imposible de revertir — y ni siquiera de esa huella se puede sacar la clave sin un secreto que vive aparte.
+    </div>
+
+    <!-- ============ 1 ============ -->
+    <section id="idea">
+      <h2><span class="n">1</span> La idea, para un chico de 10 años</h2>
+      <p class="sub">Sin una sola palabra técnica todavía.</p>
+
+      <div class="card">
+        <div class="eli5">
+          <div class="lbl">🧒 Analogía</div>
+          Imaginá que tu contraseña es un <b>dibujo secreto</b>. En vez de mandar el dibujo por correo (cualquiera lo podría ver en el camino), lo pasás por una <b>máquina de picar papel muy especial</b>: mete el dibujo y saca un montón de confeti único. Con ESE confeti nadie puede rearmar el dibujo — pero si mañana traés el mismo dibujo, sale <b>exactamente el mismo confeti</b>. El sistema guarda el confeti, no el dibujo. Cuando querés entrar, volvés a picar tu dibujo y comparan confeti con confeti.
+        </div>
+        <p>Y todavía hay un truco más: antes de guardar el confeti, el servidor le agrega un <b>polvo mágico invisible</b> que solo él tiene (el "pepper"). Aunque un ladrón se robe TODOS los confetis guardados, sin el polvo mágico no le sirven de nada.</p>
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section id="capas">
+      <h2><span class="n">2</span> Las 3 capas (ahora sí, con nombres)</h2>
+      <p class="sub">La clave pasa por 3 transformaciones, en 3 lugares distintos. Cada una hace algo que la anterior no puede.</p>
+
+      <div class="card">
+        <div class="layers">
+          <div class="lyr">
+            <div class="col"><div class="dot">1️⃣</div><div class="line"></div></div>
+            <div class="body">
+              <span class="where">En el navegador</span>
+              <h4>SHA-256 sobre la contraseña</h4>
+              <p>Antes de que el formulario se envíe, JavaScript (<code>js/password-hash.js</code>, función <code>hashPasswordFieldsBeforeSubmit</code>) toma la contraseña escrita y la reemplaza por su <b>SHA-256</b> — 64 caracteres hexadecimales. Usa <code>crypto.subtle.digest('SHA-256', ...)</code>, la API nativa del navegador.</p>
+              <p><b>Por qué:</b> si alguien está espiando la red (o el servidor tiene un bug y loguea lo que recibe), nunca ve la contraseña real — solo su huella. Requiere contexto seguro (HTTPS, o <code>localhost</code> en desarrollo); si no hay <code>crypto.subtle</code>, el form cae a envío normal (el servidor igual lo maneja, pero sin esta capa).</p>
+              <div class="eli5"><div class="lbl">🧒</div> SHA-256 = la máquina de picar papel. Mismo dibujo → mismo confeti, siempre. Confeti → dibujo: <b>imposible</b>.</div>
+            </div>
+          </div>
+          <div class="lyr">
+            <div class="col"><div class="dot">2️⃣</div><div class="line"></div></div>
+            <div class="body">
+              <span class="where">En el servidor</span>
+              <h4>HMAC-SHA256 con el pepper compartido</h4>
+              <p>El servidor recibe ese SHA-256 y le aplica <code>hash_hmac('sha256', $valor, $PEPPER)</code>. El <b>pepper</b> es un secreto de 32 bytes aleatorios que vive en <code>PORTAL_APM.CORE_Config</code> (clave <code>PASSWORD_PEPPER</code>), <b>igual para portal, Talento Humano, Control de Bienes, Bitácoras y cualquier módulo futuro</b>. Nunca está en el código fuente.</p>
+              <p><b>Por qué:</b> si se filtra la base de datos entera de contraseñas, el atacante tiene los hashes pero NO el pepper (está en otra tabla, y lo ideal es en otra base o servidor). Sin el pepper no puede ni siquiera intentar adivinar contraseñas por fuerza bruta — porque lo que bcrypt terminó hasheando ni siquiera es la contraseña.</p>
+              <div class="eli5"><div class="lbl">🧒</div> El pepper = el polvo mágico invisible. No está escrito en la receta. Sin él, el confeti robado no sirve.</div>
+            </div>
+          </div>
+          <div class="lyr">
+            <div class="col"><div class="dot">3️⃣</div></div>
+            <div class="body">
+              <span class="where">En el servidor</span>
+              <h4>bcrypt (cost 12)</h4>
+              <p>Al resultado del paso 2 se le aplica <code>password_hash($peppered, PASSWORD_BCRYPT, ['cost' => 12])</code>. bcrypt es <b>lento a propósito</b> (cost 12 ≈ 4096 rondas internas) y agrega su propia sal aleatoria por cada contraseña. Lo que se guarda en la BD arranca con <code>peppered:$2y$12$...</code>.</p>
+              <p><b>Por qué:</b> aunque un atacante tuviera el pepper, probar millones de contraseñas por segundo se vuelve inviable — cada intento cuesta tiempo real de CPU. La sal por-hash hace que dos usuarios con la misma contraseña tengan hashes distintos.</p>
+              <div class="eli5"><div class="lbl">🧒</div> bcrypt = una cerradura que tarda 1 segundo en abrir. A vos no te molesta 1 segundo al entrar. A un ladrón que necesita probar 10 millones de llaves, sí.</div>
+            </div>
+          </div>
+        </div>
+        <div class="ok-box"><div class="lbl">✅ resultado</div> Lo guardado: <code>peppered:$2y$12$Km9x...</code>. De ahí no sale la contraseña ni con la BD entera + tiempo + plata, mientras el pepper siga secreto.</div>
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section id="demo3">
+      <h2><span class="n">3</span> Demo — mirá tu clave transformarse</h2>
+      <p class="sub">Escribí cualquier cosa. Se calcula en TU navegador, nada se envía. Los pasos 1 y 2 son reales (crypto nativo). El paso 3 (bcrypt) se muestra como esquema — bcrypt solo corre en el servidor.</p>
+
+      <div class="demo">
+        <label for="demoPass">Contraseña de prueba</label>
+        <input type="text" id="demoPass" placeholder="ej: MiClaveSegura2026" value="MiClaveSegura2026" autocomplete="off">
+        <div class="step c1">
+          <div class="t">1 · SHA-256 (navegador) — esto es lo que sale del form al servidor</div>
+          <div class="v" id="demoSha">…</div>
+        </div>
+        <div class="arrow">↓ el servidor recibe SOLO esa línea, nunca la contraseña</div>
+        <div class="step c2">
+          <div class="t">2 · HMAC-SHA256 con el pepper (servidor) — pepper de demo, el real vive en CORE_Config</div>
+          <div class="v" id="demoHmac">…</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="step c3">
+          <div class="t">3 · bcrypt cost 12 (servidor) — esquema, lo real lo hace password_hash()</div>
+          <div class="v" id="demoBcrypt">peppered:$2y$12$<span style="color:var(--text-light)">[sal 22 chars][hash 31 chars]</span></div>
+        </div>
+      </div>
+      <p style="font-size:.85rem; color:var(--text-light)">Cambiá una sola letra y mirá cómo cambia TODO desde el paso 1 — así se sabe que dos contraseñas parecidas no dan hashes parecidos.</p>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section id="pepper">
+      <h2><span class="n">4</span> El pepper, en detalle</h2>
+      <p class="sub">La pieza que hace que "se robaron la base de datos" no sea game over.</p>
+
+      <div class="card">
+        <table>
+          <tr><th>Qué</th><th>Detalle real</th></tr>
+          <tr><td>Dónde vive</td><td><code>PORTAL_APM.CORE_Config</code> → fila <code>modulo='CORE'</code>, <code>clave='PASSWORD_PEPPER'</code>, <code>estado=1</code></td></tr>
+          <tr><td>Cómo nace</td><td><code>bin2hex(random_bytes(32))</code> — 64 hex, aleatorio criptográfico real. Se autogenera la primera vez que se necesita si la fila no existe.</td></tr>
+          <tr><td>Quién lo usa</td><td>Portal + los 3 módulos embebidos + cualquier módulo nuevo (vía <code>SecurityHelper</code> copiado, o vía <code>SsoClient</code>). <b>El mismo valor en todos</b> — por eso una cuenta creada en TH puede loguear en el portal y viceversa.</td></tr>
+          <tr><td>Nunca</td><td>En el código fuente. Ni en git. Ni en un <code>.env</code> commiteado. Solo en la BD (y el mismo mecanismo ya se usa para <code>SSO_SECRET</code> y <code>MFA_ENCRYPTION_KEY</code>).</td></tr>
+          <tr><td>Si la BD no responde</td><td><code>passwordPepper()</code> lanza <code>RuntimeException</code> — <b>falla fuerte a propósito</b>. Mejor no poder loguear que degradar en silencio a un esquema sin pepper.</td></tr>
+        </table>
+        <div class="danger-box"><div class="lbl">⚠️ al migrar a otra PC</div> Si restaurás <code>PORTAL_APM</code> desde el dump, el pepper viene adentro (es una fila de <code>CORE_Config</code>) — las contraseñas existentes siguen funcionando. Si en cambio creás <code>PORTAL_APM</code> vacía, se genera un pepper NUEVO y los hashes viejos que hubieras traído aparte ya no validan. Regla: pepper y hashes viajan juntos o no viajan.</div>
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section id="migracion">
+      <h2><span class="n">5</span> Migración perezosa — nadie queda afuera</h2>
+      <p class="sub">Cómo se pasó del esquema viejo (bcrypt directo) al nuevo (con pepper) sin bloquear a un solo usuario.</p>
+
+      <div class="card">
+        <ul>
+          <li>El hash nuevo lleva el prefijo <code>peppered:</code>. El viejo es un bcrypt pelado (<code>$2y$12$...</code>) — se distinguen a simple vista.</li>
+          <li><code>verifyPassword()</code> mira el prefijo: si tiene <code>peppered:</code> → aplica HMAC+pepper y compara; si no → compara bcrypt directo (esquema viejo). <b>Acepta los dos.</b></li>
+          <li>Después de un login exitoso, <code>passwordNeedsRehash($hash)</code> devuelve <code>true</code> si todavía era del esquema viejo → el caller regraba con <code>hashPassword()</code> (nuevo). El usuario ni se entera.</li>
+          <li>Resultado: la primera vez que cada persona entra tras el cambio, su hash se actualiza solo. No hay "corré este script para todos" ni cuentas trabadas.</li>
+        </ul>
+        <div class="eli5"><div class="lbl">🧒</div> Es como cambiar todas las cerraduras de un edificio sin pedirle la llave a nadie: la cerradura nueva acepta la llave vieja una vez, y en ese momento te entrega la llave nueva.</div>
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section id="tokens">
+      <h2><span class="n">6</span> Tokens — 4 tipos distintos, no mezclar</h2>
+      <p class="sub">"Token" se usa para 4 cosas diferentes en este sistema. Cada una resuelve un problema propio.</p>
+
+      <div class="card">
+        <table>
+          <tr><th>Token</th><th>Para qué</th><th>Forma / vida</th></tr>
+          <tr>
+            <td><span class="pill d">CSRF</span></td>
+            <td>Que un formulario que se envía sea de ESTA sesión y no de una página maliciosa en otra pestaña.</td>
+            <td><code>bin2hex(random_bytes(32))</code>, guardado en <code>$_SESSION['_csrf_token']</code>. Se compara con <code>hash_equals()</code>. Mismatch → redirige a login con "sesión venció" (código 419).</td>
+          </tr>
+          <tr>
+            <td><span class="pill c">Sesión PHP</span></td>
+            <td>Mantener el login entre páginas. Entre apps embebidas (<code>apps/*</code>) se comparte o se "espía" según el módulo (puente de sesión).</td>
+            <td>Cookie de sesión estándar de PHP. TH usa sesión propia + lectura puntual de la del portal; Bienes y Bitácoras comparten la misma sesión directamente.</td>
+          </tr>
+          <tr>
+            <td><span class="pill b">Token SSO</span></td>
+            <td>Login de una app <b>externa</b> (otro servidor, otro lenguaje) contra <code>CORE_Usuarios</code>, sin compartir sesión PHP.</td>
+            <td>Lo emite <code>sp_SSO_ConfirmarLogin</code>, hasta 128 chars, con expiración (<code>@exp</code>). Se valida con <code>sp_SSO_ValidarToken</code> y se cierra con <code>sp_SSO_CerrarSesion</code>. Ver sección 8, caso B.</td>
+          </tr>
+          <tr>
+            <td><span class="pill a">TOTP / MFA</span></td>
+            <td>Segundo factor: probar que además de la contraseña, tenés el celular con la app autenticadora.</td>
+            <td>Código de 6 dígitos que cambia cada 30 s (RFC 6238). El secreto del usuario se guarda cifrado con AES-256 (<code>MFA_ENCRYPTION_KEY</code> en <code>CORE_Config</code>). Ventana de frescura de 20 min al cambiar de módulo por <code>/ir</code>.</td>
+          </tr>
+        </table>
+        <div class="danger-box"><div class="lbl">⚠️ no confundir</div> Un token SSO NO es una sesión PHP. Un CSRF token NO sirve para autenticar. El código TOTP NO reemplaza la contraseña — es <b>además</b> de.</div>
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section id="mfa">
+      <h2><span class="n">7</span> MFA / TOTP — cómo un número de 6 dígitos prueba quién sos</h2>
+      <p class="sub">Opt-in por usuario. Mismo algoritmo en portal y en Talento Humano.</p>
+
+      <div class="card">
+        <div class="eli5"><div class="lbl">🧒</div> Vos y el servidor comparten un <b>número secreto larguísimo</b> (se acuerda una sola vez, escaneando un QR). Los dos tienen el mismo reloj. Cada 30 segundos, los dos hacen la misma cuenta: secreto + hora actual → 6 dígitos. Si tu número coincide con el del servidor en este momento, sos vos — porque nadie más tiene el secreto.</div>
+
+        <h4>Prueba en vivo</h4>
+        <p style="font-size:.88rem">Secreto de demo fijo. El código y el círculo se actualizan solos — así se ve el "cambia cada 30 s".</p>
+        <div class="totp">
+          <div class="ring">
+            <svg width="56" height="56"><circle cx="28" cy="28" r="24" stroke="var(--border)" stroke-width="4" fill="none"/><circle id="totpArc" cx="28" cy="28" r="24" stroke="var(--primary)" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+            <div class="t" id="totpSec">30</div>
+          </div>
+          <div class="code" id="totpCode">••••••</div>
+          <div class="meta">Secreto demo: <code>JBSWY3DPEHPK3PXP</code><br>período 30 s · 6 dígitos · SHA-1 (estándar RFC 6238)</div>
+        </div>
+
+        <h4>Detalles reales del código</h4>
+        <table>
+          <tr><td>Secreto nuevo</td><td><code>MfaHelper::generateSecret()</code> — 20 bytes aleatorios en base32</td></tr>
+          <tr><td>QR para el usuario</td><td><code>otpAuthUri($secret, $cuenta)</code> → <code>otpauth://totp/APM:...?secret=...&digits=6&period=30</code></td></tr>
+          <tr><td>Guardado</td><td>El secreto se cifra con AES-256 (<code>encryptSecret()</code>) antes de ir a la BD; se descifra solo en memoria para verificar</td></tr>
+          <tr><td>Verificación</td><td><code>MfaHelper::verify($secret, $code, $lastStep, $matchedStep)</code> — <code>$step = floor(time()/30)</code>, tolera ±1 paso, y devuelve el paso que matcheó para bloquear reuso del mismo código</td></tr>
+          <tr><td>Al cambiar de módulo</td><td>El gateway <code>/ir</code> re-pide TOTP si pasaron más de <code>MFA_FRESCURA_SEGUNDOS</code> (20 min) desde la última verificación</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section id="modulo-nuevo">
+      <h2><span class="n">8</span> Conectar un módulo NUEVO — sin agujerear nada</h2>
+      <p class="sub">Regla de oro: un módulo nuevo <b>nunca</b> inventa su propio hasheo de contraseñas. Elegí uno de estos 3 caminos según dónde vive el módulo.</p>
+
+      <div class="card">
+        <div class="danger-box"><div class="lbl">⛔ prohibido siempre</div> Guardar contraseñas con MD5, SHA-1/SHA-256 "a secas", bcrypt sin el pepper compartido, o comparar con <code>==</code> / <code>===</code>. Si tu módulo guarda credenciales propias, DEBE usar el mismo pepper de <code>CORE_Config</code> — si no, una cuenta no podrá cruzar entre módulos y bajás la seguridad de todo el conjunto.</div>
+      </div>
+
+      <div class="card">
+        <h3><span class="pill c">Caso A</span> Módulo PHP, mismo servidor, con acceso SQL a PORTAL_APM</h3>
+        <p>Es el más común (como Talento Humano y Control de Bienes). No manejás contraseñas vos — delegás el login al directorio central con <code>SsoClient</code>.</p>
+        <ol>
+          <li><b>Registrar la app</b> en el SSO: se le da de alta en la tabla de aplicaciones y se recibe una <code>api_key</code> de 64 chars (ver <code>db/sso_module_login.sql</code> y <code>GUIA_PORTAL_APM.html</code> §6b).</li>
+          <li><b>Copiar</b> <code>libs/SsoClient.php</code> al módulo (o incluirlo por ruta si comparte filesystem).</li>
+          <li><b>Login:</b></li>
+        </ol>
+        <div class="codebox">
+          <div class="cb-head"><span>PHP — login de un módulo nuevo vía SSO</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+<pre><span class="tok-kw">require</span> <span class="tok-str">'libs/SsoClient.php'</span>;
+
+<span class="tok-var">$sso</span> = <span class="tok-kw">new</span> <span class="tok-fn">SsoClient</span>([
+    <span class="tok-str">'server'</span>  =&gt; <span class="tok-str">'.\\VICTUS'</span>,          <span class="tok-com">// o el server real</span>
+    <span class="tok-str">'database'</span> =&gt; <span class="tok-str">'PORTAL_APM'</span>,
+    <span class="tok-str">'app'</span>     =&gt; <span class="tok-str">'MI_MODULO_NUEVO'</span>,     <span class="tok-com">// nombre con que se registró</span>
+    <span class="tok-str">'api_key'</span> =&gt; <span class="tok-var">$MI_API_KEY</span>,          <span class="tok-com">// de config, NUNCA hardcodeada</span>
+]);
+
+<span class="tok-var">$r</span> = <span class="tok-var">$sso</span>-&gt;<span class="tok-fn">login</span>(<span class="tok-var">$usuario</span>, <span class="tok-var">$claveSha256DelNavegador</span>);
+<span class="tok-kw">if</span> (<span class="tok-var">$r</span>[<span class="tok-str">'ok'</span>]) {
+    <span class="tok-var">$_SESSION</span>[<span class="tok-str">'sso_token'</span>] = <span class="tok-var">$r</span>[<span class="tok-str">'token'</span>];
+    <span class="tok-var">$_SESSION</span>[<span class="tok-str">'usuario'</span>]   = <span class="tok-var">$r</span>[<span class="tok-str">'usuario'</span>]; <span class="tok-com">// id, nombre, nivel_jerarquia, ...</span>
+} <span class="tok-kw">else</span> {
+    <span class="tok-com">// $r['error'] = mensaje genérico; $r['resultado'] = código exacto</span>
+}
+
+<span class="tok-com">// en cada request posterior:</span>
+<span class="tok-var">$v</span> = <span class="tok-var">$sso</span>-&gt;<span class="tok-fn">validate</span>(<span class="tok-var">$_SESSION</span>[<span class="tok-str">'sso_token'</span>]);
+<span class="tok-kw">if</span> (!<span class="tok-var">$v</span>[<span class="tok-str">'ok'</span>]) { <span class="tok-com">/* token vencido o revocado → re-login */</span> }
+</pre>
+        </div>
+        <div class="ok-box"><div class="lbl">✅</div> El SSO verifica bcrypt+pepper por vos, registra intentos fallidos, aplica bloqueo escalado, y devuelve nivel jerárquico. Tu módulo no toca contraseñas.</div>
+      </div>
+
+      <div class="card">
+        <h3><span class="pill b">Caso B</span> Módulo en OTRO servidor, u otro lenguaje (Node, Python, C#...)</h3>
+        <p>Sin acceso SQL directo a <code>PORTAL_APM</code>. Se usan los endpoints HTTP equivalentes del portal:</p>
+        <table>
+          <tr><th>Endpoint</th><th>Qué hace</th></tr>
+          <tr><td><code>POST /api/sso/login</code></td><td>body: <code>app</code>, <code>api_key</code>, <code>usuario</code>, <code>password</code> (el SHA-256 del navegador). Devuelve <code>token</code> + <code>expira</code> + datos del usuario.</td></tr>
+          <tr><td><code>POST /api/sso/validate</code></td><td>body: <code>app</code>, <code>api_key</code>, <code>token</code>. Devuelve si sigue válido + datos del usuario.</td></tr>
+          <tr><td><code>POST /api/sso/logout</code></td><td>body: <code>app</code>, <code>api_key</code>, <code>token</code>. Cierra esa sesión central.</td></tr>
+        </table>
+        <p>El módulo guarda el <code>token</code> en su propia sesión/cookie y revalida cada tanto. Mismo modelo de seguridad que el Caso A, solo que la verificación de bcrypt+pepper ocurre del lado del portal.</p>
+      </div>
+
+      <div class="card">
+        <h3><span class="pill c">Caso C</span> App embebida bajo <code>apps/</code> (comparte servidor y sesión con el portal)</h3>
+        <p>Como Bitácoras. No hay login propio: se lee la sesión que el portal ya dejó.</p>
+        <ul>
+          <li>Un guard al inicio de cada página revisa <code>$_SESSION['user_id']</code> (o su traducción local). Si no está → <code>header('Location: '.APP_URL.'/login')</code>.</li>
+          <li><b>Cero manejo de contraseñas.</b> Si el código nativo esperaba sus propios datos de usuario en otra forma, se traducen desde la sesión del portal una vez (patrón <code>hydrateFromPortal()</code>).</li>
+          <li>Detalle código-a-código del puente de sesión: <code>GUIA_PORTAL_APM.html</code> §14.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Del lado del navegador (cualquiera de los 3 casos)</h3>
+        <p>Para que la contraseña salga ya como SHA-256 y nunca viaje en texto plano, el formulario de login del módulo nuevo tiene que:</p>
+        <div class="codebox">
+          <div class="cb-head"><span>HTML + JS — form de login de un módulo nuevo</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+<pre><span class="tok-com">&lt;!-- 1. incluir el mismo archivo físico del portal --&gt;</span>
+&lt;<span class="tok-kw">script</span> src=<span class="tok-str">"&lt;?= APP_URL ?&gt;/js/password-hash.js"</span>&gt;&lt;/<span class="tok-kw">script</span>&gt;
+
+&lt;<span class="tok-kw">form</span> id=<span class="tok-str">"loginForm"</span> method=<span class="tok-str">"post"</span> action=<span class="tok-str">"/login"</span>&gt;
+  &lt;<span class="tok-kw">input</span> type=<span class="tok-str">"text"</span> name=<span class="tok-str">"usuario"</span>&gt;
+  &lt;<span class="tok-kw">input</span> type=<span class="tok-str">"password"</span> name=<span class="tok-str">"password"</span>&gt;
+  <span class="tok-com">&lt;!-- + campo CSRF --&gt;</span>
+&lt;/<span class="tok-kw">form</span>&gt;
+
+&lt;<span class="tok-kw">script</span>&gt;
+document.<span class="tok-fn">getElementById</span>(<span class="tok-str">'loginForm'</span>).<span class="tok-fn">addEventListener</span>(<span class="tok-str">'submit'</span>, <span class="tok-kw">async</span> <span class="tok-kw">function</span> (e) {
+  <span class="tok-kw">if</span> (window.hashPasswordFieldsBeforeSubmit &amp;&amp; !<span class="tok-kw">this</span>.dataset.hashed) {
+    e.<span class="tok-fn">preventDefault</span>();
+    <span class="tok-kw">await</span> window.<span class="tok-fn">hashPasswordFieldsBeforeSubmit</span>(<span class="tok-kw">this</span>, [<span class="tok-str">'password'</span>]);
+    <span class="tok-kw">this</span>.dataset.hashed = <span class="tok-str">'1'</span>;
+    <span class="tok-kw">this</span>.<span class="tok-fn">submit</span>();
+  }
+});
+&lt;/<span class="tok-kw">script</span>&gt;
+</pre>
+        </div>
+        <p style="font-size:.86rem; color:var(--text-light)">El servidor (SSO o <code>SecurityHelper</code>) asume que <code>password</code> ya llega como 64 hex. Si <code>crypto.subtle</code> no está (sin HTTPS y sin localhost), llega en texto plano y el server igual lo procesa — pero perdés la capa 1. En producción: HTTPS sí o sí.</p>
+      </div>
+
+      <div class="card">
+        <h3>Si el módulo nuevo guarda credenciales PROPIAS (no recomendado, pero a veces pasa)</h3>
+        <p>Copiá <code>helpers/security_helper.php</code> tal cual y usá <b>solo</b> estas dos funciones — nunca <code>password_hash()</code> a mano:</p>
+        <div class="codebox">
+          <div class="cb-head"><span>PHP — hashear/verificar con el esquema del sistema</span><button class="cb-copy" onclick="copyCode(this)">Copiar</button></div>
+<pre><span class="tok-com">// al crear/cambiar una contraseña:</span>
+<span class="tok-var">$hash</span> = SecurityHelper::<span class="tok-fn">hashPassword</span>(<span class="tok-var">$claveSha256DelNavegador</span>);
+<span class="tok-com">// guardar $hash tal cual (arranca con "peppered:")</span>
+
+<span class="tok-com">// al validar un login:</span>
+<span class="tok-kw">if</span> (SecurityHelper::<span class="tok-fn">verifyPassword</span>(<span class="tok-var">$claveSha256DelNavegador</span>, <span class="tok-var">$hashGuardado</span>)) {
+    <span class="tok-kw">if</span> (SecurityHelper::<span class="tok-fn">passwordNeedsRehash</span>(<span class="tok-var">$hashGuardado</span>)) {
+        <span class="tok-var">$nuevo</span> = SecurityHelper::<span class="tok-fn">hashPassword</span>(<span class="tok-var">$claveSha256DelNavegador</span>);
+        <span class="tok-com">// UPDATE ... SET clave = $nuevo</span>
+    }
+    <span class="tok-com">// login OK</span>
+}
+</pre>
+        </div>
+        <p><b>Requisito:</b> el módulo necesita conexión SQL a <code>PORTAL_APM</code> para leer <code>PASSWORD_PEPPER</code> de <code>CORE_Config</code> — es lo que hace que una contraseña sea la misma en todos lados. Sin ese acceso, andá por Caso B (HTTP).</p>
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section id="checklist">
+      <h2><span class="n">9</span> Checklist de seguridad para el módulo nuevo</h2>
+      <p class="sub">Tocá cada línea para marcarla. Se guarda en este navegador.</p>
+      <div class="card">
+        <ul class="checklist" id="chk">
+          <li data-k="c1"><b>El form de login incluye <code>js/password-hash.js</code></b> y llama <code>hashPasswordFieldsBeforeSubmit</code> antes de enviar.</li>
+          <li data-k="c2"><b>El servidor asume que la contraseña llega como SHA-256</b> (64 hex), no como texto plano.</li>
+          <li data-k="c3"><b>No hay ni un <code>md5()</code>, <code>sha1()</code>, <code>hash('sha256', $clave)</code> ni <code>password_hash()</code> suelto</b> en el módulo para guardar credenciales.</li>
+          <li data-k="c4"><b>El login va por SSO</b> (<code>SsoClient</code> o <code>/api/sso/*</code>) <b>o</b> por <code>SecurityHelper::hashPassword/verifyPassword</code> con el pepper de <code>CORE_Config</code>.</li>
+          <li data-k="c5"><b>Toda comparación de secretos usa <code>hash_equals()</code></b>, nunca <code>==</code>/<code>===</code>.</li>
+          <li data-k="c6"><b>La <code>api_key</code> / credenciales de BD viven en config fuera de git</b>, no hardcodeadas.</li>
+          <li data-k="c7"><b>Los formularios que hacen cambios llevan CSRF token</b> y el backend lo valida con <code>verifyCsrf()</code>.</li>
+          <li data-k="c8"><b>Producción sobre HTTPS</b> (si no, la capa SHA-256 del navegador no corre).</li>
+          <li data-k="c9"><b>Si el módulo maneja datos sensibles</b>, respeta el gateway <code>/ir</code> para el re-chequeo de MFA al entrar desde el portal.</li>
+          <li data-k="c10"><b>El módulo NO guarda el pepper, ni <code>SSO_SECRET</code>, ni <code>MFA_ENCRYPTION_KEY</code></b> en ningún lado propio — los lee de <code>CORE_Config</code> en cada arranque.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section id="errores">
+      <h2><span class="n">10</span> Errores que NO hay que cometer</h2>
+      <div class="card">
+        <table>
+          <tr><th>❌ Mal</th><th>✅ Bien</th></tr>
+          <tr><td><code>md5($clave)</code> / <code>sha1($clave)</code> para guardar</td><td>SSO, o <code>SecurityHelper::hashPassword()</code></td></tr>
+          <tr><td><code>hash('sha256', $clave)</code> y guardar ESO en la BD</td><td>El SHA-256 es solo la capa 1 (navegador). El servidor le agrega pepper + bcrypt.</td></tr>
+          <tr><td><code>password_hash($clave, PASSWORD_BCRYPT)</code> a secas</td><td>Falta el pepper. Usá <code>SecurityHelper::hashPassword()</code>, que hace HMAC+pepper primero.</td></tr>
+          <tr><td>Pepper / api_key / clave SQL hardcodeados en el <code>.php</code></td><td>En config fuera de git, o en <code>CORE_Config</code> (pepper y secretos).</td></tr>
+          <tr><td><code>if ($tokenRecibido == $tokenGuardado)</code></td><td><code>if (hash_equals($tokenGuardado, $tokenRecibido))</code> — evita timing attacks.</td></tr>
+          <tr><td>Cada módulo con su propio esquema de contraseñas</td><td>Un solo esquema (pepper compartido) → una cuenta funciona en todos.</td></tr>
+          <tr><td>Loguear <code>$_POST</code> completo para "debug"</td><td>Nunca. Y como el form ya manda SHA-256, aunque se filtre el log no está la clave real — pero igual, no lo hagas.</td></tr>
+          <tr><td>Guardar el secreto TOTP en texto plano</td><td><code>MfaHelper::encryptSecret()</code> (AES-256) antes de la BD.</td></tr>
+          <tr><td>Aceptar el mismo código TOTP dos veces</td><td><code>verify()</code> devuelve el <code>$matchedStep</code> — guardalo y rechazá un código de un paso ≤ al último usado.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <footer>Portal APM — Autoridad Portuaria de Manta · Guía de seguridad de credenciales. Verificado contra <code>helpers/security_helper.php</code>, <code>js/password-hash.js</code>, <code>libs/SsoClient.php</code>, <code>core/MfaHelper.php</code>.</footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---- tema al cargar ---- */
+  try {
+    var t = localStorage.getItem('apm_segcred_theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  } catch(e){}
+  var tb = document.querySelector('.themebtn');
+  if (tb) tb.addEventListener('click', function(){
+    try { localStorage.setItem('apm_segcred_theme', document.documentElement.getAttribute('data-theme') || 'dark'); } catch(e){}
+  });
+
+  /* ---- scrollspy del sidebar ---- */
+  var links = Array.prototype.slice.call(document.querySelectorAll('.side a[href^="#"]'));
+  var secs = links.map(function(a){ return document.getElementById(a.getAttribute('href').slice(1)); }).filter(Boolean);
+  function spy(){
+    var y = window.scrollY + 90, cur = null;
+    secs.forEach(function(s){ if (s.offsetTop <= y) cur = s; });
+    links.forEach(function(a){ a.classList.toggle('active', cur && a.getAttribute('href') === '#' + cur.id); });
+  }
+  window.addEventListener('scroll', spy, { passive: true }); spy();
+
+  /* ---- copiar código ---- */
+  window.copyCode = function(btn){
+    var pre = btn.closest('.codebox').querySelector('pre');
+    var txt = pre.innerText;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
+      var o = btn.textContent; btn.textContent = '✓ Copiado';
+      setTimeout(function(){ btn.textContent = o; }, 1400);
+    }).catch(function(){});
+  };
+
+  /* ---- helpers crypto ---- */
+  function toHex(buf){
+    var b = new Uint8Array(buf), s = '';
+    for (var i=0;i<b.length;i++) s += b[i].toString(16).padStart(2,'0');
+    return s;
+  }
+  async function sha256Hex(str){
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return toHex(buf);
+  }
+  async function hmacSha256Hex(msgStr, keyStr){
+    var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(keyStr),
+      { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+    var sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msgStr));
+    return toHex(sig);
+  }
+
+  /* ---- demo 3 capas ---- */
+  var DEMO_PEPPER = 'pepper-de-demostracion-no-es-el-real-0000';
+  var inp = document.getElementById('demoPass');
+  async function runDemo(){
+    var v = inp.value || '';
+    if (!window.crypto || !crypto.subtle) {
+      document.getElementById('demoSha').textContent = '(este navegador no expone crypto.subtle — abrí por https o localhost)';
+      return;
+    }
+    var sha = await sha256Hex(v);
+    document.getElementById('demoSha').textContent = sha;
+    var hmac = await hmacSha256Hex(sha, DEMO_PEPPER);
+    document.getElementById('demoHmac').textContent = hmac;
+    // bcrypt real no corre en browser — mostramos una pseudo-sal derivada solo para que "cambie" visualmente
+    var pseudo = hmac.slice(0, 22).replace(/[^a-zA-Z0-9]/g, 'x');
+    document.getElementById('demoBcrypt').innerHTML = 'peppered:$2y$12$' + pseudo +
+      '<span style="color:var(--text-light)">' + hmac.slice(22, 53) + '</span>';
+  }
+  if (inp){ inp.addEventListener('input', runDemo); runDemo(); }
+
+  /* ---- TOTP demo (RFC 6238, SHA-1, base32 secret) ---- */
+  function base32ToBytes(s){
+    var alph = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    s = s.replace(/=+$/,'').toUpperCase();
+    var bits = '', out = [];
+    for (var i=0;i<s.length;i++){
+      var idx = alph.indexOf(s.charAt(i));
+      if (idx < 0) continue;
+      bits += idx.toString(2).padStart(5,'0');
+    }
+    for (var j=0;j+8<=bits.length;j+=8) out.push(parseInt(bits.substr(j,8),2));
+    return new Uint8Array(out);
+  }
+  async function totp(secretB32, step){
+    var key = await crypto.subtle.importKey('raw', base32ToBytes(secretB32),
+      { name:'HMAC', hash:'SHA-1' }, false, ['sign']);
+    var msg = new ArrayBuffer(8), dv = new DataView(msg);
+    dv.setUint32(4, step);
+    var sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, msg));
+    var off = sig[sig.length-1] & 0x0f;
+    var bin = ((sig[off]&0x7f)<<24) | (sig[off+1]<<16) | (sig[off+2]<<8) | sig[off+3];
+    return (bin % 1000000).toString().padStart(6,'0');
+  }
+  var codeEl = document.getElementById('totpCode');
+  var secEl  = document.getElementById('totpSec');
+  var arc    = document.getElementById('totpArc');
+  var CIRC   = 2 * Math.PI * 24;
+  if (arc) arc.setAttribute('stroke-dasharray', CIRC.toFixed(1));
+  async function tickTotp(){
+    if (!codeEl || !window.crypto || !crypto.subtle) return;
+    var now = Math.floor(Date.now()/1000);
+    var step = Math.floor(now/30);
+    var rem = 30 - (now % 30);
+    codeEl.textContent = await totp('JBSWY3DPEHPK3PXP', step);
+    secEl.textContent = rem;
+    if (arc) arc.setAttribute('stroke-dashoffset', (CIRC * (1 - rem/30)).toFixed(1));
+  }
+  if (codeEl){ tickTotp(); setInterval(tickTotp, 1000); }
+
+  /* ---- checklist con localStorage ---- */
+  var chk = document.getElementById('chk');
+  if (chk){
+    var KEY = 'apm_segcred_checklist';
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+    chk.querySelectorAll('li').forEach(function(li){
+      var k = li.getAttribute('data-k');
+      if (saved[k]) li.classList.add('done');
+      li.addEventListener('click', function(){
+        li.classList.toggle('done');
+        saved[k] = li.classList.contains('done');
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch(e){}
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
