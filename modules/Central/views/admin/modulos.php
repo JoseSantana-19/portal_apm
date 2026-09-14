@@ -166,6 +166,10 @@ $nativos = $total - $embebidos;
                     </td>
                     <td style="text-align:right;white-space:nowrap;">
                         <div class="dt-actions">
+                            <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/sync"
+                               class="btn btn-ghost btn-sm" data-spa title="Sincronización con RBAC propio (rol → permisos del módulo)">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </a>
                             <a href="<?= APP_URL ?>/admin/modulos/<?= (int)$m['id_modulo'] ?>/editar"
                                class="btn btn-ghost btn-sm" data-spa title="Editar módulo">
                                 <i class="fa-solid fa-pen-to-square"></i>

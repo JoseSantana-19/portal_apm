@@ -920,12 +920,14 @@ class AdminController extends Controller {
             'EXITO', 'nivel_crud por nodo MOIS (id_modulo-opcion-items-subitems)'
         );
 
-        // Sync bidireccional Fase 1/2: si este rol tiene mapeo en un módulo
-        // con RBAC propio (TH, Bienes), refleja el cambio allá también. No
+        // Sync genérico y data-driven: si este rol tiene mapeo en algún
+        // módulo con RBAC propio (CORE_Modulos_Sync_Config), refleja el
+        // cambio allá también. Agregar un módulo nuevo a este mecanismo es
+        // 2 INSERTs de datos (ver db/core_modulos_sync_generico.sql y
+        // ModuloController::sync()) — no requiere tocar este archivo. No
         // bloquea el guardado si el módulo destino no está disponible --
         // ver SyncPermisosModulo::registrarFalloSync().
-        SyncPermisosModulo::centralHaciaTh($id, $despuesMap);
-        SyncPermisosModulo::centralHaciaBienes($id, $despuesMap);
+        SyncPermisosModulo::centralHaciaGenerico($id, $despuesMap);
 
         if (View::isAjax()) {
             $this->json(['ok' => true, 'msg' => 'Permisos guardados correctamente.']);

@@ -114,6 +114,10 @@ $router->post('/admin/modulos',                 'ModuloController@crear');
 $router->get('/admin/modulos/{id}/editar',      'ModuloController@editar');
 $router->post('/admin/modulos/{id}',            'ModuloController@actualizar');
 $router->post('/admin/modulos/{id}/toggle',     'ModuloController@toggle');
+$router->get('/admin/modulos/{id}/sync',        'ModuloController@sync');
+$router->post('/admin/modulos/{id}/sync',       'ModuloController@guardarSync');
+$router->post('/admin/modulos/{id}/sync/nodo',       'ModuloController@agregarNodoSync');
+$router->post('/admin/modulos/{id}/sync/nodo/{op}/eliminar', 'ModuloController@eliminarNodoSync');
 
 /* ── Admin: Contenido del Portal (carrusel de fondos + ticker de noticias) ── */
 $router->get('/admin/landing',                        'LandingController@index');
